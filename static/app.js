@@ -106,6 +106,66 @@ function isWarActive() {
     return war.start <= Math.floor(Date.now() / 1000);
 }
 
+// --- Mobile ---
+const MOBILE_BREAKPOINT = 768;
+function isMobile() { return window.innerWidth < MOBILE_BREAKPOINT; }
+
+let hamburgerOpen = false;
+function toggleHamburger() {
+    hamburgerOpen = !hamburgerOpen;
+    const menu = document.getElementById('mh-menu');
+    const btn = document.getElementById('mh-hamburger');
+    menu.style.display = hamburgerOpen ? 'flex' : 'none';
+    btn.innerHTML = hamburgerOpen ? '&#10005;' : '&#9776;';
+}
+
+function updateMobileThemeBtn() {
+    const label = document.getElementById('mh-theme-label');
+    if (label) label.textContent = document.body.classList.contains('light') ? 'Light Mode' : 'Dark Mode';
+}
+
+function renderMobileHeader(war, chain) {
+    if (!isMobile()) return;
+    const warEl = document.getElementById('mh-war');
+    const bar = document.querySelector('.mh-bar');
+    const userName = localStorage.getItem('myKeyName');
+    const pid = localStorage.getItem('myKeyPlayer');
+    const userEl = document.getElementById('mh-user');
+
+    if (userEl) userEl.textContent = userName ? `${userName} [${pid}]` : '';
+
+    if (war?.war_id) {
+        const us = war.factions.find(f => f.id === FACTION_ID);
+        const them = war.factions.find(f => f.id !== FACTION_ID);
+        const now = Math.floor(Date.now() / 1000);
+
+        if (war.start <= now) {
+            bar.classList.add('mh-war-active');
+            let html = `<span style="color:var(--green);font-weight:600">⚔ RW</span>`;
+            html += ` <span class="mh-score-ours">${us?.score || 0}</span>`;
+            html += ` <span style="color:var(--text-dim);font-size:10px">–</span>`;
+            html += ` <span class="mh-score-theirs">${them?.score || 0}</span>`;
+            html += ` <span class="mh-score-target">/ ${war.target}</span>`;
+            if (chain && chain.current > 0) {
+                html += ` <span class="mh-chain">Chain: ${chain.current}</span>`;
+            }
+            warEl.innerHTML = html;
+        } else {
+            bar.classList.remove('mh-war-active');
+            const d = war.start - now, h = Math.floor(d/3600), m = Math.floor((d%3600)/60);
+            warEl.innerHTML = `<span style="color:var(--yellow)">⚔ RW in ${h}h ${m}m</span>`;
+        }
+    } else {
+        bar.classList.remove('mh-war-active');
+        warEl.textContent = 'TM War Room';
+    }
+
+    const mhAdmin = document.getElementById('mh-admin');
+    if (mhAdmin) mhAdmin.style.display = isAdmin ? '' : 'none';
+
+    updateMobileThemeBtn();
+}
+
 // --- Readiness ---
 function getReadiness(m, d) {
     const on = m.last_action.status, st = m.status.state;
@@ -378,6 +438,7 @@ async function refresh() {
         const [ov, det, en] = await Promise.all([api.overview(), api.detail(), api.enemy()]);
         overviewData = ov; detailData = det; enemyData = en;
         renderWar(ov.war, ov.war_progress);
+        renderMobileHeader(ov.war, ov.chain);
         // Chain status in war banner
         const chainEl = document.getElementById('chain-status');
         if (ov.chain && ov.war?.war_id) {
@@ -390,6 +451,8 @@ async function refresh() {
         renderOurTeam(ov.members, det);
         renderEnemy(en);
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        const mhUpdate = document.getElementById('mh-last-update');
+        if (mhUpdate) mhUpdate.textContent = 'Last: ' + new Date().toLocaleTimeString();
     } catch (e) { console.error('Refresh failed:', e); }
 }
 
