@@ -299,6 +299,14 @@ a:hover { text-decoration: underline; }
 .card-btn-bounty { background: none; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; padding: 2px 8px; min-height: 28px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); }
 .card-btn-bounty:active { transform: scale(0.9); background: var(--yellow-bg); border-color: var(--yellow-border); }
 
+/* === Admin key cards (mobile) === */
+.admin-key-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg-elevated); margin-bottom: 6px; }
+.admin-key-card-row1 { display: flex; justify-content: space-between; align-items: center; }
+.admin-key-card-name { font-weight: 600; font-size: 13px; color: var(--text); }
+.admin-key-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.admin-key-card .btn-remove-key { min-height: 36px; padding: 0 12px; }
+.admin-key-cards { display: flex; flex-direction: column; gap: 6px; }
+
 /* === Mobile breakpoint === */
 @media (max-width: 767px) {
     .mobile-only { display: block; }
