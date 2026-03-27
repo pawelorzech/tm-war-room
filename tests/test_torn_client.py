@@ -118,3 +118,62 @@ async def test_caching(client):
         await client.fetch_members()
 
     mock_get.assert_called_once()
+
+
+FAKE_ENEMY_MEMBERS = {
+    "members": [
+        {"id": 183527, "name": "DarkMagic", "level": 82, "days_in_faction": 66,
+         "last_action": {"status": "Offline", "timestamp": 1774603546, "relative": "13 min ago"},
+         "status": {"description": "Okay", "details": None, "state": "Okay", "color": "green", "until": None},
+         "position": "Tubby Kitten", "is_on_wall": False, "is_revivable": False, "is_in_oc": False}
+    ]
+}
+
+FAKE_FACTION_INFO = {
+    "basic": {"id": 9420, "name": "The Pusheen Army", "tag": "TPA", "tag_image": "", "leader_id": 0,
+              "co_leader_id": 0, "respect": 4161395, "days_old": 6323, "capacity": 100, "members": 73,
+              "is_enlisted": None, "rank": {"level": 16, "name": "Platinum", "division": 2, "position": 0, "wins": 62},
+              "best_chain": 50000}
+}
+
+FAKE_TORNSTATS_SPY = {
+    "status": True,
+    "faction": {"members": {"183527": {"name": "DarkMagic", "level": 82, "id": 183527,
+        "personalstats": {"Xanax Taken": 2002, "Refills": 934, "Stat Enhancers Used": 0,
+            "Attacks Won": 4742, "Attacks Lost": 257, "Defends Won": 264, "Defends Lost": 2630,
+            "Damage Done": 13808654, "Networth": 5900149236, "Highest Level Beaten": 100,
+            "Best Damage Made": 6365, "Best Kill Streak": 93}}}}
+}
+
+
+@pytest.mark.asyncio
+async def test_fetch_enemy_members(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_ENEMY_MEMBERS
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        members = await client.fetch_enemy_members(9420)
+    assert len(members) == 1
+    assert members[0].name == "DarkMagic"
+
+
+@pytest.mark.asyncio
+async def test_fetch_faction_info(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_FACTION_INFO
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        info = await client.fetch_faction_info(9420)
+    assert info.name == "The Pusheen Army"
+    assert info.wins == 62
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_spy(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_TORNSTATS_SPY
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        spy = await client.fetch_tornstats_spy(9420, "fake_key")
+    assert 183527 in spy
+    assert spy[183527].xanax_taken == 2002
