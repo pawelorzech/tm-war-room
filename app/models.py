@@ -28,6 +28,7 @@ class FactionMember(BaseModel):
     is_on_wall: bool = False
     is_revivable: bool = False
     is_in_oc: bool = False
+    revive_setting: str = "Unknown"
 
 
 class WarFaction(BaseModel):
