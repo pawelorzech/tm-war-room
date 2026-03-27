@@ -83,3 +83,47 @@ class MemberDetail(BaseModel):
 class DetailResponse(BaseModel):
     members: list[MemberDetail]
     cached_at: int
+
+
+class PersonalStats(BaseModel):
+    xanax_taken: int = 0
+    refills: int = 0
+    stat_enhancers_used: int = 0
+    attacks_won: int = 0
+    attacks_lost: int = 0
+    defends_won: int = 0
+    defends_lost: int = 0
+    networth: int = 0
+    highest_beaten: int = 0
+    best_damage: int = 0
+    best_kill_streak: int = 0
+    damage_done: int = 0
+
+    @classmethod
+    def from_tornstats(cls, raw: dict) -> "PersonalStats":
+        return cls(
+            xanax_taken=raw.get("Xanax Taken", 0),
+            refills=raw.get("Refills", 0),
+            stat_enhancers_used=raw.get("Stat Enhancers Used", 0),
+            attacks_won=raw.get("Attacks Won", 0),
+            attacks_lost=raw.get("Attacks Lost", 0),
+            defends_won=raw.get("Defends Won", 0),
+            defends_lost=raw.get("Defends Lost", 0),
+            networth=raw.get("Networth", 0),
+            highest_beaten=raw.get("Highest Level Beaten", 0),
+            best_damage=raw.get("Best Damage Made", 0),
+            best_kill_streak=raw.get("Best Kill Streak", 0),
+            damage_done=raw.get("Damage Done", 0),
+        )
+
+
+class FactionInfo(BaseModel):
+    id: int
+    name: str
+    tag: str = ""
+    respect: int = 0
+    members_count: int = 0
+    rank_name: str = ""
+    rank_level: int = 0
+    best_chain: int = 0
+    wins: int = 0
