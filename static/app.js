@@ -328,6 +328,115 @@ function renderMobileCards(members, detailResponse) {
     expandedOurCard = null;
 }
 
+let expandedEnemyCard = null;
+
+function toggleEnemyCard(cardEl) {
+    if (expandedEnemyCard && expandedEnemyCard !== cardEl) {
+        expandedEnemyCard.classList.remove('expanded');
+    }
+    cardEl.classList.toggle('expanded');
+    expandedEnemyCard = cardEl.classList.contains('expanded') ? cardEl : null;
+}
+
+function mobileSortEnemy(val) {
+    enemySort.col = val;
+    enemySort.asc = (val === 'name');
+    if (enemyData) renderEnemy(enemyData);
+}
+
+function renderMobileEnemyCards(data) {
+    if (!data?.faction) {
+        document.getElementById('enemy-mobile-summary').textContent = 'No enemy loaded';
+        document.getElementById('enemy-cards').innerHTML = '';
+        document.getElementById('enemy-count').textContent = '0';
+        return;
+    }
+
+    const f = data.faction, ms = data.members;
+    let atk = 0, hosp = 0;
+    for (const m of ms) { if (m.last_action.status!=='Offline' && m.status.state==='Okay') atk++; if (m.status.state==='Hospital') hosp++; }
+    document.getElementById('enemy-mobile-summary').textContent = `${atk} attackable · ${hosp} hospital · ${ms.length} total`;
+    document.getElementById('enemy-count').textContent = ms.length;
+
+    const sorted = [...ms].sort((a, b) => {
+        const va = getEnemySortValue(a, enemySort.col);
+        const vb = getEnemySortValue(b, enemySort.col);
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return enemySort.asc ? cmp : -cmp;
+    });
+
+    const hasBaseline = data.threat_mode === 'relative';
+
+    const container = document.getElementById('enemy-cards');
+    container.innerHTML = sorted.map(m => {
+        const ok = m.last_action.status !== 'Offline' && m.status.state === 'Okay';
+        const dotColor = ok ? 'green' : m.status.state === 'Hospital' ? 'yellow' : 'red';
+
+        let stateHtml;
+        if (m.status.state === 'Hospital') {
+            const left = m.status.until ? fmtCD(m.status.until - Math.floor(Date.now()/1000)) : '';
+            stateHtml = `<span style="color:var(--yellow)">🏥 ${left}</span>`;
+        } else if (m.status.state === 'Okay') {
+            stateHtml = `<span style="color:var(--green)">${m.last_action.status}</span>`;
+        } else {
+            stateHtml = `<span style="color:var(--text-dim)">${m.status.state}</span>`;
+        }
+
+        let threatHtml;
+        if (hasBaseline) {
+            threatHtml = `<span class="threat threat-${m.threat_label}">${m.threat_label} ${m.threat_score}</span>`;
+        } else {
+            threatHtml = `<span class="threat threat-unknown" onclick="event.stopPropagation();showKeyModal()">add key</span>`;
+        }
+
+        const attackClass = m.status.state === 'Hospital' ? 'btn-attack btn-attack-muted' : 'btn-attack';
+        const attackBtn = `<a href="${m.attack_url}" target="_blank" class="${attackClass}" onclick="event.stopPropagation()">Attack</a>`;
+
+        const ps = m.personal_stats;
+        let statsHtml = '';
+        if (ps) {
+            statsHtml = `
+                <div><span class="label">Xanax:</span> ${ps.xanax_taken.toLocaleString()}</div>
+                <div><span class="label">Refills:</span> ${ps.refills.toLocaleString()}</div>
+                <div><span class="label">SEs:</span> ${ps.stat_enhancers_used}</div>
+                <div><span class="label">Atk won:</span> ${ps.attacks_won.toLocaleString()}</div>
+                <div><span class="label">Def won:</span> ${ps.defends_won.toLocaleString()}</div>
+                <div><span class="label">Best streak:</span> ${ps.best_kill_streak}</div>
+                <div><span class="label">NW:</span> $${fmtNum(ps.networth)}</div>
+                <div><span class="label">Best beaten:</span> Lv ${ps.highest_beaten}</div>
+                <div><span class="label">Last action:</span> ${m.last_action.relative}</div>
+                <div><span class="label">Damage:</span> ${fmtNum(ps.best_damage)}</div>`;
+        } else {
+            statsHtml = `<div style="grid-column:1/-1;color:var(--text-dim)">No TornStats data available</div>
+                <div><span class="label">Last action:</span> ${m.last_action.relative}</div>`;
+        }
+
+        return `<div class="enemy-card" onclick="toggleEnemyCard(this)">
+            <div class="enemy-card-row1">
+                <div class="enemy-card-left">
+                    <span class="dot dot-${dotColor}"></span>
+                    <span class="enemy-card-name">${m.name}</span>
+                    <span class="enemy-card-level">${m.level}</span>
+                </div>
+                ${threatHtml}
+            </div>
+            <div class="enemy-card-row2">
+                <span class="enemy-card-state">${stateHtml}</span>
+                ${attackBtn}
+            </div>
+            <div class="enemy-card-details">
+                ${statsHtml}
+                <div class="enemy-card-links">
+                    <a href="${m.stats_url}" target="_blank" onclick="event.stopPropagation()">Stats ↗</a>
+                    <a href="${m.profile_url}" target="_blank" onclick="event.stopPropagation()">Profile ↗</a>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    expandedEnemyCard = null;
+}
+
 // --- Readiness ---
 function getReadiness(m, d) {
     const on = m.last_action.status, st = m.status.state;
@@ -555,6 +664,9 @@ function getEnemySortValue(m, col) {
 
 // --- Enemy ---
 function renderEnemy(data) {
+    if (isMobile()) {
+        renderMobileEnemyCards(data);
+    }
     if (!data?.faction) {
         document.getElementById('enemy-summary').textContent = 'No enemy faction loaded';
         document.getElementById('enemy-body').innerHTML = '';
