@@ -4,6 +4,8 @@ from httpx import AsyncClient, ASGITransport
 
 from app.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
 
+AUTH_HEADERS = {"X-Player-Id": "123"}
+
 
 def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online") -> FactionMember:
     return FactionMember(
@@ -38,7 +40,7 @@ def mock_client():
 @pytest.fixture
 def mock_store():
     store = MagicMock()
-    store.get_all_keys.return_value = [{"player_id": 123, "player_name": "Test", "api_key": "fake_key"}]
+    store.get_all_keys.return_value = [{"player_id": 123, "player_name": "Test", "api_key": "fake_key", "is_faction_key": False}]
     store.save_key = MagicMock()
     store.delete_key = MagicMock()
     return store
@@ -50,7 +52,7 @@ async def test_overview(mock_client, mock_store):
         from app.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/overview")
+            resp = await ac.get("/api/overview", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["members"]) == 1
@@ -59,12 +61,22 @@ async def test_overview(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_overview_no_auth(mock_client, mock_store):
+    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/overview")
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_members_detail(mock_client, mock_store):
     with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
         from app.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail")
+            resp = await ac.get("/api/members/detail", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["members"]) == 1
@@ -74,7 +86,7 @@ async def test_members_detail(mock_client, mock_store):
 @pytest.mark.asyncio
 async def test_register_key(mock_client, mock_store):
     validate_resp = AsyncMock()
-    validate_resp.json.return_value = {"player_id": 999, "name": "NewPlayer"}
+    validate_resp.json.return_value = {"player_id": 999, "name": "NewPlayer", "faction": {"faction_id": 11559}}
     validate_resp.raise_for_status = lambda: None
     mock_client._http = AsyncMock()
     mock_client._http.get = AsyncMock(return_value=validate_resp)
@@ -88,6 +100,22 @@ async def test_register_key(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_register_key_wrong_faction(mock_client, mock_store):
+    validate_resp = AsyncMock()
+    validate_resp.json.return_value = {"player_id": 999, "name": "Enemy", "faction": {"faction_id": 9999}}
+    validate_resp.raise_for_status = lambda: None
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(return_value=validate_resp)
+
+    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/keys", json={"api_key": "enemy_key"})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_enemy_with_rw(mock_client, mock_store):
     mock_client.fetch_enemy_members = AsyncMock(return_value=[_make_member(id=999, name="Enemy1")])
     mock_client.fetch_faction_info = AsyncMock(return_value=FactionInfo(
@@ -97,7 +125,6 @@ async def test_enemy_with_rw(mock_client, mock_store):
         999: PersonalStats(xanax_taken=2000, refills=900, attacks_won=4000,
                            networth=5_000_000_000, highest_beaten=100, best_damage=6000,
                            best_kill_streak=90, damage_done=13_000_000)})
-    # Baseline stats for relative threat (passed via baseline_pid query param)
     mock_client.fetch_personalstats = AsyncMock(return_value=PersonalStats(
         xanax_taken=3000, refills=1500, attacks_won=8000, defends_won=500,
         networth=11_000_000_000, highest_beaten=100, best_damage=7000,
@@ -110,7 +137,7 @@ async def test_enemy_with_rw(mock_client, mock_store):
         from app.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/enemy?baseline_pid=123")
+            resp = await ac.get("/api/enemy?baseline_pid=123", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["faction"]["name"] == "The Pusheen Army"
