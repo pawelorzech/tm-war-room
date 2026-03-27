@@ -164,7 +164,7 @@ class KeyRegister(BaseModel):
 async def register_key(body: KeyRegister):
     resp = await torn_client._http.get(
         "https://api.torn.com/user/",
-        params={"selections": "basic", "key": body.api_key},
+        params={"selections": "profile", "key": body.api_key},
     )
     resp.raise_for_status()
     raw = resp.json()
