@@ -65,8 +65,10 @@ main { padding: 0.75rem 1rem; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* === Info banner === */
-.info-banner { padding: 0.6rem 0.75rem; background: var(--yellow-bg); border: 1px solid var(--yellow-border); color: var(--yellow); border-radius: 6px; font-size: 0.75rem; margin-bottom: 0.75rem; }
+/* === Info banners === */
+.info-banner { padding: 0.5rem 0.75rem; background: var(--yellow-bg); border: 1px solid var(--yellow-border); color: var(--yellow); border-radius: 6px; font-size: 0.75rem; margin-bottom: 0.5rem; }
+.my-key-banner { padding: 0.5rem 0.75rem; background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); border-radius: 6px; font-size: 0.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
+.btn-remove { padding: 0.2rem 0.5rem; background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); border-radius: 3px; font-size: 0.7rem; cursor: pointer; }
 
 /* === Summary === */
 .summary { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
