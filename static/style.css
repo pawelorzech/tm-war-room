@@ -148,6 +148,10 @@ a:hover { text-decoration: underline; }
 .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); }
 #key-status { margin-top: 0.4rem; font-size: 0.75rem; }
 
+/* === Footer === */
+.site-footer { text-align: center; padding: 1.5rem 1rem 1rem; font-size: 0.7rem; color: var(--text-dim); border-top: 1px solid var(--border); margin-top: 2rem; }
+.site-footer a { color: var(--text-muted); }
+
 /* === Chain info === */
 .chain-info { margin-top: 0.3rem; font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0.75rem; }
 
