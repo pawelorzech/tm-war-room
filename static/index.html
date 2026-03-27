@@ -41,13 +41,12 @@
     <main>
         <!-- KEY BANNER -->
         <div id="key-banner" class="info-banner" style="display:none">
-            Register your API key to show your energy &amp; drug cooldown status. Click <strong>+ API Key</strong> above. Your key is encrypted and only used to read bars/cooldowns.
-            <div style="margin-top:0.4rem">
-                <strong>Remove your key:</strong>
-                <input type="text" id="remove-pid" placeholder="Your player ID" style="width:100px;padding:0.2rem 0.4rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:0.75rem">
-                <button onclick="removeKey()" style="padding:0.2rem 0.5rem;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:3px;font-size:0.75rem;cursor:pointer">Remove</button>
-                <span id="remove-status" style="font-size:0.75rem"></span>
-            </div>
+            Register your API key to show your energy &amp; drug cooldown. Click <strong>+ API Key</strong> above.
+        </div>
+        <!-- REGISTERED KEY INFO -->
+        <div id="my-key-info" class="my-key-banner" style="display:none">
+            Your key is registered as <strong id="my-key-name"></strong>.
+            <button onclick="removeMyKey()" class="btn-remove">Remove my key</button>
         </div>
 
         <!-- OUR TEAM TAB -->

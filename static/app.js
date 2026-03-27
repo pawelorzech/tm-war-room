@@ -120,12 +120,17 @@ function renderOurTeam(members, details) {
     document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys registered`;
     document.getElementById('our-count').textContent = members.length;
 
-    // Banner if few keys registered
+    // Banners
+    const myKey = localStorage.getItem('myKeyPlayer');
     const banner = document.getElementById('key-banner');
-    if (optedIn.size < 5) {
-        banner.style.display = 'block';
-    } else {
+    const myInfo = document.getElementById('my-key-info');
+    if (myKey) {
         banner.style.display = 'none';
+        myInfo.style.display = 'flex';
+        document.getElementById('my-key-name').textContent = localStorage.getItem('myKeyName') || `#${myKey}`;
+    } else {
+        banner.style.display = 'block';
+        myInfo.style.display = 'none';
     }
 
     document.getElementById('our-body').innerHTML = sorted.map(m => {
@@ -255,23 +260,24 @@ async function submitKey() {
     try {
         const r = await fetch('/api/keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({api_key:key, is_faction_key:isFaction})});
         const d = await r.json();
-        if (r.ok) { st.style.color='var(--green)'; st.textContent=`OK: ${d.name} [${d.player_id}]`; setTimeout(()=>{hideKeyModal();refresh();},1000); }
+        if (r.ok) {
+            localStorage.setItem('myKeyPlayer', d.player_id);
+            localStorage.setItem('myKeyName', d.name);
+            st.style.color='var(--green)'; st.textContent=`OK: ${d.name} [${d.player_id}]`;
+            setTimeout(()=>{hideKeyModal();refresh();},1000);
+        }
         else { st.style.color='var(--red)'; st.textContent=d.detail||'Invalid key'; }
     } catch(e) { st.style.color='var(--red)'; st.textContent=e.message; }
 }
 
-// --- Remove key ---
-async function removeKey() {
-    const st = document.getElementById('remove-status');
-    const pidStr = document.getElementById('remove-pid').value.trim();
-    if (!pidStr) { st.textContent = 'Enter your player ID'; return; }
-    st.textContent = 'Removing...';
-    try {
-        await api.deleteKey(pidStr);
-        st.style.color = 'var(--green)';
-        st.textContent = 'Key removed';
-        setTimeout(refresh, 500);
-    } catch(e) { st.style.color='var(--red)'; st.textContent=e.message; }
+// --- Remove MY key ---
+async function removeMyKey() {
+    const pid = localStorage.getItem('myKeyPlayer');
+    if (!pid) return;
+    await api.deleteKey(pid);
+    localStorage.removeItem('myKeyPlayer');
+    localStorage.removeItem('myKeyName');
+    refresh();
 }
 
 refresh();
