@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+app/__init__.py
+app/config.py
+tm_war_room.egg-info/PKG-INFO
+tm_war_room.egg-info/SOURCES.txt
+tm_war_room.egg-info/dependency_links.txt
+tm_war_room.egg-info/requires.txt
+tm_war_room.egg-info/top_level.txt

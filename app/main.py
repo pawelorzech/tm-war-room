@@ -109,7 +109,7 @@ async def enemy(faction_id: int | None = Query(default=None)):
             "threat_score": score, "threat_label": label,
             "attack_url": f"https://www.torn.com/loader.php?sid=attack&user2ID={m.id}",
             "profile_url": f"https://www.torn.com/profiles.php?XID={m.id}",
-            "tornstats_url": f"https://www.tornstats.com/playerinfo.php?user={m.id}",
+            "stats_url": f"https://www.torn.com/personalstats.php?ID={m.id}",
         })
 
     enemy_list.sort(key=lambda e: (
