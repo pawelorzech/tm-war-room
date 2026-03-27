@@ -7,20 +7,73 @@ let enemySort = { col: 'threat_score', asc: true };
 let adminRange = 7;
 let isAdmin = false;
 
-// --- Theme ---
-function initTheme() {
-    const saved = localStorage.getItem('theme');
-    if (saved === 'light' || (!saved && window.matchMedia('(prefers-color-scheme: light)').matches)) {
-        document.body.classList.add('light');
-        document.getElementById('theme-btn').textContent = 'Turn Dark';
-    } else {
-        document.getElementById('theme-btn').textContent = 'Turn Light';
-    }
+// --- Theme slider ---
+const THEME_DARK = {
+    bg:[10,10,10], 'bg-surface':[17,17,17], 'bg-elevated':[26,26,26],
+    border:[34,34,34], 'border-light':[26,26,26],
+    text:[224,224,224], 'text-muted':[136,136,136], 'text-dim':[85,85,85],
+    green:[74,222,128], yellow:[250,204,21], red:[248,113,113], purple:[192,132,252], blue:[96,165,250],
+    'green-bg':[26,45,26], 'green-border':[45,90,45],
+    'yellow-bg':[45,42,26], 'yellow-border':[90,77,45],
+    'red-bg':[45,26,26], 'red-border':[90,45,45],
+    'purple-bg':[45,26,45],
+    'btn-bg':[26,26,46], 'btn-border':[51,51,51], 'btn-text':[170,170,170],
+    'btn-hover':[37,37,64],
+};
+const THEME_LIGHT = {
+    bg:[245,245,245], 'bg-surface':[255,255,255], 'bg-elevated':[255,255,255],
+    border:[221,221,221], 'border-light':[238,238,238],
+    text:[26,26,26], 'text-muted':[102,102,102], 'text-dim':[153,153,153],
+    green:[22,163,74], yellow:[202,138,4], red:[220,38,38], purple:[147,51,234], blue:[37,99,235],
+    'green-bg':[220,252,231], 'green-border':[134,239,172],
+    'yellow-bg':[254,249,195], 'yellow-border':[253,224,71],
+    'red-bg':[254,226,226], 'red-border':[252,165,165],
+    'purple-bg':[243,232,255],
+    'btn-bg':[229,231,235], 'btn-border':[209,213,219], 'btn-text':[55,65,81],
+    'btn-hover':[209,213,219],
+};
+
+function lerpColor(a, b, t) {
+    return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;
 }
+
+function applyThemeLevel(t) {
+    const root = document.documentElement;
+    for (const key in THEME_DARK) {
+        root.style.setProperty(`--${key}`, lerpColor(THEME_DARK[key], THEME_LIGHT[key], t));
+    }
+    const overlayAlpha = 0.7 - 0.3 * t;
+    root.style.setProperty('--modal-overlay', `rgba(0,0,0,${overlayAlpha.toFixed(2)})`);
+    document.body.classList.toggle('light', t > 0.5);
+}
+
+function setThemeSlider(val) {
+    const t = val / 100;
+    applyThemeLevel(t);
+    localStorage.setItem('themeLevel', val);
+    // Sync all sliders
+    document.querySelectorAll('.theme-slider').forEach(s => { s.value = val; });
+}
+
+function initTheme() {
+    let val = localStorage.getItem('themeLevel');
+    if (val === null) {
+        // Migrate from old toggle
+        const old = localStorage.getItem('theme');
+        if (old === 'light' || (!old && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            val = 100;
+        } else {
+            val = 0;
+        }
+    }
+    val = parseInt(val);
+    applyThemeLevel(val / 100);
+    document.querySelectorAll('.theme-slider').forEach(s => { s.value = val; });
+}
+// toggleTheme kept for backwards compat — snaps to opposite end
 function toggleTheme() {
-    const isLight = document.body.classList.toggle('light');
-    localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    document.getElementById('theme-btn').textContent = isLight ? 'Turn Dark' : 'Turn Light';
+    const current = parseInt(localStorage.getItem('themeLevel') || '0');
+    setThemeSlider(current > 50 ? 0 : 100);
 }
 initTheme();
 
@@ -120,8 +173,9 @@ function toggleHamburger() {
 }
 
 function updateMobileThemeBtn() {
-    const label = document.getElementById('mh-theme-label');
-    if (label) label.textContent = document.body.classList.contains('light') ? 'Light Mode' : 'Dark Mode';
+    // Sync slider values when header re-renders
+    const val = localStorage.getItem('themeLevel') || '0';
+    document.querySelectorAll('.theme-slider').forEach(s => { s.value = val; });
 }
 
 function renderMobileHeader(war, chain) {
