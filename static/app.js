@@ -148,7 +148,9 @@ function renderEnemy(data) {
         const hospTime = m.status.state==='Hospital' && m.status.until ? ` (${fmtCD(m.status.until - Math.floor(Date.now()/1000))})` : '';
         const dotColor = ok ? 'green' : m.status.state==='Hospital' ? 'yellow' : 'red';
 
-        return `<tr><td><span class="dot dot-${dotColor}"></span></td><td><a href="${m.profile_url}" target="_blank">${m.name}</a></td><td>${m.level}</td><td><span class="threat threat-${m.threat_label}">${m.threat_label} ${m.threat_score}</span></td><td>${st}${hospTime}</td><td class="hide-mobile">${m.last_action.relative}</td><td class="hide-mobile">${xr}</td><td class="hide-mobile">${aw}</td><td><a href="${m.attack_url}" target="_blank" class="btn-attack">Attack</a> <a href="${m.tornstats_url}" target="_blank" class="btn-ts">Stats</a></td></tr>`;
+        const tip = ps ? `Score: ${m.threat_score}/100\nXanax: ${ps.xanax_taken.toLocaleString()}\nRefills: ${ps.refills.toLocaleString()}\nSEs: ${ps.stat_enhancers_used}\nAtk won: ${ps.attacks_won.toLocaleString()}\nDef won: ${ps.defends_won.toLocaleString()}\nNW: $${fmtNum(ps.networth)}\nBest beaten: Lv${ps.highest_beaten}` : 'No TornStats data';
+
+        return `<tr><td><span class="dot dot-${dotColor}"></span></td><td><a href="${m.profile_url}" target="_blank">${m.name}</a></td><td>${m.level}</td><td><span class="threat threat-${m.threat_label}" title="${tip}">${m.threat_label} ${m.threat_score}</span></td><td>${st}${hospTime}</td><td class="hide-mobile">${m.last_action.relative}</td><td class="hide-mobile">${xr}</td><td class="hide-mobile">${aw}</td><td><a href="${m.attack_url}" target="_blank" class="btn-attack">Attack</a> <a href="${m.tornstats_url}" target="_blank" class="btn-ts">Stats</a></td></tr>`;
     }).join('');
 }
 
