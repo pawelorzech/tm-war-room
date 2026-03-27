@@ -132,7 +132,11 @@ a:hover { text-decoration: underline; }
 /* === Modal === */
 .modal { position: fixed; inset: 0; background: var(--modal-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal-content { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; max-width: 360px; width: 90%; }
-.modal-content h2 { margin-bottom: 0.4rem; font-size: 1rem; }
+.modal-content h2 { margin-bottom: 0.5rem; font-size: 1rem; }
+.key-info { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; }
+.key-info p { margin-bottom: 0.3rem; }
+.key-info p:last-child { margin-bottom: 0; }
+.key-info a { color: var(--blue); }
 .modal-content p { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.75rem; }
 .modal-content input { width: 100%; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 0.85rem; margin-bottom: 0.75rem; }
 .modal-buttons { display: flex; gap: 0.5rem; }

@@ -113,7 +113,13 @@
     <div id="key-modal" class="modal" style="display:none">
         <div class="modal-content">
             <h2>Register API Key</h2>
-            <p>Your key is stored encrypted. Only energy &amp; cooldowns are read.</p>
+            <div class="key-info">
+                <p><strong>Required access level:</strong> Minimal</p>
+                <p><strong>What we read:</strong> your energy bar, nerve bar, happy bar, and drug/booster cooldowns &mdash; nothing else.</p>
+                <p><strong>Why:</strong> to show your war readiness (energy stacking, drug cooldown) on the faction dashboard.</p>
+                <p>Your key is stored <strong>encrypted</strong> on our server. You can remove it anytime. We never read your money, inventory, attacks, or any other data.</p>
+                <p>Create a key at <a href="https://www.torn.com/preferences.php#tab=api" target="_blank">Torn &rarr; Settings &rarr; API Keys</a>.</p>
+            </div>
             <input type="text" id="key-input" placeholder="Paste your Torn API key">
             <label class="checkbox-row">
                 <input type="checkbox" id="key-faction-toggle">
