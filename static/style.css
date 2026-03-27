@@ -152,6 +152,17 @@ a:hover { text-decoration: underline; }
 /* === New member badge === */
 .badge-new { font-size: 0.6rem; background: var(--yellow-bg); color: var(--yellow); padding: 0.05rem 0.3rem; border-radius: 3px; font-weight: 600; vertical-align: middle; }
 
+/* === Login gate === */
+.login-gate { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.login-box { max-width: 400px; width: 90%; text-align: center; }
+.login-box h1 { font-size: 1.5rem; color: var(--text); margin-bottom: 0.5rem; }
+.login-box > p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+.login-box .key-info { text-align: left; margin-bottom: 1rem; }
+.login-box input { width: 100%; padding: 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); border-radius: 6px; font-size: 0.9rem; margin-bottom: 0.75rem; }
+.login-box button { width: 100%; padding: 0.6rem; background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.login-box button:hover { filter: brightness(1.2); }
+#login-status { margin-top: 0.5rem; font-size: 0.8rem; }
+
 /* === Mobile === */
 @media (max-width: 768px) {
     header { padding: 0.5rem 0.75rem; }
