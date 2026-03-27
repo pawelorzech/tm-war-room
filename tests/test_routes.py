@@ -260,6 +260,34 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
 
 
 @pytest.mark.asyncio
+async def test_me_admin(mock_client, mock_store):
+    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
+         patch("app.config.ADMIN_PLAYER_IDS", {123}):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/me", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["player_id"] == 123
+    assert data["is_admin"] is True
+
+
+@pytest.mark.asyncio
+async def test_me_non_admin(mock_client, mock_store):
+    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
+         patch("app.config.ADMIN_PLAYER_IDS", {9999}):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/me", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["player_id"] == 123
+    assert data["is_admin"] is False
+
+
+@pytest.mark.asyncio
 async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
     yata_data = {
         "123": {**FAKE_YATA["123"], "energy_share": 1},
