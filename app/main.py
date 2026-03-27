@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     os.makedirs("data", exist_ok=True)
     analytics_store = AnalyticsStore(db_path="data/analytics.db")
     analytics_store.cleanup(days=30)
-    torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL)
+    torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL, analytics_store=analytics_store)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
     admin_mod.init(key_store, analytics_store, torn_client, time.time())
     yield
