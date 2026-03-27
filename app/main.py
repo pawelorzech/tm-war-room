@@ -5,12 +5,14 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query, Header, Depends
+from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY
+from app.analytics import AnalyticsStore
+from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, ADMIN_PLAYER_IDS
+import app.config as config_mod
 from app.torn_client import TornClient
 from app.db import KeyStore
 from app.threat import compute_threat
@@ -24,17 +26,46 @@ analytics_store = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global torn_client, key_store
+    global torn_client, key_store, analytics_store
     os.makedirs("data", exist_ok=True)
+    analytics_store = AnalyticsStore(db_path="data/analytics.db")
+    analytics_store.cleanup(days=30)
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
-    admin_mod.init(key_store, None, torn_client, time.time())
+    admin_mod.init(key_store, analytics_store, torn_client, time.time())
     yield
     await torn_client.close()
 
 
 app = FastAPI(title="TM War Room", lifespan=lifespan)
 app.include_router(admin_router)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if analytics_store is None or not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    start = time.time()
+    response = await call_next(request)
+    elapsed_ms = (time.time() - start) * 1000
+    player_id_raw = request.headers.get("x-player-id")
+    pid = int(player_id_raw) if player_id_raw and player_id_raw.isdigit() else None
+    try:
+        analytics_store.log_request(pid, request.method, request.url.path, response.status_code, elapsed_ms)
+    except Exception:
+        pass
+    return response
+
+
+@app.get("/api/me")
+async def me(x_player_id: int = Header()):
+    all_keys = key_store.get_all_keys()
+    if not any(k["player_id"] == x_player_id for k in all_keys):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    return {
+        "player_id": x_player_id,
+        "is_admin": x_player_id in config_mod.ADMIN_PLAYER_IDS,
+    }
 
 
 async def verify_member(x_player_id: int = Header()):
