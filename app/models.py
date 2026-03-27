@@ -113,8 +113,8 @@ class PersonalStats(BaseModel):
             networth=raw.get("networth", 0),
             highest_beaten=raw.get("highestbeaten", 0),
             best_damage=raw.get("bestdamage", 0),
-            best_kill_streak=raw.get("killstreak", 0),
-            damage_done=raw.get("totaldamage", 0),
+            best_kill_streak=raw.get("bestkillstreak", 0),
+            damage_done=raw.get("attackdamage", 0),
         )
 
     @classmethod
