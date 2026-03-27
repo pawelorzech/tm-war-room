@@ -156,3 +156,78 @@ async def test_admin_endpoint_no_token(mock_client, mock_store, mock_analytics):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/keys")
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_request_stats(mock_client, mock_store, mock_analytics):
+    mock_analytics.get_request_stats.return_value = {
+        "per_day": [{"date": "2026-03-27", "count": 100, "avg_response_ms": 45.0}],
+        "per_endpoint": [{"endpoint": "/api/overview", "count": 80, "avg_response_ms": 50.0}],
+        "total_requests": 100,
+    }
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/admin/stats/requests?days=7", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_requests"] == 100
+
+
+@pytest.mark.asyncio
+async def test_admin_user_stats(mock_client, mock_store, mock_analytics):
+    mock_analytics.get_user_stats.return_value = [
+        {"player_id": ADMIN_ID, "last_seen": "2026-03-27T15:30:00", "request_count": 50},
+    ]
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/admin/stats/users?days=7", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["users"]) == 1
+    assert data["users"][0]["player_name"] == "Bombla"
+
+
+@pytest.mark.asyncio
+async def test_admin_error_stats(mock_client, mock_store, mock_analytics):
+    mock_analytics.get_error_stats.return_value = [
+        {"endpoint": "/api/enemy", "status_code": 502, "count": 3, "last_occurred": "2026-03-27T14:00:00", "last_error_message": "timeout"},
+    ]
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/admin/stats/errors?days=7", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["errors"]) == 1
+    assert data["errors"][0]["status_code"] == 502
+
+
+@pytest.mark.asyncio
+async def test_admin_system(mock_client, mock_store, mock_analytics):
+    mock_analytics.get_integration_status.return_value = {
+        "torn_api": {"status": "ok", "last_success": "2026-03-27T15:00:00", "last_error": None, "last_error_at": None},
+    }
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/admin/system", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "uptime_seconds" in data
+    assert "version" in data
+    assert "cache" in data
+    assert data["cache"]["entries"] == 2
+    assert "integrations" in data
+    assert data["integrations"]["torn_api"]["status"] == "ok"
+    assert data["integrations"]["tornstats"]["status"] == "unknown"
+    assert data["integrations"]["yata"]["status"] == "unknown"
