@@ -80,19 +80,101 @@ async def overview(_=Depends(verify_member)):
     }
 
 
+FULL_ACCESS_POSITIONS = {"Leader", "Co-leader", "Council", "API", "Leadership"}
+SELF_ONLY_POSITIONS = {"Team 1", "Team 2", "Team 3", "Team 4", "Member", "Contact"}
+
+
 @app.get("/api/members/detail")
-async def members_detail(_=Depends(verify_member)):
-    keys = key_store.get_all_keys()
-    results = []
-    for entry in keys:
+async def members_detail(x_player_id: int = Header()):
+    # Auth check
+    all_keys = key_store.get_all_keys()
+    if not any(k["player_id"] == x_player_id for k in all_keys):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+
+    # Get members for position lookup
+    active_key = _get_active_api_key()
+    if active_key != torn_client._api_key:
+        torn_client._api_key = active_key
+    members = await torn_client.fetch_members()
+    member_map = {m.id: m for m in members}
+
+    # Determine access level
+    requesting_member = member_map.get(x_player_id)
+    if not requesting_member:
+        return {"yata_down": False, "members": {}, "cached_at": int(time.time())}
+    position = requesting_member.position
+    if position in FULL_ACCESS_POSITIONS:
+        visible_ids = set(member_map.keys())
+    elif position in SELF_ONLY_POSITIONS:
+        visible_ids = {x_player_id}
+    else:
+        return {"yata_down": False, "members": {}, "cached_at": int(time.time())}
+
+    # Fetch YATA data (try faction key first, fallback to any registered key)
+    yata_data = await torn_client.fetch_yata_members()
+    if yata_data is None and all_keys:
+        for entry in all_keys:
+            yata_data = await torn_client.fetch_yata_members(api_key=entry["api_key"])
+            if yata_data is not None:
+                break
+    yata_down = yata_data is None
+
+    # Fetch per-key data for registered members
+    per_key = {}
+    for entry in all_keys:
+        pid = entry["player_id"]
+        if pid not in visible_ids:
+            continue
         try:
             bars = await torn_client.fetch_member_bars(entry["api_key"])
-            results.append({"player_id": entry["player_id"], "name": entry["player_name"],
-                            "bars": bars.model_dump(), "error": None})
-        except Exception as e:
-            results.append({"player_id": entry["player_id"], "name": entry["player_name"],
-                            "bars": None, "error": str(e)})
-    return {"members": results, "cached_at": int(time.time())}
+            per_key[pid] = bars
+        except Exception:
+            pass
+
+    # Merge: per-key wins, then YATA, then status flags
+    result = {}
+    for pid in visible_ids:
+        pid_str = str(pid)
+        if pid in per_key:
+            bars = per_key[pid]
+            result[pid_str] = {
+                "energy": bars.energy.current,
+                "max_energy": bars.energy.maximum,
+                "drug_cd": bars.cooldowns.drug,
+                "refill": False,
+                "source": "torn_api",
+            }
+        elif yata_data and pid_str in yata_data:
+            ym = yata_data[pid_str]
+            share = ym.get("energy_share", 0)
+            if share == 1:
+                result[pid_str] = {
+                    "energy": ym.get("energy", 0),
+                    "max_energy": None,
+                    "drug_cd": ym.get("drug_cd", 0),
+                    "refill": ym.get("refill", False),
+                    "source": "yata",
+                }
+            elif share == -1:
+                result[pid_str] = {
+                    "energy": 0, "max_energy": None,
+                    "drug_cd": 0, "refill": False,
+                    "source": "hidden",
+                }
+            else:
+                result[pid_str] = {
+                    "energy": 0, "max_energy": None,
+                    "drug_cd": 0, "refill": False,
+                    "source": "not_on_yata",
+                }
+        else:
+            result[pid_str] = {
+                "energy": 0, "max_energy": None,
+                "drug_cd": 0, "refill": False,
+                "source": "not_on_yata" if not yata_down else "unavailable",
+            }
+
+    return {"yata_down": yata_down, "members": result, "cached_at": int(time.time())}
 
 
 @app.get("/api/enemy")
