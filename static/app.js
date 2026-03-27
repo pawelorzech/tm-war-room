@@ -931,7 +931,33 @@ function renderAdminSystem(sys) {
     `;
 }
 
+function renderMobileAdminKeys(data) {
+    const pct = data.total_faction_members > 0 ? Math.round(data.registered_count / data.total_faction_members * 100) : 0;
+    const cardsHtml = data.keys.map(k => {
+        const type = k.is_faction_key ? 'faction' : 'personal';
+        const date = k.created_at ? new Date(k.created_at).toLocaleDateString() : '—';
+        return `<div class="admin-key-card">
+            <div class="admin-key-card-row1">
+                <span class="admin-key-card-name">${k.player_name}</span>
+                <button class="btn-remove-key" onclick="adminRemoveKey(${k.player_id}, '${k.player_name.replace(/'/g, "\\'")}')">Remove</button>
+            </div>
+            <div class="admin-key-card-meta">ID: ${k.player_id} · ${type} · ${date}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('admin-keys').innerHTML = `
+        <div class="coverage-bar-wrap">
+            <div class="coverage-label">${data.registered_count}/${data.total_faction_members} members registered (${pct}%)</div>
+            <div class="coverage-track"><div class="coverage-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="admin-key-cards">${cardsHtml}</div>
+    `;
+}
+
 function renderAdminKeys(data) {
+    if (isMobile()) {
+        renderMobileAdminKeys(data);
+        return;
+    }
     const pct = data.total_faction_members > 0 ? Math.round(data.registered_count / data.total_faction_members * 100) : 0;
     const keysRows = data.keys.map(k => {
         const type = k.is_faction_key ? '<span class="badge-faction">faction</span>' : 'personal';
@@ -962,11 +988,11 @@ function renderAdminUsage(reqStats, userStats, errStats) {
     }).join('');
     const usersRows = userStats.users.map(u => {
         const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString() : '—';
-        return `<tr><td>${u.player_name}</td><td>${lastSeen}</td><td>${u.request_count}</td></tr>`;
+        return `<tr><td>${u.player_name}</td><td class="admin-hide-mobile">${lastSeen}</td><td>${u.request_count}</td></tr>`;
     }).join('');
     const errRows = errStats.errors.map(e => {
         const lastOccurred = e.last_occurred ? new Date(e.last_occurred).toLocaleString() : '—';
-        return `<tr><td>${e.endpoint}</td><td>${e.status_code}</td><td>${e.count}</td><td>${lastOccurred}</td></tr>`;
+        return `<tr><td>${e.endpoint}</td><td>${e.status_code}</td><td>${e.count}</td><td class="admin-hide-mobile">${lastOccurred}</td></tr>`;
     }).join('');
     document.getElementById('admin-usage').innerHTML = `
         <h3 class="admin-section-title">Requests per day</h3>
@@ -974,12 +1000,12 @@ function renderAdminUsage(reqStats, userStats, errStats) {
         <div class="admin-total">Total: ${reqStats.total_requests} requests</div>
         <h3 class="admin-section-title">Active Users</h3>
         <div class="table-wrap">
-            <table><thead><tr><th>Name</th><th>Last Seen</th><th>Requests</th></tr></thead>
+            <table><thead><tr><th>Name</th><th class="admin-hide-mobile">Last Seen</th><th>Requests</th></tr></thead>
             <tbody>${usersRows || '<tr><td colspan="3" class="admin-empty">No data</td></tr>'}</tbody></table>
         </div>
         <h3 class="admin-section-title">Errors</h3>
         <div class="table-wrap">
-            <table><thead><tr><th>Endpoint</th><th>Status</th><th>Count</th><th>Last</th></tr></thead>
+            <table><thead><tr><th>Endpoint</th><th>Status</th><th>Count</th><th class="admin-hide-mobile">Last</th></tr></thead>
             <tbody>${errRows || '<tr><td colspan="4" class="admin-empty">No errors</td></tr>'}</tbody></table>
         </div>
     `;
