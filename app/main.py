@@ -50,8 +50,17 @@ def _build_war_progress(war) -> dict | None:
     }
 
 
+def _get_active_api_key() -> str:
+    """Use faction key if available, otherwise fall back to env var."""
+    fk = key_store.get_faction_key()
+    return fk["api_key"] if fk else TORN_API_KEY
+
+
 @app.get("/api/overview")
 async def overview():
+    active_key = _get_active_api_key()
+    if active_key != torn_client._api_key:
+        torn_client._api_key = active_key
     members = await torn_client.fetch_members()
     war = await torn_client.fetch_war()
     return {

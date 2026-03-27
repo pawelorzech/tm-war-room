@@ -49,11 +49,11 @@ def _relative_threat(enemy: PersonalStats, level: int, me: PersonalStats) -> tup
     raw = (training + combat + resources + power) / 2
     score = min(100, max(0, int(raw)))
 
-    if score < 25:
+    if score < 20:
         label = "easy"
-    elif score < 45:
+    elif score < 50:
         label = "medium"
-    elif score < 70:
+    elif score < 75:
         label = "hard"
     else:
         label = "avoid"
