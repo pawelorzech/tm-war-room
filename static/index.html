@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TM War Room</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>TM War Room</h1>
+        <div id="war-status" class="war-banner">Loading...</div>
+    </header>
+
+    <main>
+        <div class="controls">
+            <span id="last-update">—</span>
+            <span id="member-count">—</span>
+            <button onclick="refresh()">Refresh</button>
+            <button onclick="showKeyModal()">+ Add API Key</button>
+        </div>
+
+        <table id="members-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Lvl</th>
+                    <th>State</th>
+                    <th>Last Action</th>
+                    <th>Energy</th>
+                    <th>Drug CD</th>
+                    <th>Position</th>
+                    <th>Wall</th>
+                </tr>
+            </thead>
+            <tbody id="members-body">
+            </tbody>
+        </table>
+    </main>
+
+    <div id="key-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <h2>Register API Key</h2>
+            <p>Your key is stored encrypted. Only energy &amp; cooldowns are read.</p>
+            <input type="text" id="key-input" placeholder="Paste your Torn API key">
+            <div class="modal-buttons">
+                <button onclick="submitKey()">Register</button>
+                <button onclick="hideKeyModal()">Cancel</button>
+            </div>
+            <p id="key-status"></p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

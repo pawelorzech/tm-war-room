@@ -1,0 +1,150 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+
+header {
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #222;
+}
+
+header h1 {
+    font-size: 1.2rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.war-banner {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.war-active { background: #1a2d1a; border: 1px solid #2d5a2d; color: #4ade80; }
+.war-upcoming { background: #2d2a1a; border: 1px solid #5a4d2d; color: #facc15; }
+.war-none { background: #1a1a1a; border: 1px solid #333; color: #666; }
+
+main { padding: 1rem 2rem; }
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.controls button {
+    padding: 0.4rem 0.8rem;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    color: #aaa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.controls button:hover { background: #252540; color: #fff; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid #222;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+}
+
+td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+tr:hover { background: #111; }
+
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.dot-green { background: #4ade80; box-shadow: 0 0 4px #4ade8066; }
+.dot-yellow { background: #facc15; box-shadow: 0 0 4px #facc1566; }
+.dot-red { background: #f87171; box-shadow: 0 0 4px #f8717166; }
+.dot-gray { background: #555; }
+
+.energy-stacking { color: #4ade80; font-weight: 600; }
+.energy-low { color: #f87171; }
+.energy-unknown { color: #555; }
+
+.cd-active { color: #facc15; }
+.cd-clear { color: #4ade80; }
+
+a { color: #60a5fa; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+}
+
+.modal-content h2 { margin-bottom: 0.5rem; font-size: 1.1rem; }
+.modal-content p { color: #888; font-size: 0.8rem; margin-bottom: 1rem; }
+
+.modal-content input {
+    width: 100%;
+    padding: 0.5rem;
+    background: #0a0a0a;
+    border: 1px solid #333;
+    color: #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.modal-buttons { display: flex; gap: 0.5rem; }
+.modal-buttons button {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    background: #1a1a2e;
+    color: #aaa;
+}
+.modal-buttons button:first-child { background: #1a2d1a; border-color: #2d5a2d; color: #4ade80; }
+
+#key-status { margin-top: 0.5rem; font-size: 0.8rem; }
