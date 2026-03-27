@@ -180,14 +180,17 @@ async def test_fetch_tornstats_spy(client):
 
 
 FAKE_YATA_MEMBERS = {
-    "123": {
-        "id": 123, "name": "TestPlayer", "status": "online", "last_action": 1711500000,
-        "dif": 365, "energy_share": 1, "energy": 87, "refill": False,
-        "drug_cd": 14400, "revive": True, "nnb_share": 1, "nnb": 45,
-        "crimes_rank": 5, "bonus_score": 120, "carnage": 2,
-        "stats_share": -1, "stats_dexterity": 0, "stats_defense": 0,
-        "stats_speed": 0, "stats_strength": 0, "stats_total": 0,
-    }
+    "members": {
+        "123": {
+            "id": 123, "name": "TestPlayer", "status": "online", "last_action": 1711500000,
+            "dif": 365, "energy_share": 1, "energy": 87, "refill": False,
+            "drug_cd": 14400, "revive": True, "nnb_share": 1, "nnb": 45,
+            "crimes_rank": 5, "bonus_score": 120, "carnage": 2,
+            "stats_share": -1, "stats_dexterity": 0, "stats_defense": 0,
+            "stats_speed": 0, "stats_strength": 0, "stats_total": 0,
+        }
+    },
+    "timestamp": 1711500000,
 }
 
 @pytest.mark.asyncio

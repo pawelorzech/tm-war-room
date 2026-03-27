@@ -159,8 +159,9 @@ class TornClient:
                 self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, "API error response")
                 return None
             self._log_integration("yata", "/api/v1/faction/members/", True, (time.time() - start) * 1000)
-            self._set_cached("yata_members", data)
-            return data
+            members = data.get("members", data)  # YATA wraps members under "members" key
+            self._set_cached("yata_members", members)
+            return members
         except Exception as e:
             self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, str(e))
             return None
