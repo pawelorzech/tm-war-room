@@ -14,6 +14,7 @@ class AnalyticsStore:
 
     def _init_db(self) -> None:
         conn = self._conn()
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS request_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +88,7 @@ class AnalyticsStore:
         conn.close()
 
     def get_request_stats(self, days: int = 7) -> dict:
-        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         conn = self._conn()
         per_day = conn.execute(
             "SELECT date(timestamp) as day, COUNT(*) as cnt, AVG(response_time_ms) as avg_ms "
@@ -110,7 +111,7 @@ class AnalyticsStore:
         }
 
     def get_user_stats(self, days: int = 7) -> list[dict]:
-        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         conn = self._conn()
         rows = conn.execute(
             "SELECT player_id, MAX(timestamp) as last_seen, COUNT(*) as cnt "
@@ -122,7 +123,7 @@ class AnalyticsStore:
         return [{"player_id": r[0], "last_seen": r[1], "request_count": r[2]} for r in rows]
 
     def get_error_stats(self, days: int = 7) -> list[dict]:
-        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         conn = self._conn()
         rows = conn.execute(
             "SELECT endpoint, status_code, COUNT(*) as cnt, MAX(timestamp) as last_occurred, error_message "
