@@ -8,13 +8,15 @@ function initTheme() {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || (!saved && window.matchMedia('(prefers-color-scheme: light)').matches)) {
         document.body.classList.add('light');
-        document.getElementById('theme-btn').textContent = 'Dark';
+        document.getElementById('theme-btn').textContent = 'Turn Dark';
+    } else {
+        document.getElementById('theme-btn').textContent = 'Turn Light';
     }
 }
 function toggleTheme() {
     const isLight = document.body.classList.toggle('light');
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    document.getElementById('theme-btn').textContent = isLight ? 'Dark' : 'Light';
+    document.getElementById('theme-btn').textContent = isLight ? 'Turn Dark' : 'Turn Light';
 }
 initTheme();
 
@@ -146,7 +148,7 @@ function renderEnemy(data) {
         const hospTime = m.status.state==='Hospital' && m.status.until ? ` (${fmtCD(m.status.until - Math.floor(Date.now()/1000))})` : '';
         const dotColor = ok ? 'green' : m.status.state==='Hospital' ? 'yellow' : 'red';
 
-        return `<tr><td><span class="dot dot-${dotColor}"></span></td><td><a href="${m.profile_url}" target="_blank">${m.name}</a></td><td>${m.level}</td><td><span class="threat threat-${m.threat_label}">${m.threat_label} ${m.threat_score}</span></td><td>${st}${hospTime}</td><td class="hide-mobile">${m.last_action.relative}</td><td class="hide-mobile">${xr}</td><td class="hide-mobile">${aw}</td><td><a href="${m.attack_url}" target="_blank" class="btn-attack ${ok?'':'disabled'}">Attack</a><a href="${m.tornstats_url}" target="_blank" class="ts-link">TS</a></td></tr>`;
+        return `<tr><td><span class="dot dot-${dotColor}"></span></td><td><a href="${m.profile_url}" target="_blank">${m.name}</a></td><td>${m.level}</td><td><span class="threat threat-${m.threat_label}">${m.threat_label} ${m.threat_score}</span></td><td>${st}${hospTime}</td><td class="hide-mobile">${m.last_action.relative}</td><td class="hide-mobile">${xr}</td><td class="hide-mobile">${aw}</td><td><a href="${m.attack_url}" target="_blank" class="btn-attack">Attack</a> <a href="${m.tornstats_url}" target="_blank" class="btn-ts">Stats</a></td></tr>`;
     }).join('');
 }
 
