@@ -23,16 +23,19 @@ initTheme();
 
 // --- API ---
 const api = {
-    overview: () => fetch('/api/overview').then(r => r.json()),
-    detail: () => fetch('/api/members/detail').then(r => r.json()),
+    _headers() {
+        const pid = localStorage.getItem('myKeyPlayer');
+        return pid ? { 'X-Player-Id': pid } : {};
+    },
+    overview: () => fetch('/api/overview', {headers: api._headers()}).then(r => { if (r.status===401) { logout(); throw new Error('unauthorized'); } return r.json(); }),
+    detail: () => fetch('/api/members/detail', {headers: api._headers()}).then(r => r.json()),
     enemy: (fid) => {
         const pid = localStorage.getItem('myKeyPlayer');
         const base = fid ? `/api/enemy?faction_id=${fid}` : '/api/enemy';
         const url = pid ? `${base}${base.includes('?')?'&':'?'}baseline_pid=${pid}` : base;
-        return fetch(url).then(r => r.json());
+        return fetch(url, {headers: api._headers()}).then(r => r.json());
     },
     deleteKey: (pid) => fetch(`/api/keys/${pid}`, {method:'DELETE'}).then(r => r.json()),
-    listKeys: () => fetch('/api/keys').then(r => r.json()),
 };
 
 // --- Tabs (persist across refresh) ---
@@ -303,7 +306,6 @@ async function loadEnemy() {
 function showKeyModal() {
     document.getElementById('key-modal').style.display='flex';
     document.getElementById('key-input').value='';
-    document.getElementById('key-faction-toggle').checked=false;
     document.getElementById('key-status').textContent='';
 }
 function hideKeyModal() { document.getElementById('key-modal').style.display='none'; }
@@ -331,10 +333,53 @@ async function removeMyKey() {
     const pid = localStorage.getItem('myKeyPlayer');
     if (!pid) return;
     await api.deleteKey(pid);
-    localStorage.removeItem('myKeyPlayer');
-    localStorage.removeItem('myKeyName');
-    refresh();
+    logout();
 }
 
-refresh();
-setInterval(refresh, REFRESH_INTERVAL);
+// --- Auth ---
+function logout() {
+    localStorage.removeItem('myKeyPlayer');
+    localStorage.removeItem('myKeyName');
+    document.getElementById('login-gate').style.display = 'flex';
+    document.getElementById('app-content').style.display = 'none';
+}
+
+function showApp() {
+    document.getElementById('login-gate').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+}
+
+async function loginWithKey() {
+    const key = document.getElementById('login-key-input').value.trim();
+    const st = document.getElementById('login-status');
+    if (!key) { st.textContent = 'Enter a key'; return; }
+    st.textContent = 'Validating...';
+    document.getElementById('login-btn').disabled = true;
+    try {
+        const r = await fetch('/api/keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({api_key:key})});
+        const d = await r.json();
+        if (r.ok) {
+            localStorage.setItem('myKeyPlayer', d.player_id);
+            localStorage.setItem('myKeyName', d.name);
+            st.style.color='var(--green)'; st.textContent=`Welcome, ${d.name}!`;
+            setTimeout(()=>{ showApp(); refresh(); }, 500);
+        } else {
+            st.style.color='var(--red)'; st.textContent=d.detail||'Invalid key';
+        }
+    } catch(e) { st.style.color='var(--red)'; st.textContent=e.message; }
+    document.getElementById('login-btn').disabled = false;
+}
+
+async function initAuth() {
+    const pid = localStorage.getItem('myKeyPlayer');
+    if (!pid) { document.getElementById('login-gate').style.display = 'flex'; return; }
+    try {
+        const r = await fetch('/api/overview', {headers: {'X-Player-Id': pid}});
+        if (r.status === 401) { logout(); return; }
+        showApp();
+        refresh();
+    } catch(e) { logout(); }
+}
+
+initAuth();
+setInterval(() => { if (localStorage.getItem('myKeyPlayer')) refresh(); }, REFRESH_INTERVAL);

@@ -5,7 +5,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -30,6 +30,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TM War Room", lifespan=lifespan)
+
+
+async def verify_member(x_player_id: int = Header()):
+    """Check that the requesting player has a registered key."""
+    all_keys = key_store.get_all_keys()
+    if not any(k["player_id"] == x_player_id for k in all_keys):
+        raise HTTPException(status_code=401, detail="Register your API key first")
 
 
 def _build_war_progress(war) -> dict | None:
@@ -57,7 +64,7 @@ def _get_active_api_key() -> str:
 
 
 @app.get("/api/overview")
-async def overview():
+async def overview(_=Depends(verify_member)):
     active_key = _get_active_api_key()
     if active_key != torn_client._api_key:
         torn_client._api_key = active_key
@@ -74,7 +81,7 @@ async def overview():
 
 
 @app.get("/api/members/detail")
-async def members_detail():
+async def members_detail(_=Depends(verify_member)):
     keys = key_store.get_all_keys()
     results = []
     for entry in keys:
@@ -89,7 +96,7 @@ async def members_detail():
 
 
 @app.get("/api/enemy")
-async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int | None = Query(default=None)):
+async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int | None = Query(default=None), _=Depends(verify_member)):
     enemy_id = faction_id
     if not enemy_id:
         war = await torn_client.fetch_war()
@@ -151,7 +158,6 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
 
 class KeyRegister(BaseModel):
     api_key: str
-    is_faction_key: bool = False
 
 
 @app.post("/api/keys")
@@ -166,17 +172,17 @@ async def register_key(body: KeyRegister):
         raw = await raw
     if "error" in raw:
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
-    key_store.save_key(
-        player_id=raw["player_id"], player_name=raw["name"],
-        api_key=body.api_key, is_faction_key=body.is_faction_key,
-    )
-    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"], "is_faction_key": body.is_faction_key}
+    faction = raw.get("faction", {})
+    if faction.get("faction_id") != FACTION_ID:
+        raise HTTPException(status_code=403, detail="You must be a member of The Masters to use this tool")
+    key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
+    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
 
 
 @app.get("/api/keys")
-async def list_keys():
+async def list_keys(_=Depends(verify_member)):
     keys = key_store.get_all_keys()
-    return {"keys": [{"player_id": k["player_id"], "name": k["player_name"], "is_faction_key": k["is_faction_key"]} for k in keys]}
+    return {"keys": [{"player_id": k["player_id"], "name": k["player_name"]} for k in keys]}
 
 
 @app.delete("/api/keys/{player_id}")

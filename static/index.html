@@ -8,6 +8,24 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <!-- LOGIN GATE -->
+    <div id="login-gate" class="login-gate">
+        <div class="login-box">
+            <h1>TM War Room</h1>
+            <p>Enter your Torn API key to access the faction dashboard.</p>
+            <div class="key-info">
+                <p><strong>Required access level:</strong> Minimal</p>
+                <p><strong>What we read:</strong> energy, cooldowns &mdash; nothing else.</p>
+                <p><strong>Requirement:</strong> You must be a member of The Masters.</p>
+                <p>Create a key at <a href="https://www.torn.com/preferences.php#tab=api" target="_blank">Torn &rarr; Settings &rarr; API Keys</a>.</p>
+            </div>
+            <input type="text" id="login-key-input" placeholder="Paste your Torn API key">
+            <button onclick="loginWithKey()" id="login-btn">Enter War Room</button>
+            <p id="login-status"></p>
+        </div>
+    </div>
+
+    <div id="app-content" style="display:none">
     <header>
         <div class="header-row">
             <h1>TM War Room</h1>
@@ -131,6 +149,8 @@
             <p id="key-status"></p>
         </div>
     </div>
+
+    </div><!-- /#app-content -->
 
     <script src="/static/app.js"></script>
 </body>
