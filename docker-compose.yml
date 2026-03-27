@@ -1,0 +1,22 @@
+services:
+  warroom:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - TORN_API_KEY=${TORN_API_KEY}
+      - FACTION_ID=${FACTION_ID:-11559}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - CACHE_TTL=${CACHE_TTL:-60}
+    volumes:
+      - warroom-data:/app/data
+    restart: unless-stopped
+    networks:
+      - coolify
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  warroom-data:
