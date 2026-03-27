@@ -1,150 +1,143 @@
+/* === Theme variables === */
+:root {
+    --bg: #0a0a0a; --bg-surface: #111; --bg-elevated: #1a1a1a;
+    --border: #222; --border-light: #1a1a1a;
+    --text: #e0e0e0; --text-muted: #888; --text-dim: #555;
+    --green: #4ade80; --yellow: #facc15; --red: #f87171; --purple: #c084fc; --blue: #60a5fa;
+    --green-bg: #1a2d1a; --green-border: #2d5a2d;
+    --yellow-bg: #2d2a1a; --yellow-border: #5a4d2d;
+    --red-bg: #2d1a1a; --red-border: #5a2d2d;
+    --purple-bg: #2d1a2d;
+    --btn-bg: #1a1a2e; --btn-border: #333; --btn-text: #aaa;
+    --btn-hover: #252540;
+    --modal-overlay: rgba(0,0,0,0.7);
+}
+
+body.light {
+    --bg: #f5f5f5; --bg-surface: #fff; --bg-elevated: #fff;
+    --border: #ddd; --border-light: #eee;
+    --text: #1a1a1a; --text-muted: #666; --text-dim: #999;
+    --green: #16a34a; --yellow: #ca8a04; --red: #dc2626; --purple: #9333ea; --blue: #2563eb;
+    --green-bg: #dcfce7; --green-border: #86efac;
+    --yellow-bg: #fef9c3; --yellow-border: #fde047;
+    --red-bg: #fee2e2; --red-border: #fca5a5;
+    --purple-bg: #f3e8ff;
+    --btn-bg: #e5e7eb; --btn-border: #d1d5db; --btn-text: #374151;
+    --btn-hover: #d1d5db;
+    --modal-overlay: rgba(0,0,0,0.4);
+}
+
+/* === Base === */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0a0a0a;
-    color: #e0e0e0;
-    min-height: 100vh;
-}
+/* === Header === */
+header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+header h1 { font-size: 1rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.header-controls { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-dim); }
+.header-controls button { padding: 0.35rem 0.6rem; background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--btn-text); border-radius: 4px; cursor: pointer; font-size: 0.7rem; min-height: 32px; }
+.header-controls button:hover { background: var(--btn-hover); color: var(--text); }
 
-header {
-    padding: 1rem 2rem;
-    border-bottom: 1px solid #222;
-}
+/* === War banner === */
+.war-banner { margin-top: 0.5rem; padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; }
+.war-active { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); }
+.war-upcoming { background: var(--yellow-bg); border: 1px solid var(--yellow-border); color: var(--yellow); }
+.war-none { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-dim); }
 
-header h1 {
-    font-size: 1.2rem;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-}
+/* === War progress === */
+.war-progress { margin-top: 0.5rem; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+.progress-track { height: 5px; background: var(--bg-elevated); border-radius: 3px; margin-bottom: 0.2rem; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.progress-us { background: var(--green); }
+.progress-them { background: var(--red); }
 
-.war-banner {
-    margin-top: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 600;
-}
+/* === Tabs === */
+.tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 1rem; overflow-x: auto; }
+.tab { padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); cursor: pointer; font-size: 0.8rem; font-weight: 500; white-space: nowrap; min-height: 40px; }
+.tab:hover { color: var(--text-muted); }
+.tab.active { color: var(--text); border-bottom-color: var(--green); }
+.badge { font-size: 0.65rem; background: var(--bg-elevated); padding: 0.1rem 0.35rem; border-radius: 8px; margin-left: 0.25rem; }
 
-.war-active { background: #1a2d1a; border: 1px solid #2d5a2d; color: #4ade80; }
-.war-upcoming { background: #2d2a1a; border: 1px solid #5a4d2d; color: #facc15; }
-.war-none { background: #1a1a1a; border: 1px solid #333; color: #666; }
+/* === Content === */
+main { padding: 0.75rem 1rem; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
-main { padding: 1rem 2rem; }
+/* === Summary === */
+.summary { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.summary .g { color: var(--green); font-weight: 600; }
+.summary .y { color: var(--yellow); font-weight: 600; }
+.summary .r { color: var(--red); font-weight: 600; }
 
-.controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    font-size: 0.85rem;
-    color: #666;
-}
+/* === Enemy header === */
+.enemy-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+#enemy-faction-input { display: flex; gap: 0.4rem; }
+#enemy-faction-input input { padding: 0.3rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 0.8rem; width: 100px; }
+#enemy-faction-input button { padding: 0.3rem 0.6rem; background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--btn-text); border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
 
-.controls button {
-    padding: 0.4rem 0.8rem;
-    background: #1a1a2e;
-    border: 1px solid #333;
-    color: #aaa;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
+/* === Tables === */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 2px solid var(--border); color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; white-space: nowrap; }
+td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border-light); white-space: nowrap; }
+tr:hover { background: var(--bg-surface); }
 
-.controls button:hover { background: #252540; color: #fff; }
+/* === Dots === */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.dot-green { background: var(--green); box-shadow: 0 0 4px color-mix(in srgb, var(--green) 40%, transparent); }
+.dot-yellow { background: var(--yellow); box-shadow: 0 0 4px color-mix(in srgb, var(--yellow) 40%, transparent); }
+.dot-red { background: var(--red); box-shadow: 0 0 4px color-mix(in srgb, var(--red) 40%, transparent); }
+.dot-gray { background: var(--text-dim); }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-}
+/* === Energy === */
+.energy-stacking { color: var(--green); font-weight: 600; }
+.energy-low { color: var(--red); }
+.energy-unknown { color: var(--text-dim); }
+.cd-active { color: var(--yellow); }
+.cd-clear { color: var(--green); }
 
-th {
-    text-align: left;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 2px solid #222;
-    color: #666;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.05em;
-}
+/* === Threat badges === */
+.threat { font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 3px; display: inline-block; }
+.threat-easy { background: var(--green-bg); color: var(--green); }
+.threat-medium { background: var(--yellow-bg); color: var(--yellow); }
+.threat-hard { background: var(--red-bg); color: var(--red); }
+.threat-avoid { background: var(--purple-bg); color: var(--purple); }
+.threat-unknown { background: var(--bg-elevated); color: var(--text-dim); }
 
-td {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #1a1a1a;
-}
+/* === Attack button === */
+.btn-attack { padding: 0.2rem 0.45rem; background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-block; min-height: 28px; line-height: 28px; }
+.btn-attack:hover { filter: brightness(1.2); text-decoration: none; }
+.btn-attack.disabled { opacity: 0.25; pointer-events: none; }
+.ts-link { font-size: 0.65rem; margin-left: 0.25rem; color: var(--text-dim); }
 
-tr:hover { background: #111; }
-
-.dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 4px;
-}
-
-.dot-green { background: #4ade80; box-shadow: 0 0 4px #4ade8066; }
-.dot-yellow { background: #facc15; box-shadow: 0 0 4px #facc1566; }
-.dot-red { background: #f87171; box-shadow: 0 0 4px #f8717166; }
-.dot-gray { background: #555; }
-
-.energy-stacking { color: #4ade80; font-weight: 600; }
-.energy-low { color: #f87171; }
-.energy-unknown { color: #555; }
-
-.cd-active { color: #facc15; }
-.cd-clear { color: #4ade80; }
-
-a { color: #60a5fa; text-decoration: none; }
+/* === Links === */
+a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-.modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-}
-
-.modal-content {
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 2rem;
-    max-width: 400px;
-    width: 90%;
-}
-
-.modal-content h2 { margin-bottom: 0.5rem; font-size: 1.1rem; }
-.modal-content p { color: #888; font-size: 0.8rem; margin-bottom: 1rem; }
-
-.modal-content input {
-    width: 100%;
-    padding: 0.5rem;
-    background: #0a0a0a;
-    border: 1px solid #333;
-    color: #e0e0e0;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-}
-
+/* === Modal === */
+.modal { position: fixed; inset: 0; background: var(--modal-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-content { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; max-width: 360px; width: 90%; }
+.modal-content h2 { margin-bottom: 0.4rem; font-size: 1rem; }
+.modal-content p { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.75rem; }
+.modal-content input { width: 100%; padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 0.85rem; margin-bottom: 0.75rem; }
 .modal-buttons { display: flex; gap: 0.5rem; }
-.modal-buttons button {
-    flex: 1;
-    padding: 0.5rem;
-    border: 1px solid #333;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    background: #1a1a2e;
-    color: #aaa;
-}
-.modal-buttons button:first-child { background: #1a2d1a; border-color: #2d5a2d; color: #4ade80; }
+.modal-buttons button { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 0.8rem; background: var(--btn-bg); color: var(--btn-text); min-height: 40px; }
+.modal-buttons button:first-child { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+#key-status { margin-top: 0.4rem; font-size: 0.75rem; }
 
-#key-status { margin-top: 0.5rem; font-size: 0.8rem; }
+/* === Mobile === */
+@media (max-width: 768px) {
+    header { padding: 0.5rem 0.75rem; }
+    main { padding: 0.5rem 0.75rem; }
+    .tabs { padding: 0 0.75rem; }
+    header h1 { font-size: 0.85rem; }
+    .war-banner { font-size: 0.8rem; padding: 0.5rem; }
+    table { font-size: 0.75rem; }
+    th, td { padding: 0.3rem 0.4rem; }
+    .hide-mobile { display: none; }
+    .btn-attack { min-height: 36px; line-height: 36px; padding: 0 0.5rem; }
+    .header-controls button { min-height: 36px; font-size: 0.7rem; }
+    .tab { min-height: 44px; padding: 0.5rem 0.75rem; }
+}
