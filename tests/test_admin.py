@@ -6,7 +6,7 @@ from httpx import AsyncClient, ASGITransport
 from app.auth import create_jwt
 
 
-ADMIN_ID = 2206960
+ADMIN_ID = 2362436
 NON_ADMIN_ID = 999
 TEST_JWT_SECRET = "test-secret-for-admin-tests"
 
