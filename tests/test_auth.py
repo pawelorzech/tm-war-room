@@ -7,7 +7,7 @@ def test_create_and_decode_jwt():
     token = create_jwt(player_id=2206960, player_name="Bombla", secret="test-secret")
     payload = decode_jwt(token, "test-secret")
     assert payload is not None
-    assert payload["sub"] == "2206960"
+    assert payload["sub"] == 2206960  # stored as str in JWT, decoded back to int
     assert payload["name"] == "Bombla"
     assert "iat" in payload
     assert "exp" in payload

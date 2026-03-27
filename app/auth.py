@@ -18,8 +18,10 @@ def create_jwt(player_id: int, player_name: str, secret: str, expires_hours: int
 
 def decode_jwt(token: str, secret: str) -> dict | None:
     try:
-        return jwt.decode(token, secret, algorithms=["HS256"])
-    except jwt.InvalidTokenError:
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        payload["sub"] = int(payload["sub"])
+        return payload
+    except (jwt.InvalidTokenError, KeyError, ValueError):
         return None
 
 
