@@ -41,8 +41,9 @@ async def require_admin(request: Request) -> dict:
 
 
 @router.post("/session")
-async def create_session(x_player_id: int = Header()):
-    if not rate_limiter.check(f"session:{x_player_id}", max_requests=5):
+async def create_session(request: Request, x_player_id: int = Header()):
+    client_ip = request.client.host if request.client else "unknown"
+    if not rate_limiter.check(f"session:{client_ip}", max_requests=5):
         raise HTTPException(status_code=429, detail="Too many attempts, try again later")
     if x_player_id not in ADMIN_PLAYER_IDS:
         raise HTTPException(status_code=403, detail="Not an admin")
