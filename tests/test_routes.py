@@ -31,6 +31,7 @@ def mock_client():
         happy=Bar(current=4000, maximum=4525),
         cooldowns=Cooldowns(drug=3600),
     ))
+    client.fetch_chain = AsyncMock(return_value={"id": 0, "current": 0, "max": 10, "timeout": 0, "modifier": 1, "cooldown": 0, "start": 0, "end": 0})
     return client
 
 
