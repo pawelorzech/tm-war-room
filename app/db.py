@@ -70,3 +70,14 @@ class KeyStore:
         if not row:
             return None
         return {"player_id": row[0], "player_name": row[1], "api_key": self._fernet.decrypt(row[2]).decode()}
+
+    def get_keys_metadata(self) -> list[dict]:
+        conn = sqlite3.connect(self._db_path)
+        rows = conn.execute(
+            "SELECT player_id, player_name, is_faction_key, created_at FROM member_keys"
+        ).fetchall()
+        conn.close()
+        return [
+            {"player_id": r[0], "player_name": r[1], "is_faction_key": bool(r[2]), "created_at": r[3]}
+            for r in rows
+        ]
