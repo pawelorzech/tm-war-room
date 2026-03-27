@@ -26,7 +26,20 @@
     </div>
 
     <div id="app-content" style="display:none">
-    <header>
+    <div id="mobile-header" class="mobile-only">
+        <div class="mh-bar">
+            <div class="mh-war" id="mh-war">TM War Room</div>
+            <button class="mh-hamburger" id="mh-hamburger" onclick="toggleHamburger()">&#9776;</button>
+        </div>
+        <div class="mh-menu" id="mh-menu" style="display:none">
+            <div class="mh-user" id="mh-user"></div>
+            <button onclick="refresh();toggleHamburger()">&#128260; Refresh <span id="mh-last-update" class="mh-meta"></span></button>
+            <button id="mh-admin" onclick="switchTab('admin');toggleHamburger()" style="display:none">&#128736; Admin</button>
+            <button onclick="toggleTheme();updateMobileThemeBtn()">&#127769; <span id="mh-theme-label">Dark Mode</span></button>
+            <button class="mh-logout" onclick="removeMyKey()">&#8617; Logout</button>
+        </div>
+    </div>
+    <header class="desktop-only">
         <div class="header-row">
             <h1>TM War Room</h1>
             <div class="header-controls">
@@ -67,7 +80,18 @@
             <div id="yata-warning" class="yata-warning" style="display:none">
                 YATA is currently unavailable &mdash; showing data only for registered members
             </div>
-            <div class="table-wrap">
+            <div class="mobile-sort mobile-only" id="our-mobile-sort">
+                <span class="mobile-sort-summary" id="our-mobile-summary"></span>
+                <select id="our-sort-select" onchange="mobileSortOur(this.value)">
+                    <option value="readiness">Sort: Readiness</option>
+                    <option value="name">Sort: Name</option>
+                    <option value="level">Sort: Level</option>
+                    <option value="energy">Sort: Energy</option>
+                    <option value="state">Sort: State</option>
+                </select>
+            </div>
+            <div id="our-cards" class="mobile-only card-list"></div>
+            <div class="table-wrap desktop-only">
                 <table>
                     <thead id="our-thead">
                         <tr>
@@ -98,7 +122,17 @@
                     <button onclick="loadEnemy()">Load</button>
                 </div>
             </div>
-            <div class="table-wrap">
+            <div class="mobile-sort mobile-only" id="enemy-mobile-sort">
+                <span class="mobile-sort-summary" id="enemy-mobile-summary"></span>
+                <select id="enemy-sort-select" onchange="mobileSortEnemy(this.value)">
+                    <option value="threat_score">Sort: Threat</option>
+                    <option value="name">Sort: Name</option>
+                    <option value="level">Sort: Level</option>
+                    <option value="state">Sort: State</option>
+                </select>
+            </div>
+            <div id="enemy-cards" class="mobile-only card-list"></div>
+            <div class="table-wrap desktop-only">
                 <table>
                     <thead id="enemy-thead">
                         <tr>
