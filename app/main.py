@@ -99,10 +99,19 @@ async def enemy(faction_id: int | None = Query(default=None)):
         except Exception:
             pass
 
+    # Get baseline stats from faction key owner for relative threat scoring
+    baseline = None
+    faction_key_entry = key_store.get_faction_key()
+    if faction_key_entry:
+        try:
+            baseline = await torn_client.fetch_personalstats(faction_key_entry["api_key"])
+        except Exception:
+            pass
+
     enemy_list = []
     for m in members:
         ps = spy_data.get(m.id)
-        score, label = compute_threat(ps, m.level)
+        score, label = compute_threat(ps, m.level, baseline=baseline)
         enemy_list.append({
             **m.model_dump(),
             "personal_stats": ps.model_dump() if ps else None,
@@ -117,11 +126,17 @@ async def enemy(faction_id: int | None = Query(default=None)):
         e["threat_score"]
     ))
 
-    return {"faction": info.model_dump(), "members": enemy_list, "cached_at": int(time.time())}
+    return {
+        "faction": info.model_dump(), "members": enemy_list,
+        "threat_mode": "relative" if baseline else "absolute",
+        "threat_baseline": faction_key_entry["player_name"] if faction_key_entry and baseline else None,
+        "cached_at": int(time.time()),
+    }
 
 
 class KeyRegister(BaseModel):
     api_key: str
+    is_faction_key: bool = False
 
 
 @app.post("/api/keys")
@@ -136,8 +151,11 @@ async def register_key(body: KeyRegister):
         raw = await raw
     if "error" in raw:
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
-    key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
-    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
+    key_store.save_key(
+        player_id=raw["player_id"], player_name=raw["name"],
+        api_key=body.api_key, is_faction_key=body.is_faction_key,
+    )
+    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"], "is_faction_key": body.is_faction_key}
 
 
 @app.delete("/api/keys/{player_id}")

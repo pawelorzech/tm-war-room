@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.models import FactionMember, WarStatus, MemberBars
+from app.models import FactionMember, WarStatus, MemberBars, PersonalStats
 
 
 V1_BASE = "https://api.torn.com"
@@ -127,6 +127,22 @@ class TornClient:
         )
         self._set_cached(cache_key, info)
         return info
+
+    async def fetch_personalstats(self, api_key: str) -> PersonalStats:
+        cache_key = f"pstats_{api_key[:8]}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+        resp = await self._http.get(
+            f"{V1_BASE}/user/",
+            params={"selections": "personalstats", "key": api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        ps_raw = raw.get("personalstats", {})
+        ps = PersonalStats.from_torn_api(ps_raw)
+        self._set_cached(cache_key, ps)
+        return ps
 
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
         from app.models import PersonalStats

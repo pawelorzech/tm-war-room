@@ -142,7 +142,10 @@ function renderEnemy(data) {
     let atk = 0, hosp = 0;
     for (const m of ms) { if (m.last_action.status!=='Offline' && m.status.state==='Okay') atk++; if (m.status.state==='Hospital') hosp++; }
 
-    document.getElementById('enemy-summary').innerHTML = `<strong>${f.name}</strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total`;
+    const threatInfo = data.threat_mode === 'relative'
+        ? `Threat: relative to <strong>${data.threat_baseline}</strong>`
+        : 'Threat: absolute (register faction key for relative)';
+    document.getElementById('enemy-summary').innerHTML = `<strong>${f.name}</strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total<br>${threatInfo}`;
     document.getElementById('enemy-count').textContent = ms.length;
 
     document.getElementById('enemy-body').innerHTML = ms.map(m => {
@@ -187,9 +190,10 @@ async function submitKey() {
     const key = document.getElementById('key-input').value.trim();
     const st = document.getElementById('key-status');
     if (!key) { st.textContent = 'Enter a key'; return; }
+    const isFaction = document.getElementById('key-faction-toggle').checked;
     st.textContent = 'Validating...';
     try {
-        const r = await fetch('/api/keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({api_key:key})});
+        const r = await fetch('/api/keys', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({api_key:key, is_faction_key:isFaction})});
         const d = await r.json();
         if (r.ok) { st.style.color='var(--green)'; st.textContent=`OK: ${d.name} [${d.player_id}]`; setTimeout(()=>{hideKeyModal();refresh();},1000); }
         else { st.style.color='var(--red)'; st.textContent=d.detail||'Invalid key'; }

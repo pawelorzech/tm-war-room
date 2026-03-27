@@ -100,6 +100,24 @@ class PersonalStats(BaseModel):
     damage_done: int = 0
 
     @classmethod
+    def from_torn_api(cls, raw: dict) -> "PersonalStats":
+        """Parse from Torn API v1 personalstats (lowercase keys)."""
+        return cls(
+            xanax_taken=raw.get("xantaken", 0),
+            refills=raw.get("refills", 0),
+            stat_enhancers_used=raw.get("statenhancersused", 0),
+            attacks_won=raw.get("attackswon", 0),
+            attacks_lost=raw.get("attackslost", 0),
+            defends_won=raw.get("defendswon", 0),
+            defends_lost=raw.get("defendslost", 0),
+            networth=raw.get("networth", 0),
+            highest_beaten=raw.get("highestbeaten", 0),
+            best_damage=raw.get("bestdamage", 0),
+            best_kill_streak=raw.get("killstreak", 0),
+            damage_done=raw.get("totaldamage", 0),
+        )
+
+    @classmethod
     def from_tornstats(cls, raw: dict) -> "PersonalStats":
         return cls(
             xanax_taken=raw.get("Xanax Taken", 0),
