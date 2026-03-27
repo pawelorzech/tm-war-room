@@ -4,7 +4,7 @@
 
 **Goal:** Add a mobile card layout for <768px screens while keeping the existing desktop table layout unchanged.
 
-**Architecture:** New render functions (`renderMobileCards`, `renderMobileEnemyCards`, `renderMobileHeader`) run alongside existing ones. `isMobile()` helper decides which path to take. CSS media queries hide/show the appropriate containers. Single breakpoint: 768px.
+**Architecture:** New render functions (`renderMobileCards`, `renderMobileEnemyCards`, `renderMobileHeader`, `renderMobileAdminKeys`) run alongside existing ones. `isMobile()` helper decides which path to take. CSS media queries hide/show the appropriate containers. Single breakpoint: 768px. Admin panel gets mobile card layout for keys and tighter table styles for usage stats.
 
 **Tech Stack:** Vanilla HTML/CSS/JS — no new dependencies.
 
@@ -15,8 +15,8 @@
 | File | Changes |
 |------|---------|
 | `static/index.html` | Add mobile header div, card containers, sort dropdowns (~20 new lines) |
-| `static/style.css` | Add card styles, mobile header, hamburger, sort dropdown, replace old mobile media query (~120 new lines) |
-| `static/app.js` | Add `isMobile()`, `renderMobileHeader()`, `renderMobileCards()`, `renderMobileEnemyCards()`, card interactions, resize listener (~180 new lines) |
+| `static/style.css` | Add card styles, mobile header, hamburger, sort dropdown, admin mobile, replace old mobile media query (~140 new lines) |
+| `static/app.js` | Add `isMobile()`, `renderMobileHeader()`, `renderMobileCards()`, `renderMobileEnemyCards()`, `renderMobileAdminKeys()`, card interactions, resize listener (~200 new lines) |
 
 No backend changes. No new files. No new dependencies.
 
@@ -42,7 +42,7 @@ Add this block right after `<div id="app-content" style="display:none">` (line 2
         <div class="mh-menu" id="mh-menu" style="display:none">
             <div class="mh-user" id="mh-user"></div>
             <button onclick="refresh();toggleHamburger()">&#128260; Refresh <span id="mh-last-update" class="mh-meta"></span></button>
-            <a href="/admin" class="mh-link">&#128736; Admin</a>
+            <button id="mh-admin" onclick="switchTab('admin');toggleHamburger()" style="display:none">&#128736; Admin</button>
             <button onclick="toggleTheme();updateMobileThemeBtn()">&#127769; <span id="mh-theme-label">Dark Mode</span></button>
             <button class="mh-logout" onclick="removeMyKey()">&#8617; Logout</button>
         </div>
@@ -786,6 +786,7 @@ Test the complete flow:
    - Enemy cards expand with full stats
    - Sort dropdown works
    - Auto-refresh (60s) updates cards
+   - Admin tab shows key cards (not table), compact usage tables
 
 2. **Desktop (>=768px):**
    - Everything exactly as before
@@ -807,11 +808,154 @@ git commit -m "feat(mobile): add resize listener for responsive breakpoint switc
 
 ---
 
-### Task 7: Cleanup and final polish
+### Task 7: Admin panel mobile — keys cards and usage tables
 
 **Files:**
-- Modify: `static/style.css` (minor adjustments if needed)
-- Modify: `static/index.html` (add .superpowers to .gitignore if not present)
+- Modify: `static/style.css` (add admin mobile card styles)
+- Modify: `static/app.js` (add renderMobileAdminKeys, modify renderAdminKeys/renderAdminUsage)
+
+- [ ] **Step 1: Add admin key card CSS**
+
+Add to the CSS, inside or after the admin styles section:
+
+```css
+/* === Admin key cards (mobile) === */
+.admin-key-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg-elevated); margin-bottom: 6px; }
+.admin-key-card-row1 { display: flex; justify-content: space-between; align-items: center; }
+.admin-key-card-name { font-weight: 600; font-size: 13px; color: var(--text); }
+.admin-key-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.admin-key-card .btn-remove-key { min-height: 36px; padding: 0 12px; }
+.admin-key-cards { display: flex; flex-direction: column; gap: 6px; }
+```
+
+Also add to the `@media (max-width: 767px)` block:
+
+```css
+    .admin-system-grid { grid-template-columns: 1fr; }
+    .bar-chart { height: 60px; }
+    .admin-card { padding: 0.75rem; }
+    .admin-card table { font-size: 0.7rem; }
+    .admin-card th, .admin-card td { padding: 0.25rem 0.3rem; }
+    .admin-hide-mobile { display: none; }
+    .tab-admin { margin-left: 0; }
+```
+
+- [ ] **Step 2: Add renderMobileAdminKeys() function**
+
+Add after the existing `renderAdminKeys()` function in app.js:
+
+```javascript
+function renderMobileAdminKeys(data) {
+    const pct = data.total_faction_members > 0 ? Math.round(data.registered_count / data.total_faction_members * 100) : 0;
+    const cardsHtml = data.keys.map(k => {
+        const type = k.is_faction_key ? 'faction' : 'personal';
+        const date = k.created_at ? new Date(k.created_at).toLocaleDateString() : '—';
+        return `<div class="admin-key-card">
+            <div class="admin-key-card-row1">
+                <span class="admin-key-card-name">${k.player_name}</span>
+                <button class="btn-remove-key" onclick="adminRemoveKey(${k.player_id}, '${k.player_name.replace(/'/g, "\\'")}')">Remove</button>
+            </div>
+            <div class="admin-key-card-meta">ID: ${k.player_id} · ${type} · ${date}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('admin-keys').innerHTML = `
+        <div class="coverage-bar-wrap">
+            <div class="coverage-label">${data.registered_count}/${data.total_faction_members} members registered (${pct}%)</div>
+            <div class="coverage-track"><div class="coverage-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="admin-key-cards">${cardsHtml}</div>
+    `;
+}
+```
+
+- [ ] **Step 3: Modify renderAdminKeys() to branch on mobile**
+
+Add a mobile branch at the start of `renderAdminKeys()`:
+
+```javascript
+function renderAdminKeys(data) {
+    if (isMobile()) {
+        renderMobileAdminKeys(data);
+        return;
+    }
+    // ... rest of existing function unchanged ...
+```
+
+- [ ] **Step 4: Modify renderAdminUsage() to add hide classes on mobile columns**
+
+In `renderAdminUsage()`, add `class="admin-hide-mobile"` to the "Last Seen" column header and cells in Active Users table, and to the "Last" column in Errors table.
+
+Change the Active Users table header from:
+```javascript
+<thead><tr><th>Name</th><th>Last Seen</th><th>Requests</th></tr></thead>
+```
+to:
+```javascript
+<thead><tr><th>Name</th><th class="admin-hide-mobile">Last Seen</th><th>Requests</th></tr></thead>
+```
+
+Change the users rows from:
+```javascript
+return `<tr><td>${u.player_name}</td><td>${lastSeen}</td><td>${u.request_count}</td></tr>`;
+```
+to:
+```javascript
+return `<tr><td>${u.player_name}</td><td class="admin-hide-mobile">${lastSeen}</td><td>${u.request_count}</td></tr>`;
+```
+
+Change the Errors table header from:
+```javascript
+<thead><tr><th>Endpoint</th><th>Status</th><th>Count</th><th>Last</th></tr></thead>
+```
+to:
+```javascript
+<thead><tr><th>Endpoint</th><th>Status</th><th>Count</th><th class="admin-hide-mobile">Last</th></tr></thead>
+```
+
+Change the error rows from:
+```javascript
+return `<tr><td>${e.endpoint}</td><td>${e.status_code}</td><td>${e.count}</td><td>${lastOccurred}</td></tr>`;
+```
+to:
+```javascript
+return `<tr><td>${e.endpoint}</td><td>${e.status_code}</td><td>${e.count}</td><td class="admin-hide-mobile">${lastOccurred}</td></tr>`;
+```
+
+- [ ] **Step 5: Show/hide admin button in hamburger menu based on isAdmin**
+
+In `renderMobileHeader()`, after updating user info, add:
+
+```javascript
+    const mhAdmin = document.getElementById('mh-admin');
+    if (mhAdmin) mhAdmin.style.display = isAdmin ? '' : 'none';
+```
+
+- [ ] **Step 6: Verify admin panel on mobile**
+
+Resize to <768px and switch to Admin tab:
+- System card: grid stacks to 1fr, integration badges wrap — check OK
+- Keys card: shows card layout (Name + Remove on row 1, ID + type + date on row 2)
+- Coverage bar visible above keys
+- Remove button tappable (36px+)
+- Usage bar chart reduced height (60px)
+- Active Users table: Name + Requests visible, Last Seen hidden
+- Errors table: Endpoint + Status + Count visible, Last hidden
+- Range selector buttons (7d/14d/30d) work
+- Admin button visible in hamburger menu for admin users
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add static/app.js static/style.css
+git commit -m "feat(mobile): add admin panel mobile layout with key cards and compact tables"
+```
+
+---
+
+### Task 8: Cleanup and final polish
+
+**Files:**
+- Modify: `.gitignore` (add .superpowers if not present)
 
 - [ ] **Step 1: Add .superpowers to .gitignore**
 
@@ -830,6 +974,7 @@ Use Chrome DevTools → Toggle Device Toolbar → select iPhone SE (375px) and i
 - Expand/collapse is smooth
 - Bounty button taps work without accidentally expanding the card
 - Attack button taps go to Torn without expanding the card
+- Admin tab: key cards readable, Remove button tappable, usage tables fit screen
 
 - [ ] **Step 3: Test light theme on mobile**
 
