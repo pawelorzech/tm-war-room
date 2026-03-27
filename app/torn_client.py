@@ -11,6 +11,8 @@ from app.models import FactionMember, WarStatus, MemberBars, PersonalStats
 
 V1_BASE = "https://api.torn.com"
 V2_BASE = "https://api.torn.com/v2"
+YATA_BASE = "https://yata.yt/api/v1"
+YATA_CACHE_TTL = 3600
 
 
 async def _json(resp: Any) -> Any:
@@ -31,10 +33,10 @@ class TornClient:
     async def close(self) -> None:
         await self._http.aclose()
 
-    def _get_cached(self, key: str) -> Any | None:
+    def _get_cached(self, key: str, ttl: int | None = None) -> Any | None:
         if key in self._cache:
             ts, data = self._cache[key]
-            if time.time() - ts < self._cache_ttl:
+            if time.time() - ts < (ttl if ttl is not None else self._cache_ttl):
                 return data
         return None
 
@@ -102,6 +104,29 @@ class TornClient:
             happy=raw["happy"],
             cooldowns=raw["cooldowns"],
         )
+
+    async def fetch_yata_members(self, api_key: str | None = None) -> dict | None:
+        """Fetch faction members energy/drug data from YATA API.
+        Returns dict keyed by member ID string, or None on error.
+        """
+        cached = self._get_cached("yata_members", ttl=YATA_CACHE_TTL)
+        if cached is not None:
+            return cached
+        key = api_key or self._api_key
+        try:
+            resp = await self._http.get(
+                f"{YATA_BASE}/faction/members/",
+                params={"key": key},
+                timeout=8.0,
+            )
+            resp.raise_for_status()
+            data = await _json(resp)
+            if "error" in data:
+                return None
+            self._set_cached("yata_members", data)
+            return data
+        except Exception:
+            return None
 
     async def fetch_enemy_members(self, faction_id: int) -> list[FactionMember]:
         cache_key = f"enemy_{faction_id}"

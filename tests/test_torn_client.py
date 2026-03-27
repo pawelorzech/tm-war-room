@@ -177,3 +177,55 @@ async def test_fetch_tornstats_spy(client):
         spy = await client.fetch_tornstats_spy(9420, "fake_key")
     assert 183527 in spy
     assert spy[183527].xanax_taken == 2002
+
+
+FAKE_YATA_MEMBERS = {
+    "123": {
+        "id": 123, "name": "TestPlayer", "status": "online", "last_action": 1711500000,
+        "dif": 365, "energy_share": 1, "energy": 87, "refill": False,
+        "drug_cd": 14400, "revive": True, "nnb_share": 1, "nnb": 45,
+        "crimes_rank": 5, "bonus_score": 120, "carnage": 2,
+        "stats_share": -1, "stats_dexterity": 0, "stats_defense": 0,
+        "stats_speed": 0, "stats_strength": 0, "stats_total": 0,
+    }
+}
+
+@pytest.mark.asyncio
+async def test_fetch_yata_members(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_YATA_MEMBERS
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        data = await client.fetch_yata_members()
+    assert data is not None
+    assert "123" in data
+    assert data["123"]["energy"] == 87
+    assert data["123"]["drug_cd"] == 14400
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_members_timeout(client):
+    with patch.object(client._http, "get", side_effect=httpx.TimeoutException("timeout")):
+        data = await client.fetch_yata_members()
+    assert data is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_members_error_response(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {"error": {"error": "Invalid key", "code": 2}}
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        data = await client.fetch_yata_members()
+    assert data is None
+
+
+@pytest.mark.asyncio
+async def test_yata_caching(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_YATA_MEMBERS
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        await client.fetch_yata_members()
+        await client.fetch_yata_members()
+    mock_get.assert_called_once()
