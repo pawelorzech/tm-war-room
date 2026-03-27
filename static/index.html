@@ -57,6 +57,7 @@
     <nav class="tabs">
         <button class="tab active" data-tab="our-team" onclick="switchTab('our-team')">Our Team <span id="our-count" class="badge">0</span></button>
         <button class="tab" data-tab="enemy" onclick="switchTab('enemy')">Enemy Targets <span id="enemy-count" class="badge">0</span></button>
+        <button class="tab tab-admin" data-tab="admin" onclick="switchTab('admin')" id="admin-tab" style="display:none">&#9881; Admin</button>
     </nav>
 
     <main>
@@ -122,6 +123,32 @@
                 <span class="threat threat-hard">hard</span> be careful
                 <span class="threat threat-avoid">avoid</span> very dangerous
                 &mdash; hover for details
+            </div>
+        </div>
+
+        <!-- ADMIN TAB -->
+        <div id="tab-admin" class="tab-content">
+            <div id="admin-loading" class="admin-loading">Authenticating...</div>
+            <div id="admin-panel" style="display:none">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">System</h2>
+                    <div id="admin-system" class="admin-card-body">Loading...</div>
+                </div>
+                <div class="admin-card">
+                    <h2 class="admin-card-title">API Keys</h2>
+                    <div id="admin-keys" class="admin-card-body">Loading...</div>
+                </div>
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <h2 class="admin-card-title">Usage</h2>
+                        <div class="admin-range-selector">
+                            <button class="range-btn active" data-days="7" onclick="setAdminRange(7)">7d</button>
+                            <button class="range-btn" data-days="14" onclick="setAdminRange(14)">14d</button>
+                            <button class="range-btn" data-days="30" onclick="setAdminRange(30)">30d</button>
+                        </div>
+                    </div>
+                    <div id="admin-usage" class="admin-card-body">Loading...</div>
+                </div>
             </div>
         </div>
     </main>
