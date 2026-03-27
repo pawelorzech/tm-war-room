@@ -88,3 +88,65 @@ class TornClient:
             happy=raw["happy"],
             cooldowns=raw["cooldowns"],
         )
+
+    async def fetch_enemy_members(self, faction_id: int) -> list[FactionMember]:
+        cache_key = f"enemy_{faction_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+        resp = await self._http.get(
+            f"{V2_BASE}/faction/{faction_id}",
+            params={"selections": "members", "key": self._api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        members = [FactionMember(**m) for m in raw["members"]]
+        self._set_cached(cache_key, members)
+        return members
+
+    async def fetch_faction_info(self, faction_id: int) -> "FactionInfo":
+        from app.models import FactionInfo
+        cache_key = f"finfo_{faction_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+        resp = await self._http.get(
+            f"{V2_BASE}/faction/{faction_id}",
+            params={"key": self._api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        basic = raw.get("basic", {})
+        rank = basic.get("rank", {})
+        info = FactionInfo(
+            id=basic.get("id", faction_id), name=basic.get("name", "Unknown"),
+            tag=basic.get("tag", ""), respect=basic.get("respect", 0),
+            members_count=basic.get("members", 0), rank_name=rank.get("name", ""),
+            rank_level=rank.get("level", 0), best_chain=basic.get("best_chain", 0),
+            wins=rank.get("wins", 0),
+        )
+        self._set_cached(cache_key, info)
+        return info
+
+    async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
+        from app.models import PersonalStats
+        cache_key = f"tspy_{faction_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+        resp = await self._http.get(
+            f"https://www.tornstats.com/api/v2/{ts_key}/spy/faction/{faction_id}",
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        result: dict[int, PersonalStats] = {}
+        if not raw.get("status"):
+            self._set_cached(cache_key, result)
+            return result
+        members_data = raw.get("faction", {}).get("members", {})
+        for pid_str, member_data in members_data.items():
+            ps_raw = member_data.get("personalstats", {})
+            if ps_raw:
+                result[int(pid_str)] = PersonalStats.from_tornstats(ps_raw)
+        self._set_cached(cache_key, result)
+        return result
