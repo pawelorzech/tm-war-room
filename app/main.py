@@ -14,9 +14,12 @@ from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORN
 from app.torn_client import TornClient
 from app.db import KeyStore
 from app.threat import compute_threat
+from app.admin import router as admin_router
+import app.admin as admin_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
+analytics_store = None
 
 
 @asynccontextmanager
@@ -25,11 +28,13 @@ async def lifespan(app: FastAPI):
     os.makedirs("data", exist_ok=True)
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
+    admin_mod.init(key_store, None, torn_client, time.time())
     yield
     await torn_client.close()
 
 
 app = FastAPI(title="TM War Room", lifespan=lifespan)
+app.include_router(admin_router)
 
 
 async def verify_member(x_player_id: int = Header()):
