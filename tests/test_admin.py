@@ -231,3 +231,24 @@ async def test_admin_system(mock_client, mock_store, mock_analytics):
     assert data["integrations"]["torn_api"]["status"] == "ok"
     assert data["integrations"]["tornstats"]["status"] == "unknown"
     assert data["integrations"]["yata"]["status"] == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_middleware_logs_requests(mock_client, mock_store):
+    """Verify the analytics middleware logs requests when analytics_store is set."""
+    from app.analytics import AnalyticsStore
+    import tempfile, os
+    with tempfile.TemporaryDirectory() as tmp:
+        real_analytics = AnalyticsStore(db_path=os.path.join(tmp, "test.db"))
+        with patch("app.main.torn_client", mock_client), \
+             patch("app.main.key_store", mock_store), \
+             patch("app.main.analytics_store", real_analytics):
+            from app.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                await ac.get("/api/overview", headers={"X-Player-Id": "123"})
+        stats = real_analytics.get_request_stats(days=1)
+        assert stats["total_requests"] >= 1
+        users = real_analytics.get_user_stats(days=1)
+        pids = {u["player_id"] for u in users}
+        assert 123 in pids
