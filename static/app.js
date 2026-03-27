@@ -182,11 +182,11 @@ function renderOurTeam(members, details) {
         // Revive setting
         let reviveHtml;
         if (m.revive_setting === 'No one') {
-            reviveHtml = '<span style="color:var(--red)" title="Revives OFF \u2014 should enable for RW!">\u26A0 OFF</span>';
+            reviveHtml = '<span style="color:var(--green)">OFF</span>';
         } else if (m.revive_setting === 'Friends & faction') {
-            reviveHtml = '<span style="color:var(--green)">Faction</span>';
+            reviveHtml = '<span style="color:var(--yellow)" title="Faction members can revive you \u2014 OK but consider OFF during RW">Faction</span>';
         } else if (m.revive_setting === 'Everyone') {
-            reviveHtml = '<span style="color:var(--green)">All</span>';
+            reviveHtml = '<span style="color:var(--red)" title="ANYONE can revive you \u2014 enemies can revive and attack again!">\u26A0 ALL</span>';
         } else {
             reviveHtml = '<span class="energy-unknown">\u2014</span>';
         }
