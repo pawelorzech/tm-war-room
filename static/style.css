@@ -129,6 +129,16 @@ tr:hover { background: var(--bg-surface); }
 .btn-ts { padding: 0.2rem 0.45rem; background: var(--btn-bg); border: 1px solid var(--btn-border); color: var(--blue); border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-block; min-height: 28px; line-height: 28px; margin-left: 0.25rem; }
 .btn-ts:hover { filter: brightness(1.2); text-decoration: none; }
 
+/* === Bounty copy === */
+.col-bounty { width: 1.5rem; padding: 0 !important; }
+.btn-bounty { background: none; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 0.75rem; padding: 0.15rem 0.3rem; line-height: 1; min-height: 28px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; }
+.btn-bounty:hover { background: var(--yellow-bg); border-color: var(--yellow-border); }
+.btn-bounty:active { transform: scale(0.9); }
+
+/* === Copy toast === */
+.copy-toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(1rem); background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 300; }
+.copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 /* === Links === */
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
