@@ -7,12 +7,12 @@ from app.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, Las
 AUTH_HEADERS = {"X-Player-Id": "123"}
 
 
-def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online") -> FactionMember:
+def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online", position: str = "Team 1") -> FactionMember:
     return FactionMember(
         id=id, name=name, level=50, days_in_faction=100,
         last_action=LastAction(status=online, timestamp=1774600000, relative="1 min ago"),
         status=MemberStatus(description=status_state, details=None, state=status_state, color="green", until=None),
-        position="Team 1", is_on_wall=False, is_revivable=False, is_in_oc=False,
+        position=position, is_on_wall=False, is_revivable=False, is_in_oc=False,
     )
 
 
@@ -34,6 +34,7 @@ def mock_client():
         cooldowns=Cooldowns(drug=3600),
     ))
     client.fetch_chain = AsyncMock(return_value={"id": 0, "current": 0, "max": 10, "timeout": 0, "modifier": 1, "cooldown": 0, "start": 0, "end": 0})
+    client.fetch_yata_members = AsyncMock(return_value=None)
     return client
 
 
@@ -72,6 +73,7 @@ async def test_overview_no_auth(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_members_detail(mock_client, mock_store):
+    mock_client.fetch_yata_members = AsyncMock(return_value=None)
     with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
         from app.main import app
         transport = ASGITransport(app=app)
@@ -79,8 +81,10 @@ async def test_members_detail(mock_client, mock_store):
             resp = await ac.get("/api/members/detail", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["members"]) == 1
-    assert data["members"][0]["bars"]["energy"]["current"] == 500
+    assert data["yata_down"] is True
+    assert "123" in data["members"]
+    assert data["members"]["123"]["source"] == "torn_api"
+    assert data["members"]["123"]["energy"] == 500
 
 
 @pytest.mark.asyncio
@@ -146,3 +150,132 @@ async def test_enemy_with_rw(mock_client, mock_store):
     assert "attack_url" in data["members"][0]
     assert data["threat_mode"] == "relative"
     assert data["threat_baseline"] == "bombel"
+
+
+FAKE_YATA = {
+    "123": {
+        "id": 123, "name": "Test", "energy_share": 1, "energy": 87,
+        "drug_cd": 14400, "refill": False, "nnb_share": 0, "nnb": 0,
+        "stats_share": -1, "stats_dexterity": 0, "stats_defense": 0,
+        "stats_speed": 0, "stats_strength": 0, "stats_total": 0,
+        "status": "online", "last_action": 1711500000, "dif": 365,
+        "crimes_rank": 5, "bonus_score": 120, "carnage": 2, "revive": True,
+    },
+    "456": {
+        "id": 456, "name": "Other", "energy_share": 1, "energy": 120,
+        "drug_cd": 0, "refill": True, "nnb_share": 0, "nnb": 0,
+        "stats_share": -1, "stats_dexterity": 0, "stats_defense": 0,
+        "stats_speed": 0, "stats_strength": 0, "stats_total": 0,
+        "status": "online", "last_action": 1711500000, "dif": 200,
+        "crimes_rank": 3, "bonus_score": 80, "carnage": 1, "revive": True,
+    },
+}
+
+
+@pytest.fixture
+def mock_client_yata():
+    client = AsyncMock()
+    client.fetch_members = AsyncMock(return_value=[
+        _make_member(id=123, name="Leader", position="Leader"),
+        _make_member(id=456, name="Member1", position="Team 1"),
+    ])
+    client.fetch_yata_members = AsyncMock(return_value=FAKE_YATA)
+    client.fetch_member_bars = AsyncMock(return_value=MemberBars(
+        energy=Bar(current=150, maximum=150),
+        happy=Bar(current=4000, maximum=4525),
+        cooldowns=Cooldowns(drug=0),
+    ))
+    return client
+
+
+@pytest.fixture
+def mock_store_leader():
+    store = MagicMock()
+    store.get_all_keys.return_value = [
+        {"player_id": 123, "player_name": "Leader", "api_key": "leader_key", "is_faction_key": True},
+    ]
+    store.get_faction_key.return_value = {"player_id": 123, "player_name": "Leader", "api_key": "leader_key"}
+    return store
+
+
+@pytest.mark.asyncio
+async def test_detail_full_access_sees_all(mock_client_yata, mock_store_leader):
+    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["yata_down"] is False
+    assert "123" in data["members"]
+    assert "456" in data["members"]
+    assert data["members"]["123"]["source"] == "torn_api"
+    assert data["members"]["123"]["energy"] == 150
+    assert data["members"]["123"]["max_energy"] == 150
+    assert data["members"]["456"]["source"] == "yata"
+    assert data["members"]["456"]["energy"] == 120
+    assert data["members"]["456"]["max_energy"] is None
+
+
+@pytest.fixture
+def mock_store_member():
+    store = MagicMock()
+    store.get_all_keys.return_value = [
+        {"player_id": 456, "player_name": "Member1", "api_key": "member_key", "is_faction_key": False},
+    ]
+    store.get_faction_key.return_value = None
+    return store
+
+
+@pytest.mark.asyncio
+async def test_detail_self_only_sees_self(mock_client_yata, mock_store_member):
+    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_member):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "456"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["members"]) == 1
+    assert "456" in data["members"]
+    assert "123" not in data["members"]
+
+
+@pytest.mark.asyncio
+async def test_detail_yata_down(mock_client_yata, mock_store_leader):
+    mock_client_yata.fetch_yata_members = AsyncMock(return_value=None)
+    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["yata_down"] is True
+    assert "123" in data["members"]
+    assert data["members"]["123"]["source"] == "torn_api"
+
+
+@pytest.mark.asyncio
+async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
+    yata_data = {
+        "123": {**FAKE_YATA["123"], "energy_share": 1},
+        "456": {**FAKE_YATA["456"], "energy_share": -1},
+        "789": {**FAKE_YATA["456"], "id": 789, "name": "NotOnYata", "energy_share": 0},
+    }
+    mock_client_yata.fetch_yata_members = AsyncMock(return_value=yata_data)
+    mock_client_yata.fetch_members = AsyncMock(return_value=[
+        _make_member(id=123, name="Leader", position="Leader"),
+        _make_member(id=456, name="Hidden", position="Team 1"),
+        _make_member(id=789, name="NotOnYata", position="Team 2"),
+    ])
+    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["members"]["456"]["source"] == "hidden"
+    assert data["members"]["789"]["source"] == "not_on_yata"
