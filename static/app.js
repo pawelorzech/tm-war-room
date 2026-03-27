@@ -166,6 +166,168 @@ function renderMobileHeader(war, chain) {
     updateMobileThemeBtn();
 }
 
+let expandedOurCard = null;
+
+function toggleOurCard(cardEl, id) {
+    if (expandedOurCard && expandedOurCard !== cardEl) {
+        expandedOurCard.className = 'member-card';
+    }
+    if (cardEl.classList.contains('expanded') || cardEl.classList.contains('expanded-yellow') || cardEl.classList.contains('expanded-red')) {
+        cardEl.className = 'member-card';
+        expandedOurCard = null;
+    } else {
+        const color = cardEl.dataset.statusColor;
+        cardEl.className = 'member-card ' + (color === 'yellow' ? 'expanded-yellow' : color === 'red' ? 'expanded-red' : 'expanded');
+        expandedOurCard = cardEl;
+    }
+}
+
+function mobileSortOur(val) {
+    if (val === 'readiness') {
+        ourSort.col = null;
+    } else {
+        ourSort.col = val;
+        ourSort.asc = (val === 'name');
+    }
+    if (overviewData && detailData) renderOurTeam(overviewData.members, detailData);
+}
+
+function renderMobileCards(members, detailResponse) {
+    const dm = detailResponse?.members || {};
+    const yataDown = detailResponse?.yata_down || false;
+    const yataWarn = document.getElementById('yata-warning');
+    if (yataWarn) yataWarn.style.display = yataDown ? 'block' : 'none';
+
+    const ord = {green:0,yellow:1,gray:2,red:3};
+    let sorted;
+    if (ourSort.col) {
+        sorted = [...members].sort((a, b) => {
+            const va = getOurSortValue(a, dm, ourSort.col);
+            const vb = getOurSortValue(b, dm, ourSort.col);
+            const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+            return ourSort.asc ? cmp : -cmp;
+        });
+    } else {
+        sorted = [...members].sort((a,b) => {
+            const ra = ord[getReadiness(a,dm[a.id])]??2, rb = ord[getReadiness(b,dm[b.id])]??2;
+            return ra !== rb ? ra-rb : a.name.localeCompare(b.name);
+        });
+    }
+
+    let on=0, hosp=0, off=0;
+    for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
+    document.getElementById('our-mobile-summary').textContent = `${on} online · ${hosp} hospital`;
+    document.getElementById('our-count').textContent = members.length;
+
+    const userName = localStorage.getItem('myKeyName');
+    if (userName) document.getElementById('user-info').textContent = userName;
+
+    const warActive = isWarActive();
+
+    const container = document.getElementById('our-cards');
+    container.innerHTML = sorted.map(m => {
+        const d = dm[m.id];
+        const r = getReadiness(m, d);
+        const dotColor = r;
+        const nameColor = r === 'green' ? 'var(--green)' : r === 'yellow' ? 'var(--yellow)' : r === 'red' ? 'var(--red)' : 'var(--text-muted)';
+
+        let stateHtml;
+        if (m.status.state === 'Hospital') {
+            const until = m.status.until;
+            const left = until ? fmtCD(until - Math.floor(Date.now()/1000)) : '';
+            stateHtml = `<span style="color:var(--yellow)">🏥 ${left}</span>`;
+        } else if (m.status.state === 'Traveling' || m.status.state === 'Abroad') {
+            const desc = m.status.description || '';
+            const dest = desc.replace('Traveling to ', '✈ ').replace('Returning to Torn from ', '✈← ').replace('In ', '• ');
+            const until = m.status.until;
+            const left = until ? ' ' + fmtCD(until - Math.floor(Date.now()/1000)) : '';
+            stateHtml = `<span style="color:var(--yellow)">${dest}${left}</span>`;
+        } else if (m.status.state === 'Jail') {
+            const until = m.status.until;
+            const left = until ? fmtCD(until - Math.floor(Date.now()/1000)) : '';
+            stateHtml = `<span style="color:var(--red)">Jail ${left}</span>`;
+        } else if (m.last_action.status === 'Offline') {
+            stateHtml = `<span style="color:var(--text-dim)">Offline</span>`;
+        } else {
+            stateHtml = `<span style="color:var(--green)">${m.last_action.status}</span>`;
+        }
+
+        let energyHtml;
+        if (d && (d.source === 'torn_api' || d.source === 'yata')) {
+            if (d.energy > d.max_energy) {
+                energyHtml = `<span style="color:var(--green);font-weight:600">⚡ ${d.energy}/${d.max_energy}</span>`;
+            } else if (d.energy < d.max_energy) {
+                energyHtml = `<span style="color:var(--red)">⚡ ${d.energy}/${d.max_energy}</span>`;
+            } else {
+                energyHtml = `<span style="color:var(--blue)">⚡ ${d.energy}/${d.max_energy}</span>`;
+            }
+        } else {
+            energyHtml = `<span style="color:var(--text-dim)">⚡ —</span>`;
+        }
+
+        let cdHtml;
+        if (d && (d.source === 'torn_api' || d.source === 'yata')) {
+            cdHtml = d.drug_cd > 0
+                ? `<span style="color:var(--red)">💊 ${fmtCD(d.drug_cd)}</span>`
+                : `<span style="color:var(--green)">💊 ready</span>`;
+        } else {
+            cdHtml = `<span style="color:var(--text-dim)">💊 —</span>`;
+        }
+
+        let reviveHtml;
+        if (m.revive_setting === 'No one') {
+            reviveHtml = `<span style="color:var(--green)">🔄 OFF</span>`;
+        } else if (m.revive_setting === 'Friends & faction') {
+            reviveHtml = `<span style="color:var(--yellow)">🔄 Fac</span>`;
+        } else if (m.revive_setting === 'Everyone') {
+            reviveHtml = `<span style="color:var(--red)">🔄 ALL</span>`;
+        } else {
+            reviveHtml = `<span style="color:var(--text-dim)">🔄 —</span>`;
+        }
+
+        const needsBounty = warActive && m.last_action.status === 'Offline' && m.status.state !== 'Hospital';
+        const bountyHtml = needsBounty
+            ? `<button class="card-btn-bounty" onclick="event.stopPropagation();copyBounty('${m.name.replace(/'/g,"\\'")}', ${m.id})" title="Copy bounty request">📋</button>`
+            : '';
+
+        const ocHtml = m.is_in_oc ? '<span style="color:var(--green)">✓ In OC</span>' : '<span style="color:var(--text-dim)">—</span>';
+        let hospReason = '';
+        if (m.status.state === 'Hospital' && m.status.details) {
+            hospReason = `<div class="detail-full"><span class="label">Hospital:</span> <span style="color:var(--yellow)">${m.status.details}</span></div>`;
+        }
+
+        return `<div class="member-card" data-status-color="${r}" onclick="toggleOurCard(this, ${m.id})">
+            <div class="member-card-row1">
+                <div class="member-card-left">
+                    <span class="dot dot-${dotColor}"></span>
+                    <a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank" class="member-card-name" style="color:${nameColor}" onclick="event.stopPropagation()">${m.name}</a>
+                    <span class="member-card-level">${m.level}</span>
+                </div>
+                <div class="member-card-right">
+                    ${bountyHtml}
+                    <span class="member-card-time">${m.last_action.relative}</span>
+                </div>
+            </div>
+            <div class="member-card-row2">
+                ${stateHtml}
+                ${energyHtml}
+                ${cdHtml}
+                ${reviveHtml}
+            </div>
+            <div class="member-card-details">
+                <div><span class="label">Position:</span> ${m.position}</div>
+                <div><span class="label">Days:</span> ${m.days_in_faction}</div>
+                <div><span class="label">OC:</span> ${ocHtml}</div>
+                <div><span class="label">Last action:</span> ${m.last_action.relative}</div>
+                ${hospReason}
+                <div class="detail-link"><a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank" onclick="event.stopPropagation()">View Profile ↗</a></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    expandedOurCard = null;
+}
+
 // --- Readiness ---
 function getReadiness(m, d) {
     const on = m.last_action.status, st = m.status.state;
@@ -218,6 +380,10 @@ function renderWar(war, wp) {
 
 // --- Our Team ---
 function renderOurTeam(members, detailResponse) {
+    if (isMobile()) {
+        renderMobileCards(members, detailResponse);
+        // Still update desktop summary for when user resizes
+    }
     const dm = detailResponse?.members || {};
     const yataDown = detailResponse?.yata_down || false;
 
