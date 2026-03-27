@@ -4,6 +4,8 @@ const FACTION_ID = 11559;
 let overviewData = null, detailData = null, enemyData = null;
 let ourSort = { col: null, asc: true }; // null = default readiness sort
 let enemySort = { col: 'threat_score', asc: true };
+let adminRange = 7;
+let isAdmin = false;
 
 // --- Theme ---
 function initTheme() {
@@ -21,6 +23,28 @@ function toggleTheme() {
     document.getElementById('theme-btn').textContent = isLight ? 'Turn Dark' : 'Turn Light';
 }
 initTheme();
+
+// --- Admin API ---
+const adminApi = {
+    _authHeaders() {
+        const token = localStorage.getItem('adminToken');
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    },
+    me: () => fetch('/api/me', { headers: api._headers() }).then(r => r.json()),
+    session: () => fetch('/api/admin/session', {
+        method: 'POST',
+        headers: api._headers(),
+    }).then(r => { if (!r.ok) throw new Error('Session failed'); return r.json(); }),
+    system: () => fetch('/api/admin/system', { headers: adminApi._authHeaders() }).then(r => {
+        if (r.status === 401) { localStorage.removeItem('adminToken'); throw new Error('unauthorized'); }
+        return r.json();
+    }),
+    keys: () => fetch('/api/admin/keys', { headers: adminApi._authHeaders() }).then(r => r.json()),
+    deleteKey: (pid) => fetch(`/api/admin/keys/${pid}`, { method: 'DELETE', headers: adminApi._authHeaders() }).then(r => r.json()),
+    requestStats: (days) => fetch(`/api/admin/stats/requests?days=${days}`, { headers: adminApi._authHeaders() }).then(r => r.json()),
+    userStats: (days) => fetch(`/api/admin/stats/users?days=${days}`, { headers: adminApi._authHeaders() }).then(r => r.json()),
+    errorStats: (days) => fetch(`/api/admin/stats/errors?days=${days}`, { headers: adminApi._authHeaders() }).then(r => r.json()),
+};
 
 // --- API ---
 const api = {
@@ -44,10 +68,11 @@ function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
     localStorage.setItem('activeTab', tab);
+    if (tab === 'admin') loadAdminPanel();
 }
 function initTab() {
     const saved = localStorage.getItem('activeTab');
-    if (saved) switchTab(saved);
+    if (saved && saved !== 'admin') switchTab(saved);
 }
 initTab();
 
@@ -413,6 +438,7 @@ async function removeMyKey() {
 function logout() {
     localStorage.removeItem('myKeyPlayer');
     localStorage.removeItem('myKeyName');
+    localStorage.removeItem('adminToken');
     document.getElementById('login-gate').style.display = 'flex';
     document.getElementById('app-content').style.display = 'none';
 }
@@ -422,6 +448,7 @@ function showApp() {
     document.getElementById('app-content').style.display = 'block';
     const name = localStorage.getItem('myKeyName');
     if (name) document.getElementById('user-info').textContent = name;
+    checkAdmin();
 }
 
 async function loginWithKey() {
@@ -457,4 +484,160 @@ async function initAuth() {
 }
 
 initAuth();
+
+// --- Admin ---
+async function checkAdmin() {
+    try {
+        const data = await adminApi.me();
+        isAdmin = data.is_admin;
+        const tab = document.getElementById('admin-tab');
+        if (tab) tab.style.display = isAdmin ? '' : 'none';
+        if (isAdmin && localStorage.getItem('activeTab') === 'admin') {
+            switchTab('admin');
+        }
+    } catch (e) {
+        isAdmin = false;
+    }
+}
+
+async function ensureAdminToken() {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+        try {
+            const resp = await fetch('/api/admin/system', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (resp.ok) return true;
+        } catch (e) { /* fall through */ }
+    }
+    try {
+        const data = await adminApi.session();
+        localStorage.setItem('adminToken', data.token);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function loadAdminPanel() {
+    const loading = document.getElementById('admin-loading');
+    const panel = document.getElementById('admin-panel');
+    loading.style.display = 'block';
+    panel.style.display = 'none';
+    const ok = await ensureAdminToken();
+    if (!ok) {
+        loading.textContent = 'Admin authentication failed.';
+        return;
+    }
+    loading.style.display = 'none';
+    panel.style.display = 'block';
+    refreshAdminPanel();
+}
+
+async function refreshAdminPanel() {
+    try {
+        const [sys, keys, reqStats, userStats, errStats] = await Promise.all([
+            adminApi.system(),
+            adminApi.keys(),
+            adminApi.requestStats(adminRange),
+            adminApi.userStats(adminRange),
+            adminApi.errorStats(adminRange),
+        ]);
+        renderAdminSystem(sys);
+        renderAdminKeys(keys);
+        renderAdminUsage(reqStats, userStats, errStats);
+    } catch (e) {
+        console.error('Admin refresh failed:', e);
+    }
+}
+
+function renderAdminSystem(sys) {
+    const uptimeH = Math.floor(sys.uptime_seconds / 3600);
+    const uptimeM = Math.floor((sys.uptime_seconds % 3600) / 60);
+    const lastRefresh = sys.cache.last_refresh ? new Date(sys.cache.last_refresh * 1000).toLocaleTimeString() : '—';
+    let integrationsHtml = '';
+    for (const [name, info] of Object.entries(sys.integrations)) {
+        const statusClass = info.status === 'ok' ? 'status-ok' : info.status === 'error' ? 'status-error' : 'status-unknown';
+        const label = info.status === 'ok' ? 'OK' : info.status === 'error' ? 'Error' : 'No data';
+        const errorDetail = info.last_error ? ` — ${info.last_error}` : '';
+        integrationsHtml += `<span class="integration-badge ${statusClass}" title="${name}: ${label}${errorDetail}">${name}: ${label}</span> `;
+    }
+    document.getElementById('admin-system').innerHTML = `
+        <div class="admin-system-grid">
+            <div><strong>Uptime:</strong> ${uptimeH}h ${uptimeM}m</div>
+            <div><strong>Version:</strong> ${sys.version}</div>
+            <div><strong>Cache:</strong> ${sys.cache.entries} entries, last refresh ${lastRefresh}</div>
+        </div>
+        <div class="admin-integrations">${integrationsHtml}</div>
+    `;
+}
+
+function renderAdminKeys(data) {
+    const pct = data.total_faction_members > 0 ? Math.round(data.registered_count / data.total_faction_members * 100) : 0;
+    const keysRows = data.keys.map(k => {
+        const type = k.is_faction_key ? '<span class="badge-faction">faction</span>' : 'personal';
+        const date = k.created_at ? new Date(k.created_at).toLocaleDateString() : '—';
+        const removeBtn = `<button class="btn-remove-key" onclick="adminRemoveKey(${k.player_id}, '${k.player_name.replace(/'/g, "\\'")}')">Remove</button>`;
+        return `<tr><td>${k.player_name}</td><td>${k.player_id}</td><td>${type}</td><td>${date}</td><td>${removeBtn}</td></tr>`;
+    }).join('');
+    document.getElementById('admin-keys').innerHTML = `
+        <div class="coverage-bar-wrap">
+            <div class="coverage-label">${data.registered_count}/${data.total_faction_members} members registered (${pct}%)</div>
+            <div class="coverage-track"><div class="coverage-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>ID</th><th>Type</th><th>Registered</th><th></th></tr></thead>
+                <tbody>${keysRows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderAdminUsage(reqStats, userStats, errStats) {
+    const maxCount = Math.max(...reqStats.per_day.map(d => d.count), 1);
+    const barsHtml = reqStats.per_day.map(d => {
+        const pct = (d.count / maxCount * 100).toFixed(0);
+        const label = d.date.slice(5);
+        return `<div class="bar-col"><div class="bar" style="height:${pct}%" title="${d.date}: ${d.count} requests, avg ${d.avg_response_ms}ms"></div><div class="bar-label">${label}</div></div>`;
+    }).join('');
+    const usersRows = userStats.users.map(u => {
+        const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString() : '—';
+        return `<tr><td>${u.player_name}</td><td>${lastSeen}</td><td>${u.request_count}</td></tr>`;
+    }).join('');
+    const errRows = errStats.errors.map(e => {
+        const lastOccurred = e.last_occurred ? new Date(e.last_occurred).toLocaleString() : '—';
+        return `<tr><td>${e.endpoint}</td><td>${e.status_code}</td><td>${e.count}</td><td>${lastOccurred}</td></tr>`;
+    }).join('');
+    document.getElementById('admin-usage').innerHTML = `
+        <h3 class="admin-section-title">Requests per day</h3>
+        <div class="bar-chart">${barsHtml || '<div class="admin-empty">No data yet</div>'}</div>
+        <div class="admin-total">Total: ${reqStats.total_requests} requests</div>
+        <h3 class="admin-section-title">Active Users</h3>
+        <div class="table-wrap">
+            <table><thead><tr><th>Name</th><th>Last Seen</th><th>Requests</th></tr></thead>
+            <tbody>${usersRows || '<tr><td colspan="3" class="admin-empty">No data</td></tr>'}</tbody></table>
+        </div>
+        <h3 class="admin-section-title">Errors</h3>
+        <div class="table-wrap">
+            <table><thead><tr><th>Endpoint</th><th>Status</th><th>Count</th><th>Last</th></tr></thead>
+            <tbody>${errRows || '<tr><td colspan="4" class="admin-empty">No errors</td></tr>'}</tbody></table>
+        </div>
+    `;
+}
+
+async function adminRemoveKey(pid, name) {
+    if (!confirm(`Remove API key for ${name} (${pid})?`)) return;
+    try {
+        await adminApi.deleteKey(pid);
+        refreshAdminPanel();
+    } catch (e) {
+        alert('Failed to remove key: ' + e.message);
+    }
+}
+
+function setAdminRange(days) {
+    adminRange = days;
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.days) === days));
+    refreshAdminPanel();
+}
+
 setInterval(() => { if (localStorage.getItem('myKeyPlayer')) refresh(); }, REFRESH_INTERVAL);
