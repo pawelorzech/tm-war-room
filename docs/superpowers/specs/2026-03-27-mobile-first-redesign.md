@@ -185,6 +185,38 @@ Below header, always visible (not in hamburger):
 
 Active tab: green text + green bottom border. Inactive: muted text. Badge with member count.
 
+## Admin Panel — Mobile Layout
+
+The admin panel (System, Keys, Usage cards) must be fully functional on mobile. Admin tasks will be performed on phone.
+
+### System Card
+
+Already responsive — grid stacks to 1fr on mobile. Integration badges wrap. No changes needed beyond what exists.
+
+### Keys Card
+
+The desktop table (Name, ID, Type, Registered, Remove) is 5 columns — too wide for mobile. On mobile, replace with card layout:
+
+```
+┌─────────────────────────────────────────┐
+│ PlayerName                    [Remove]  │
+│ ID: 12345 · personal · 2026-03-15      │
+└─────────────────────────────────────────┘
+```
+
+Each key = one card. Name prominent, metadata in second line, Remove button always visible and touch-friendly (44px min height). Coverage progress bar stays above the key cards (already works on mobile).
+
+### Usage Card
+
+- **Bar chart**: Already responsive (height reduces to 60px on mobile). Keep as-is.
+- **Range selector**: 7d/14d/30d buttons — already touch-friendly. Keep as-is.
+- **Active Users table**: 3 columns (Name, Last Seen, Requests) — narrow enough to fit. Make font smaller (11px) and hide "Last Seen" column on mobile.
+- **Errors table**: 4 columns (Endpoint, Status, Count, Last) — hide "Last" column on mobile.
+
+### Tabs
+
+The admin tab (`⚙ Admin`) uses `margin-left: auto` on desktop to push it right. On mobile, all three tabs should be equal width: `Our Team | Enemy | ⚙ Admin` with `flex: 1` each. Admin tab only visible for admin users (controlled by JS, unchanged).
+
 ## Desktop Layout
 
 **No changes.** Breakpoint ≥768px renders existing table layout exactly as-is. The mobile card rendering is purely additive — a new code path that activates below 768px.
@@ -199,7 +231,10 @@ Add new functions alongside existing code. No rewrites.
 - New `renderMobileCards(members)` function for Our Team cards
 - New `renderMobileEnemyCards(members)` function for Enemy cards
 - New `renderMobileHeader()` function for compact header + hamburger
+- New `renderMobileAdminKeys(data)` function for admin keys card layout on mobile
 - Modify existing `renderMembers()` and `renderEnemy()` to branch: if `window.innerWidth < 768` → mobile cards, else → existing table
+- Modify existing `renderAdminKeys()` to branch on mobile for card layout
+- Modify existing `renderAdminUsage()` to hide columns on mobile via CSS classes
 - Add `window.addEventListener('resize', ...)` to re-render on breakpoint crossing
 - Card expand/collapse: toggle class on click, CSS transition for smooth open/close
 - Sort dropdown: `<select>` element, onChange triggers re-sort + re-render
@@ -207,9 +242,10 @@ Add new functions alongside existing code. No rewrites.
 **style.css changes:**
 - New `.member-card`, `.member-card-expanded`, `.enemy-card`, `.enemy-card-expanded` styles
 - New `.mobile-header`, `.hamburger-menu`, `.sort-dropdown` styles
-- New `@media (max-width: 767px)` block: hide table, show cards, show mobile header, hide desktop header
+- New `.admin-key-card` styles for mobile admin keys
+- New `@media (max-width: 767px)` block: hide table, show cards, show mobile header, hide desktop header, admin mobile tweaks
 - New `@media (min-width: 768px)` block: hide cards, show table (existing behavior)
-- Remove old `@media (max-width: 768px)` block that just hid columns — replaced by card layout
+- Remove old `@media (max-width: 768px)` block that just hid columns — replaced by comprehensive mobile layout
 
 **index.html changes:**
 - Add card container divs (empty, populated by JS): `<div id="our-cards" class="mobile-only"></div>`, `<div id="enemy-cards" class="mobile-only"></div>`
@@ -221,8 +257,8 @@ Add new functions alongside existing code. No rewrites.
 
 | File | Change Type | Scope |
 |------|-------------|-------|
-| `static/app.js` | Add functions | ~150 new lines (renderMobileCards, renderMobileEnemyCards, renderMobileHeader, card interactions) |
-| `static/style.css` | Add styles | ~100 new lines (card styles, mobile header, hamburger, sort dropdown) |
-| `static/index.html` | Add containers | ~15 new lines (card containers, mobile header div, sort dropdowns) |
+| `static/app.js` | Add functions | ~200 new lines (renderMobileCards, renderMobileEnemyCards, renderMobileHeader, renderMobileAdminKeys, card interactions) |
+| `static/style.css` | Add styles | ~140 new lines (card styles, mobile header, hamburger, sort dropdown, admin mobile) |
+| `static/index.html` | Add containers | ~20 new lines (card containers, mobile header div, sort dropdowns) |
 
 No backend changes. No new files. No new dependencies.
