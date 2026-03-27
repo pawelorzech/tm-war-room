@@ -63,10 +63,12 @@ async def overview():
         torn_client._api_key = active_key
     members = await torn_client.fetch_members()
     war = await torn_client.fetch_war()
+    chain = await torn_client.fetch_chain()
     return {
         "members": [m.model_dump() for m in members],
         "war": war.model_dump() if war else None,
         "war_progress": _build_war_progress(war),
+        "chain": chain,
         "cached_at": int(time.time()),
     }
 

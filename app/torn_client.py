@@ -76,6 +76,20 @@ class TornClient:
         self._set_cached("war", war)
         return war
 
+    async def fetch_chain(self) -> dict:
+        cached = self._get_cached("chain")
+        if cached is not None:
+            return cached
+        resp = await self._http.get(
+            f"{V2_BASE}/faction/",
+            params={"selections": "chain", "key": self._api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        chain = raw.get("chain", {})
+        self._set_cached("chain", chain)
+        return chain
+
     async def fetch_member_bars(self, member_key: str) -> MemberBars:
         resp = await self._http.get(
             f"{V1_BASE}/user/",

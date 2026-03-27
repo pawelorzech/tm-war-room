@@ -146,6 +146,12 @@ a:hover { text-decoration: underline; }
 .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); }
 #key-status { margin-top: 0.4rem; font-size: 0.75rem; }
 
+/* === Chain info === */
+.chain-info { margin-top: 0.3rem; font-size: 0.75rem; color: var(--text-muted); padding: 0.3rem 0.75rem; }
+
+/* === New member badge === */
+.badge-new { font-size: 0.6rem; background: var(--yellow-bg); color: var(--yellow); padding: 0.05rem 0.3rem; border-radius: 3px; font-weight: 600; vertical-align: middle; }
+
 /* === Mobile === */
 @media (max-width: 768px) {
     header { padding: 0.5rem 0.75rem; }
