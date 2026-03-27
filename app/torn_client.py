@@ -24,11 +24,12 @@ async def _json(resp: Any) -> Any:
 
 
 class TornClient:
-    def __init__(self, api_key: str, cache_ttl: int = 60) -> None:
+    def __init__(self, api_key: str, cache_ttl: int = 60, analytics_store=None) -> None:
         self._api_key = api_key
         self._cache_ttl = cache_ttl
         self._http = httpx.AsyncClient(timeout=15.0)
         self._cache: dict[str, tuple[float, Any]] = {}
+        self._analytics = analytics_store
 
     async def close(self) -> None:
         await self._http.aclose()
@@ -43,17 +44,30 @@ class TornClient:
     def _set_cached(self, key: str, data: Any) -> None:
         self._cache[key] = (time.time(), data)
 
+    def _log_integration(self, service: str, endpoint: str, success: bool, elapsed_ms: float, error: str | None = None) -> None:
+        if self._analytics:
+            try:
+                self._analytics.log_integration(service, endpoint, success, elapsed_ms, error)
+            except Exception:
+                pass
+
     async def fetch_members(self) -> list[FactionMember]:
         cached = self._get_cached("members")
         if cached is not None:
             return cached
 
-        resp = await self._http.get(
-            f"{V2_BASE}/faction/members",
-            params={"key": self._api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/members",
+                params={"key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/faction/members", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/members", False, (time.time() - start) * 1000, str(e))
+            raise
         members = [FactionMember(**m) for m in raw["members"]]
         self._set_cached("members", members)
         return members
@@ -63,12 +77,18 @@ class TornClient:
         if cached is not None:
             return cached
 
-        resp = await self._http.get(
-            f"{V2_BASE}/faction/",
-            params={"selections": "wars", "key": self._api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/",
+                params={"selections": "wars", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/faction/wars", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/wars", False, (time.time() - start) * 1000, str(e))
+            raise
         ranked = raw.get("wars", {}).get("ranked")
         if not ranked:
             self._set_cached("war", None)
@@ -82,23 +102,36 @@ class TornClient:
         cached = self._get_cached("chain")
         if cached is not None:
             return cached
-        resp = await self._http.get(
-            f"{V2_BASE}/faction/",
-            params={"selections": "chain", "key": self._api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/",
+                params={"selections": "chain", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/faction/chain", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/chain", False, (time.time() - start) * 1000, str(e))
+            raise
         chain = raw.get("chain", {})
         self._set_cached("chain", chain)
         return chain
 
     async def fetch_member_bars(self, member_key: str) -> MemberBars:
-        resp = await self._http.get(
-            f"{V1_BASE}/user/",
-            params={"selections": "bars,cooldowns", "key": member_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "bars,cooldowns", "key": member_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/user/bars", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/user/bars", False, (time.time() - start) * 1000, str(e))
+            raise
         return MemberBars(
             energy=raw["energy"],
             happy=raw["happy"],
@@ -113,6 +146,7 @@ class TornClient:
         if cached is not None:
             return cached
         key = api_key or self._api_key
+        start = time.time()
         try:
             resp = await self._http.get(
                 f"{YATA_BASE}/faction/members/",
@@ -122,10 +156,13 @@ class TornClient:
             resp.raise_for_status()
             data = await _json(resp)
             if "error" in data:
+                self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, "API error response")
                 return None
+            self._log_integration("yata", "/api/v1/faction/members/", True, (time.time() - start) * 1000)
             self._set_cached("yata_members", data)
             return data
-        except Exception:
+        except Exception as e:
+            self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, str(e))
             return None
 
     async def fetch_enemy_members(self, faction_id: int) -> list[FactionMember]:
@@ -133,12 +170,19 @@ class TornClient:
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
-        resp = await self._http.get(
-            f"{V2_BASE}/faction/{faction_id}",
-            params={"selections": "members", "key": self._api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/{faction_id}",
+                params={"selections": "members", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", f"/v2/faction/{faction_id}/members", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", f"/v2/faction/{faction_id}/members", False, (time.time() - start) * 1000, str(e))
+            raise
         members = [FactionMember(**m) for m in raw["members"]]
         self._set_cached(cache_key, members)
         return members
@@ -149,12 +193,19 @@ class TornClient:
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
-        resp = await self._http.get(
-            f"{V2_BASE}/faction/{faction_id}",
-            params={"key": self._api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/{faction_id}",
+                params={"key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", f"/v2/faction/{faction_id}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", f"/v2/faction/{faction_id}", False, (time.time() - start) * 1000, str(e))
+            raise
         basic = raw.get("basic", {})
         rank = basic.get("rank", {})
         info = FactionInfo(
@@ -172,12 +223,19 @@ class TornClient:
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
-        resp = await self._http.get(
-            f"{V1_BASE}/user/",
-            params={"selections": "personalstats", "key": api_key},
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "personalstats", "key": api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/user/personalstats", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/user/personalstats", False, (time.time() - start) * 1000, str(e))
+            raise
         ps_raw = raw.get("personalstats", {})
         ps = PersonalStats.from_torn_api(ps_raw)
         self._set_cached(cache_key, ps)
@@ -189,11 +247,18 @@ class TornClient:
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
-        resp = await self._http.get(
-            f"https://www.tornstats.com/api/v2/{ts_key}/spy/faction/{faction_id}",
-        )
-        resp.raise_for_status()
-        raw = await _json(resp)
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"https://www.tornstats.com/api/v2/{ts_key}/spy/faction/{faction_id}",
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("tornstats", f"/api/v2/spy/faction/{faction_id}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("tornstats", f"/api/v2/spy/faction/{faction_id}", False, (time.time() - start) * 1000, str(e))
+            raise
         result: dict[int, PersonalStats] = {}
         if not raw.get("status"):
             self._set_cached(cache_key, result)
