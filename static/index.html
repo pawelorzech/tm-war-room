@@ -35,7 +35,11 @@
             <div class="mh-user" id="mh-user"></div>
             <button onclick="refresh();toggleHamburger()">&#128260; Refresh <span id="mh-last-update" class="mh-meta"></span></button>
             <button id="mh-admin" onclick="switchTab('admin');toggleHamburger()" style="display:none">&#128736; Admin</button>
-            <button onclick="toggleTheme();updateMobileThemeBtn()">&#127769; <span id="mh-theme-label">Dark Mode</span></button>
+            <div class="mh-theme-row">
+                <span>&#127769;</span>
+                <input type="range" min="0" max="100" value="0" class="theme-slider" oninput="setThemeSlider(this.value)">
+                <span>&#9728;&#65039;</span>
+            </div>
             <button class="mh-logout" onclick="removeMyKey()">&#8617; Logout</button>
         </div>
     </div>
@@ -47,7 +51,7 @@
                 <span id="user-info" class="user-badge"></span>
                 <button onclick="refresh()">Refresh</button>
                 <button onclick="removeMyKey()" id="logout-btn" class="btn-logout">Logout</button>
-                <button onclick="toggleTheme()" id="theme-btn">Turn Light</button>
+                <input type="range" min="0" max="100" value="0" class="theme-slider" oninput="setThemeSlider(this.value)" title="Theme: dark ↔ light">
             </div>
         </div>
         <div id="war-status" class="war-banner">Loading...</div>
