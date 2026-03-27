@@ -105,6 +105,7 @@ tr:hover { background: var(--bg-surface); }
 .threat-hard { background: var(--red-bg); color: var(--red); }
 .threat-avoid { background: var(--purple-bg); color: var(--purple); }
 .threat-unknown { background: var(--bg-elevated); color: var(--text-dim); }
+.help-icon { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; font-size: 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 50%; color: var(--text-muted); cursor: help; vertical-align: middle; margin-left: 0.2rem; }
 
 /* === Action buttons === */
 .btn-attack { padding: 0.2rem 0.45rem; background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-block; min-height: 28px; line-height: 28px; }
