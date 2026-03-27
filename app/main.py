@@ -5,14 +5,15 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY
+from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY
 from app.torn_client import TornClient
 from app.db import KeyStore
+from app.threat import compute_threat
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -31,6 +32,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TM War Room", lifespan=lifespan)
 
 
+def _build_war_progress(war) -> dict | None:
+    if not war or not war.war_id:
+        return None
+    us = next((f for f in war.factions if f.id == FACTION_ID), None)
+    them = next((f for f in war.factions if f.id != FACTION_ID), None)
+    if not us or not them:
+        return None
+    target = war.target or 0
+    return {
+        "war_id": war.war_id, "start": war.start, "end": war.end, "target": target,
+        "our_score": us.score, "their_score": them.score,
+        "our_name": us.name, "their_name": them.name,
+        "our_id": us.id, "their_id": them.id,
+        "our_pct": min(100.0, (us.score / target * 100)) if target else 0,
+        "their_pct": min(100.0, (them.score / target * 100)) if target else 0,
+    }
+
+
 @app.get("/api/overview")
 async def overview():
     members = await torn_client.fetch_members()
@@ -38,6 +57,7 @@ async def overview():
     return {
         "members": [m.model_dump() for m in members],
         "war": war.model_dump() if war else None,
+        "war_progress": _build_war_progress(war),
         "cached_at": int(time.time()),
     }
 
@@ -49,20 +69,55 @@ async def members_detail():
     for entry in keys:
         try:
             bars = await torn_client.fetch_member_bars(entry["api_key"])
-            results.append({
-                "player_id": entry["player_id"],
-                "name": entry["player_name"],
-                "bars": bars.model_dump(),
-                "error": None,
-            })
+            results.append({"player_id": entry["player_id"], "name": entry["player_name"],
+                            "bars": bars.model_dump(), "error": None})
         except Exception as e:
-            results.append({
-                "player_id": entry["player_id"],
-                "name": entry["player_name"],
-                "bars": None,
-                "error": str(e),
-            })
+            results.append({"player_id": entry["player_id"], "name": entry["player_name"],
+                            "bars": None, "error": str(e)})
     return {"members": results, "cached_at": int(time.time())}
+
+
+@app.get("/api/enemy")
+async def enemy(faction_id: int | None = Query(default=None)):
+    enemy_id = faction_id
+    if not enemy_id:
+        war = await torn_client.fetch_war()
+        if war and war.factions:
+            enemy_faction = next((f for f in war.factions if f.id != FACTION_ID), None)
+            if enemy_faction:
+                enemy_id = enemy_faction.id
+    if not enemy_id:
+        return {"faction": None, "members": [], "cached_at": int(time.time())}
+
+    members = await torn_client.fetch_enemy_members(enemy_id)
+    info = await torn_client.fetch_faction_info(enemy_id)
+
+    spy_data = {}
+    if TORNSTATS_API_KEY:
+        try:
+            spy_data = await torn_client.fetch_tornstats_spy(enemy_id, TORNSTATS_API_KEY)
+        except Exception:
+            pass
+
+    enemy_list = []
+    for m in members:
+        ps = spy_data.get(m.id)
+        score, label = compute_threat(ps, m.level)
+        enemy_list.append({
+            **m.model_dump(),
+            "personal_stats": ps.model_dump() if ps else None,
+            "threat_score": score, "threat_label": label,
+            "attack_url": f"https://www.torn.com/loader.php?sid=attack&user2ID={m.id}",
+            "profile_url": f"https://www.torn.com/profiles.php?XID={m.id}",
+            "tornstats_url": f"https://www.tornstats.com/playerinfo.php?user={m.id}",
+        })
+
+    enemy_list.sort(key=lambda e: (
+        0 if (e["last_action"]["status"] != "Offline" and e["status"]["state"] == "Okay") else 1,
+        e["threat_score"]
+    ))
+
+    return {"faction": info.model_dump(), "members": enemy_list, "cached_at": int(time.time())}
 
 
 class KeyRegister(BaseModel):
@@ -81,11 +136,8 @@ async def register_key(body: KeyRegister):
         raw = await raw
     if "error" in raw:
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
-    player_id = raw["player_id"]
-    player_name = raw["name"]
-
-    key_store.save_key(player_id=player_id, player_name=player_name, api_key=body.api_key)
-    return {"status": "ok", "player_id": player_id, "name": player_name}
+    key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
+    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
 
 
 @app.delete("/api/keys/{player_id}")
@@ -94,7 +146,6 @@ async def delete_key(player_id: int):
     return {"status": "ok"}
 
 
-# Static files — mount AFTER API routes
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")

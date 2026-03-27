@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
-from app.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction
+from app.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
 
 
 def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online") -> FactionMember:
@@ -84,3 +84,28 @@ async def test_register_key(mock_client, mock_store):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post("/api/keys", json={"api_key": "some_key"})
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_enemy_with_rw(mock_client, mock_store):
+    mock_client.fetch_enemy_members = AsyncMock(return_value=[_make_member(id=999, name="Enemy1")])
+    mock_client.fetch_faction_info = AsyncMock(return_value=FactionInfo(
+        id=9420, name="The Pusheen Army", tag="TPA", respect=4000000,
+        members_count=73, rank_name="Platinum", rank_level=16, best_chain=50000, wins=62))
+    mock_client.fetch_tornstats_spy = AsyncMock(return_value={
+        999: PersonalStats(xanax_taken=2000, refills=900, attacks_won=4000,
+                           networth=5_000_000_000, highest_beaten=100, best_damage=6000,
+                           best_kill_streak=90, damage_done=13_000_000)})
+
+    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
+         patch("app.main.TORNSTATS_API_KEY", "fake_ts_key"):
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/enemy")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["faction"]["name"] == "The Pusheen Army"
+    assert len(data["members"]) == 1
+    assert data["members"][0]["threat_score"] > 0
+    assert "attack_url" in data["members"][0]
