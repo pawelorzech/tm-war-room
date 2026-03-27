@@ -63,3 +63,60 @@ def test_cleanup(store):
     conn.close()
     assert req_count == 1
     assert int_count == 0
+
+
+def _seed_requests(store):
+    """Insert sample data for query tests."""
+    import sqlite3
+    conn = sqlite3.connect(store._db_path)
+    conn.execute("INSERT INTO request_log (timestamp, player_id, method, endpoint, status_code, response_time_ms) VALUES (datetime('now'), 100, 'GET', '/api/overview', 200, 40)")
+    conn.execute("INSERT INTO request_log (timestamp, player_id, method, endpoint, status_code, response_time_ms) VALUES (datetime('now'), 100, 'GET', '/api/overview', 200, 60)")
+    conn.execute("INSERT INTO request_log (timestamp, player_id, method, endpoint, status_code, response_time_ms) VALUES (datetime('now'), 200, 'GET', '/api/enemy', 200, 100)")
+    conn.execute("INSERT INTO request_log (timestamp, player_id, method, endpoint, status_code, response_time_ms, error_message) VALUES (datetime('now'), 200, 'GET', '/api/enemy', 502, 5000, 'TornStats timeout')")
+    conn.commit()
+    conn.close()
+
+
+def test_get_request_stats(store):
+    _seed_requests(store)
+    stats = store.get_request_stats(days=7)
+    assert stats["total_requests"] == 4
+    assert len(stats["per_day"]) == 1
+    assert len(stats["per_endpoint"]) == 2
+
+
+def test_get_user_stats(store):
+    _seed_requests(store)
+    users = store.get_user_stats(days=7)
+    assert len(users) == 2
+    pids = {u["player_id"] for u in users}
+    assert pids == {100, 200}
+    user100 = next(u for u in users if u["player_id"] == 100)
+    assert user100["request_count"] == 2
+
+
+def test_get_error_stats(store):
+    _seed_requests(store)
+    errors = store.get_error_stats(days=7)
+    assert len(errors) == 1
+    assert errors[0]["endpoint"] == "/api/enemy"
+    assert errors[0]["status_code"] == 502
+    assert errors[0]["count"] == 1
+    assert errors[0]["last_error_message"] == "TornStats timeout"
+
+
+def test_get_integration_status(store):
+    store.log_integration("torn_api", "/v2/faction/members", True, 120.0)
+    store.log_integration("yata", "/api/v1/faction/members/", False, 8000.0, "timeout")
+    store.log_integration("yata", "/api/v1/faction/members/", True, 200.0)
+    status = store.get_integration_status()
+    assert status["torn_api"]["status"] == "ok"
+    assert status["yata"]["status"] == "ok"  # last call was success
+
+
+def test_get_integration_status_error(store):
+    store.log_integration("tornstats", "/api/v2/spy", True, 300.0)
+    store.log_integration("tornstats", "/api/v2/spy", False, 5000.0, "500 Internal Server Error")
+    status = store.get_integration_status()
+    assert status["tornstats"]["status"] == "error"
+    assert status["tornstats"]["last_error"] == "500 Internal Server Error"
