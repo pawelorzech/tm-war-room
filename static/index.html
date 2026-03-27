@@ -8,35 +8,86 @@
 </head>
 <body>
     <header>
-        <h1>TM War Room</h1>
+        <div class="header-row">
+            <h1>TM War Room</h1>
+            <div class="header-controls">
+                <span id="last-update"></span>
+                <button onclick="refresh()">Refresh</button>
+                <button onclick="showKeyModal()">+ API Key</button>
+                <button onclick="toggleTheme()" id="theme-btn" title="Toggle light/dark">Light</button>
+            </div>
+        </div>
         <div id="war-status" class="war-banner">Loading...</div>
+        <div id="war-progress" class="war-progress" style="display:none">
+            <div class="progress-labels">
+                <span id="wp-our-name">Us</span>
+                <span id="wp-target">Target: 0</span>
+                <span id="wp-their-name">Them</span>
+            </div>
+            <div class="progress-track">
+                <div id="wp-our-bar" class="progress-bar progress-us" style="width:0%"></div>
+            </div>
+            <div class="progress-track">
+                <div id="wp-their-bar" class="progress-bar progress-them" style="width:0%"></div>
+            </div>
+        </div>
     </header>
 
+    <nav class="tabs">
+        <button class="tab active" data-tab="our-team" onclick="switchTab('our-team')">Our Team <span id="our-count" class="badge">0</span></button>
+        <button class="tab" data-tab="enemy" onclick="switchTab('enemy')">Enemy Targets <span id="enemy-count" class="badge">0</span></button>
+    </nav>
+
     <main>
-        <div class="controls">
-            <span id="last-update">—</span>
-            <span id="member-count">—</span>
-            <button onclick="refresh()">Refresh</button>
-            <button onclick="showKeyModal()">+ Add API Key</button>
+        <div id="tab-our-team" class="tab-content active">
+            <div class="summary" id="our-summary"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Name</th>
+                            <th>Lvl</th>
+                            <th>State</th>
+                            <th>Last Action</th>
+                            <th>Energy</th>
+                            <th>Drug CD</th>
+                            <th class="hide-mobile">Position</th>
+                            <th>Wall</th>
+                        </tr>
+                    </thead>
+                    <tbody id="our-body"></tbody>
+                </table>
+            </div>
         </div>
 
-        <table id="members-table">
-            <thead>
-                <tr>
-                    <th>Status</th>
-                    <th>Name</th>
-                    <th>Lvl</th>
-                    <th>State</th>
-                    <th>Last Action</th>
-                    <th>Energy</th>
-                    <th>Drug CD</th>
-                    <th>Position</th>
-                    <th>Wall</th>
-                </tr>
-            </thead>
-            <tbody id="members-body">
-            </tbody>
-        </table>
+        <div id="tab-enemy" class="tab-content">
+            <div class="enemy-header">
+                <div class="summary" id="enemy-summary"></div>
+                <div id="enemy-faction-input" style="display:none">
+                    <input type="number" id="faction-id-input" placeholder="Faction ID">
+                    <button onclick="loadEnemy()">Load</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Name</th>
+                            <th>Lvl</th>
+                            <th>Threat</th>
+                            <th>State</th>
+                            <th class="hide-mobile">Last Action</th>
+                            <th class="hide-mobile">Xan/Ref</th>
+                            <th class="hide-mobile">Atk Won</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="enemy-body"></tbody>
+                </table>
+            </div>
+        </div>
     </main>
 
     <div id="key-modal" class="modal" style="display:none">
