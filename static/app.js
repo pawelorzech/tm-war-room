@@ -824,6 +824,26 @@ async function initAuth() {
     } catch(e) { logout(); }
 }
 
+// --- Responsive re-render on breakpoint crossing ---
+let wasMobile = isMobile();
+window.addEventListener('resize', () => {
+    const nowMobile = isMobile();
+    if (nowMobile !== wasMobile) {
+        wasMobile = nowMobile;
+        if (overviewData && detailData) renderOurTeam(overviewData.members, detailData);
+        if (enemyData) renderEnemy(enemyData);
+        if (overviewData) renderMobileHeader(overviewData.war, overviewData.chain);
+        // Close hamburger on resize to desktop
+        if (!nowMobile && hamburgerOpen) {
+            hamburgerOpen = false;
+            const menu = document.getElementById('mh-menu');
+            const btn = document.getElementById('mh-hamburger');
+            if (menu) menu.style.display = 'none';
+            if (btn) btn.innerHTML = '&#9776;';
+        }
+    }
+});
+
 initAuth();
 
 // --- Admin ---
