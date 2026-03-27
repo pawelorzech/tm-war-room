@@ -126,6 +126,8 @@ a:hover { text-decoration: underline; }
 .modal-buttons { display: flex; gap: 0.5rem; }
 .modal-buttons button { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 0.8rem; background: var(--btn-bg); color: var(--btn-text); min-height: 40px; }
 .modal-buttons button:first-child { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); }
 #key-status { margin-top: 0.4rem; font-size: 0.75rem; }
 
 /* === Mobile === */

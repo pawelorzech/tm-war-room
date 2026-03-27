@@ -95,6 +95,10 @@
             <h2>Register API Key</h2>
             <p>Your key is stored encrypted. Only energy &amp; cooldowns are read.</p>
             <input type="text" id="key-input" placeholder="Paste your Torn API key">
+            <label class="checkbox-row">
+                <input type="checkbox" id="key-faction-toggle">
+                <span>Use as faction key <span class="help-icon" title="Enable if you have faction API access. Threat scores will be calculated relative to YOUR stats. Only one faction key active at a time.">?</span></span>
+            </label>
             <div class="modal-buttons">
                 <button onclick="submitKey()">Register</button>
                 <button onclick="hideKeyModal()">Cancel</button>
