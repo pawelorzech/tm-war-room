@@ -17,7 +17,7 @@ if not _enc_key:
 
 ENCRYPTION_KEY: str = _enc_key
 
-ADMIN_PLAYER_IDS: set[int] = {2206960}  # Bombla
+ADMIN_PLAYER_IDS: set[int] = {2362436}  # Bombel
 
 _jwt_secret = os.environ.get("JWT_SECRET", "")
 if not _jwt_secret:
