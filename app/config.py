@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets as _secrets
 from cryptography.fernet import Fernet
 
 
@@ -15,3 +16,13 @@ if not _enc_key:
     print("WARNING: No ENCRYPTION_KEY set. Generated ephemeral key. Keys will be lost on restart.")
 
 ENCRYPTION_KEY: str = _enc_key
+
+ADMIN_PLAYER_IDS: set[int] = {2206960}  # Bombla
+
+_jwt_secret = os.environ.get("JWT_SECRET", "")
+if not _jwt_secret:
+    _jwt_secret = _secrets.token_urlsafe(32)
+    print("WARNING: No JWT_SECRET set. Generated ephemeral secret. Admin sessions will be lost on restart.")
+
+JWT_SECRET: str = _jwt_secret
+APP_VERSION: str = os.environ.get("APP_VERSION", "dev")
