@@ -70,7 +70,7 @@ function getReadiness(m, d) {
     if (['Traveling','Abroad','Jail'].includes(st)) return 'red';
     if (on === 'Offline') return 'red';
     if (st === 'Hospital') return 'yellow';
-    if (d?.bars?.cooldowns.drug > 3600) return 'yellow';
+    if (d && (d.source === 'torn_api' || d.source === 'yata') && d.drug_cd > 3600) return 'yellow';
     if (on === 'Online' && st === 'Okay') return 'green';
     if (on === 'Idle') return 'yellow';
     return 'gray';
@@ -115,9 +115,14 @@ function renderWar(war, wp) {
 }
 
 // --- Our Team ---
-function renderOurTeam(members, details) {
-    const dm = {}; if (details) for (const d of details) dm[d.player_id] = d;
-    const optedIn = new Set(details ? details.map(d => d.player_id) : []);
+function renderOurTeam(members, detailResponse) {
+    const dm = detailResponse?.members || {};
+    const yataDown = detailResponse?.yata_down || false;
+
+    // Show/hide YATA warning
+    const yataWarn = document.getElementById('yata-warning');
+    if (yataWarn) yataWarn.style.display = yataDown ? 'block' : 'none';
+
     const ord = {green:0,yellow:1,gray:2,red:3};
     let sorted;
     if (ourSort.col) {
@@ -137,29 +142,40 @@ function renderOurTeam(members, details) {
     let on=0, hosp=0, off=0;
     for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
     const inOc = members.filter(m => m.is_in_oc).length;
-    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys \u2014 ${inOc} in OC`;
+    const withData = Object.values(dm).filter(d => d.source === 'torn_api' || d.source === 'yata').length;
+    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${withData}</span>/${members.length} with data \u2014 ${inOc} in OC`;
     document.getElementById('our-count').textContent = members.length;
 
-    // Update user badge in header
     const userName = localStorage.getItem('myKeyName');
-    if (userName) {
-        document.getElementById('user-info').textContent = userName;
-    }
+    if (userName) document.getElementById('user-info').textContent = userName;
 
     document.getElementById('our-body').innerHTML = sorted.map(m => {
-        const d = dm[m.id], r = getReadiness(m,d);
+        const d = dm[m.id];
+        const r = getReadiness(m, d);
         let eH, cdH;
-        if (d?.bars) {
-            const e = d.bars.energy;
-            eH = e.current > e.maximum ? `<span class="energy-stacking">${e.current}/${e.maximum}</span>` : `<span class="${e.current<e.maximum?'energy-low':''}">${e.current}/${e.maximum}</span>`;
-            const cd = d.bars.cooldowns.drug;
-            cdH = cd > 0 ? `<span class="cd-active">${fmtCD(cd)}</span>` : `<span class="cd-clear">Ready</span>`;
+        if (d && d.source === 'torn_api') {
+            eH = d.energy > d.max_energy
+                ? `<span class="energy-stacking">${d.energy}/${d.max_energy}</span>`
+                : `<span class="${d.energy < d.max_energy ? 'energy-low' : ''}">${d.energy}/${d.max_energy}</span>`;
+            cdH = d.drug_cd > 0
+                ? `<span class="cd-active">${fmtCD(d.drug_cd)}</span>`
+                : `<span class="cd-clear">Ready</span>`;
+        } else if (d && d.source === 'yata') {
+            eH = `<span>${d.energy}E</span><span class="energy-source">yata</span>`;
+            cdH = d.drug_cd > 0
+                ? `<span class="cd-active">${fmtCD(d.drug_cd)}</span>`
+                : `<span class="cd-clear">Ready</span>`;
+        } else if (d && d.source === 'hidden') {
+            eH = '<span class="energy-unknown">Hidden</span>';
+            cdH = '<span class="energy-unknown">Hidden</span>';
+        } else if (d && d.source === 'not_on_yata') {
+            eH = '<span class="energy-unknown">No data</span>';
+            cdH = '<span class="energy-unknown">\u2014</span>';
         } else {
-            eH = '<span class="energy-unknown">no key</span>';
+            eH = '<span class="energy-unknown">\u2014</span>';
             cdH = '<span class="energy-unknown">\u2014</span>';
         }
 
-        // Enhanced state: show hospital reason + timer, travel destination
         let stateText;
         if (m.status.state === 'Hospital') {
             const reason = m.status.details || 'hospitalized';
@@ -179,7 +195,6 @@ function renderOurTeam(members, details) {
             stateText = m.last_action.status;
         }
 
-        // Revive setting
         let reviveHtml;
         if (m.revive_setting === 'No one') {
             reviveHtml = '<span style="color:var(--green)">OFF</span>';
@@ -191,10 +206,7 @@ function renderOurTeam(members, details) {
             reviveHtml = '<span class="energy-unknown">\u2014</span>';
         }
 
-        // OC status
         const ocHtml = m.is_in_oc ? '<span style="color:var(--green)">\u2713</span>' : '<span class="energy-unknown">\u2014</span>';
-
-        // New member highlight
         const isNew = m.days_in_faction <= 30;
         const nameHtml = `<a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank">${m.name}</a>${isNew ? ' <span class="badge-new">new</span>' : ''}`;
 
@@ -208,7 +220,7 @@ function getOurSortValue(m, dm, col) {
         case 'name': return m.name.toLowerCase();
         case 'level': return m.level;
         case 'state': return m.status.state + m.last_action.status;
-        case 'energy': return dm[m.id]?.bars?.energy?.current ?? -1;
+        case 'energy': return dm[m.id]?.energy ?? -1;
         case 'position': return m.position;
         default: return 0;
     }
@@ -229,7 +241,7 @@ function sortOur(col) {
             arrow.textContent = '';
         }
     });
-    if (overviewData && detailData) renderOurTeam(overviewData.members, detailData.members);
+    if (overviewData && detailData) renderOurTeam(overviewData.members, detailData);
 }
 
 // --- Enemy sorting ---
@@ -324,7 +336,7 @@ async function refresh() {
         } else {
             chainEl.style.display = 'none';
         }
-        renderOurTeam(ov.members, det.members);
+        renderOurTeam(ov.members, det);
         renderEnemy(en);
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
     } catch (e) { console.error('Refresh failed:', e); }
