@@ -214,8 +214,8 @@ function renderMobileCards(members, detailResponse) {
         });
     }
 
-    let on=0, hosp=0, off=0;
-    for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
+    let on=0, hosp=0;
+    for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; }
     document.getElementById('our-mobile-summary').textContent = `${on} online · ${hosp} hospital`;
     document.getElementById('our-count').textContent = members.length;
 
