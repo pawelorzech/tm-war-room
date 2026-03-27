@@ -112,8 +112,11 @@ async def members_detail(x_player_id: int = Header()):
 
     # Fetch YATA data (try faction key first, fallback to any registered key)
     yata_data = await torn_client.fetch_yata_members()
-    if yata_data is None and all_keys:
+    if yata_data is None:
+        already_tried = torn_client._api_key
         for entry in all_keys:
+            if entry["api_key"] == already_tried:
+                continue
             yata_data = await torn_client.fetch_yata_members(api_key=entry["api_key"])
             if yata_data is not None:
                 break

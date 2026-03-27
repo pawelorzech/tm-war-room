@@ -73,7 +73,6 @@ async def test_overview_no_auth(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_members_detail(mock_client, mock_store):
-    mock_client.fetch_yata_members = AsyncMock(return_value=None)
     with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
         from app.main import app
         transport = ASGITransport(app=app)
@@ -255,6 +254,9 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
     assert data["yata_down"] is True
     assert "123" in data["members"]
     assert data["members"]["123"]["source"] == "torn_api"
+    # Player 456 exists in faction but has no key and YATA is down
+    assert "456" in data["members"]
+    assert data["members"]["456"]["source"] == "unavailable"
 
 
 @pytest.mark.asyncio
