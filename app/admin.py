@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import time
 
-from fastapi import APIRouter, HTTPException, Header, Depends, Request
+from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
 
 from app.config import ADMIN_PLAYER_IDS, JWT_SECRET, APP_VERSION
 from app.auth import create_jwt, decode_jwt, rate_limiter
@@ -82,3 +82,46 @@ async def admin_delete_key(player_id: int, admin: dict = Depends(require_admin))
         raise HTTPException(status_code=403, detail="Cannot delete your own key via admin panel")
     _key_store.delete_key(player_id=player_id)
     return {"status": "ok", "deleted_player_id": player_id, "deleted_by": admin["sub"]}
+
+
+@router.get("/stats/requests")
+async def admin_request_stats(days: int = Query(default=7, ge=1, le=30), admin: dict = Depends(require_admin)):
+    return _analytics_store.get_request_stats(days=days)
+
+
+@router.get("/stats/users")
+async def admin_user_stats(days: int = Query(default=7, ge=1, le=30), admin: dict = Depends(require_admin)):
+    raw_users = _analytics_store.get_user_stats(days=days)
+    keys_meta = _key_store.get_keys_metadata()
+    name_map = {k["player_id"]: k["player_name"] for k in keys_meta}
+    for u in raw_users:
+        u["player_name"] = name_map.get(u["player_id"], f"Unknown ({u['player_id']})")
+    return {"users": raw_users}
+
+
+@router.get("/stats/errors")
+async def admin_error_stats(days: int = Query(default=7, ge=1, le=30), admin: dict = Depends(require_admin)):
+    return {"errors": _analytics_store.get_error_stats(days=days)}
+
+
+@router.get("/system")
+async def admin_system(admin: dict = Depends(require_admin)):
+    uptime = time.time() - _app_start_time if _app_start_time else 0
+    cache_entries = len(_torn_client._cache) if _torn_client else 0
+    cache_times = [ts for ts, _ in _torn_client._cache.values()] if _torn_client and _torn_client._cache else []
+    last_refresh = max(cache_times) if cache_times else None
+
+    integrations = _analytics_store.get_integration_status() if _analytics_store else {}
+    for svc in ("torn_api", "tornstats", "yata"):
+        if svc not in integrations:
+            integrations[svc] = {"status": "unknown", "last_success": None, "last_error": None, "last_error_at": None}
+
+    return {
+        "uptime_seconds": int(uptime),
+        "version": APP_VERSION,
+        "cache": {
+            "entries": cache_entries,
+            "last_refresh": last_refresh,
+        },
+        "integrations": integrations,
+    }
