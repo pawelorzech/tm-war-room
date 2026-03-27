@@ -122,10 +122,10 @@ function renderOurTeam(members, details) {
 
     let on=0, hosp=0, off=0;
     for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
-    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys registered`;
+    const inOc = members.filter(m => m.is_in_oc).length;
+    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys \u2014 ${inOc} in OC`;
     document.getElementById('our-count').textContent = members.length;
 
-    // Banners
     const myKey = localStorage.getItem('myKeyPlayer');
     const banner = document.getElementById('key-banner');
     const myInfo = document.getElementById('my-key-info');
@@ -150,8 +150,47 @@ function renderOurTeam(members, details) {
             eH = '<span class="energy-unknown">no key</span>';
             cdH = '<span class="energy-unknown">\u2014</span>';
         }
-        const st = m.status.state !== 'Okay' ? m.status.state : m.last_action.status;
-        return `<tr><td><span class="dot dot-${r}"></span></td><td><a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank">${m.name}</a></td><td>${m.level}</td><td>${st}</td><td>${m.last_action.relative}</td><td>${eH}</td><td>${cdH}</td><td class="hide-mobile">${m.position}</td><td>${m.is_on_wall?'\u2694\uFE0F':''}</td></tr>`;
+
+        // Enhanced state: show hospital reason + timer, travel destination
+        let stateText;
+        if (m.status.state === 'Hospital') {
+            const reason = m.status.details || 'hospitalized';
+            const shortReason = reason.replace('Overdosed on ', 'OD ').replace('Hospitalized by ', 'by ').replace('Mugged by ', 'mugged ').replace('Attacked by ', 'atk ');
+            const until = m.status.until;
+            const left = until ? fmtCD(until - Math.floor(Date.now()/1000)) : '';
+            stateText = `<span class="cd-active">Hosp: ${shortReason}${left ? ' ('+left+')' : ''}</span>`;
+        } else if (m.status.state === 'Traveling' || m.status.state === 'Abroad') {
+            const desc = m.status.description || '';
+            const dest = desc.replace('Traveling to ', '\u2192 ').replace('Returning to Torn from ', '\u2190 ').replace('In ', '\u2022 ');
+            stateText = `<span class="cd-active">${dest}</span>`;
+        } else if (m.status.state === 'Jail') {
+            const until = m.status.until;
+            const left = until ? fmtCD(until - Math.floor(Date.now()/1000)) : '';
+            stateText = `<span style="color:var(--red)">Jail${left ? ' ('+left+')' : ''}</span>`;
+        } else {
+            stateText = m.last_action.status;
+        }
+
+        // Revive setting
+        let reviveHtml;
+        if (m.revive_setting === 'No one') {
+            reviveHtml = '<span style="color:var(--red)" title="Revives OFF \u2014 should enable for RW!">\u26A0 OFF</span>';
+        } else if (m.revive_setting === 'Friends & faction') {
+            reviveHtml = '<span style="color:var(--green)">Faction</span>';
+        } else if (m.revive_setting === 'Everyone') {
+            reviveHtml = '<span style="color:var(--green)">All</span>';
+        } else {
+            reviveHtml = '<span class="energy-unknown">\u2014</span>';
+        }
+
+        // OC status
+        const ocHtml = m.is_in_oc ? '<span style="color:var(--green)">\u2713</span>' : '<span class="energy-unknown">\u2014</span>';
+
+        // New member highlight
+        const isNew = m.days_in_faction <= 30;
+        const nameHtml = `<a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank">${m.name}</a>${isNew ? ' <span class="badge-new">new</span>' : ''}`;
+
+        return `<tr><td><span class="dot dot-${r}"></span></td><td>${nameHtml}</td><td>${m.level}</td><td>${stateText}</td><td>${m.last_action.relative}</td><td>${eH}</td><td>${cdH}</td><td class="hide-mobile">${m.position}</td><td class="hide-mobile">${reviveHtml}</td><td class="hide-mobile">${ocHtml}</td></tr>`;
     }).join('');
 }
 
@@ -238,6 +277,15 @@ async function refresh() {
         const [ov, det, en] = await Promise.all([api.overview(), api.detail(), api.enemy()]);
         overviewData = ov; detailData = det; enemyData = en;
         renderWar(ov.war, ov.war_progress);
+        // Chain status in war banner
+        const chainEl = document.getElementById('chain-status');
+        if (ov.chain && ov.war?.war_id) {
+            const c = ov.chain;
+            chainEl.style.display = 'block';
+            chainEl.textContent = c.current > 0 ? `Chain: ${c.current}/${c.max} (${c.modifier}x bonus)` : 'Chain: inactive';
+        } else {
+            chainEl.style.display = 'none';
+        }
         renderOurTeam(ov.members, det.members);
         renderEnemy(en);
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
