@@ -253,7 +253,7 @@ function renderMobileCards(members, detailResponse) {
         }
 
         let energyHtml;
-        if (d && (d.source === 'torn_api' || d.source === 'yata')) {
+        if (d && d.source === 'torn_api' && d.max_energy) {
             if (d.energy > d.max_energy) {
                 energyHtml = `<span style="color:var(--green);font-weight:600">⚡ ${d.energy}/${d.max_energy}</span>`;
             } else if (d.energy < d.max_energy) {
@@ -261,6 +261,8 @@ function renderMobileCards(members, detailResponse) {
             } else {
                 energyHtml = `<span style="color:var(--blue)">⚡ ${d.energy}/${d.max_energy}</span>`;
             }
+        } else if (d && d.source === 'yata') {
+            energyHtml = `<span style="color:var(--blue)">⚡ ${d.energy}E</span>`;
         } else {
             energyHtml = `<span style="color:var(--text-dim)">⚡ —</span>`;
         }
