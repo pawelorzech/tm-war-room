@@ -31,8 +31,9 @@
             <h1>TM War Room</h1>
             <div class="header-controls">
                 <span id="last-update"></span>
+                <span id="user-info" class="user-badge"></span>
                 <button onclick="refresh()">Refresh</button>
-                <button onclick="showKeyModal()">+ API Key</button>
+                <button onclick="removeMyKey()" id="logout-btn" class="btn-logout">Logout</button>
                 <button onclick="toggleTheme()" id="theme-btn">Turn Light</button>
             </div>
         </div>
@@ -59,31 +60,21 @@
     </nav>
 
     <main>
-        <!-- KEY BANNER -->
-        <div id="key-banner" class="info-banner" style="display:none">
-            Register your API key to show your energy &amp; drug cooldown. Click <strong>+ API Key</strong> above.
-        </div>
-        <!-- REGISTERED KEY INFO -->
-        <div id="my-key-info" class="my-key-banner" style="display:none">
-            Your key is registered as <strong id="my-key-name"></strong>.
-            <button onclick="removeMyKey()" class="btn-remove">Remove my key</button>
-        </div>
-
         <!-- OUR TEAM TAB -->
         <div id="tab-our-team" class="tab-content active">
             <div class="summary" id="our-summary"></div>
             <div class="table-wrap">
                 <table>
-                    <thead>
+                    <thead id="our-thead">
                         <tr>
                             <th></th>
-                            <th>Name</th>
-                            <th>Lvl</th>
-                            <th>State</th>
+                            <th data-sort="name" onclick="sortOur('name')" class="sortable">Name<span class="sort-arrow"></span></th>
+                            <th data-sort="level" onclick="sortOur('level')" class="sortable">Lvl<span class="sort-arrow"></span></th>
+                            <th data-sort="state" onclick="sortOur('state')" class="sortable">State<span class="sort-arrow"></span></th>
                             <th>Last Action</th>
-                            <th>Energy</th>
+                            <th data-sort="energy" onclick="sortOur('energy')" class="sortable">Energy<span class="sort-arrow"></span></th>
                             <th>Drug CD</th>
-                            <th class="hide-mobile">Position</th>
+                            <th data-sort="position" onclick="sortOur('position')" class="sortable hide-mobile">Position<span class="sort-arrow"></span></th>
                             <th class="hide-mobile">Revive</th>
                             <th class="hide-mobile">OC</th>
                         </tr>

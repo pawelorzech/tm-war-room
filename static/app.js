@@ -2,7 +2,8 @@ const REFRESH_INTERVAL = 60_000;
 const FACTION_ID = 11559;
 
 let overviewData = null, detailData = null, enemyData = null;
-let enemySort = { col: 'threat_score', asc: true }; // default: lowest threat first
+let ourSort = { col: null, asc: true }; // null = default readiness sort
+let enemySort = { col: 'threat_score', asc: true };
 
 // --- Theme ---
 function initTheme() {
@@ -96,11 +97,11 @@ function renderWar(war, wp) {
 
     if (war.start <= now) {
         el.className = 'war-banner war-active';
-        el.innerHTML = `RW ACTIVE vs <strong>${them?.name||'?'}</strong> \u2014 <strong>${us?.score||0}</strong> : ${them?.score||0} (target: ${war.target})`;
+        el.innerHTML = `RW ACTIVE vs <strong><a href="https://www.torn.com/factions.php?step=profile&ID=${them?.id}" target="_blank">${them?.name||'?'}</a></strong> \u2014 <strong>${us?.score||0}</strong> : ${them?.score||0} (target: ${war.target})`;
     } else {
         const d = war.start - now, h = Math.floor(d/3600), m = Math.floor((d%3600)/60);
         el.className = 'war-banner war-upcoming';
-        el.innerHTML = `RW in <strong>${h}h ${m}m</strong> vs <strong>${them?.name||'?'}</strong>`;
+        el.innerHTML = `RW in <strong>${h}h ${m}m</strong> vs <strong><a href="https://www.torn.com/factions.php?step=profile&ID=${them?.id}" target="_blank">${them?.name||'?'}</a></strong>`;
     }
 
     if (wp) {
@@ -118,10 +119,20 @@ function renderOurTeam(members, details) {
     const dm = {}; if (details) for (const d of details) dm[d.player_id] = d;
     const optedIn = new Set(details ? details.map(d => d.player_id) : []);
     const ord = {green:0,yellow:1,gray:2,red:3};
-    const sorted = [...members].sort((a,b) => {
-        const ra = ord[getReadiness(a,dm[a.id])]??2, rb = ord[getReadiness(b,dm[b.id])]??2;
-        return ra !== rb ? ra-rb : a.name.localeCompare(b.name);
-    });
+    let sorted;
+    if (ourSort.col) {
+        sorted = [...members].sort((a, b) => {
+            const va = getOurSortValue(a, dm, ourSort.col);
+            const vb = getOurSortValue(b, dm, ourSort.col);
+            const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+            return ourSort.asc ? cmp : -cmp;
+        });
+    } else {
+        sorted = [...members].sort((a,b) => {
+            const ra = ord[getReadiness(a,dm[a.id])]??2, rb = ord[getReadiness(b,dm[b.id])]??2;
+            return ra !== rb ? ra-rb : a.name.localeCompare(b.name);
+        });
+    }
 
     let on=0, hosp=0, off=0;
     for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
@@ -129,16 +140,10 @@ function renderOurTeam(members, details) {
     document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys \u2014 ${inOc} in OC`;
     document.getElementById('our-count').textContent = members.length;
 
-    const myKey = localStorage.getItem('myKeyPlayer');
-    const banner = document.getElementById('key-banner');
-    const myInfo = document.getElementById('my-key-info');
-    if (myKey) {
-        banner.style.display = 'none';
-        myInfo.style.display = 'flex';
-        document.getElementById('my-key-name').textContent = localStorage.getItem('myKeyName') || `#${myKey}`;
-    } else {
-        banner.style.display = 'block';
-        myInfo.style.display = 'none';
+    // Update user badge in header
+    const userName = localStorage.getItem('myKeyName');
+    if (userName) {
+        document.getElementById('user-info').textContent = userName;
     }
 
     document.getElementById('our-body').innerHTML = sorted.map(m => {
@@ -197,6 +202,36 @@ function renderOurTeam(members, details) {
     }).join('');
 }
 
+// --- Our Team sorting ---
+function getOurSortValue(m, dm, col) {
+    switch(col) {
+        case 'name': return m.name.toLowerCase();
+        case 'level': return m.level;
+        case 'state': return m.status.state + m.last_action.status;
+        case 'energy': return dm[m.id]?.bars?.energy?.current ?? -1;
+        case 'position': return m.position;
+        default: return 0;
+    }
+}
+
+function sortOur(col) {
+    if (ourSort.col === col) {
+        ourSort.asc = !ourSort.asc;
+    } else {
+        ourSort.col = col;
+        ourSort.asc = true;
+    }
+    document.querySelectorAll('#our-thead th[data-sort]').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (th.dataset.sort === col) {
+            arrow.textContent = ourSort.asc ? ' \u25B2' : ' \u25BC';
+        } else {
+            arrow.textContent = '';
+        }
+    });
+    if (overviewData && detailData) renderOurTeam(overviewData.members, detailData.members);
+}
+
 // --- Enemy sorting ---
 function sortEnemy(col) {
     if (enemySort.col === col) {
@@ -244,7 +279,7 @@ function renderEnemy(data) {
     const threatInfo = data.threat_mode === 'relative'
         ? `Threat relative to <strong>${data.threat_baseline}</strong>`
         : 'Register your API key to see personalized threat levels';
-    document.getElementById('enemy-summary').innerHTML = `<strong>${f.name}</strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total<br>${threatInfo}`;
+    document.getElementById('enemy-summary').innerHTML = `<strong><a href="https://www.torn.com/factions.php?step=profile&ID=${f.id}" target="_blank">${f.name}</a></strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total<br>${threatInfo}`;
     document.getElementById('enemy-count').textContent = ms.length;
 
     // Sort
@@ -347,6 +382,8 @@ function logout() {
 function showApp() {
     document.getElementById('login-gate').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
+    const name = localStorage.getItem('myKeyName');
+    if (name) document.getElementById('user-info').textContent = name;
 }
 
 async function loginWithKey() {
