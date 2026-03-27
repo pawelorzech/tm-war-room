@@ -105,7 +105,7 @@ const api = {
         const pid = localStorage.getItem('myKeyPlayer');
         return pid ? { 'X-Player-Id': pid } : {};
     },
-    overview: () => fetch('/api/overview', {headers: api._headers()}).then(r => { if (r.status===401) { logout(); throw new Error('unauthorized'); } return r.json(); }),
+    overview: () => fetch('/api/overview', {headers: api._headers()}).then(r => { if (r.status===401) { logout(); throw new Error('unauthorized'); } if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
     detail: () => fetch('/api/members/detail', {headers: api._headers()}).then(r => r.json()),
     enemy: (fid) => {
         const pid = localStorage.getItem('myKeyPlayer');
@@ -877,7 +877,11 @@ async function initAuth() {
         if (r.status === 401) { logout(); return; }
         showApp();
         refresh();
-    } catch(e) { logout(); }
+    } catch(e) {
+        // Network error (server down during deploy) — don't logout, show app with stale data
+        console.warn('initAuth fetch failed, assuming deploy in progress:', e.message);
+        showApp();
+    }
 }
 
 // --- Responsive re-render on breakpoint crossing ---
