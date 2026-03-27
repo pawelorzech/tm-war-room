@@ -1,0 +1,44 @@
+name: Deploy to Coolify
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --dev
+      - run: uv run pytest -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_APP_UUID }}&force=true")
+          echo "$RESPONSE" | jq .
+          DEPLOY_UUID=$(echo "$RESPONSE" | jq -r '.deployments[0].deployment_uuid')
+          echo "Deployment queued: $DEPLOY_UUID"
+
+          # Poll for completion (max 2 minutes)
+          for i in $(seq 1 24); do
+            sleep 5
+            STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+              "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" | jq -r '.status')
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "finished" ]; then
+              echo "Deploy successful!"
+              exit 0
+            elif [ "$STATUS" = "failed" ]; then
+              echo "Deploy failed!"
+              exit 1
+            fi
+          done
+          echo "Deploy timed out"
+          exit 1
