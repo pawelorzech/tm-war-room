@@ -64,6 +64,23 @@ function fmtNum(n) {
     return String(n);
 }
 
+// --- Bounty copy ---
+function copyBounty(name, id) {
+    const text = `Can someone bounty ${name}? https://www.torn.com/profiles.php?XID=${id}`;
+    navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('copy-toast');
+        toast.textContent = 'Copied!';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 1500);
+    });
+}
+
+function isWarActive() {
+    const war = overviewData?.war;
+    if (!war?.war_id) return false;
+    return war.start <= Math.floor(Date.now() / 1000);
+}
+
 // --- Readiness ---
 function getReadiness(m, d) {
     const on = m.last_action.status, st = m.status.state;
@@ -143,7 +160,8 @@ function renderOurTeam(members, detailResponse) {
     for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
     const inOc = members.filter(m => m.is_in_oc).length;
     const withData = Object.values(dm).filter(d => d.source === 'torn_api' || d.source === 'yata').length;
-    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${withData}</span>/${members.length} with data \u2014 ${inOc} in OC`;
+    const visible = Object.keys(dm).length;
+    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${withData}</span>/${visible || members.length} with data \u2014 ${inOc} in OC`;
     document.getElementById('our-count').textContent = members.length;
 
     const userName = localStorage.getItem('myKeyName');
@@ -161,7 +179,7 @@ function renderOurTeam(members, detailResponse) {
                 ? `<span class="cd-active">${fmtCD(d.drug_cd)}</span>`
                 : `<span class="cd-clear">Ready</span>`;
         } else if (d && d.source === 'yata') {
-            eH = `<span>${d.energy}E</span><span class="energy-source">yata</span>`;
+            eH = `<span>${d.energy}E</span><span class="energy-source" title="From YATA (~1h cache)">yata</span>`;
             cdH = d.drug_cd > 0
                 ? `<span class="cd-active">${fmtCD(d.drug_cd)}</span>`
                 : `<span class="cd-clear">Ready</span>`;
@@ -170,6 +188,9 @@ function renderOurTeam(members, detailResponse) {
             cdH = '<span class="energy-unknown">Hidden</span>';
         } else if (d && d.source === 'not_on_yata') {
             eH = '<span class="energy-unknown">No data</span>';
+            cdH = '<span class="energy-unknown">\u2014</span>';
+        } else if (d && d.source === 'unavailable') {
+            eH = '<span class="energy-unknown">\u2014</span>';
             cdH = '<span class="energy-unknown">\u2014</span>';
         } else {
             eH = '<span class="energy-unknown">\u2014</span>';
@@ -210,7 +231,12 @@ function renderOurTeam(members, detailResponse) {
         const isNew = m.days_in_faction <= 30;
         const nameHtml = `<a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank">${m.name}</a>${isNew ? ' <span class="badge-new">new</span>' : ''}`;
 
-        return `<tr><td><span class="dot dot-${r}"></span></td><td>${nameHtml}</td><td>${m.level}</td><td>${stateText}</td><td>${m.last_action.relative}</td><td>${eH}</td><td>${cdH}</td><td class="hide-mobile">${m.position}</td><td class="hide-mobile">${reviveHtml}</td><td class="hide-mobile">${ocHtml}</td></tr>`;
+        const needsBounty = isWarActive() && m.last_action.status === 'Offline' && m.status.state !== 'Hospital';
+        const bountyHtml = needsBounty
+            ? `<button class="btn-bounty" onclick="copyBounty('${m.name.replace(/'/g,"\\'")}', ${m.id})" title="Copy bounty request">&#128203;</button>`
+            : '';
+
+        return `<tr><td><span class="dot dot-${r}"></span></td><td>${nameHtml}</td><td>${bountyHtml}</td><td>${m.level}</td><td>${stateText}</td><td>${m.last_action.relative}</td><td>${eH}</td><td>${cdH}</td><td class="hide-mobile">${m.position}</td><td class="hide-mobile">${reviveHtml}</td><td class="hide-mobile">${ocHtml}</td></tr>`;
     }).join('');
 }
 
