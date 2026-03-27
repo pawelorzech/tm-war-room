@@ -2,6 +2,7 @@ const REFRESH_INTERVAL = 60_000;
 const FACTION_ID = 11559;
 
 let overviewData = null, detailData = null, enemyData = null;
+let enemySort = { col: 'threat_score', asc: true }; // default: lowest threat first
 
 // --- Theme ---
 function initTheme() {
@@ -25,6 +26,8 @@ const api = {
     overview: () => fetch('/api/overview').then(r => r.json()),
     detail: () => fetch('/api/members/detail').then(r => r.json()),
     enemy: (fid) => fetch(fid ? `/api/enemy?faction_id=${fid}` : '/api/enemy').then(r => r.json()),
+    deleteKey: (pid) => fetch(`/api/keys/${pid}`, {method:'DELETE'}).then(r => r.json()),
+    listKeys: () => fetch('/api/keys').then(r => r.json()),
 };
 
 // --- Tabs (persist across refresh) ---
@@ -105,6 +108,7 @@ function renderWar(war, wp) {
 // --- Our Team ---
 function renderOurTeam(members, details) {
     const dm = {}; if (details) for (const d of details) dm[d.player_id] = d;
+    const optedIn = new Set(details ? details.map(d => d.player_id) : []);
     const ord = {green:0,yellow:1,gray:2,red:3};
     const sorted = [...members].sort((a,b) => {
         const ra = ord[getReadiness(a,dm[a.id])]??2, rb = ord[getReadiness(b,dm[b.id])]??2;
@@ -113,21 +117,64 @@ function renderOurTeam(members, details) {
 
     let on=0, hosp=0, off=0;
     for (const m of members) { if (m.last_action.status==='Online') on++; else if (m.status.state==='Hospital') hosp++; else off++; }
-    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away`;
+    document.getElementById('our-summary').innerHTML = `<span class="g">${on}</span> online, <span class="y">${hosp}</span> hospital, <span class="r">${off}</span> offline/away \u2014 <span class="g">${optedIn.size}</span>/${members.length} keys registered`;
     document.getElementById('our-count').textContent = members.length;
+
+    // Banner if few keys registered
+    const banner = document.getElementById('key-banner');
+    if (optedIn.size < 5) {
+        banner.style.display = 'block';
+    } else {
+        banner.style.display = 'none';
+    }
 
     document.getElementById('our-body').innerHTML = sorted.map(m => {
         const d = dm[m.id], r = getReadiness(m,d);
-        let eH = '<span class="energy-unknown">\u2014</span>', cdH = '<span class="energy-unknown">\u2014</span>';
+        let eH, cdH;
         if (d?.bars) {
             const e = d.bars.energy;
             eH = e.current > e.maximum ? `<span class="energy-stacking">${e.current}/${e.maximum}</span>` : `<span class="${e.current<e.maximum?'energy-low':''}">${e.current}/${e.maximum}</span>`;
             const cd = d.bars.cooldowns.drug;
             cdH = cd > 0 ? `<span class="cd-active">${fmtCD(cd)}</span>` : `<span class="cd-clear">Ready</span>`;
+        } else {
+            eH = '<span class="energy-unknown">no key</span>';
+            cdH = '<span class="energy-unknown">\u2014</span>';
         }
         const st = m.status.state !== 'Okay' ? m.status.state : m.last_action.status;
         return `<tr><td><span class="dot dot-${r}"></span></td><td><a href="https://www.torn.com/profiles.php?XID=${m.id}" target="_blank">${m.name}</a></td><td>${m.level}</td><td>${st}</td><td>${m.last_action.relative}</td><td>${eH}</td><td>${cdH}</td><td class="hide-mobile">${m.position}</td><td>${m.is_on_wall?'\u2694\uFE0F':''}</td></tr>`;
     }).join('');
+}
+
+// --- Enemy sorting ---
+function sortEnemy(col) {
+    if (enemySort.col === col) {
+        enemySort.asc = !enemySort.asc;
+    } else {
+        enemySort.col = col;
+        enemySort.asc = true;
+    }
+    // Update header arrows
+    document.querySelectorAll('#enemy-thead th[data-sort]').forEach(th => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (th.dataset.sort === col) {
+            arrow.textContent = enemySort.asc ? ' \u25B2' : ' \u25BC';
+        } else {
+            arrow.textContent = '';
+        }
+    });
+    if (enemyData) renderEnemy(enemyData);
+}
+
+function getEnemySortValue(m, col) {
+    switch(col) {
+        case 'name': return m.name.toLowerCase();
+        case 'level': return m.level;
+        case 'threat_score': return m.threat_score;
+        case 'state': return m.status.state + m.last_action.status;
+        case 'xanax': return m.personal_stats?.xanax_taken ?? -1;
+        case 'atk_won': return m.personal_stats?.attacks_won ?? -1;
+        default: return 0;
+    }
 }
 
 // --- Enemy ---
@@ -143,12 +190,20 @@ function renderEnemy(data) {
     for (const m of ms) { if (m.last_action.status!=='Offline' && m.status.state==='Okay') atk++; if (m.status.state==='Hospital') hosp++; }
 
     const threatInfo = data.threat_mode === 'relative'
-        ? `Threat: relative to <strong>${data.threat_baseline}</strong>`
-        : 'Threat: absolute (register faction key for relative)';
+        ? `Threat relative to <strong>${data.threat_baseline}</strong>`
+        : 'Threat: absolute (register faction key for relative scoring)';
     document.getElementById('enemy-summary').innerHTML = `<strong>${f.name}</strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total<br>${threatInfo}`;
     document.getElementById('enemy-count').textContent = ms.length;
 
-    document.getElementById('enemy-body').innerHTML = ms.map(m => {
+    // Sort
+    const sorted = [...ms].sort((a, b) => {
+        const va = getEnemySortValue(a, enemySort.col);
+        const vb = getEnemySortValue(b, enemySort.col);
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return enemySort.asc ? cmp : -cmp;
+    });
+
+    document.getElementById('enemy-body').innerHTML = sorted.map(m => {
         const ok = m.last_action.status !== 'Offline' && m.status.state === 'Okay';
         const st = m.status.state !== 'Okay' ? m.status.state : m.last_action.status;
         const ps = m.personal_stats;
@@ -183,7 +238,12 @@ async function loadEnemy() {
 }
 
 // --- Key modal ---
-function showKeyModal() { document.getElementById('key-modal').style.display='flex'; document.getElementById('key-input').value=''; document.getElementById('key-status').textContent=''; }
+function showKeyModal() {
+    document.getElementById('key-modal').style.display='flex';
+    document.getElementById('key-input').value='';
+    document.getElementById('key-faction-toggle').checked=false;
+    document.getElementById('key-status').textContent='';
+}
 function hideKeyModal() { document.getElementById('key-modal').style.display='none'; }
 
 async function submitKey() {
@@ -197,6 +257,20 @@ async function submitKey() {
         const d = await r.json();
         if (r.ok) { st.style.color='var(--green)'; st.textContent=`OK: ${d.name} [${d.player_id}]`; setTimeout(()=>{hideKeyModal();refresh();},1000); }
         else { st.style.color='var(--red)'; st.textContent=d.detail||'Invalid key'; }
+    } catch(e) { st.style.color='var(--red)'; st.textContent=e.message; }
+}
+
+// --- Remove key ---
+async function removeKey() {
+    const st = document.getElementById('remove-status');
+    const pidStr = document.getElementById('remove-pid').value.trim();
+    if (!pidStr) { st.textContent = 'Enter your player ID'; return; }
+    st.textContent = 'Removing...';
+    try {
+        await api.deleteKey(pidStr);
+        st.style.color = 'var(--green)';
+        st.textContent = 'Key removed';
+        setTimeout(refresh, 500);
     } catch(e) { st.style.color='var(--red)'; st.textContent=e.message; }
 }
 

@@ -167,6 +167,12 @@ async def register_key(body: KeyRegister):
     return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"], "is_faction_key": body.is_faction_key}
 
 
+@app.get("/api/keys")
+async def list_keys():
+    keys = key_store.get_all_keys()
+    return {"keys": [{"player_id": k["player_id"], "name": k["player_name"], "is_faction_key": k["is_faction_key"]} for k in keys]}
+
+
 @app.delete("/api/keys/{player_id}")
 async def delete_key(player_id: int):
     key_store.delete_key(player_id=player_id)

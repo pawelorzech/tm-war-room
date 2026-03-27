@@ -39,6 +39,18 @@
     </nav>
 
     <main>
+        <!-- KEY BANNER -->
+        <div id="key-banner" class="info-banner" style="display:none">
+            Register your API key to show your energy &amp; drug cooldown status. Click <strong>+ API Key</strong> above. Your key is encrypted and only used to read bars/cooldowns.
+            <div style="margin-top:0.4rem">
+                <strong>Remove your key:</strong>
+                <input type="text" id="remove-pid" placeholder="Your player ID" style="width:100px;padding:0.2rem 0.4rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:0.75rem">
+                <button onclick="removeKey()" style="padding:0.2rem 0.5rem;background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:3px;font-size:0.75rem;cursor:pointer">Remove</button>
+                <span id="remove-status" style="font-size:0.75rem"></span>
+            </div>
+        </div>
+
+        <!-- OUR TEAM TAB -->
         <div id="tab-our-team" class="tab-content active">
             <div class="summary" id="our-summary"></div>
             <div class="table-wrap">
@@ -61,6 +73,7 @@
             </div>
         </div>
 
+        <!-- ENEMY TAB -->
         <div id="tab-enemy" class="tab-content">
             <div class="enemy-header">
                 <div class="summary" id="enemy-summary"></div>
@@ -71,21 +84,29 @@
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead>
+                    <thead id="enemy-thead">
                         <tr>
                             <th></th>
-                            <th>Name</th>
-                            <th>Lvl</th>
-                            <th>Threat <span class="help-icon" title="Threat score (0-100) based on TornStats data: xanax taken, refills, attacks won, defends, networth, level.&#10;&#10;easy (0-29) = weak target&#10;medium (30-59) = decent fighter&#10;hard (60-84) = strong, be careful&#10;avoid (85+) = very dangerous">?</span></th>
-                            <th>State</th>
+                            <th data-sort="name" onclick="sortEnemy('name')" class="sortable">Name<span class="sort-arrow"></span></th>
+                            <th data-sort="level" onclick="sortEnemy('level')" class="sortable">Lvl<span class="sort-arrow"></span></th>
+                            <th data-sort="threat_score" onclick="sortEnemy('threat_score')" class="sortable">Threat<span class="sort-arrow"> &#9650;</span></th>
+                            <th data-sort="state" onclick="sortEnemy('state')" class="sortable">State<span class="sort-arrow"></span></th>
                             <th class="hide-mobile">Last Action</th>
-                            <th class="hide-mobile">Xan/Ref</th>
-                            <th class="hide-mobile">Atk Won</th>
+                            <th data-sort="xanax" onclick="sortEnemy('xanax')" class="sortable hide-mobile">Xan/Ref<span class="sort-arrow"></span></th>
+                            <th data-sort="atk_won" onclick="sortEnemy('atk_won')" class="sortable hide-mobile">Atk Won<span class="sort-arrow"></span></th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="enemy-body"></tbody>
                 </table>
+            </div>
+            <div class="threat-legend">
+                <strong>Threat:</strong>
+                <span class="threat threat-easy">easy</span> weak target
+                <span class="threat threat-medium">medium</span> decent fighter
+                <span class="threat threat-hard">hard</span> be careful
+                <span class="threat threat-avoid">avoid</span> very dangerous
+                &mdash; hover for details
             </div>
         </div>
     </main>
@@ -97,7 +118,7 @@
             <input type="text" id="key-input" placeholder="Paste your Torn API key">
             <label class="checkbox-row">
                 <input type="checkbox" id="key-faction-toggle">
-                <span>Use as faction key <span class="help-icon" title="Enable if you have faction API access. Threat scores will be calculated relative to YOUR stats. Only one faction key active at a time.">?</span></span>
+                <span>Use as faction key (enables faction API calls + relative threat scoring based on your stats)</span>
             </label>
             <div class="modal-buttons">
                 <button onclick="submitKey()">Register</button>
