@@ -96,19 +96,20 @@ async def test_enemy_with_rw(mock_client, mock_store):
         999: PersonalStats(xanax_taken=2000, refills=900, attacks_won=4000,
                            networth=5_000_000_000, highest_beaten=100, best_damage=6000,
                            best_kill_streak=90, damage_done=13_000_000)})
-    # Faction key owner baseline stats for relative threat
+    # Baseline stats for relative threat (passed via baseline_pid query param)
     mock_client.fetch_personalstats = AsyncMock(return_value=PersonalStats(
         xanax_taken=3000, refills=1500, attacks_won=8000, defends_won=500,
         networth=11_000_000_000, highest_beaten=100, best_damage=7000,
         best_kill_streak=100, damage_done=20_000_000))
-    mock_store.get_faction_key = MagicMock(return_value={"player_id": 123, "player_name": "bombel", "api_key": "fk"})
+    mock_store.get_all_keys = MagicMock(return_value=[
+        {"player_id": 123, "player_name": "bombel", "api_key": "fk", "is_faction_key": False}])
 
     with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
          patch("app.main.TORNSTATS_API_KEY", "fake_ts_key"):
         from app.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/enemy")
+            resp = await ac.get("/api/enemy?baseline_pid=123")
     assert resp.status_code == 200
     data = resp.json()
     assert data["faction"]["name"] == "The Pusheen Army"

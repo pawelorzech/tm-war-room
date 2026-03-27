@@ -87,7 +87,7 @@ async def members_detail():
 
 
 @app.get("/api/enemy")
-async def enemy(faction_id: int | None = Query(default=None)):
+async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int | None = Query(default=None)):
     enemy_id = faction_id
     if not enemy_id:
         war = await torn_client.fetch_war()
@@ -108,14 +108,18 @@ async def enemy(faction_id: int | None = Query(default=None)):
         except Exception:
             pass
 
-    # Get baseline stats from faction key owner for relative threat scoring
+    # Get baseline stats from the requesting user's key for relative threat scoring
     baseline = None
-    faction_key_entry = key_store.get_faction_key()
-    if faction_key_entry:
-        try:
-            baseline = await torn_client.fetch_personalstats(faction_key_entry["api_key"])
-        except Exception:
-            pass
+    baseline_name = None
+    if baseline_pid:
+        all_keys = key_store.get_all_keys()
+        user_key = next((k for k in all_keys if k["player_id"] == baseline_pid), None)
+        if user_key:
+            try:
+                baseline = await torn_client.fetch_personalstats(user_key["api_key"])
+                baseline_name = user_key["player_name"]
+            except Exception:
+                pass
 
     enemy_list = []
     for m in members:
@@ -138,7 +142,7 @@ async def enemy(faction_id: int | None = Query(default=None)):
     return {
         "faction": info.model_dump(), "members": enemy_list,
         "threat_mode": "relative" if baseline else "absolute",
-        "threat_baseline": faction_key_entry["player_name"] if faction_key_entry and baseline else None,
+        "threat_baseline": baseline_name if baseline else None,
         "cached_at": int(time.time()),
     }
 

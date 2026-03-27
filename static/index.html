@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TM War Room</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -121,10 +122,6 @@
                 <p>Create a key at <a href="https://www.torn.com/preferences.php#tab=api" target="_blank">Torn &rarr; Settings &rarr; API Keys</a>.</p>
             </div>
             <input type="text" id="key-input" placeholder="Paste your Torn API key">
-            <label class="checkbox-row">
-                <input type="checkbox" id="key-faction-toggle">
-                <span>Use as faction key (enables faction API calls + relative threat scoring based on your stats)</span>
-            </label>
             <div class="modal-buttons">
                 <button onclick="submitKey()">Register</button>
                 <button onclick="hideKeyModal()">Cancel</button>
