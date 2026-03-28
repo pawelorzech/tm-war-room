@@ -331,9 +331,33 @@ async def delete_key(player_id: int):
 
 
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
-if os.path.isdir(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-    @app.get("/")
-    async def index():
-        return FileResponse(os.path.join(static_dir, "index.html"))
+# Mount _next/static for efficient Next.js asset serving
+_next_static = os.path.join(static_dir, "_next", "static")
+if os.path.isdir(_next_static):
+    app.mount("/_next/static", StaticFiles(directory=_next_static), name="next-static")
+
+
+@app.get("/{path:path}")
+async def serve_frontend(path: str):
+    """Serve Next.js static export with SPA fallback."""
+    if not os.path.isdir(static_dir):
+        raise HTTPException(status_code=404, detail="Frontend not built")
+
+    file_path = os.path.join(static_dir, path)
+    # Try exact file
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    # Try with .html extension (Next.js static export pattern)
+    html_path = file_path + ".html"
+    if os.path.isfile(html_path):
+        return FileResponse(html_path)
+    # Try index.html in directory
+    index_path = os.path.join(file_path, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    # SPA fallback — serve root index.html
+    fallback = os.path.join(static_dir, "index.html")
+    if os.path.isfile(fallback):
+        return FileResponse(fallback)
+    raise HTTPException(status_code=404, detail="Not found")
