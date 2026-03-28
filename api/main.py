@@ -54,6 +54,8 @@ async def lifespan(app: FastAPI):
     from api.db.repos.stats import StatSnapshotRepository
     stats_repo = StatSnapshotRepository(db_path="data/keys.db")
     stats_mod.stats_repo = stats_repo
+    stats_mod.key_repo = key_store._keys
+    stats_mod.torn_client = torn_client
     market_mod.torn_client = torn_client
 
     from api.scheduler.engine import create_and_start_scheduler
