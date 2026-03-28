@@ -181,6 +181,30 @@ export function ResultsPanel({ results, state }: ResultsPanelProps) {
             Xanax {formatMultiplier(seComparison.ratio)} cheaper
           </div>
         </div>
+        {seComparison.rehabCostPerXanax > 0 && (
+          <div className="mt-2 pt-2 border-t border-text-secondary/10">
+            <div className="flex items-center justify-between text-sm flex-wrap gap-2">
+              <div>
+                <span className="text-text-secondary">Rehab cost/xanax: </span>
+                <span className="text-warning font-semibold">{formatMoney(seComparison.rehabCostPerXanax)}</span>
+              </div>
+              <div>
+                <span className="text-text-secondary">+rehab cost/stat: </span>
+                <span className="text-warning font-semibold">{formatMoney(seComparison.xanaxCostPerStatWithRehab)}</span>
+              </div>
+              {seComparison.ratioWithRehab >= 1 ? (
+                <div className="bg-torn-green/20 text-torn-green text-xs font-bold px-2 py-1 rounded border border-torn-green/30">
+                  Xanax {formatMultiplier(seComparison.ratioWithRehab)} cheaper
+                </div>
+              ) : (
+                <div className="bg-danger/10 text-danger text-xs font-bold px-2 py-1 rounded border border-danger/30">
+                  SE {formatMultiplier(1 / seComparison.ratioWithRehab)} cheaper
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary mt-1">With rehab costs factored in</p>
+          </div>
+        )}
       </div>
 
       {/* Recommendations */}

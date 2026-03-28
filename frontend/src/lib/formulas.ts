@@ -56,10 +56,19 @@ export interface SeComparisonParams {
   happy: number;
   steadfastBonus: number;
   educationBonus: number;
+  rehabCostPerXanax?: number;
+}
+
+export function calculateRehabCostPerXanax(totalRehabsDone: number, hasFactionToleration: boolean = false): number {
+  const addictionPerXanax = hasFactionToleration ? 17.5 : 35;
+  const dailyDecay = 20;
+  const netAddictionPerXanax = Math.max(addictionPerXanax - dailyDecay, 1);
+  const costPerAP = Math.min(2857 + 12.85 * totalRehabsDone, 250000);
+  return netAddictionPerXanax * costPerAP;
 }
 
 export function compareStatEnhancer(params: SeComparisonParams) {
-  const { currentStat, sePrice, xanaxPrice, ...gymParams } = params;
+  const { currentStat, sePrice, xanaxPrice, rehabCostPerXanax = 0, ...gymParams } = params;
   const seGain = currentStat * 0.01;
   const seCostPerStat = sePrice / seGain;
   const gainPerEnergy = calculateGymGain({
@@ -67,7 +76,16 @@ export function compareStatEnhancer(params: SeComparisonParams) {
   });
   const xanaxGain = gainPerEnergy * 250;
   const xanaxCostPerStat = xanaxPrice / xanaxGain;
-  return { seGain, seCostPerStat, xanaxCostPerStat, ratio: seCostPerStat / xanaxCostPerStat };
+  const xanaxCostPerStatWithRehab = (xanaxPrice + rehabCostPerXanax) / xanaxGain;
+  return {
+    seGain,
+    seCostPerStat,
+    xanaxCostPerStat,
+    xanaxCostPerStatWithRehab,
+    rehabCostPerXanax,
+    ratio: seCostPerStat / xanaxCostPerStat,
+    ratioWithRehab: seCostPerStat / xanaxCostPerStatWithRehab,
+  };
 }
 
 export function projectDailyGain(params: {
