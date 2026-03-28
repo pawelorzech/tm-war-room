@@ -36,6 +36,15 @@ export const api = {
   me: () => apiFetch<import("@/types/admin").MeResponse>("/api/me"),
   announcements: () => apiFetch<{ announcements: import("@/types/admin").Announcement[] }>("/api/announcements"),
   announcementsAll: () => apiFetch<{ announcements: import("@/types/admin").Announcement[] }>("/api/announcements/all"),
+  trainingStats: () => apiFetch<{
+    profile: { player_id: number; name: string; level: number };
+    battlestats: { strength: number; defense: number; speed: number; dexterity: number };
+    bars: { happy: { current: number; maximum: number }; energy: { current: number; maximum: number } };
+    gym: { active_gym: number };
+    merits: { brawn: number; protection: number; sharpness: number; evasion: number };
+    personalstats: { xantaken: number; refills: number; statenhancersused: number; rehabs: number };
+    education_completed: number[];
+  }>("/api/training/stats"),
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
