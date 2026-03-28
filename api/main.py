@@ -396,6 +396,7 @@ if os.path.isdir(_next_static):
     app.mount("/_next/static", StaticFiles(directory=_next_static), name="next-static")
 
 
+@app.head("/{path:path}")
 @app.get("/{path:path}")
 async def serve_frontend(path: str):
     """Serve Next.js static export with SPA fallback."""
