@@ -206,8 +206,10 @@ export default function ChainPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recent.map(a => (
-                      <tr key={a.id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
+                    {recent.map(a => {
+                      const isLoss = a.result === 'Lost' || a.result === 'Stalemate' || a.result === 'Escape';
+                      return (
+                      <tr key={a.id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isLoss ? 'bg-danger/10' : ''}`}>
                         <td className="py-1.5 px-3 text-text-primary">{a.attacker_name || '?'}</td>
                         <td className="py-1.5 px-3">
                           {a.defender_name || '?'}
@@ -218,7 +220,8 @@ export default function ChainPage() {
                         <td className="py-1.5 px-3 text-text-muted">{a.chain || '—'}</td>
                         <td className="py-1.5 px-3 text-text-muted text-xs">{timeAgo(a.started)}</td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
