@@ -1,24 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AuthGate } from "./AuthGate";
 import { Sidebar } from "./Sidebar";
 import { MobileDrawer } from "./MobileDrawer";
-import { api } from "@/lib/api-client";
+import { AnnouncementCarousel } from "./AnnouncementCarousel";
 import { useAuth } from "@/hooks/useAuth";
+import { useAnnouncements } from "@/hooks/useAnnouncements";
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { active, unreadCount, dismiss } = useAnnouncements();
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    api
-      .announcements()
-      .then((data) => setUnreadCount(data.announcements.length))
-      .catch(() => {});
-  }, [isLoggedIn]);
+  if (!isLoggedIn) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="min-h-screen">
@@ -59,7 +56,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main content */}
-      <main className="lg:ml-[200px] pt-12 lg:pt-0">{children}</main>
+      <main className="lg:ml-[200px] pt-12 lg:pt-0">
+        <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
+        {children}
+      </main>
     </div>
   );
 }
