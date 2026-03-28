@@ -36,6 +36,11 @@ const NAV_SECTIONS: NavSection[] = [
     title: "TOOLS",
     items: [
       {
+        label: "Stat Growth",
+        href: "/stats",
+        icon: "\uD83D\uDCC8",
+      },
+      {
         label: "Spy Central",
         href: "/spy",
         icon: "\uD83D\uDD0D",
