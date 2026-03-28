@@ -5,27 +5,28 @@ import { calculateGymGain, calculateHappyContribution, compareFhcUseVsSell, comp
 import { generateRecommendations } from '@/lib/recommendations';
 import { DEFAULT_PRICES, STAT_MILESTONES, getGymGainById } from '@/lib/constants';
 
+const STAT_WORD: Record<StatType, string> = { STR: 'strength', DEF: 'defense', SPD: 'speed', DEX: 'dexterity' };
+
 /** Parse education_perks strings to compute total gym gain bonus for a stat. */
 function parseEducationBonus(perks: string[], stat: StatType): number {
-  const statWord = { STR: 'strength', DEF: 'defense', SPD: 'speed', DEX: 'dexterity' }[stat];
+  const statWord = STAT_WORD[stat];
   let multiplier = 1;
   for (const perk of perks) {
     const lower = perk.toLowerCase();
     if (lower.includes('gym gains')) {
       if (lower.includes(statWord) || lower.includes('all gym gains') || /\d+%\s*gym gains/.test(lower)) {
-        // Extract percentage from perk string, e.g. "+1% strength gym gains" or "+1% gym gains"
-        const match = perk.match(/(\d+)%/);
+        const match = lower.match(/(\d+)%/);
         const pct = match ? parseInt(match[1], 10) : 1;
         multiplier *= 1 + pct / 100;
       }
     }
   }
-  return multiplier - 1; // return as decimal bonus, e.g. 0.03 for 3%
+  return multiplier - 1;
 }
 
 /** Parse book_perks strings to detect active book type and which stat it applies to. */
 function parseBookPerks(perks: string[], stat: StatType): BookBonus {
-  const statWord = { STR: 'strength', DEF: 'defense', SPD: 'speed', DEX: 'dexterity' }[stat];
+  const statWord = STAT_WORD[stat];
   for (const perk of perks) {
     const lower = perk.toLowerCase();
     if (lower.includes('gym gains')) {
@@ -89,7 +90,7 @@ export function useCalculator(apiData: TornUserData | null) {
     // Book bonus — detect from API perks
     const bookBonus = apiData.bookPerks.length > 0
       ? parseBookPerks(apiData.bookPerks, highest.stat)
-      : 'none' as BookBonus;
+      : 'none';
 
     setState(prev => ({
       ...prev,
