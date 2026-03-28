@@ -42,11 +42,10 @@ export function useAuth() {
     const result = await api.registerKey(apiKey);
     localStorage.setItem("myKeyPlayer", String(result.player_id));
     localStorage.setItem("myKeyName", result.name);
-    const me = await api.me();
     setState({
       playerId: result.player_id,
       playerName: result.name,
-      role: me.role,
+      role: result.role || "member",
       loading: false,
     });
   }, []);
