@@ -33,3 +33,10 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
         except Exception as e:
             logger.error("Error collecting stats for player %d: %s", entry["player_id"], e)
     logger.info("Collected stat snapshots: %d/%d members", collected, len(all_keys))
+
+
+async def run_collect_stats() -> None:
+    """Top-level entry point for APScheduler (must be importable, not nested)."""
+    from api.scheduler.engine import get_state
+    state = get_state()
+    await collect_stat_snapshots(state["key_repo"], state["stats_repo"], state["torn_client"])

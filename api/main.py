@@ -48,18 +48,17 @@ async def lifespan(app: FastAPI):
     from api.db.repos.stats import StatSnapshotRepository
     stats_repo = StatSnapshotRepository(db_path="data/keys.db")
 
-    from api.scheduler.engine import create_scheduler
-    app_scheduler = await create_scheduler({
+    from api.scheduler.engine import create_and_start_scheduler
+    app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
         "stats_repo": stats_repo,
         "spy_service": spy_mod.spy_service,
         "torn_client": torn_client,
         "tornstats_key": TORNSTATS_API_KEY,
     })
-    await app_scheduler.start_in_background()
-    logger.info("TM Hub started — superadmin=%d, faction=%d", SUPERADMIN_ID, FACTION_ID)
+    logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
-    await app_scheduler.stop()
+    await app_scheduler.__aexit__(None, None, None)
     await torn_client.close()
     logger.info("TM Hub shutting down")
 

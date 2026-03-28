@@ -3,29 +3,43 @@ import logging
 
 logger = logging.getLogger("tm-hub.scheduler")
 
-async def create_scheduler(app_state: dict):
-    """Create and configure the background scheduler. Returns scheduler instance."""
+# Module-level state for scheduler jobs to access
+_state: dict = {}
+
+
+def get_state() -> dict:
+    return _state
+
+
+async def create_and_start_scheduler(app_state: dict):
+    """Create, configure, and start the background scheduler. Returns the scheduler."""
     from apscheduler import AsyncScheduler
     from apscheduler.triggers.interval import IntervalTrigger
     from apscheduler.triggers.cron import CronTrigger
-    from api.scheduler.jobs.collect_stats import collect_stat_snapshots
-    from api.scheduler.jobs.refresh_spies import refresh_spy_cache
+    from api.scheduler.jobs.collect_stats import run_collect_stats
+    from api.scheduler.jobs.refresh_spies import run_refresh_spies
 
-    key_repo = app_state["key_repo"]
-    stats_repo = app_state["stats_repo"]
-    spy_service = app_state["spy_service"]
-    torn_client = app_state["torn_client"]
-    tornstats_key = app_state.get("tornstats_key", "")
-
-    async def _collect_stats():
-        await collect_stat_snapshots(key_repo, stats_repo, torn_client)
-
-    async def _refresh_spies():
-        await refresh_spy_cache(spy_service, torn_client, tornstats_key)
+    global _state
+    _state = app_state
 
     scheduler = AsyncScheduler()
-    await scheduler.add_schedule(_collect_stats, CronTrigger(hour=4, minute=0), id="collect_stats")
-    await scheduler.add_schedule(_refresh_spies, IntervalTrigger(minutes=30), id="refresh_spies")
+    await scheduler.__aenter__()
 
-    logger.info("Scheduler configured: collect_stats (daily 4:00 UTC), refresh_spies (every 30min)")
+    # Register callables explicitly, then reference by task_id
+    await scheduler.configure_task("collect_stats", func=run_collect_stats)
+    await scheduler.configure_task("refresh_spies", func=run_refresh_spies)
+
+    await scheduler.add_schedule(
+        "collect_stats",
+        CronTrigger(hour=4, minute=0),
+        id="collect_stats_schedule",
+    )
+    await scheduler.add_schedule(
+        "refresh_spies",
+        IntervalTrigger(minutes=30),
+        id="refresh_spies_schedule",
+    )
+    await scheduler.start_in_background()
+
+    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min)")
     return scheduler

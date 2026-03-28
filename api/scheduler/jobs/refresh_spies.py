@@ -39,3 +39,10 @@ async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key:
         logger.info("Refreshed spy data for %d players from TornStats", len(updated_players))
     except Exception as e:
         logger.error("Spy refresh failed: %s", e)
+
+
+async def run_refresh_spies() -> None:
+    """Top-level entry point for APScheduler (must be importable, not nested)."""
+    from api.scheduler.engine import get_state
+    state = get_state()
+    await refresh_spy_cache(state["spy_service"], state["torn_client"], state.get("tornstats_key", ""))
