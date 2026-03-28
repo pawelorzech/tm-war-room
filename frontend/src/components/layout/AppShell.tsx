@@ -25,10 +25,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface border-b border-border z-40 flex items-center px-3 gap-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface/80 backdrop-blur-md border-b border-border z-40 flex items-center px-3 gap-3">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="text-text-secondary hover:text-text-primary p-1"
+          className="text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200 active:scale-95"
           aria-label="Open menu"
         >
           <svg
@@ -45,7 +45,12 @@ function ShellContent({ children }: { children: React.ReactNode }) {
             />
           </svg>
         </button>
-        <span className="text-sm font-bold text-torn-green">TM Hub</span>
+        <span
+          className="text-sm font-extrabold tracking-tight text-torn-green"
+          style={{ textShadow: "0 0 12px rgba(63, 185, 80, 0.35)" }}
+        >
+          TM Hub
+        </span>
       </div>
 
       {/* Mobile drawer */}
