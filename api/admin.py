@@ -4,6 +4,7 @@ import inspect
 import time
 
 from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
+from pydantic import BaseModel as PydanticBaseModel
 
 from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
 from api.auth import create_jwt, decode_jwt, rate_limiter
@@ -158,3 +159,34 @@ async def promote_admin(player_id: int, admin: dict = Depends(require_superadmin
 async def demote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
     _key_store.demote_admin(player_id)
     return {"status": "ok", "demoted": player_id}
+
+
+class AnnouncementCreateBody(PydanticBaseModel):
+    type: str
+    message: str
+    expires_at: str | None = None
+
+
+class RevokeBody(PydanticBaseModel):
+    reason: str | None = None
+
+
+@router.post("/announcements")
+async def create_announcement(body: AnnouncementCreateBody, admin: dict = Depends(require_admin)):
+    if body.type not in ("alert", "warning", "info", "success"):
+        raise HTTPException(status_code=400, detail="Invalid announcement type")
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    ann_id = _key_store.create_announcement(
+        type=body.type, message=body.message.strip(),
+        created_by=admin["sub"], expires_at=body.expires_at,
+    )
+    return {"status": "ok", "id": ann_id}
+
+
+@router.patch("/announcements/{ann_id}/revoke")
+async def revoke_announcement(ann_id: int, body: RevokeBody, admin: dict = Depends(require_admin)):
+    changed = _key_store.revoke_announcement(ann_id, revoked_by=admin["sub"], reason=body.reason)
+    if not changed:
+        raise HTTPException(status_code=404, detail="Announcement not found or already revoked")
+    return {"status": "ok"}

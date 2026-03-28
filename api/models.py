@@ -146,3 +146,21 @@ class FactionInfo(BaseModel):
     rank_level: int = 0
     best_chain: int = 0
     wins: int = 0
+
+
+class Announcement(BaseModel):
+    id: int
+    type: str
+    message: str
+    created_by: int
+    created_at: str
+    expires_at: str | None = None
+    revoked_at: str | None = None
+    revoked_by: int | None = None
+    revoke_reason: str | None = None
+
+
+class AnnouncementCreate(BaseModel):
+    type: str
+    message: str
+    expires_at: str | None = None
