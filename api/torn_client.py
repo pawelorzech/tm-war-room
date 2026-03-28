@@ -332,6 +332,59 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_user_honors(self, api_key: str) -> dict:
+        """Fetch user's awarded honors and medals."""
+        cache_key = f"honors_{api_key[:8]}"
+        cached = self._get_cached(cache_key, ttl=300)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "honors,medals,personalstats,profile", "key": api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/user/honors", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/user/honors", False, (time.time() - start) * 1000, str(e))
+            raise
+        result = {
+            "honors_awarded": raw.get("honors_awarded", []),
+            "honors_time": raw.get("honors_time", []),
+            "medals_awarded": raw.get("medals_awarded", []),
+            "medals_time": raw.get("medals_time", []),
+            "player_id": raw.get("player_id"),
+            "name": raw.get("name"),
+        }
+        self._set_cached(cache_key, result)
+        return result
+
+    async def fetch_honor_catalog(self) -> dict:
+        """Fetch all available honors and medals definitions."""
+        cached = self._get_cached("honor_catalog", ttl=3600)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/torn/",
+                params={"selections": "honors,medals", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/torn/honors", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/torn/honors", False, (time.time() - start) * 1000, str(e))
+            raise
+        result = {
+            "honors": raw.get("honors", {}),
+            "medals": raw.get("medals", {}),
+        }
+        self._set_cached("honor_catalog", result)
+        return result
+
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
         from api.models import PersonalStats
         cache_key = f"tspy_{faction_id}"
