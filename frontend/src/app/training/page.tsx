@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCalculator } from '@/hooks/useCalculator';
+import { useTrainingStats } from '@/hooks/useTrainingStats';
 
 import { RecommendationsPanel } from '@/components/training/RecommendationsPanel';
 import { ComparisonToggle } from '@/components/training/calculator/ComparisonToggle';
@@ -40,9 +41,16 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+function formatStat(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
 export default function TrainingPage() {
-  // No API data in TM Hub — user manually enters stats
-  const { state, updateField, results } = useCalculator(null);
+  const { data: apiData, loading: statsLoading } = useTrainingStats();
+  const { state, updateField, results } = useCalculator(apiData);
   const [activeTab, setActiveTab] = useState<TabId>('calculator');
 
   return (
@@ -70,6 +78,23 @@ export default function TrainingPage() {
       </nav>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
+        {/* Stats status banner */}
+        {statsLoading && (
+          <div className="mb-4 px-4 py-2.5 rounded-lg bg-bg-card border border-torn-green/20 text-text-secondary text-sm animate-pulse">
+            Loading your stats...
+          </div>
+        )}
+        {!statsLoading && apiData && (
+          <div className="mb-4 px-4 py-2.5 rounded-lg bg-torn-green/10 border border-torn-green/30 text-sm text-text-primary flex flex-wrap gap-x-4 gap-y-1 items-center">
+            <span className="font-semibold text-torn-green">{apiData.profile.name}</span>
+            <span className="text-text-secondary">STR: <span className="text-text-primary font-medium">{formatStat(apiData.battlestats.strength)}</span></span>
+            <span className="text-text-secondary">DEF: <span className="text-text-primary font-medium">{formatStat(apiData.battlestats.defense)}</span></span>
+            <span className="text-text-secondary">SPD: <span className="text-text-primary font-medium">{formatStat(apiData.battlestats.speed)}</span></span>
+            <span className="text-text-secondary">DEX: <span className="text-text-primary font-medium">{formatStat(apiData.battlestats.dexterity)}</span></span>
+            <span className="text-xs text-text-secondary ml-auto">Stats auto-loaded</span>
+          </div>
+        )}
+
         {/* Calculator Tab */}
         {activeTab === 'calculator' && (
           <div className="space-y-6">
@@ -77,7 +102,7 @@ export default function TrainingPage() {
               state={state}
               results={results}
               onUpdate={updateField}
-              apiPopulated={false}
+              apiPopulated={!!apiData}
             />
 
             <RecommendationsPanel recommendations={results.recommendations} />
@@ -110,7 +135,7 @@ export default function TrainingPage() {
             state={state}
             results={results}
             onUpdate={updateField}
-            apiPopulated={false}
+            apiPopulated={!!apiData}
           />
         )}
 
