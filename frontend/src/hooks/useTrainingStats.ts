@@ -51,10 +51,10 @@ export function useTrainingStats() {
             statenhancersused: raw.personalstats.statenhancersused,
             rehabs: raw.personalstats.rehabs,
           },
-          steadfast: { strength: 0, defense: 0, speed: 0, dexterity: 0 },
-          educationCompleted: raw.education_completed,
-          educationPerks: raw.education_perks ?? [],
-          bookPerks: raw.book_perks ?? [],
+          steadfast: raw.steadfast ?? { strength: 0, defense: 0, speed: 0, dexterity: 0 },
+          educationCompleted: raw.educationCompleted ?? [],
+          educationPerks: raw.educationPerks ?? [],
+          bookPerks: raw.bookPerks ?? [],
         };
         setData(mapped);
       })

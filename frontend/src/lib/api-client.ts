@@ -43,9 +43,11 @@ export const api = {
     gym: { active_gym: number };
     merits: { brawn: number; protection: number; sharpness: number; evasion: number };
     personalstats: { xantaken: number; refills: number; statenhancersused: number; rehabs: number };
-    education_completed: number[];
-    education_perks: string[];
-    book_perks: string[];
+    steadfast: { strength: number; defense: number; speed: number; dexterity: number };
+    educationCompleted: number[];
+    educationPerks: string[];
+    bookPerks: string[];
+    level: number;
   }>("/api/training/stats"),
   spyEstimate: (playerId: number) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/${playerId}`),
   spySubmit: (data: { player_id: number; strength: number; defense: number; speed: number; dexterity: number }) =>
