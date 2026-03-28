@@ -5,8 +5,9 @@ import { useAdminSession } from "@/hooks/useAdminSession";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import { AnnouncementEditor } from "@/components/admin/AnnouncementEditor";
 import { ManageAdmins } from "@/components/admin/ManageAdmins";
+import { SpyAdmin } from "@/components/admin/SpyAdmin";
 
-type Tab = "analytics" | "announcements" | "admins";
+type Tab = "analytics" | "announcements" | "spy" | "admins";
 
 export default function AdminPage() {
   const { role } = useAuth();
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const tabs: { id: Tab; label: string; show: boolean }[] = [
     { id: "analytics", label: "Analytics", show: true },
     { id: "announcements", label: "Announcements", show: true },
+    { id: "spy", label: "Spy Data", show: true },
     { id: "admins", label: "Manage Admins", show: role === "superadmin" },
   ];
 
@@ -42,6 +44,7 @@ export default function AdminPage() {
       <div className="p-4">
         {tab === "analytics" && <AnalyticsDashboard adminFetch={adminFetch} />}
         {tab === "announcements" && <AnnouncementEditor adminFetch={adminFetch} />}
+        {tab === "spy" && <SpyAdmin adminFetch={adminFetch} />}
         {tab === "admins" && role === "superadmin" && <ManageAdmins adminFetch={adminFetch} />}
       </div>
     </div>
