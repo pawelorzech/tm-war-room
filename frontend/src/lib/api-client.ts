@@ -47,6 +47,13 @@ export const api = {
     education_perks: string[];
     book_perks: string[];
   }>("/api/training/stats"),
+  spyEstimate: (playerId: number) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/${playerId}`),
+  spySubmit: (data: { player_id: number; strength: number; defense: number; speed: number; dexterity: number }) =>
+    fetch(`/api/spy/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Player-Id": (typeof window !== "undefined" && localStorage.getItem("myKeyPlayer")) || "" },
+      body: JSON.stringify(data),
+    }).then(r => r.json()),
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
