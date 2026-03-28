@@ -1,6 +1,6 @@
 from __future__ import annotations
 import math
-from app.models import PersonalStats
+from api.models import PersonalStats
 
 
 def compute_threat(stats: PersonalStats | None, level: int, baseline: PersonalStats | None = None) -> tuple[int, str]:

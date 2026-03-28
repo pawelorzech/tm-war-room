@@ -5,8 +5,8 @@ import time
 
 from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
 
-from app.config import ADMIN_PLAYER_IDS, JWT_SECRET, APP_VERSION
-from app.auth import create_jwt, decode_jwt, rate_limiter
+from api.config import ADMIN_PLAYER_IDS, JWT_SECRET, APP_VERSION
+from api.auth import create_jwt, decode_jwt, rate_limiter
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
