@@ -56,9 +56,19 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main content */}
-      <main className="lg:ml-[200px] pt-12 lg:pt-0">
+      <main className="lg:ml-[200px] pt-12 lg:pt-0 min-h-screen flex flex-col">
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
-        {children}
+        <div className="flex-1">{children}</div>
+        <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
+          TM Hub v1.0.0 — by{" "}
+          <a
+            href="https://www.torn.com/profiles.php?XID=2362436"
+            target="_blank"
+            className="text-torn-green hover:underline"
+          >
+            Bombel [2362436]
+          </a>
+        </footer>
       </main>
     </div>
   );
