@@ -70,6 +70,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/loot",
         icon: "\uD83D\uDCB0",
       },
+      {
+        label: "Revives",
+        href: "/revives",
+        icon: "\uD83D\uDC9A",
+      },
     ],
   },
 ];

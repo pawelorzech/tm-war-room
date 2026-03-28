@@ -1,4 +1,5 @@
 from __future__ import annotations
+import inspect
 import logging
 import time
 from fastapi import APIRouter, HTTPException
@@ -31,20 +32,28 @@ async def loot_timers():
             f"https://www.tornstats.com/api/v2/{tornstats_key}/loot",
         )
         resp.raise_for_status()
-        raw = resp.json()
+        result = resp.json()
+        raw = await result if inspect.isawaitable(result) else result
     except Exception as e:
         logger.error("TornStats loot fetch failed: %s", e)
         if _cache:
             return _cache
         raise HTTPException(status_code=502, detail="Failed to fetch loot data")
 
+    logger.info("TornStats loot raw keys=%s, status=%s", list(raw.keys()), raw.get("status"))
     if not raw.get("status"):
-        raise HTTPException(status_code=502, detail="TornStats returned error")
+        raise HTTPException(status_code=502, detail=f"TornStats error: {raw.get('message', 'unknown')}")
 
     loot_data = raw.get("loot", {})
+    logger.info("TornStats loot: type=%s, len=%s", type(loot_data).__name__, len(loot_data) if loot_data else 0)
+
+    # Handle both dict and list formats
     npcs = []
-    for npc_id_str, npc in loot_data.items():
-        npc_id = int(npc_id_str)
+    items = loot_data.items() if isinstance(loot_data, dict) else enumerate(loot_data)
+    for npc_id_str, npc in items:
+        if not isinstance(npc, dict):
+            continue
+        npc_id = npc.get("id") or int(npc_id_str)
         hosp_out = npc.get("hosp_out", 0)
         status = npc.get("status", "Unknown")
 

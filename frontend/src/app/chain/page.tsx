@@ -49,7 +49,9 @@ interface ChainDetailResponse {
 interface RecentAttack {
   id: number;
   attacker_name: string;
+  attacker_id: number;
   defender_name: string;
+  defender_faction_id: number | null;
   defender_faction_name: string | null;
   result: string;
   respect_gain: number;
@@ -103,6 +105,7 @@ export default function ChainPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('chains');
   const [attacksInDb, setAttacksInDb] = useState(0);
+  const [factionId, setFactionId] = useState<number>(0);
 
   // Detail view state
   const [selectedChain, setSelectedChain] = useState<ChainSummary | null>(null);
@@ -118,8 +121,9 @@ export default function ChainPage() {
       api.chainList(force),
       api.chainRecent(100),
     ]).then(([c, a]) => {
-      const chainData = c as { chains: ChainSummary[]; attacks_in_db: number };
+      const chainData = c as { chains: ChainSummary[]; attacks_in_db: number; faction_id: number };
       setChains(chainData.chains);
+      if (chainData.faction_id) setFactionId(chainData.faction_id);
       setAttacksInDb(chainData.attacks_in_db);
       setRecent((a as { attacks: RecentAttack[] }).attacks);
     }).catch(() => {}).finally(() => setLoading(false));
@@ -203,12 +207,13 @@ export default function ChainPage() {
               toggleSort={toggleSort}
               Arrow={Arrow}
               onBack={closeDetail}
+              factionId={factionId}
             />
           ) : (
             <ChainListView chains={chains} onSelect={openChain} />
           )
         ) : (
-          <RecentAttacksView attacks={recent} />
+          <RecentAttacksView attacks={recent} factionId={factionId} />
         )}
       </div>
     </div>
@@ -292,7 +297,7 @@ function ChainListView({ chains, onSelect }: { chains: ChainSummary[]; onSelect:
 
 function ChainDetailView({
   chain, detail, loading, detailTab, setDetailTab,
-  sortedMembers, sortCol, toggleSort, Arrow, onBack,
+  sortedMembers, sortCol, toggleSort, Arrow, onBack, factionId = 0,
 }: {
   chain: ChainSummary;
   detail: ChainDetailResponse | null;
@@ -304,6 +309,7 @@ function ChainDetailView({
   toggleSort: (col: DetailSort) => void;
   Arrow: React.FC<{ col: DetailSort }>;
   onBack: () => void;
+  factionId?: number;
 }) {
   return (
     <div className="space-y-4">
@@ -410,7 +416,7 @@ function ChainDetailView({
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">No member data.</div>
         )
       ) : (
-        <AttackTable attacks={detail?.attacks || []} />
+        <AttackTable attacks={detail?.attacks || []} factionId={factionId} />
       )}
     </div>
   );
@@ -418,7 +424,7 @@ function ChainDetailView({
 
 /* ── Recent Attacks View ── */
 
-function RecentAttacksView({ attacks }: { attacks: RecentAttack[] }) {
+function RecentAttacksView({ attacks, factionId = 0 }: { attacks: RecentAttack[]; factionId?: number }) {
   if (attacks.length === 0) {
     return (
       <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
@@ -426,12 +432,12 @@ function RecentAttacksView({ attacks }: { attacks: RecentAttack[] }) {
       </div>
     );
   }
-  return <AttackTable attacks={attacks} />;
+  return <AttackTable attacks={attacks} factionId={factionId} />;
 }
 
 /* ── Shared Attack Table ── */
 
-function AttackTable({ attacks }: { attacks: RecentAttack[] }) {
+function AttackTable({ attacks, factionId = 0 }: { attacks: RecentAttack[]; factionId?: number }) {
   return (
     <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -449,8 +455,10 @@ function AttackTable({ attacks }: { attacks: RecentAttack[] }) {
           <tbody>
             {attacks.map(a => {
               const isLoss = a.result === 'Lost' || a.result === 'Stalemate' || a.result === 'Escape';
+              const isIncoming = factionId > 0 && a.defender_faction_id === factionId;
+              const isRed = isLoss || isIncoming;
               return (
-                <tr key={a.id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isLoss ? 'bg-danger/10' : ''}`}>
+                <tr key={a.id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isRed ? 'bg-danger/10' : ''}`}>
                   <td className="py-1.5 px-3 text-text-primary">{a.attacker_name || '?'}</td>
                   <td className="py-1.5 px-3">
                     {a.defender_name || '?'}

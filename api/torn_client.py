@@ -332,6 +332,29 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_faction_revives(self) -> list[dict]:
+        """Fetch recent faction revives (up to 990)."""
+        cached = self._get_cached("revives", ttl=60)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/",
+                params={"selections": "revives", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/faction/revives", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/revives", False, (time.time() - start) * 1000, str(e))
+            raise
+        revives = raw.get("revives", [])
+        if isinstance(revives, dict):
+            revives = list(revives.values())
+        self._set_cached("revives", revives)
+        return revives
+
     async def fetch_user_honors(self, api_key: str) -> dict:
         """Fetch user's awarded honors and medals."""
         cache_key = f"honors_{api_key[:8]}"
