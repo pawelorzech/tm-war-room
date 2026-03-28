@@ -10,7 +10,7 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --pre .
 COPY api/ api/
 COPY --from=frontend /frontend/out/ static/
 RUN mkdir -p data
