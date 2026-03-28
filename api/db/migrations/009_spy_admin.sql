@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS spy_blocked (
+    player_id INTEGER PRIMARY KEY,
+    reason TEXT,
+    blocked_by INTEGER NOT NULL,
+    blocked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS spy_hidden (
+    player_id INTEGER PRIMARY KEY,
+    hidden_by INTEGER NOT NULL,
+    hidden_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
