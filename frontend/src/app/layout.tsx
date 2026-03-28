@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
   title: "TM Hub",
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full dark">
       <body className="min-h-full bg-bg-primary text-text-primary">
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
