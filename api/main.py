@@ -319,6 +319,24 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
     }
 
 
+@app.get("/api/training/stats")
+async def training_stats(x_player_id: int = Header()):
+    all_keys = key_store.get_all_keys()
+    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    if not user_key:
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    try:
+        data = await torn_client.fetch_training_data(user_key["api_key"])
+        if data is None:
+            raise HTTPException(status_code=502, detail="Failed to fetch training data from Torn API")
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Training stats fetch failed for pid=%d: %s", x_player_id, e)
+        raise HTTPException(status_code=502, detail=f"Torn API error: {e}")
+
+
 class KeyRegister(BaseModel):
     api_key: str
 
