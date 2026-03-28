@@ -48,10 +48,22 @@ export class ErrorBoundary extends React.Component<
 
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(
-                  `${error.name}: ${error.message}\n\n${error.stack || ""}`
-                );
+              onClick={async () => {
+                const text = `${error.name}: ${error.message}\n\n${error.stack || ""}`;
+                try {
+                  await navigator.clipboard.writeText(text);
+                  (document.activeElement as HTMLButtonElement)?.blur();
+                  alert("Error copied to clipboard!");
+                } catch {
+                  // Fallback: select the stack trace text
+                  const pre = document.querySelector('pre');
+                  if (pre) {
+                    const range = document.createRange();
+                    range.selectNodeContents(pre);
+                    window.getSelection()?.removeAllRanges();
+                    window.getSelection()?.addRange(range);
+                  }
+                }
               }}
               className="px-4 py-2 text-sm bg-bg-elevated border border-border rounded-lg text-text-primary hover:bg-bg-card transition-colors"
             >

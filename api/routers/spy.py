@@ -6,6 +6,8 @@ from api.services.spy import SpyService
 
 router = APIRouter(prefix="/api/spy", tags=["spy"])
 spy_service: SpyService | None = None
+torn_client = None  # Set by main.py
+tornstats_key: str = ""  # Set by main.py
 
 
 def _require_service() -> SpyService:
@@ -46,6 +48,21 @@ async def list_known_estimates(svc: SpyService = Depends(_require_service)):
 @router.get("/{player_id}")
 async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_service)):
     est = svc.repo.get_estimate(player_id)
+
+    # If no local data, try TornStats live lookup
+    if not est and torn_client and tornstats_key:
+        ts_data = await torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
+        if ts_data and ts_data.get("total", 0) > 0:
+            now = datetime.now(timezone.utc).isoformat()
+            svc.repo.upsert_report(
+                player_id=player_id, player_name=ts_data.get("player_name"),
+                source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
+                speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
+                confidence="estimate", reported_at=now,
+            )
+            svc.refresh_estimate(player_id)
+            est = svc.repo.get_estimate(player_id)
+
     if not est:
         raise HTTPException(status_code=404, detail="No spy data available for this player")
     reported = datetime.fromisoformat(est["reported_at"])
