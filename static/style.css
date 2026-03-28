@@ -257,9 +257,17 @@ a:hover { text-decoration: underline; }
 .mh-logout { background: var(--red-bg) !important; border-color: var(--red-border) !important; color: var(--red) !important; }
 
 /* === Mobile sort === */
-.mobile-sort { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 4px; }
-.mobile-sort-summary { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; }
-.mobile-sort select { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text); appearance: auto; min-height: 32px; }
+.mobile-sort { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 4px; gap: 4px; }
+.mobile-sort-summary { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; width: 100%; }
+.mobile-sort-controls { display: flex; gap: 4px; align-items: center; width: 100%; }
+.mobile-sort select, .mobile-sort-controls select { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text); appearance: auto; min-height: 32px; flex: 1; }
+.sort-dir-btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--text); cursor: pointer; min-height: 32px; min-width: 36px; }
+.sort-dir-btn:active { background: var(--border); }
+
+/* === Enemy filter bar (desktop) === */
+.enemy-filter-bar { margin-bottom: 8px; }
+.enemy-filter-bar label { font-size: 12px; color: var(--text-muted); }
+.enemy-filter-bar select { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 12px; color: var(--text); }
 
 /* === Member cards (Our Team) === */
 .card-list { display: flex; flex-direction: column; gap: 6px; }

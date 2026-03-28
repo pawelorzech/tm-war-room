@@ -4,6 +4,7 @@ const FACTION_ID = 11559;
 let overviewData = null, detailData = null, enemyData = null;
 let ourSort = { col: null, asc: true }; // null = default readiness sort
 let enemySort = { col: 'threat_score', asc: true };
+let enemyFilter = 'all'; // all | online | idle | offline | hospital | okay
 let adminRange = 7;
 let isAdmin = false;
 
@@ -397,9 +398,44 @@ function toggleEnemyCard(cardEl) {
 }
 
 function mobileSortEnemy(val) {
-    enemySort.col = val;
-    enemySort.asc = (val === 'name');
+    if (enemySort.col === val) {
+        enemySort.asc = !enemySort.asc;
+    } else {
+        enemySort.col = val;
+        enemySort.asc = (val === 'name');
+    }
+    updateMobileSortBtn();
     if (enemyData) renderEnemy(enemyData);
+}
+
+function toggleMobileSortDir() {
+    enemySort.asc = !enemySort.asc;
+    updateMobileSortBtn();
+    if (enemyData) renderEnemy(enemyData);
+}
+
+function updateMobileSortBtn() {
+    const btn = document.getElementById('enemy-sort-dir');
+    if (btn) btn.textContent = enemySort.asc ? '▲' : '▼';
+}
+
+function filterEnemy(val) {
+    enemyFilter = val;
+    if (enemyData) renderEnemy(enemyData);
+}
+
+function applyEnemyFilter(members) {
+    if (enemyFilter === 'all') return members;
+    return members.filter(m => {
+        switch (enemyFilter) {
+            case 'online': return m.last_action.status === 'Online';
+            case 'idle': return m.last_action.status === 'Idle';
+            case 'offline': return m.last_action.status === 'Offline';
+            case 'hospital': return m.status.state === 'Hospital';
+            case 'okay': return m.status.state === 'Okay' && m.last_action.status !== 'Offline';
+            default: return true;
+        }
+    });
 }
 
 function renderMobileEnemyCards(data) {
@@ -413,10 +449,13 @@ function renderMobileEnemyCards(data) {
     const f = data.faction, ms = data.members;
     let atk = 0, hosp = 0;
     for (const m of ms) { if (m.last_action.status!=='Offline' && m.status.state==='Okay') atk++; if (m.status.state==='Hospital') hosp++; }
-    document.getElementById('enemy-mobile-summary').textContent = `${atk} attackable · ${hosp} hospital · ${ms.length} total`;
-    document.getElementById('enemy-count').textContent = ms.length;
 
-    const sorted = [...ms].sort((a, b) => {
+    const filtered = applyEnemyFilter(ms);
+    const filterNote = enemyFilter !== 'all' ? ` (${filtered.length} ${enemyFilter})` : '';
+    document.getElementById('enemy-mobile-summary').textContent = `${atk} attackable · ${hosp} hospital · ${ms.length} total${filterNote}`;
+    document.getElementById('enemy-count').textContent = filtered.length;
+
+    const sorted = [...filtered].sort((a, b) => {
         const va = getEnemySortValue(a, enemySort.col);
         const vb = getEnemySortValue(b, enemySort.col);
         const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
@@ -738,11 +777,20 @@ function renderEnemy(data) {
     const threatInfo = data.threat_mode === 'relative'
         ? `Threat relative to <strong>${data.threat_baseline}</strong>`
         : 'Register your API key to see personalized threat levels';
-    document.getElementById('enemy-summary').innerHTML = `<strong><a href="https://www.torn.com/factions.php?step=profile&ID=${f.id}" target="_blank">${f.name}</a></strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total<br>${threatInfo}`;
-    document.getElementById('enemy-count').textContent = ms.length;
+
+    const filtered = applyEnemyFilter(ms);
+    const filterNote = enemyFilter !== 'all' ? ` (showing ${filtered.length} ${enemyFilter})` : '';
+    document.getElementById('enemy-summary').innerHTML = `<strong><a href="https://www.torn.com/factions.php?step=profile&ID=${f.id}" target="_blank">${f.name}</a></strong> [${f.tag}] \u2014 ${f.rank_name} (${f.wins}W) \u2014 <span class="g">${atk}</span> attackable, <span class="y">${hosp}</span> hospital, ${ms.length} total${filterNote}<br>${threatInfo}`;
+    document.getElementById('enemy-count').textContent = filtered.length;
+
+    // Sync filter dropdown
+    const filterSel = document.getElementById('enemy-filter-select');
+    if (filterSel) filterSel.value = enemyFilter;
+    const filterSelM = document.getElementById('enemy-filter-mobile');
+    if (filterSelM) filterSelM.value = enemyFilter;
 
     // Sort
-    const sorted = [...ms].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
         const va = getEnemySortValue(a, enemySort.col);
         const vb = getEnemySortValue(b, enemySort.col);
         const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
