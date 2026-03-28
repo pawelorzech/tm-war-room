@@ -2,10 +2,11 @@
 
 import type { SpyEstimate } from '@/types/spy';
 
-const CONFIDENCE_STYLES = {
+const CONFIDENCE_STYLES: Record<string, string> = {
   exact: 'bg-torn-green/20 text-torn-green border-torn-green/40',
   estimate: 'bg-warning/20 text-warning border-warning/40',
   stale: 'bg-danger/20 text-danger border-danger/40',
+  unknown: 'bg-bg-elevated text-text-muted border-text-secondary/30',
 };
 
 function formatStat(n: number): string {

@@ -4,10 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import type { SpyEstimate } from '@/types/spy';
 import { api } from '@/lib/api-client';
 
-const CONFIDENCE_DOT = {
+const CONFIDENCE_DOT: Record<string, string> = {
   exact: 'bg-green-500',
   estimate: 'bg-yellow-500',
   stale: 'bg-red-500',
+  unknown: 'bg-gray-500',
 };
 
 function fmt(n: number): string {
