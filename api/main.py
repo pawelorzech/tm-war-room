@@ -310,6 +310,14 @@ async def register_key(body: KeyRegister):
     return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
 
 
+@app.get("/api/announcements")
+async def get_announcements(_=Depends(verify_member)):
+    return {"announcements": key_store.get_active_announcements()}
+
+@app.get("/api/announcements/all")
+async def get_all_announcements(_=Depends(verify_member)):
+    return {"announcements": key_store.get_all_announcements()}
+
 @app.get("/api/keys")
 async def list_keys(_=Depends(verify_member)):
     keys = key_store.get_all_keys()
