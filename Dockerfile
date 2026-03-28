@@ -10,7 +10,7 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 COPY pyproject.toml .
-RUN pip install --no-cache-dir --pre .
+RUN pip install --no-cache-dir . && pip install --no-cache-dir --pre "apscheduler>=4.0.0a5"
 COPY api/ api/
 COPY --from=frontend /frontend/out/ static/
 RUN mkdir -p data
