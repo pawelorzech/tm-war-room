@@ -50,6 +50,7 @@ export const api = {
     level: number;
   }>("/api/training/stats"),
   spyEstimate: (playerId: number) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/${playerId}`),
+  spyKnown: () => apiFetch<{ estimates: import("@/types/spy").SpyEstimate[]; count: number }>("/api/spy/known"),
   spySubmit: (data: { player_id: number; strength: number; defense: number; speed: number; dexterity: number }) =>
     fetch(`/api/spy/submit`, {
       method: "POST",
