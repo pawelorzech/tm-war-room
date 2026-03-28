@@ -8,7 +8,9 @@ interface AdminFetch {
   <T>(path: string, init?: RequestInit): Promise<T>;
 }
 
-type AnnouncementType = "alert" | "warning" | "info" | "success";
+import { getAnnouncementState, ANNOUNCEMENT_TYPE_BADGE_STYLES } from "@/types/admin";
+import type { AnnouncementType } from "@/types/admin";
+import { formatDate } from "@/lib/format";
 
 const typeOptions: { value: AnnouncementType; label: string }[] = [
   { value: "alert", label: "Alert" },
@@ -17,33 +19,11 @@ const typeOptions: { value: AnnouncementType; label: string }[] = [
   { value: "success", label: "Success" },
 ];
 
-const typeBadgeStyles: Record<AnnouncementType, string> = {
-  alert: "bg-red-700 text-red-100",
-  warning: "bg-yellow-700 text-yellow-100",
-  info: "bg-blue-700 text-blue-100",
-  success: "bg-green-700 text-green-100",
-};
-
 const stateBadgeStyles: Record<string, string> = {
   active: "bg-green-800 text-green-200",
   expired: "bg-gray-700 text-gray-300",
   revoked: "bg-red-900 text-red-300",
 };
-
-function getState(a: Announcement): "active" | "expired" | "revoked" {
-  if (a.revoked_at) return "revoked";
-  if (a.expires_at && new Date(a.expires_at) <= new Date()) return "expired";
-  return "active";
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export function AnnouncementEditor({ adminFetch }: { adminFetch: AdminFetch }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -125,8 +105,8 @@ export function AnnouncementEditor({ adminFetch }: { adminFetch: AdminFetch }) {
     }
   };
 
-  const active = announcements.filter((a) => getState(a) === "active");
-  const history = announcements.filter((a) => getState(a) !== "active");
+  const active = announcements.filter((a) => getAnnouncementState(a) === "active");
+  const history = announcements.filter((a) => getAnnouncementState(a) !== "active");
 
   return (
     <div className="space-y-6">
@@ -203,7 +183,7 @@ export function AnnouncementEditor({ adminFetch }: { adminFetch: AdminFetch }) {
             {active.map((a) => (
               <div key={a.id} className="bg-bg-surface border border-border rounded p-3">
                 <div className="flex items-start gap-2">
-                  <span className={`shrink-0 px-1.5 py-0.5 rounded text-xs font-semibold uppercase ${typeBadgeStyles[a.type]}`}>
+                  <span className={`shrink-0 px-1.5 py-0.5 rounded text-xs font-semibold uppercase ${ANNOUNCEMENT_TYPE_BADGE_STYLES[a.type]}`}>
                     {a.type}
                   </span>
                   <span className="flex-1 text-sm text-text-primary">{a.message}</span>
@@ -267,7 +247,7 @@ export function AnnouncementEditor({ adminFetch }: { adminFetch: AdminFetch }) {
           </h2>
           <div className="space-y-2">
             {history.map((a) => {
-              const state = getState(a);
+              const state = getAnnouncementState(a);
               return (
                 <div key={a.id} className="bg-bg-surface border border-border rounded p-3 opacity-60">
                   <div className="flex items-start gap-2">

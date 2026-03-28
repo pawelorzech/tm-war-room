@@ -167,19 +167,16 @@ SELF_ONLY_POSITIONS = {"Team 1", "Team 2", "Team 3", "Team 4", "Member", "Contac
 
 @app.get("/api/members/detail")
 async def members_detail(x_player_id: int = Header()):
-    # Auth check
     all_keys = key_store.get_all_keys()
     if not any(k["player_id"] == x_player_id for k in all_keys):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
-    # Get members for position lookup
     active_key = _get_active_api_key()
     if active_key != torn_client._api_key:
         torn_client._api_key = active_key
     members = await torn_client.fetch_members()
     member_map = {m.id: m for m in members}
 
-    # Determine access level
     requesting_member = member_map.get(x_player_id)
     if not requesting_member:
         return {"yata_down": False, "members": {}, "cached_at": int(time.time())}

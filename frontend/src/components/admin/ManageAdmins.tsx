@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api-client";
+import { formatDateShort } from "@/lib/format";
 
 interface AdminFetch {
   <T>(path: string, init?: RequestInit): Promise<T>;
@@ -29,18 +30,10 @@ interface KeyEntry {
   created_at: string;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
   const { role } = useAuth();
   const [admins, setAdmins] = useState<AdminEntry[]>([]);
-  const [superadminId, setSuperadminId] = useState<number>(2362436);
+  const [superadminId, setSuperadminId] = useState<number>(0);
   const [registeredMembers, setRegisteredMembers] = useState<KeyEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -79,9 +72,10 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
     );
   }
 
-  // Filter out members who are already admins or superadmin for the picker
-  const adminIds = new Set([superadminId, ...admins.map((a) => a.player_id)]);
-  const promotable = registeredMembers.filter((m) => !adminIds.has(m.player_id));
+  const promotable = useMemo(() => {
+    const adminIds = new Set([superadminId, ...admins.map((a) => a.player_id)]);
+    return registeredMembers.filter((m) => !adminIds.has(m.player_id));
+  }, [superadminId, admins, registeredMembers]);
 
   const handlePromote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +150,7 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
                       {a.player_name}
                       <span className="ml-1 text-xs text-text-secondary">[{a.player_id}]</span>
                     </td>
-                    <td className="px-3 py-2 text-text-secondary text-xs">{formatDate(a.granted_at)}</td>
+                    <td className="px-3 py-2 text-text-secondary text-xs">{formatDateShort(a.granted_at)}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
