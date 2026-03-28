@@ -54,7 +54,6 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Chain Tracker",
         href: "/chain",
         icon: "\uD83D\uDD17",
-        disabled: true,
       },
     ],
   },
