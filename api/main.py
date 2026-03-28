@@ -29,6 +29,8 @@ from api.routers.stats import router as stats_router
 import api.routers.stats as stats_mod
 from api.routers.market import router as market_router
 import api.routers.market as market_mod
+from api.routers.chain import router as chain_router
+import api.routers.chain as chain_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -58,6 +60,11 @@ async def lifespan(app: FastAPI):
     stats_mod.torn_client = torn_client
     market_mod.torn_client = torn_client
 
+    from api.db.repos.attacks import AttackRepository
+    attack_repo = AttackRepository(db_path="data/keys.db")
+    chain_mod.attack_repo = attack_repo
+    chain_mod.torn_client = torn_client
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -78,6 +85,7 @@ app.include_router(admin_router)
 app.include_router(spy_router)
 app.include_router(stats_router)
 app.include_router(market_router)
+app.include_router(chain_router)
 
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
