@@ -17,3 +17,40 @@
   --color-text-secondary: #8b949e;
   --color-text-muted: #484f58;
 }
+
+/* ── TM Hub UI animations ── */
+
+@keyframes tm-pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes tm-glow-pulse {
+  0%, 100% { text-shadow: 0 0 8px rgba(63, 185, 80, 0.4); }
+  50% { text-shadow: 0 0 20px rgba(63, 185, 80, 0.7), 0 0 40px rgba(63, 185, 80, 0.2); }
+}
+
+@keyframes tm-focus-ring {
+  0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.5); }
+  100% { box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.15); }
+}
+
+@keyframes tm-badge-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes tm-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes tm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tm-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
