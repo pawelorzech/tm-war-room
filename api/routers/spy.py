@@ -26,67 +26,36 @@ class SpySubmitBody(BaseModel):
 
 @router.get("/search")
 async def search_by_name(q: str, svc: SpyService = Depends(_require_service)):
-    """Search for a player by name via Torn API, then return spy estimate."""
-    if not torn_client:
-        raise HTTPException(status_code=503, detail="Torn client not initialized")
+    """Search local spy estimates by player name (case-insensitive partial match)."""
     if not q.strip():
         raise HTTPException(status_code=400, detail="Search query required")
 
-    # Try to resolve name to ID via Torn API
-    from api.config import TORN_API_KEY
-    try:
-        resp = await torn_client._http.get(
-            "https://api.torn.com/user/",
-            params={"selections": "profile", "key": TORN_API_KEY, "id": q.strip()},
-        )
-        resp.raise_for_status()
-        import inspect
-        raw = resp.json()
-        if inspect.isawaitable(raw):
-            raw = await raw
-        if "error" in raw:
-            raise HTTPException(status_code=404, detail=f"Player not found: {raw['error'].get('error', 'Unknown error')}")
-        player_id = raw.get("player_id")
-        if not player_id:
-            raise HTTPException(status_code=404, detail="Player not found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Torn API error: {e}")
+    # Search local spy_estimates by name
+    all_estimates = svc.repo.get_all_estimates()
+    query_lower = q.strip().lower()
+    matches = [e for e in all_estimates if e.get("player_name") and query_lower in e["player_name"].lower()]
 
-    # Now do the normal spy estimate lookup (which includes TornStats live lookup)
-    est = svc.repo.get_estimate(player_id)
-    if not est and tornstats_key:
-        ts_data = await torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
-        if ts_data and ts_data.get("total", 0) > 0:
-            now = datetime.now(timezone.utc).isoformat()
-            svc.repo.upsert_report(
-                player_id=player_id, player_name=ts_data.get("player_name") or raw.get("name"),
-                source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
-                speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
-                confidence="estimate", reported_at=now,
-            )
-            svc.refresh_estimate(player_id)
-            est = svc.repo.get_estimate(player_id)
+    if not matches:
+        raise HTTPException(status_code=404, detail=f"No known players matching '{q.strip()}'")
 
-    if not est:
-        return {
-            "player_id": player_id, "player_name": raw.get("name"),
-            "strength": 0, "defense": 0, "speed": 0, "dexterity": 0, "total": 0,
-            "confidence": "unknown", "source": "none", "reported_at": None, "age_days": None,
-        }
+    now = datetime.now(timezone.utc)
+    results = []
+    for est in matches[:20]:
+        reported = datetime.fromisoformat(est["reported_at"])
+        if reported.tzinfo is None:
+            reported = reported.replace(tzinfo=timezone.utc)
+        results.append({
+            "player_id": est["player_id"], "player_name": est["player_name"],
+            "strength": est["strength"], "defense": est["defense"],
+            "speed": est["speed"], "dexterity": est["dexterity"],
+            "total": est["total"], "confidence": est["confidence"],
+            "source": est["source"], "reported_at": est["reported_at"],
+            "age_days": (now - reported).days,
+        })
 
-    reported = datetime.fromisoformat(est["reported_at"])
-    if reported.tzinfo is None:
-        reported = reported.replace(tzinfo=timezone.utc)
-    return {
-        "player_id": est["player_id"], "player_name": est["player_name"],
-        "strength": est["strength"], "defense": est["defense"],
-        "speed": est["speed"], "dexterity": est["dexterity"],
-        "total": est["total"], "confidence": est["confidence"],
-        "source": est["source"], "reported_at": est["reported_at"],
-        "age_days": (datetime.now(timezone.utc) - reported).days,
-    }
+    # If single match, return it directly; if multiple, return first (best total)
+    results.sort(key=lambda r: r["total"], reverse=True)
+    return results[0]
 
 
 @router.get("/known")

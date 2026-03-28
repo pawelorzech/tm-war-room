@@ -19,15 +19,21 @@ export function SpySearch() {
     setResult(null);
     try {
       const isNumeric = /^\d+$/.test(q);
-      let data: SpyEstimate;
       if (isNumeric) {
-        data = await api.spyEstimate(parseInt(q, 10));
+        const data = await api.spyEstimate(parseInt(q, 10));
+        setResult(data);
       } else {
-        data = await api.spySearch(q);
+        // Name search — searches local database
+        const data = await api.spySearch(q);
+        setResult(data);
       }
-      setResult(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Player not found');
+      const msg = e instanceof Error ? e.message : 'Player not found';
+      if (msg.includes('No known players')) {
+        setError(`No known players matching "${q}". Try searching by player ID instead — that will also query TornStats.`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -52,6 +58,9 @@ export function SpySearch() {
           {loading ? 'Searching...' : 'Search'}
         </button>
       </div>
+      <p className="text-xs text-text-muted">
+        ID search queries TornStats live. Name search checks local database only.
+      </p>
       {error && (
         <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 text-sm text-danger">{error}</div>
       )}
