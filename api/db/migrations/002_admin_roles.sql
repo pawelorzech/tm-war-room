@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS admin_roles (
+    player_id INTEGER PRIMARY KEY,
+    granted_by INTEGER NOT NULL,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
