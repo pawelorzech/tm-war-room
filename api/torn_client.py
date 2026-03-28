@@ -264,46 +264,34 @@ class TornClient:
         if "error" in raw:
             return None
 
-        # Parse battle stats
-        bs = raw.get("battlestats", {})
-
-        # Parse gym - get active gym info
-        gym = raw.get("gym", {})
-
-        # Parse merits
+        # Torn API v1 returns battlestats, bars, gym as flat top-level fields
+        # (merits, personalstats, education are nested objects)
         merits = raw.get("merits", {})
-
-        # Parse education - get completed courses
-        education = raw.get("education", {})
-        completed = [int(k) for k, v in education.get("courses", {}).items() if v.get("status") == "completed"]
-
-        # Parse bars
-        bars = raw.get("bars", {})
-
-        # Parse profile
-        profile = raw.get("profile", raw)
-
-        # Parse personalstats
         ps = raw.get("personalstats", {})
+        education_completed = raw.get("education_completed", [])
+
+        # Energy/happy bars are flat: raw["energy"], raw["happy"]
+        energy = raw.get("energy", {})
+        happy = raw.get("happy", {})
 
         return {
             "profile": {
-                "player_id": raw.get("player_id", profile.get("player_id", 0)),
-                "name": raw.get("name", profile.get("name", "")),
-                "level": raw.get("level", profile.get("level", 0)),
+                "player_id": raw.get("player_id", 0),
+                "name": raw.get("name", ""),
+                "level": raw.get("level", 0),
             },
             "battlestats": {
-                "strength": bs.get("strength", 0),
-                "defense": bs.get("defense", 0),
-                "speed": bs.get("speed", 0),
-                "dexterity": bs.get("dexterity", 0),
+                "strength": raw.get("strength", 0),
+                "defense": raw.get("defense", 0),
+                "speed": raw.get("speed", 0),
+                "dexterity": raw.get("dexterity", 0),
             },
             "bars": {
-                "happy": {"current": bars.get("happy", {}).get("current", 0), "maximum": bars.get("happy", {}).get("maximum", 0)},
-                "energy": {"current": bars.get("energy", {}).get("current", 0), "maximum": bars.get("energy", {}).get("maximum", 0)},
+                "happy": {"current": happy.get("current", 0), "maximum": happy.get("maximum", 0)},
+                "energy": {"current": energy.get("current", 0), "maximum": energy.get("maximum", 0)},
             },
             "gym": {
-                "active_gym": gym.get("active_gym", 0),
+                "active_gym": raw.get("active_gym", 0),
             },
             "merits": {
                 "brawn": merits.get("Brawn", 0),
@@ -317,7 +305,7 @@ class TornClient:
                 "statenhancersused": ps.get("statenhancersused", 0),
                 "rehabs": ps.get("rehabs", 0),
             },
-            "education_completed": completed,
+            "education_completed": education_completed,
         }
 
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
