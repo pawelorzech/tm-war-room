@@ -33,6 +33,9 @@ export interface TornPersonalStats {
   xantaken: number;
   exttaken: number;
   energydrinkused: number;
+  refills: number;
+  statenhancersused: number;
+  rehabs: number;
 }
 
 export interface TornMerits {
@@ -100,7 +103,10 @@ export interface SeComparison {
   seGain: number;
   seCostPerStat: number;
   xanaxCostPerStat: number;
+  xanaxCostPerStatWithRehab: number;
+  rehabCostPerXanax: number;
   ratio: number;
+  ratioWithRehab: number;
 }
 
 export interface Recommendation {
