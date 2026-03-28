@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useCalculator } from '@/hooks/useCalculator';
 import { useTrainingStats } from '@/hooks/useTrainingStats';
+import { PageExplainer } from '@/components/layout/PageExplainer';
 
 import { RecommendationsPanel } from '@/components/training/RecommendationsPanel';
 import { ComparisonToggle } from '@/components/training/calculator/ComparisonToggle';
@@ -137,6 +138,13 @@ export default function TrainingPage() {
                 <span className="text-xs text-text-secondary ml-auto">Stats auto-loaded</span>
               </div>
             )}
+
+            <PageExplainer id="training" title="Training Guide — What's here?" bullets={[
+              "Interactive calculator that uses YOUR real stats, gym, merits, steadfast, and education bonuses from the API.",
+              "Navigate sections in the left sidebar: Calculator, Happy Jumping, Gyms, Energy, SE vs Xanax, and more.",
+              "SE vs Xanax comparison now includes rehab costs — see if SEs are actually cheaper for you.",
+              "All recommendations are personalized based on your current training setup.",
+            ]} />
 
             {/* Calculator */}
             {activeSection === 'calculator' && (

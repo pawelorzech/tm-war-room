@@ -4,6 +4,7 @@ import { useEnemyData } from "@/hooks/useEnemyData";
 import { WarBanner } from "@/components/war/WarBanner";
 import { ChainStatus } from "@/components/war/ChainStatus";
 import { EnemyTable } from "@/components/war/EnemyTable";
+import { PageExplainer } from "@/components/layout/PageExplainer";
 
 export default function EnemiesPage() {
   const { overview, enemy, loading, lastUpdate, refresh, loadEnemy } =
@@ -19,6 +20,12 @@ export default function EnemiesPage() {
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4">
+      <PageExplainer id="enemies" title="Enemies — What's here?" bullets={[
+        "Enemy faction members with threat scores based on spy data or combat stats.",
+        "During active war, auto-detects the enemy faction. Otherwise, enter a faction ID.",
+        "Click any column header to sort. One-click attack links to Torn.",
+        "Threat scoring uses Spy Central data when available for accurate stat comparison.",
+      ]} />
       {overview && (
         <div className="space-y-2">
           <WarBanner
