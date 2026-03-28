@@ -1,9 +1,40 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import type { CalculatorState, CalculatorResults, EnergySources, TornUserData } from '@/types/training';
+import type { CalculatorState, CalculatorResults, EnergySources, TornUserData, StatType, BookBonus } from '@/types/training';
 import { calculateGymGain, calculateHappyContribution, compareFhcUseVsSell, compareStatEnhancer, calculateRehabCostPerXanax, projectDailyGain, daysToMilestone } from '@/lib/formulas';
 import { generateRecommendations } from '@/lib/recommendations';
 import { DEFAULT_PRICES, STAT_MILESTONES, getGymGainById } from '@/lib/constants';
+
+/** Parse education_perks strings to compute total gym gain bonus for a stat. */
+function parseEducationBonus(perks: string[], stat: StatType): number {
+  const statWord = { STR: 'strength', DEF: 'defense', SPD: 'speed', DEX: 'dexterity' }[stat];
+  let multiplier = 1;
+  for (const perk of perks) {
+    const lower = perk.toLowerCase();
+    if (lower.includes('gym gains')) {
+      if (lower.includes(statWord) || lower.includes('all gym gains') || /\d+%\s*gym gains/.test(lower)) {
+        // Extract percentage from perk string, e.g. "+1% strength gym gains" or "+1% gym gains"
+        const match = perk.match(/(\d+)%/);
+        const pct = match ? parseInt(match[1], 10) : 1;
+        multiplier *= 1 + pct / 100;
+      }
+    }
+  }
+  return multiplier - 1; // return as decimal bonus, e.g. 0.03 for 3%
+}
+
+/** Parse book_perks strings to detect active book type and which stat it applies to. */
+function parseBookPerks(perks: string[], stat: StatType): BookBonus {
+  const statWord = { STR: 'strength', DEF: 'defense', SPD: 'speed', DEX: 'dexterity' }[stat];
+  for (const perk of perks) {
+    const lower = perk.toLowerCase();
+    if (lower.includes('gym gains')) {
+      if (lower.includes('all gym gains')) return 'all20';
+      if (lower.includes(statWord + ' gym gains')) return 'single30';
+    }
+  }
+  return 'none';
+}
 
 const defaultEnergySources: EnergySources = {
   natural: true, xanax: false, pointRefill: false, fhc: false, energyCans: 0,
@@ -46,11 +77,19 @@ export function useCalculator(apiData: TornUserData | null) {
     const steadfastMap = { STR: apiData.steadfast.strength, DEF: apiData.steadfast.defense, SPD: apiData.steadfast.speed, DEX: apiData.steadfast.dexterity };
     const steadfastBonus = (steadfastMap[highest.stat] ?? 0) / 100;
 
-    // Education gym bonus — count completed gym-relevant courses
-    // Sports Science courses that give gym gains: Bachelor (ID varies), stat-specific courses
-    // Approximate: if many courses done, assume ~3-5% bonus
-    const eduCount = apiData.educationCompleted.length;
-    const educationBonus = eduCount > 100 ? 0.05 : eduCount > 50 ? 0.03 : eduCount > 20 ? 0.02 : 0.01;
+    // Education gym bonus — parse actual perks from API, fall back to estimate
+    let educationBonus: number;
+    if (apiData.educationPerks.length > 0) {
+      educationBonus = parseEducationBonus(apiData.educationPerks, highest.stat);
+    } else {
+      const eduCount = apiData.educationCompleted.length;
+      educationBonus = eduCount > 100 ? 0.05 : eduCount > 50 ? 0.03 : eduCount > 20 ? 0.02 : 0.01;
+    }
+
+    // Book bonus — detect from API perks
+    const bookBonus = apiData.bookPerks.length > 0
+      ? parseBookPerks(apiData.bookPerks, highest.stat)
+      : 'none' as BookBonus;
 
     setState(prev => ({
       ...prev,
@@ -61,6 +100,7 @@ export function useCalculator(apiData: TornUserData | null) {
       meritLevel,
       steadfastBonus,
       educationBonus,
+      bookBonus,
     }));
   }, [apiData]);
 

@@ -253,7 +253,7 @@ class TornClient:
         try:
             resp = await self._http.get(
                 f"{V1_BASE}/user/",
-                params={"selections": "profile,battlestats,bars,gym,merits,education,personalstats", "key": api_key},
+                params={"selections": "profile,battlestats,bars,gym,merits,education,perks,personalstats", "key": api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
@@ -303,6 +303,8 @@ class TornClient:
                 "rehabs": ps.get("rehabs", 0),
             },
             "education_completed": education_completed,
+            "education_perks": raw.get("education_perks", []),
+            "book_perks": raw.get("book_perks", []),
         }
 
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:

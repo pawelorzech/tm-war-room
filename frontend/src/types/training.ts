@@ -61,6 +61,8 @@ export interface TornUserData {
   merits: TornMerits;
   steadfast: TornSteadfast;
   educationCompleted: number[];
+  educationPerks: string[];
+  bookPerks: string[];
 }
 
 export interface TornApiError {
