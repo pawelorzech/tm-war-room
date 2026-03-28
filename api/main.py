@@ -33,6 +33,8 @@ from api.routers.chain import router as chain_router
 import api.routers.chain as chain_mod
 from api.routers.awards import router as awards_router
 import api.routers.awards as awards_mod
+from api.routers.targets import router as targets_router
+import api.routers.targets as targets_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -70,6 +72,11 @@ async def lifespan(app: FastAPI):
     awards_mod.torn_client = torn_client
     awards_mod.key_store = key_store
 
+    from api.db.repos.targets import TargetRepository
+    target_repo = TargetRepository(db_path="data/keys.db")
+    targets_mod.target_repo = target_repo
+    targets_mod.key_store = key_store
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -92,6 +99,7 @@ app.include_router(stats_router)
 app.include_router(market_router)
 app.include_router(chain_router)
 app.include_router(awards_router)
+app.include_router(targets_router)
 
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
