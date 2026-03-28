@@ -35,6 +35,7 @@ export function generateRecommendations(
   const currentGymGain = state.gymDots; // gymDots is actually the gain multiplier for trained stat
   const betterGym = [...GYMS]
     .filter(g => {
+      if (g.name === "Fight Club") return false; // invite-only, not accessible
       const gain = getGymGain(g.id, state.trainedStat);
       return gain > currentGymGain && gain > 0;
     })

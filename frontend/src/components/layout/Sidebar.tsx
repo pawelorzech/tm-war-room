@@ -20,8 +20,11 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: "WAR",
-    items: [{ label: "War Room", href: "/war", icon: "\u2694\uFE0F" }],
+    title: "FACTION",
+    items: [
+      { label: "Our Team", href: "/team", icon: "\uD83D\uDC65" },
+      { label: "Enemies", href: "/enemies", icon: "\u2694\uFE0F" },
+    ],
   },
   {
     title: "TRAINING",
@@ -31,7 +34,6 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "TOOLS",
-    dimmed: true,
     items: [
       {
         label: "Spy Central",

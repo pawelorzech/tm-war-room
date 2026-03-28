@@ -8,7 +8,7 @@ import type { FactionMember, DetailResponse } from "@/types/war";
 import { isWarActive } from "./ChainStatus";
 import type { OverviewResponse } from "@/types/war";
 
-type SortCol = "name" | "level" | "state" | "energy" | "position" | null;
+type SortCol = "name" | "level" | "online" | "state" | "energy" | "position" | null;
 
 interface SortState {
   col: SortCol;
@@ -31,6 +31,10 @@ function getOurSortValue(
       return m.name.toLowerCase();
     case "level":
       return m.level;
+    case "online": {
+      const onlineOrd: Record<string, number> = { Online: 0, Idle: 1, Offline: 2 };
+      return onlineOrd[m.last_action.status] ?? 3;
+    }
     case "state":
       return m.status.state + m.last_action.status;
     case "energy":
@@ -158,6 +162,7 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
           onChange={(e) => mobileSortChange(e.target.value)}
         >
           <option value="readiness">Sort: Readiness</option>
+          <option value="online">Sort: Online</option>
           <option value="name">Sort: Name</option>
           <option value="level">Sort: Level</option>
           <option value="state">Sort: Status</option>
@@ -197,6 +202,13 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
               >
                 Lvl
                 <SortArrow col="level" />
+              </th>
+              <th
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
+                onClick={() => toggleSort("online")}
+              >
+                Online
+                <SortArrow col="online" />
               </th>
               <th
                 className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
@@ -429,6 +441,15 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                   </td>
                   <td className="py-2 px-2 text-text-muted">
                     {m.level}
+                  </td>
+                  <td className="py-2 px-2">
+                    <span className={
+                      m.last_action.status === "Online" ? "text-torn-green font-medium" :
+                      m.last_action.status === "Idle" ? "text-torn-yellow" :
+                      "text-text-muted"
+                    }>
+                      {m.last_action.status}
+                    </span>
                   </td>
                   <td className="py-2 px-2">{stateNode}</td>
                   <td className="py-2 px-2 text-text-muted">
