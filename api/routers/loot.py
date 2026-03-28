@@ -40,20 +40,19 @@ async def loot_timers():
             return _cache
         raise HTTPException(status_code=502, detail="Failed to fetch loot data")
 
-    logger.info("TornStats loot raw keys=%s, status=%s", list(raw.keys()), raw.get("status"))
     if not raw.get("status"):
         raise HTTPException(status_code=502, detail=f"TornStats error: {raw.get('message', 'unknown')}")
 
-    loot_data = raw.get("loot", {})
-    logger.info("TornStats loot: type=%s, len=%s", type(loot_data).__name__, len(loot_data) if loot_data else 0)
-
-    # Handle both dict and list formats
+    # NPC data is at top level, keyed by NPC ID (not under a "loot" key)
     npcs = []
-    items = loot_data.items() if isinstance(loot_data, dict) else enumerate(loot_data)
-    for npc_id_str, npc in items:
-        if not isinstance(npc, dict):
+    for key, val in raw.items():
+        if key in ("status", "message", "loot") or not isinstance(val, dict):
             continue
-        npc_id = npc.get("id") or int(npc_id_str)
+        try:
+            npc_id = int(key)
+        except ValueError:
+            continue
+        npc = val
         hosp_out = npc.get("hosp_out", 0)
         status = npc.get("status", "Unknown")
 
