@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import time
 from contextlib import asynccontextmanager
@@ -11,6 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("tm-hub")
 
 from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID
@@ -34,8 +38,10 @@ async def lifespan(app: FastAPI):
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL, analytics_store=analytics_store)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
     admin_mod.init(key_store, analytics_store, torn_client, time.time())
+    logger.info("TM Hub started — superadmin=%d, faction=%d", SUPERADMIN_ID, FACTION_ID)
     yield
     await torn_client.close()
+    logger.info("TM Hub shutting down")
 
 
 app = FastAPI(title="TM Hub", lifespan=lifespan)
@@ -59,17 +65,29 @@ async def redirect_old_domains(request: Request, call_next):
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    if analytics_store is None or not request.url.path.startswith("/api/"):
+    if not request.url.path.startswith("/api/"):
         return await call_next(request)
     start = time.time()
-    response = await call_next(request)
-    elapsed_ms = (time.time() - start) * 1000
     player_id_raw = request.headers.get("x-player-id")
     pid = int(player_id_raw) if player_id_raw and player_id_raw.isdigit() else None
     try:
-        analytics_store.log_request(pid, request.method, request.url.path, response.status_code, elapsed_ms)
-    except Exception:
-        pass
+        response = await call_next(request)
+    except Exception as e:
+        elapsed_ms = (time.time() - start) * 1000
+        logger.error("UNHANDLED %s %s pid=%s %.0fms — %s", request.method, request.url.path, pid, elapsed_ms, e)
+        raise
+    elapsed_ms = (time.time() - start) * 1000
+    if response.status_code >= 500:
+        logger.error("HTTP %d %s %s pid=%s %.0fms", response.status_code, request.method, request.url.path, pid, elapsed_ms)
+    elif response.status_code >= 400:
+        logger.warning("HTTP %d %s %s pid=%s %.0fms", response.status_code, request.method, request.url.path, pid, elapsed_ms)
+    elif elapsed_ms > 2000:
+        logger.warning("SLOW %s %s pid=%s %.0fms", request.method, request.url.path, pid, elapsed_ms)
+    if analytics_store:
+        try:
+            analytics_store.log_request(pid, request.method, request.url.path, response.status_code, elapsed_ms)
+        except Exception:
+            pass
     return response
 
 
@@ -320,13 +338,18 @@ async def register_key(body: KeyRegister):
         if inspect.isawaitable(raw):
             raw = await raw
     except Exception as e:
+        logger.error("Key registration failed — Torn API error: %s", e)
         raise HTTPException(status_code=502, detail=f"Failed to validate key with Torn API: {e}")
     if "error" in raw:
+        logger.warning("Key registration rejected — Torn API: %s", raw["error"]["error"])
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
     faction = raw.get("faction", {})
     if faction.get("faction_id") != FACTION_ID:
+        logger.warning("Key registration rejected — wrong faction: %s (%s)", raw.get("name"), faction.get("faction_name"))
         raise HTTPException(status_code=403, detail="You must be a member of The Masters to use this tool")
     key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
+    role = get_role(raw["player_id"])
+    logger.info("Key registered: %s [%d] role=%s", raw["name"], raw["player_id"], role)
     return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
 
 

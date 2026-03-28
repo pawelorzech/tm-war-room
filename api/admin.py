@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import time
 
 from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
@@ -8,6 +9,8 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
 from api.auth import create_jwt, decode_jwt, rate_limiter
+
+logger = logging.getLogger("tm-hub.admin")
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -73,6 +76,7 @@ async def create_session(request: Request, x_player_id: int = Header()):
     if "error" in raw or raw.get("player_id") != x_player_id:
         raise HTTPException(status_code=401, detail="API key verification failed")
     token = create_jwt(x_player_id, user_key["player_name"], JWT_SECRET)
+    logger.info("Admin session created: %s [%d]", user_key["player_name"], x_player_id)
     return {"token": token}
 
 
@@ -152,12 +156,14 @@ async def promote_admin(player_id: int, admin: dict = Depends(require_superadmin
     if player_id == SUPERADMIN_ID:
         raise HTTPException(status_code=400, detail="Superadmin cannot be promoted")
     _key_store.promote_admin(player_id, admin["sub"])
+    logger.info("Admin promoted: player %d by superadmin %d", player_id, admin["sub"])
     return {"status": "ok", "promoted": player_id}
 
 
 @router.delete("/admins/{player_id}")
 async def demote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
     _key_store.demote_admin(player_id)
+    logger.info("Admin demoted: player %d by superadmin %d", player_id, admin["sub"])
     return {"status": "ok", "demoted": player_id}
 
 
@@ -181,6 +187,7 @@ async def create_announcement(body: AnnouncementCreateBody, admin: dict = Depend
         type=body.type, message=body.message.strip(),
         created_by=admin["sub"], expires_at=body.expires_at,
     )
+    logger.info("Announcement created: id=%d type=%s by admin %d", ann_id, body.type, admin["sub"])
     return {"status": "ok", "id": ann_id}
 
 
@@ -189,4 +196,5 @@ async def revoke_announcement(ann_id: int, body: RevokeBody, admin: dict = Depen
     changed = _key_store.revoke_announcement(ann_id, revoked_by=admin["sub"], reason=body.reason)
     if not changed:
         raise HTTPException(status_code=404, detail="Announcement not found or already revoked")
+    logger.info("Announcement revoked: id=%d by admin %d reason=%s", ann_id, admin["sub"], body.reason)
     return {"status": "ok"}
