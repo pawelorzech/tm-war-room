@@ -23,6 +23,8 @@ from api.db import KeyStore
 from api.threat import compute_threat
 from api.admin import router as admin_router
 import api.admin as admin_mod
+from api.routers.spy import router as spy_router
+import api.routers.spy as spy_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -38,6 +40,10 @@ async def lifespan(app: FastAPI):
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL, analytics_store=analytics_store)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
     admin_mod.init(key_store, analytics_store, torn_client, time.time())
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    spy_repo = SpyRepository(db_path="data/keys.db")
+    spy_mod.spy_service = SpyService(spy_repo)
     logger.info("TM Hub started — superadmin=%d, faction=%d", SUPERADMIN_ID, FACTION_ID)
     yield
     await torn_client.close()
@@ -46,6 +52,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TM Hub", lifespan=lifespan)
 app.include_router(admin_router)
+app.include_router(spy_router)
 
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}

@@ -1,8 +1,16 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from api.db.repos.spies import SpyRepository
 
 SOURCE_PRIORITY = {"member_submit": 0, "tornstats": 1, "yata": 2}
+
+
+def _parse_dt(s: str) -> datetime:
+    """Parse ISO datetime string; always returns timezone-aware (UTC) datetime."""
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 EXACT_MAX_AGE_DAYS = 7
 FRESH_MAX_AGE_DAYS = 30
 
@@ -14,12 +22,12 @@ class SpyService:
         reports = self.repo.get_reports(player_id)
         if not reports:
             return
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         best = None
         best_priority = 999
         best_age = 999
         for r in reports:
-            reported_at = datetime.fromisoformat(r["reported_at"])
+            reported_at = _parse_dt(r["reported_at"])
             age_days = (now - reported_at).total_seconds() / 86400
             source = r["source"]
             priority = SOURCE_PRIORITY.get(source, 10)
@@ -31,7 +39,7 @@ class SpyService:
                 best_age = age_days
         if best is None:
             return
-        reported_at = datetime.fromisoformat(best["reported_at"])
+        reported_at = _parse_dt(best["reported_at"])
         age_days = (now - reported_at).total_seconds() / 86400
         if best["source"] == "member_submit" and age_days <= EXACT_MAX_AGE_DAYS:
             confidence = "exact"
