@@ -37,7 +37,6 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Spy Central",
         href: "/spy",
         icon: "\uD83D\uDD0D",
-        disabled: true,
       },
       {
         label: "Chain Tracker",
