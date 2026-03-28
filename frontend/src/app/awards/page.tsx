@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+
+/* ── Types ── */
 
 interface Award {
   id: number;
@@ -14,6 +16,7 @@ interface Award {
   circulation: number;
   earned: boolean;
   earned_at?: number | null;
+  kind?: 'honor' | 'medal';
 }
 
 interface AwardsData {
@@ -27,40 +30,42 @@ interface AwardsData {
   medals_total: number;
 }
 
-type Tab = 'honors' | 'medals';
-type Filter = 'all' | 'earned' | 'missing';
+type MainTab = 'honors' | 'medals' | 'incomplete';
+type SortCol = 'name' | 'circulation' | 'type';
 
-function fmtDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+/* ── Helpers ── */
+
+function isDefault(a: Award): boolean {
+  if (!a.name) return true;
+  const n = a.name.toLowerCase();
+  const d = (a.description || '').toLowerCase();
+  return n === 'default' || d.includes('default honor bar') || d.includes('default medal');
 }
 
-function ProgressBar({ earned, total, label }: { earned: number; total: number; label: string }) {
-  const pct = total > 0 ? (earned / total) * 100 : 0;
-  return (
-    <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4">
-      <div className="flex items-end justify-between mb-2">
-        <span className="text-sm text-text-secondary">{label}</span>
-        <span className="text-lg font-bold text-text-primary">
-          {earned}<span className="text-text-muted font-normal text-sm">/{total}</span>
-        </span>
-      </div>
-      <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
-        <div className="h-full bg-torn-green rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-[10px] text-text-muted mt-1 text-right">{pct.toFixed(1)}%</p>
-    </div>
-  );
+const HONOR_TYPES: Record<number, string> = {
+  1: 'Attacks', 2: 'Missions', 3: 'Items', 4: 'Travel',
+  5: 'Crimes', 6: 'Drugs', 7: 'Job', 8: 'Social',
+  9: 'Gambling', 10: 'Hospital', 11: 'Education', 12: 'Other',
+  13: 'Gym', 14: 'Racing', 15: 'Faction', 16: 'Forum',
+};
+
+function typeName(type: number): string {
+  return HONOR_TYPES[type] || `Type ${type}`;
 }
+
+/* ── Component ── */
 
 export default function AwardsPage() {
   const [data, setData] = useState<AwardsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('honors');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [mainTab, setMainTab] = useState<MainTab>('honors');
+  const [activeType, setActiveType] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [sortCol, setSortCol] = useState<SortCol>('name');
+  const [sortAsc, setSortAsc] = useState(true);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
     setError(null);
     api.awardsMe().then(d => {
@@ -68,73 +73,78 @@ export default function AwardsPage() {
     }).catch(e => {
       setError(e.message || 'Failed to load awards');
     }).finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const handleTabChange = (t: Tab) => {
-    setTab(t);
-    setFilter('all');
+  // Filtered & cleaned lists
+  const honors = useMemo(() => (data?.honors.filter(a => !isDefault(a)) || []).map(a => ({ ...a, kind: 'honor' as const })), [data]);
+  const medals = useMemo(() => (data?.medals.filter(a => !isDefault(a)) || []).map(a => ({ ...a, kind: 'medal' as const })), [data]);
+  const honorsEarned = useMemo(() => honors.filter(a => a.earned).length, [honors]);
+  const medalsEarned = useMemo(() => medals.filter(a => a.earned).length, [medals]);
+  const incomplete = useMemo(() => [...honors, ...medals].filter(a => !a.earned), [honors, medals]);
+
+  // Current list based on tab
+  const rawList = useMemo(() => {
+    if (mainTab === 'honors') return honors;
+    if (mainTab === 'medals') return medals;
+    return incomplete;
+  }, [mainTab, honors, medals, incomplete]);
+
+  // Available types for current tab
+  const availableTypes = useMemo(() => {
+    const types = new Set(rawList.map(a => a.type));
+    return Array.from(types).sort((a, b) => a - b);
+  }, [rawList]);
+
+  // Reset type filter when switching tabs
+  const handleTabChange = (t: MainTab) => {
+    setMainTab(t);
+    setActiveType(null);
     setSearch('');
   };
 
+  // Final filtered + sorted list
   const items = useMemo(() => {
-    if (!data) return [];
-    const list = tab === 'honors' ? data.honors : data.medals;
-    return list.filter(a => {
-      // Filter out default/empty honor bars
-      if (!a.name || a.name.toLowerCase() === 'default') return false;
-      if (a.description?.toLowerCase().includes('default honor bar')) return false;
-      if (filter === 'earned' && !a.earned) return false;
-      if (filter === 'missing' && a.earned) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [data, tab, filter, search]);
-
-  // Group by type
-  const grouped = useMemo(() => {
-    const groups: Record<number, Award[]> = {};
-    for (const item of items) {
-      const t = item.type || 0;
-      if (!groups[t]) groups[t] = [];
-      groups[t].push(item);
+    let list = rawList;
+    if (activeType !== null) list = list.filter(a => a.type === activeType);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
     }
-    // Sort groups by type number
-    return Object.entries(groups)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([type, awards]) => ({
-        type: Number(type),
-        awards: awards.sort((a, b) => a.id - b.id),
-      }));
-  }, [items]);
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortCol === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortCol === 'circulation') cmp = a.circulation - b.circulation;
+      else if (sortCol === 'type') cmp = a.type - b.type;
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [rawList, activeType, search, sortCol, sortAsc]);
 
-  const earnedInView = items.filter(a => a.earned).length;
-  const totalInView = items.length;
+  const toggleSort = (col: SortCol) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortArrow = ({ col }: { col: SortCol }) =>
+    sortCol === col ? <span className="ml-0.5 text-torn-green">{sortAsc ? '▲' : '▼'}</span> : null;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Awards Tracker</h1>
-            <p className="text-text-secondary text-sm mt-1">
-              Track your honors and medals progress.
-              {data && <span className="ml-2 text-text-muted">({data.name})</span>}
-            </p>
+            {data && <p className="text-text-muted text-sm">{data.name}</p>}
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
 
         <PageExplainer id="awards" title="Awards Tracker — What's here?" bullets={[
-          "See all Torn honors and medals with your earned/missing status.",
-          "Progress bars show your completion percentage for honors and medals.",
-          "Filter by earned, missing, or search by name/description.",
-          "Grouped by award type/category for easy browsing.",
-          "Rarity and circulation numbers help identify rare achievements.",
+          "Track your Torn honors and medals — Completed or Incomplete status.",
+          "Filter by category, search by name or description.",
+          "Sortable columns: name, circulation.",
+          "Incomplete tab shows all missing awards across honors and medals.",
         ]} />
 
         {loading ? (
@@ -143,109 +153,118 @@ export default function AwardsPage() {
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-danger text-sm">{error}</div>
         ) : data ? (
           <>
-            {/* Progress cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <ProgressBar earned={data.honors_earned} total={data.honors_total} label="Honors" />
-              <ProgressBar earned={data.medals_earned} total={data.medals_total} label="Medals" />
+            {/* Main tabs with counts */}
+            <div className="flex flex-wrap gap-1 border-b border-border pb-1">
+              <TabButton active={mainTab === 'honors'} onClick={() => handleTabChange('honors')}>
+                Honors {honorsEarned}/{honors.length} ({honors.length > 0 ? Math.round((honorsEarned / honors.length) * 100) : 0}%)
+              </TabButton>
+              <TabButton active={mainTab === 'medals'} onClick={() => handleTabChange('medals')}>
+                Medals {medalsEarned}/{medals.length} ({medals.length > 0 ? Math.round((medalsEarned / medals.length) * 100) : 0}%)
+              </TabButton>
+              <TabButton active={mainTab === 'incomplete'} onClick={() => handleTabChange('incomplete')}
+                className="text-danger">
+                Incomplete {incomplete.length}/{honors.length + medals.length} ({(honors.length + medals.length) > 0 ? Math.round((incomplete.length / (honors.length + medals.length)) * 100) : 0}%)
+              </TabButton>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Tab toggle */}
-              <div className="flex gap-2">
-                {([['honors', 'Honors'], ['medals', 'Medals']] as const).map(([key, label]) => (
-                  <button key={key} onClick={() => handleTabChange(key)}
-                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${tab === key ? 'bg-torn-green/20 text-torn-green font-semibold' : 'text-text-secondary hover:text-text-primary'}`}>
-                    {label}
-                  </button>
-                ))}
+            {/* Category filter bar */}
+            {availableTypes.length > 1 && (
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => setActiveType(null)}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${activeType === null ? 'bg-torn-green/20 text-torn-green font-medium' : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated'}`}>
+                  All
+                </button>
+                {availableTypes.map(t => {
+                  const count = rawList.filter(a => a.type === t).length;
+                  return (
+                    <button key={t} onClick={() => setActiveType(activeType === t ? null : t)}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${activeType === t ? 'bg-torn-green/20 text-torn-green font-medium' : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated'}`}>
+                      {typeName(t)} ({count})
+                    </button>
+                  );
+                })}
               </div>
+            )}
 
-              {/* Filter */}
-              <div className="flex gap-1.5">
-                {([['all', 'All'], ['earned', 'Earned'], ['missing', 'Missing']] as const).map(([key, label]) => (
-                  <button key={key} onClick={() => setFilter(key)}
-                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${filter === key ? 'bg-bg-elevated text-text-primary font-medium' : 'text-text-muted hover:text-text-secondary'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
+            {/* Search */}
+            <input type="text" placeholder="Search by name or description..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full max-w-sm bg-bg-card border border-text-secondary/20 rounded-lg px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50" />
 
-              {/* Search */}
-              <input
-                type="text"
-                placeholder="Search awards..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="flex-1 min-w-[180px] bg-bg-card border border-text-secondary/20 rounded-lg px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50"
-              />
-            </div>
+            {/* Results count */}
+            <p className="text-xs text-text-muted">{items.length} awards shown</p>
 
-            {/* Count */}
-            <p className="text-xs text-text-muted">
-              Showing {totalInView} {tab} ({earnedInView} earned, {totalInView - earnedInView} missing)
-            </p>
-
-            {/* Awards grid */}
-            {grouped.length > 0 ? (
-              <div className="space-y-6">
-                {grouped.map(group => (
-                  <div key={group.type}>
-                    <h3 className="text-xs uppercase tracking-wider text-text-muted mb-2">
-                      {tab === 'honors' ? 'Honor' : 'Medal'} Type {group.type}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {group.awards.map(award => (
-                        <div
-                          key={award.id}
-                          className={`rounded-lg border p-3 transition-colors ${
-                            award.earned
-                              ? 'bg-torn-green/5 border-torn-green/20'
-                              : 'bg-bg-card border-text-secondary/10 opacity-60'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p className={`text-sm font-medium ${award.earned ? 'text-text-primary' : 'text-text-secondary'}`}>
-                                {award.name}
-                              </p>
-                              <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{award.description}</p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              {award.earned ? (
-                                <span className="text-torn-green text-xs font-semibold">Earned</span>
-                              ) : (
-                                <span className="text-text-muted text-[10px]">Missing</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-text-muted">
-                            {award.rarity && (
-                              <span className={`uppercase font-medium ${
-                                award.rarity === 'Very Rare' ? 'text-torn-yellow' :
-                                award.rarity === 'Extremely Rare' ? 'text-torn-red' :
-                                'text-text-muted'
-                              }`}>{award.rarity}</span>
+            {/* Table */}
+            {items.length > 0 ? (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3 cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('name')}>
+                          Name<SortArrow col="name" />
+                        </th>
+                        <th className="py-2 px-3 cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('circulation')}>
+                          Circulation<SortArrow col="circulation" />
+                        </th>
+                        <th className="py-2 px-3">Description</th>
+                        <th className="py-2 px-3 cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('type')}>
+                          Category<SortArrow col="type" />
+                        </th>
+                        <th className="py-2 px-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map(a => (
+                        <tr key={`${mainTab}-${a.id}`}
+                          className={`border-b border-border-light transition-colors ${a.earned ? 'hover:bg-bg-elevated/50' : 'opacity-70 hover:opacity-100'}`}>
+                          <td className="py-1.5 px-3 font-medium whitespace-nowrap">
+                            <a href={`https://www.tornstats.com/${a.kind === 'medal' ? 'medals' : 'honors'}/${a.id}`}
+                              target="_blank" className="text-text-primary hover:text-torn-green transition-colors">
+                              {a.name} <span className="text-text-muted text-[10px]">↗</span>
+                            </a>
+                          </td>
+                          <td className="py-1.5 px-3 text-text-secondary text-right tabular-nums">{a.circulation.toLocaleString()}</td>
+                          <td className="py-1.5 px-3 text-text-muted text-xs max-w-xs truncate">{a.description}</td>
+                          <td className="py-1.5 px-3 text-text-muted text-xs whitespace-nowrap">{typeName(a.type)}</td>
+                          <td className="py-1.5 px-3 text-right whitespace-nowrap">
+                            {a.earned ? (
+                              <span className="text-torn-green font-semibold text-xs">Completed!</span>
+                            ) : (
+                              <span className="text-danger font-semibold text-xs">Incomplete</span>
                             )}
-                            <span>{award.circulation.toLocaleString()} players</span>
-                            {award.earned && award.earned_at && (
-                              <span>Earned {fmtDate(award.earned_at)}</span>
-                            )}
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                  </div>
-                ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
-                No {tab} match your filters.
+                No awards match your filters.
               </div>
             )}
           </>
         ) : null}
       </div>
     </div>
+  );
+}
+
+/* ── Tab Button ── */
+
+function TabButton({ active, onClick, children, className = '' }: {
+  active: boolean; onClick: () => void; children: React.ReactNode; className?: string;
+}) {
+  return (
+    <button onClick={onClick}
+      className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-[5px] ${
+        active
+          ? 'border-torn-green text-torn-green'
+          : `border-transparent text-text-secondary hover:text-text-primary ${className}`
+      }`}>
+      {children}
+    </button>
   );
 }
