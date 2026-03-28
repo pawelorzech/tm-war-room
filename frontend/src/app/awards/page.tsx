@@ -72,10 +72,19 @@ export default function AwardsPage() {
 
   useEffect(() => { loadData(); }, []);
 
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    setFilter('all');
+    setSearch('');
+  };
+
   const items = useMemo(() => {
     if (!data) return [];
     const list = tab === 'honors' ? data.honors : data.medals;
     return list.filter(a => {
+      // Filter out default/empty honor bars
+      if (!a.name || a.name.toLowerCase() === 'default') return false;
+      if (a.description?.toLowerCase().includes('default honor bar')) return false;
       if (filter === 'earned' && !a.earned) return false;
       if (filter === 'missing' && a.earned) return false;
       if (search) {
@@ -145,7 +154,7 @@ export default function AwardsPage() {
               {/* Tab toggle */}
               <div className="flex gap-2">
                 {([['honors', 'Honors'], ['medals', 'Medals']] as const).map(([key, label]) => (
-                  <button key={key} onClick={() => setTab(key)}
+                  <button key={key} onClick={() => handleTabChange(key)}
                     className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${tab === key ? 'bg-torn-green/20 text-torn-green font-semibold' : 'text-text-secondary hover:text-text-primary'}`}>
                     {label}
                   </button>

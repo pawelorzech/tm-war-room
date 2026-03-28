@@ -65,6 +65,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/targets",
         icon: "\uD83C\uDFAF",
       },
+      {
+        label: "NPC Loot",
+        href: "/loot",
+        icon: "\uD83D\uDCB0",
+      },
     ],
   },
 ];

@@ -65,6 +65,7 @@ export const api = {
     apiFetch<unknown>(`/api/targets/${playerId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
   targetsRemove: (playerId: number) =>
     apiFetch<unknown>(`/api/targets/${playerId}`, { method: 'DELETE' }),
+  lootTimers: () => apiFetch<unknown>('/api/loot'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),
