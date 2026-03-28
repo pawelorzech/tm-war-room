@@ -95,3 +95,36 @@ class AttackRepository(BaseRepository):
     def get_count(self) -> int:
         row = self.execute_one("SELECT COUNT(*) as cnt FROM attack_log")
         return row["cnt"] if row else 0
+
+    def get_all_ordered(self) -> list[dict]:
+        """All attacks ordered by started ASC for chain detection."""
+        rows = self.execute(
+            "SELECT * FROM attack_log ORDER BY started ASC"
+        )
+        return [dict(r) for r in rows]
+
+    def get_attacks_in_range(self, start_ts: int, end_ts: int) -> list[dict]:
+        """All attacks within a time range."""
+        rows = self.execute(
+            "SELECT * FROM attack_log WHERE started >= ? AND started <= ? ORDER BY started ASC",
+            (start_ts, end_ts),
+        )
+        return [dict(r) for r in rows]
+
+    def get_member_breakdown(self, start_ts: int, end_ts: int) -> list[dict]:
+        """Per-member stats for attacks in a time range."""
+        rows = self.execute("""
+            SELECT attacker_id, attacker_name,
+                   COUNT(*) as hits,
+                   SUM(CASE WHEN result IN ('Hospitalized', 'Attacked') THEN 1 ELSE 0 END) as wins,
+                   SUM(CASE WHEN result = 'Lost' THEN 1 ELSE 0 END) as losses,
+                   SUM(respect_gain) as total_respect,
+                   MAX(chain) as max_chain,
+                   MIN(started) as first_attack,
+                   MAX(ended) as last_attack
+            FROM attack_log
+            WHERE started >= ? AND started <= ?
+            GROUP BY attacker_id
+            ORDER BY total_respect DESC
+        """, (start_ts, end_ts))
+        return [dict(r) for r in rows]

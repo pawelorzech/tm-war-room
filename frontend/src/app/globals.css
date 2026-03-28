@@ -9,6 +9,7 @@
 
   --color-bg-primary: #0d1117;
   --color-bg-surface: #161b22;
+  --color-bg-card: #161b22;
   --color-bg-elevated: #1c2128;
   --color-border: #30363d;
   --color-border-light: #21262d;
@@ -16,6 +17,32 @@
   --color-text-primary: #e6edf3;
   --color-text-secondary: #8b949e;
   --color-text-muted: #484f58;
+
+  --color-danger: #f85149;
+  --color-warning: #d29922;
+}
+
+/* ── Light mode ── */
+.light {
+  --color-torn-green: #1a7f37;
+  --color-torn-green-dim: #116329;
+  --color-torn-red: #cf222e;
+  --color-torn-yellow: #9a6700;
+  --color-torn-blue: #0969da;
+
+  --color-bg-primary: #ffffff;
+  --color-bg-surface: #f6f8fa;
+  --color-bg-card: #ffffff;
+  --color-bg-elevated: #f0f2f5;
+  --color-border: #d0d7de;
+  --color-border-light: #e1e4e8;
+
+  --color-text-primary: #1f2328;
+  --color-text-secondary: #656d76;
+  --color-text-muted: #8b949e;
+
+  --color-danger: #cf222e;
+  --color-warning: #9a6700;
 }
 
 /* ── TM Hub UI animations ── */
