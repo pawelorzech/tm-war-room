@@ -4,6 +4,7 @@ import { SpySearch } from '@/components/spy/SpySearch';
 import { SpySubmitForm } from '@/components/spy/SpySubmitForm';
 import { FactionLookup } from '@/components/spy/FactionLookup';
 import { KnownStatsList } from '@/components/spy/KnownStatsList';
+import { PageExplainer } from '@/components/layout/PageExplainer';
 
 export default function SpyPage() {
   return (
@@ -20,14 +21,13 @@ export default function SpyPage() {
 
         <FactionLookup />
 
-        <div className="bg-bg-secondary border-l-4 border-torn-green rounded-r-lg p-4 space-y-2">
-          <p className="text-sm font-semibold text-torn-green">How data gets here</p>
-          <ul className="text-xs text-text-secondary space-y-1">
-            <li><span className="text-torn-green font-medium">Auto:</span> Searching a player or faction fetches estimates from TornStats in real-time.</li>
-            <li><span className="text-torn-green font-medium">Auto:</span> Scheduler refreshes enemy faction data every 30 minutes during wars.</li>
-            <li><span className="text-torn-green font-medium">Manual:</span> Did a spy in Torn? Submit the exact stats below — marked as "exact" and highest priority.</li>
-          </ul>
-        </div>
+        <PageExplainer id="spy" title="Spy Central — What's here?" bullets={[
+          "Look up any player's estimated battle stats by ID (live TornStats query) or by name (searches local database).",
+          "Faction Lookup: enter a faction ID to see estimates for all their members at once.",
+          "Submit Spy Reports: did a spy in Torn? Paste the exact stats — these get highest priority ('exact' confidence).",
+          "Data sources: TornStats estimates (auto-fetched), scheduler refreshes during wars, and manual member submissions.",
+          "Known Stats table shows everyone in our database. Admins can delete, block, or hide entries.",
+        ]} />
 
         <SpySubmitForm />
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import dynamic from 'next/dynamic';
+import { PageExplainer } from '@/components/layout/PageExplainer';
 
 const StatGrowthChart = dynamic(
   () => import('@/components/stats/StatGrowthChart').then(m => ({ default: m.StatGrowthChart })),
@@ -77,6 +78,14 @@ export default function StatsPage() {
             Track battle stat progress over time. Data collected daily at 4:00 UTC.
           </p>
         </div>
+
+        <PageExplainer id="stats" title="Stat Growth — What's here?" bullets={[
+          "Track your battle stat progress over time with daily snapshots.",
+          "Growth cards show how much each stat changed in the last 30 days, plus daily rate.",
+          "Chart shows stat history — click legend items to toggle individual stats.",
+          "Faction Leaderboard ranks all members by total stats. Click any row to view their chart.",
+          "Data collected daily at 4:00 UTC. First visit fetches your current stats immediately.",
+        ]} />
 
         {loading && !snapshots.length ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading stat data...</div>

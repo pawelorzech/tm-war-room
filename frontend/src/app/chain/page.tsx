@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api-client';
+import { PageExplainer } from '@/components/layout/PageExplainer';
 
 interface ChainMember {
   attacker_id: number;
@@ -99,6 +100,14 @@ export default function ChainPage() {
           <h1 className="text-2xl font-bold">Chain Tracker</h1>
           <p className="text-text-secondary text-sm mt-1">Track faction attacks, chain hits, and respect earned per member.</p>
         </div>
+
+        <PageExplainer id="chain" title="Chain Tracker — What's here?" bullets={[
+          "Chain Report: who hit how many times, wins/losses, respect earned — sortable by any column.",
+          "Recent Attacks: live feed of the last 100 faction attacks with results and respect.",
+          "Select time period: 6h, 12h, 24h, 48h, or 7 days.",
+          "Data fetched from Torn API on each page load (up to 1000 attacks with pagination).",
+          "Use this during wars to track member contribution and identify inactive members.",
+        ]} />
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-2">

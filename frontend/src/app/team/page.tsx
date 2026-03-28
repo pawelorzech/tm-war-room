@@ -4,6 +4,7 @@ import { useTeamData } from "@/hooks/useTeamData";
 import { WarBanner } from "@/components/war/WarBanner";
 import { ChainStatus } from "@/components/war/ChainStatus";
 import { MemberTable } from "@/components/war/MemberTable";
+import { PageExplainer } from "@/components/layout/PageExplainer";
 
 export default function TeamPage() {
   const { overview, detail, loading, lastUpdate, refresh } = useTeamData();
@@ -18,6 +19,13 @@ export default function TeamPage() {
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4">
+      <PageExplainer id="team" title="Our Team — What's here?" bullets={[
+        "Live status of all faction members — who's online, in hospital, traveling, or in jail.",
+        "Energy levels and drug cooldowns (from registered API keys or YATA).",
+        "Sort by any column. Click 'Online' to see who's available right now.",
+        "Data refreshes every 60 seconds automatically. Hit Refresh for instant update.",
+        "Revive settings shown — members with 'Everyone' should change this during war!",
+      ]} />
       {overview && (
         <div className="space-y-2">
           <WarBanner

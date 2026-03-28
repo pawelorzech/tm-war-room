@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
+import { PageExplainer } from '@/components/layout/PageExplainer';
 
 interface MarketItem {
   item_id: number;
@@ -56,6 +57,14 @@ export default function MarketPage() {
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
+
+        <PageExplainer id="market" title="Market Scanner — What's here?" bullets={[
+          "Live prices for key training and war items from the Torn Item Market.",
+          "Compares cheapest listing to market value — green border = below market price.",
+          "Click 'Buy on Market' to jump directly to that item on Torn.",
+          "Prices cached for 2 minutes. Hit Refresh for latest data.",
+          "Tracks: Xanax, Stat Enhancer, FHC, Energy Drinks, Ecstasy, and more.",
+        ]} />
 
         {loading && items.length === 0 ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading market data...</div>
