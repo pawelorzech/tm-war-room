@@ -5,6 +5,7 @@ import { WarBanner } from "@/components/war/WarBanner";
 import { ChainStatus } from "@/components/war/ChainStatus";
 import { EnemyTable } from "@/components/war/EnemyTable";
 import { PageExplainer } from "@/components/layout/PageExplainer";
+import { RefreshButton } from "@/components/layout/RefreshButton";
 
 export default function EnemiesPage() {
   const { overview, enemy, loading, lastUpdate, refresh, loadEnemy } =
@@ -20,6 +21,10 @@ export default function EnemiesPage() {
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-text-primary">Enemies</h1>
+        <RefreshButton onRefresh={refresh} />
+      </div>
       <PageExplainer id="enemies" title="Enemies — What's here?" bullets={[
         "Enemy faction members with threat scores based on spy data or combat stats.",
         "During active war, auto-detects the enemy faction. Otherwise, enter a faction ID.",

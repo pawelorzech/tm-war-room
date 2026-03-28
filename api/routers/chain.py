@@ -42,13 +42,13 @@ def _parse_attack(a: dict) -> dict:
     }
 
 
-async def _fetch_and_store_attacks() -> int:
+async def _fetch_and_store_attacks(force: bool = False) -> int:
     """Fetch attacks from Torn API with pagination. Returns count of new attacks."""
     global _last_fetch
     if not torn_client or not attack_repo:
         return 0
     now = time.time()
-    if now - _last_fetch < FETCH_COOLDOWN:
+    if not force and now - _last_fetch < FETCH_COOLDOWN:
         return 0
     _last_fetch = now
 
@@ -167,11 +167,11 @@ def _detect_chains(attacks: list[dict]) -> list[dict]:
 
 
 @router.get("/chains")
-async def list_chains():
+async def list_chains(force: bool = Query(default=False)):
     """List all detected chains from attack data."""
     if not attack_repo:
         raise HTTPException(status_code=503, detail="Chain tracker not initialized")
-    await _fetch_and_store_attacks()
+    await _fetch_and_store_attacks(force=force)
     attacks = attack_repo.get_all_ordered()
     chains = _detect_chains(attacks)
     return {
@@ -219,10 +219,10 @@ async def chain_report(hours: int = Query(default=24, ge=1, le=720)):
 
 
 @router.get("/recent")
-async def recent_attacks(limit: int = Query(default=50, ge=1, le=200)):
+async def recent_attacks(limit: int = Query(default=50, ge=1, le=200), force: bool = Query(default=False)):
     if not attack_repo:
         raise HTTPException(status_code=503, detail="Chain tracker not initialized")
-    await _fetch_and_store_attacks()
+    await _fetch_and_store_attacks(force=force)
     attacks = attack_repo.get_recent(limit=limit)
     return {"attacks": attacks, "count": len(attacks)}
 

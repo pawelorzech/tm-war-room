@@ -5,6 +5,7 @@ import { WarBanner } from "@/components/war/WarBanner";
 import { ChainStatus } from "@/components/war/ChainStatus";
 import { MemberTable } from "@/components/war/MemberTable";
 import { PageExplainer } from "@/components/layout/PageExplainer";
+import { RefreshButton } from "@/components/layout/RefreshButton";
 
 export default function TeamPage() {
   const { overview, detail, loading, lastUpdate, refresh } = useTeamData();
@@ -19,6 +20,10 @@ export default function TeamPage() {
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-text-primary">Our Team</h1>
+        <RefreshButton onRefresh={refresh} />
+      </div>
       <PageExplainer id="team" title="Our Team — What's here?" bullets={[
         "Live status of all faction members — who's online, in hospital, traveling, or in jail.",
         "Energy levels and drug cooldowns (from registered API keys or YATA).",
