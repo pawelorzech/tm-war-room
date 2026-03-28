@@ -26,6 +26,13 @@ class KeyStore:
             conn.execute("ALTER TABLE member_keys ADD COLUMN is_faction_key INTEGER NOT NULL DEFAULT 0")
         except Exception:
             pass
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_roles (
+                player_id INTEGER PRIMARY KEY,
+                granted_by INTEGER NOT NULL,
+                granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         conn.commit()
         conn.close()
 
@@ -81,3 +88,33 @@ class KeyStore:
             {"player_id": r[0], "player_name": r[1], "is_faction_key": bool(r[2]), "created_at": r[3]}
             for r in rows
         ]
+
+    def get_admins(self) -> list[dict]:
+        conn = sqlite3.connect(self._db_path)
+        rows = conn.execute(
+            "SELECT a.player_id, a.granted_by, a.granted_at, k.player_name "
+            "FROM admin_roles a LEFT JOIN member_keys k ON a.player_id = k.player_id"
+        ).fetchall()
+        conn.close()
+        return [{"player_id": r[0], "granted_by": r[1], "granted_at": r[2], "player_name": r[3] or "Unknown"} for r in rows]
+
+    def is_admin(self, player_id: int) -> bool:
+        conn = sqlite3.connect(self._db_path)
+        row = conn.execute("SELECT 1 FROM admin_roles WHERE player_id = ?", (player_id,)).fetchone()
+        conn.close()
+        return row is not None
+
+    def promote_admin(self, player_id: int, granted_by: int) -> None:
+        conn = sqlite3.connect(self._db_path)
+        conn.execute(
+            "INSERT OR IGNORE INTO admin_roles (player_id, granted_by) VALUES (?, ?)",
+            (player_id, granted_by),
+        )
+        conn.commit()
+        conn.close()
+
+    def demote_admin(self, player_id: int) -> None:
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("DELETE FROM admin_roles WHERE player_id = ?", (player_id,))
+        conn.commit()
+        conn.close()

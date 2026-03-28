@@ -11,8 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from api.analytics import AnalyticsStore
-from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, ADMIN_PLAYER_IDS
-import api.config as config_mod
+from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID
 from api.torn_client import TornClient
 from api.db import KeyStore
 from api.threat import compute_threat
@@ -57,14 +56,25 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+def get_role(player_id: int) -> str:
+    if player_id == SUPERADMIN_ID:
+        return "superadmin"
+    if key_store.is_admin(player_id):
+        return "admin"
+    return "member"
+
+
 @app.get("/api/me")
 async def me(x_player_id: int = Header()):
     all_keys = key_store.get_all_keys()
     if not any(k["player_id"] == x_player_id for k in all_keys):
         raise HTTPException(status_code=401, detail="Register your API key first")
+    role = get_role(x_player_id)
     return {
         "player_id": x_player_id,
-        "is_admin": x_player_id in config_mod.ADMIN_PLAYER_IDS,
+        "role": role,
+        "is_admin": role in ("admin", "superadmin"),
+        "is_superadmin": role == "superadmin",
     }
 
 

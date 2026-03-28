@@ -262,7 +262,7 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
 @pytest.mark.asyncio
 async def test_me_admin(mock_client, mock_store):
     with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
-         patch("api.config.ADMIN_PLAYER_IDS", {123}):
+         patch("api.main.SUPERADMIN_ID", 123):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -271,12 +271,15 @@ async def test_me_admin(mock_client, mock_store):
     data = resp.json()
     assert data["player_id"] == 123
     assert data["is_admin"] is True
+    assert data["is_superadmin"] is True
+    assert data["role"] == "superadmin"
 
 
 @pytest.mark.asyncio
 async def test_me_non_admin(mock_client, mock_store):
+    mock_store.is_admin = MagicMock(return_value=False)
     with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
-         patch("api.config.ADMIN_PLAYER_IDS", {9999}):
+         patch("api.main.SUPERADMIN_ID", 9999):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -285,6 +288,8 @@ async def test_me_non_admin(mock_client, mock_store):
     data = resp.json()
     assert data["player_id"] == 123
     assert data["is_admin"] is False
+    assert data["is_superadmin"] is False
+    assert data["role"] == "member"
 
 
 @pytest.mark.asyncio

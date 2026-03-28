@@ -36,6 +36,10 @@ def mock_store():
     ]
     store.delete_key = MagicMock()
     store.get_faction_key.return_value = {"player_id": ADMIN_ID, "player_name": "Bombla", "api_key": "admin_key"}
+    store.is_admin = MagicMock(return_value=False)
+    store.get_admins = MagicMock(return_value=[])
+    store.promote_admin = MagicMock()
+    store.demote_admin = MagicMock()
     return store
 
 
@@ -56,6 +60,7 @@ def _setup_app(mock_client, mock_store, mock_analytics):
     stack.enter_context(patch("api.admin._app_start_time", 1000000000.0))
     stack.enter_context(patch("api.config.JWT_SECRET", TEST_JWT_SECRET))
     stack.enter_context(patch("api.admin.JWT_SECRET", TEST_JWT_SECRET))
+    stack.enter_context(patch("api.admin.SUPERADMIN_ID", ADMIN_ID))
     return stack
 
 
