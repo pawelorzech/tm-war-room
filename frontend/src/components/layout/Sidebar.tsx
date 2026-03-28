@@ -60,6 +60,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/awards",
         icon: "\uD83C\uDFC6",
       },
+      {
+        label: "Targets",
+        href: "/targets",
+        icon: "\uD83C\uDFAF",
+      },
     ],
   },
 ];
