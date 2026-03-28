@@ -95,6 +95,11 @@ class TornClient:
             return None
 
         war = WarStatus(**ranked)
+        # War is over if there's a winner or end time has passed
+        if war.winner or (war.end and war.end <= int(time.time())):
+            self._set_cached("war", None)
+            return None
+
         self._set_cached("war", war)
         return war
 

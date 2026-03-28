@@ -156,7 +156,9 @@ function copyBounty(name, id) {
 function isWarActive() {
     const war = overviewData?.war;
     if (!war?.war_id) return false;
-    return war.start <= Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / 1000);
+    if (war.winner || (war.end && war.end <= now)) return false;
+    return war.start <= now;
 }
 
 // --- Mobile ---
@@ -188,10 +190,10 @@ function renderMobileHeader(war, chain) {
 
     if (userEl) userEl.textContent = userName ? `${userName} [${pid}]` : '';
 
-    if (war?.war_id) {
+    const now = Math.floor(Date.now() / 1000);
+    if (war?.war_id && !war.winner && !(war.end && war.end <= now)) {
         const us = war.factions.find(f => f.id === FACTION_ID);
         const them = war.factions.find(f => f.id !== FACTION_ID);
-        const now = Math.floor(Date.now() / 1000);
 
         if (war.start <= now) {
             bar.classList.add('mh-war-active');
@@ -511,7 +513,8 @@ function renderWar(war, wp) {
     const prog = document.getElementById('war-progress');
     const fi = document.getElementById('enemy-faction-input');
 
-    if (!war?.war_id) {
+    const now = Math.floor(Date.now() / 1000);
+    if (!war?.war_id || war.winner || (war.end && war.end <= now)) {
         el.className = 'war-banner war-none';
         el.textContent = 'No active Ranked War';
         prog.style.display = 'none';
@@ -522,7 +525,6 @@ function renderWar(war, wp) {
 
     const us = war.factions.find(f => f.id === FACTION_ID);
     const them = war.factions.find(f => f.id !== FACTION_ID);
-    const now = Math.floor(Date.now() / 1000);
 
     if (war.start <= now) {
         el.className = 'war-banner war-active';
@@ -775,7 +777,7 @@ async function refresh() {
         renderMobileHeader(ov.war, ov.chain);
         // Chain status in war banner
         const chainEl = document.getElementById('chain-status');
-        if (ov.chain && ov.war?.war_id) {
+        if (ov.chain && isWarActive()) {
             const c = ov.chain;
             chainEl.style.display = 'block';
             chainEl.textContent = c.current > 0 ? `Chain: ${c.current}/${c.max} (${c.modifier}x bonus)` : 'Chain: inactive';
