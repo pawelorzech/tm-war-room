@@ -9,6 +9,7 @@ dependencies = [
     "httpx>=0.28.0",
     "cryptography>=44.0.0",
     "PyJWT>=2.8.0",
+    "apscheduler>=4.0.0a5",
 ]
 
 [project.optional-dependencies]
