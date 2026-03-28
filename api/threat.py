@@ -61,6 +61,23 @@ def _relative_threat(enemy: PersonalStats, level: int, me: PersonalStats) -> tup
     return score, label
 
 
+def compute_stat_threat(enemy_stats: dict, own_stats: dict) -> tuple[int, str]:
+    """Compare battle stats directly for accurate threat scoring."""
+    enemy_total = enemy_stats.get("total", 0)
+    own_total = own_stats.get("total", 0)
+    if own_total == 0:
+        return 50, "medium"
+    ratio = enemy_total / own_total
+    if ratio < 0.3:
+        return max(5, int(ratio * 30)), "easy"
+    elif ratio < 0.7:
+        return int(20 + (ratio - 0.3) * 75), "medium"
+    elif ratio < 1.2:
+        return int(50 + (ratio - 0.7) * 50), "hard"
+    else:
+        return min(100, int(75 + (ratio - 1.2) * 30)), "avoid"
+
+
 def _absolute_threat(stats: PersonalStats, level: int) -> tuple[int, str]:
     """Absolute scoring (no baseline). Fallback when no faction key owner stats."""
     xan_score = min(10, stats.xanax_taken / 500)

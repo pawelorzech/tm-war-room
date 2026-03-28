@@ -20,7 +20,7 @@ from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID
 from api.torn_client import TornClient
 from api.db import KeyStore
-from api.threat import compute_threat
+from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
 import api.admin as admin_mod
 from api.routers.spy import router as spy_router
@@ -301,6 +301,14 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
         except Exception:
             pass
 
+    # Look up spy estimates for better threat scoring
+    spy_estimates = {}
+    if spy_mod.spy_service:
+        for m in members:
+            est = spy_mod.spy_service.repo.get_estimate(m.id)
+            if est:
+                spy_estimates[m.id] = est
+
     # Get baseline stats from the requesting user's key for relative threat scoring
     baseline = None
     baseline_name = None
@@ -317,11 +325,20 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
     enemy_list = []
     for m in members:
         ps = spy_data.get(m.id)
-        score, label = compute_threat(ps, m.level, baseline=baseline)
+        # Prefer spy estimate for stat-based threat if available
+        if m.id in spy_estimates and baseline_pid:
+            own_est = spy_mod.spy_service.repo.get_estimate(baseline_pid) if spy_mod.spy_service else None
+            if own_est:
+                score, label = compute_stat_threat(spy_estimates[m.id], own_est)
+            else:
+                score, label = compute_threat(ps, m.level, baseline=baseline)
+        else:
+            score, label = compute_threat(ps, m.level, baseline=baseline)
         enemy_list.append({
             **m.model_dump(),
             "personal_stats": ps.model_dump() if ps else None,
             "threat_score": score, "threat_label": label,
+            "spy_total": spy_estimates[m.id]["total"] if m.id in spy_estimates else None,
             "attack_url": f"https://www.torn.com/loader.php?sid=attack&user2ID={m.id}",
             "profile_url": f"https://www.torn.com/profiles.php?XID={m.id}",
             "stats_url": f"https://www.torn.com/personalstats.php?ID={m.id}",
