@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AuthGate } from "./AuthGate";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { MobileDrawer } from "./MobileDrawer";
 import { AnnouncementCarousel } from "./AnnouncementCarousel";
@@ -63,7 +64,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <main className="lg:ml-[200px] pt-12 lg:pt-0 min-h-screen flex flex-col">
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
-        <div className="flex-1">{children}</div>
+        <ErrorBoundary>
+          <div className="flex-1">{children}</div>
+        </ErrorBoundary>
         <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
           TM Hub v1.0.0 — by{" "}
           <a
