@@ -264,13 +264,10 @@ class TornClient:
         if "error" in raw:
             return None
 
-        # Torn API v1 returns battlestats, bars, gym as flat top-level fields
-        # (merits, personalstats, education are nested objects)
+        # Torn API v1 returns most fields at the top level (not nested under selection keys)
         merits = raw.get("merits", {})
         ps = raw.get("personalstats", {})
         education_completed = raw.get("education_completed", [])
-
-        # Energy/happy bars are flat: raw["energy"], raw["happy"]
         energy = raw.get("energy", {})
         happy = raw.get("happy", {})
 
