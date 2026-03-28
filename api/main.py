@@ -25,6 +25,8 @@ from api.admin import router as admin_router
 import api.admin as admin_mod
 from api.routers.spy import router as spy_router
 import api.routers.spy as spy_mod
+from api.routers.stats import router as stats_router
+import api.routers.stats as stats_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -49,6 +51,7 @@ async def lifespan(app: FastAPI):
 
     from api.db.repos.stats import StatSnapshotRepository
     stats_repo = StatSnapshotRepository(db_path="data/keys.db")
+    stats_mod.stats_repo = stats_repo
 
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
@@ -68,6 +71,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TM Hub", lifespan=lifespan)
 app.include_router(admin_router)
 app.include_router(spy_router)
+app.include_router(stats_router)
 
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
