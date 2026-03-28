@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
-from app.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
+from api.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
 
 AUTH_HEADERS = {"X-Player-Id": "123"}
 
@@ -49,8 +49,8 @@ def mock_store():
 
 @pytest.mark.asyncio
 async def test_overview(mock_client, mock_store):
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/overview", headers=AUTH_HEADERS)
@@ -63,8 +63,8 @@ async def test_overview(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_overview_no_auth(mock_client, mock_store):
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/overview")
@@ -73,8 +73,8 @@ async def test_overview_no_auth(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_members_detail(mock_client, mock_store):
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/members/detail", headers=AUTH_HEADERS)
@@ -94,8 +94,8 @@ async def test_register_key(mock_client, mock_store):
     mock_client._http = AsyncMock()
     mock_client._http.get = AsyncMock(return_value=validate_resp)
 
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post("/api/keys", json={"api_key": "some_key"})
@@ -110,8 +110,8 @@ async def test_register_key_wrong_faction(mock_client, mock_store):
     mock_client._http = AsyncMock()
     mock_client._http.get = AsyncMock(return_value=validate_resp)
 
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post("/api/keys", json={"api_key": "enemy_key"})
@@ -135,9 +135,9 @@ async def test_enemy_with_rw(mock_client, mock_store):
     mock_store.get_all_keys = MagicMock(return_value=[
         {"player_id": 123, "player_name": "bombel", "api_key": "fk", "is_faction_key": False}])
 
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
-         patch("app.main.TORNSTATS_API_KEY", "fake_ts_key"):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
+         patch("api.main.TORNSTATS_API_KEY", "fake_ts_key"):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/enemy?baseline_pid=123", headers=AUTH_HEADERS)
@@ -199,8 +199,8 @@ def mock_store_leader():
 
 @pytest.mark.asyncio
 async def test_detail_full_access_sees_all(mock_client_yata, mock_store_leader):
-    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
@@ -229,8 +229,8 @@ def mock_store_member():
 
 @pytest.mark.asyncio
 async def test_detail_self_only_sees_self(mock_client_yata, mock_store_member):
-    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_member):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_member):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "456"})
@@ -244,8 +244,8 @@ async def test_detail_self_only_sees_self(mock_client_yata, mock_store_member):
 @pytest.mark.asyncio
 async def test_detail_yata_down(mock_client_yata, mock_store_leader):
     mock_client_yata.fetch_yata_members = AsyncMock(return_value=None)
-    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
@@ -261,9 +261,9 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
 
 @pytest.mark.asyncio
 async def test_me_admin(mock_client, mock_store):
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
-         patch("app.config.ADMIN_PLAYER_IDS", {123}):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
+         patch("api.config.ADMIN_PLAYER_IDS", {123}):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/me", headers=AUTH_HEADERS)
@@ -275,9 +275,9 @@ async def test_me_admin(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_me_non_admin(mock_client, mock_store):
-    with patch("app.main.torn_client", mock_client), patch("app.main.key_store", mock_store), \
-         patch("app.config.ADMIN_PLAYER_IDS", {9999}):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
+         patch("api.config.ADMIN_PLAYER_IDS", {9999}):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/me", headers=AUTH_HEADERS)
@@ -300,8 +300,8 @@ async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
         _make_member(id=456, name="Hidden", position="Team 1"),
         _make_member(id=789, name="NotOnYata", position="Team 2"),
     ])
-    with patch("app.main.torn_client", mock_client_yata), patch("app.main.key_store", mock_store_leader):
-        from app.main import app
+    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})

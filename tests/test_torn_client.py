@@ -3,7 +3,7 @@ import pytest
 import httpx
 from unittest.mock import AsyncMock, patch
 
-from app.torn_client import TornClient
+from api.torn_client import TornClient
 
 
 FAKE_MEMBERS_RESPONSE = {

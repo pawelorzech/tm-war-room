@@ -10,14 +10,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from app.analytics import AnalyticsStore
-from app.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, ADMIN_PLAYER_IDS
-import app.config as config_mod
-from app.torn_client import TornClient
-from app.db import KeyStore
-from app.threat import compute_threat
-from app.admin import router as admin_router
-import app.admin as admin_mod
+from api.analytics import AnalyticsStore
+from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, ADMIN_PLAYER_IDS
+import api.config as config_mod
+from api.torn_client import TornClient
+from api.db import KeyStore
+from api.threat import compute_threat
+from api.admin import router as admin_router
+import api.admin as admin_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None

@@ -1,5 +1,5 @@
 import pytest
-from app.analytics import AnalyticsStore
+from api.analytics import AnalyticsStore
 
 
 @pytest.fixture

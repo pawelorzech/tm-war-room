@@ -1,4 +1,4 @@
-from app.models import FactionMember, WarStatus, MemberBars
+from api.models import FactionMember, WarStatus, MemberBars
 
 
 def test_parse_faction_member():

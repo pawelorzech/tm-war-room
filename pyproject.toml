@@ -1,7 +1,7 @@
 [project]
-name = "tm-war-room"
-version = "0.2.0"
-description = "RW prep dashboard for The Masters faction"
+name = "tm-hub"
+version = "1.0.0"
+description = "Torn.com faction toolkit for The Masters"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

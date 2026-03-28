@@ -1,5 +1,5 @@
-from app.models import PersonalStats
-from app.threat import compute_threat
+from api.models import PersonalStats
+from api.threat import compute_threat
 
 
 def test_easy_target():

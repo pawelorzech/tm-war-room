@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
-from app.auth import create_jwt
+from api.auth import create_jwt
 
 
 ADMIN_ID = 2362436
@@ -47,22 +47,22 @@ def mock_analytics():
 def _setup_app(mock_client, mock_store, mock_analytics):
     """Return an ExitStack with all necessary patches applied."""
     stack = contextlib.ExitStack()
-    stack.enter_context(patch("app.main.torn_client", mock_client))
-    stack.enter_context(patch("app.main.key_store", mock_store))
-    stack.enter_context(patch("app.main.analytics_store", mock_analytics))
-    stack.enter_context(patch("app.admin._key_store", mock_store))
-    stack.enter_context(patch("app.admin._analytics_store", mock_analytics))
-    stack.enter_context(patch("app.admin._torn_client", mock_client))
-    stack.enter_context(patch("app.admin._app_start_time", 1000000000.0))
-    stack.enter_context(patch("app.config.JWT_SECRET", TEST_JWT_SECRET))
-    stack.enter_context(patch("app.admin.JWT_SECRET", TEST_JWT_SECRET))
+    stack.enter_context(patch("api.main.torn_client", mock_client))
+    stack.enter_context(patch("api.main.key_store", mock_store))
+    stack.enter_context(patch("api.main.analytics_store", mock_analytics))
+    stack.enter_context(patch("api.admin._key_store", mock_store))
+    stack.enter_context(patch("api.admin._analytics_store", mock_analytics))
+    stack.enter_context(patch("api.admin._torn_client", mock_client))
+    stack.enter_context(patch("api.admin._app_start_time", 1000000000.0))
+    stack.enter_context(patch("api.config.JWT_SECRET", TEST_JWT_SECRET))
+    stack.enter_context(patch("api.admin.JWT_SECRET", TEST_JWT_SECRET))
     return stack
 
 
 @pytest.mark.asyncio
 async def test_create_session_success(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post("/api/admin/session", headers={"X-Player-Id": str(ADMIN_ID)})
@@ -73,7 +73,7 @@ async def test_create_session_success(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_create_session_non_admin(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post("/api/admin/session", headers={"X-Player-Id": str(NON_ADMIN_ID)})
@@ -82,7 +82,7 @@ async def test_create_session_non_admin(mock_client, mock_store, mock_analytics)
 
 @pytest.mark.asyncio
 async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
-    from app.models import FactionMember, LastAction, MemberStatus
+    from api.models import FactionMember, LastAction, MemberStatus
     mock_members = [
         FactionMember(
             id=ADMIN_ID, name="Bombla", level=50, days_in_faction=100,
@@ -101,7 +101,7 @@ async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
 
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get(
@@ -119,7 +119,7 @@ async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
 async def test_admin_delete_key(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
@@ -138,7 +138,7 @@ async def test_admin_delete_key(mock_client, mock_store, mock_analytics):
 async def test_admin_cannot_delete_own_key(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
@@ -151,7 +151,7 @@ async def test_admin_cannot_delete_own_key(mock_client, mock_store, mock_analyti
 @pytest.mark.asyncio
 async def test_admin_endpoint_no_token(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/keys")
@@ -167,7 +167,7 @@ async def test_admin_request_stats(mock_client, mock_store, mock_analytics):
     }
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/stats/requests?days=7", headers={"Authorization": f"Bearer {token}"})
@@ -183,7 +183,7 @@ async def test_admin_user_stats(mock_client, mock_store, mock_analytics):
     ]
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/stats/users?days=7", headers={"Authorization": f"Bearer {token}"})
@@ -200,7 +200,7 @@ async def test_admin_error_stats(mock_client, mock_store, mock_analytics):
     ]
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/stats/errors?days=7", headers={"Authorization": f"Bearer {token}"})
@@ -217,7 +217,7 @@ async def test_admin_system(mock_client, mock_store, mock_analytics):
     }
     with _setup_app(mock_client, mock_store, mock_analytics):
         token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
-        from app.main import app
+        from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/admin/system", headers={"Authorization": f"Bearer {token}"})
@@ -236,14 +236,14 @@ async def test_admin_system(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_middleware_logs_requests(mock_client, mock_store):
     """Verify the analytics middleware logs requests when analytics_store is set."""
-    from app.analytics import AnalyticsStore
+    from api.analytics import AnalyticsStore
     import tempfile, os
     with tempfile.TemporaryDirectory() as tmp:
         real_analytics = AnalyticsStore(db_path=os.path.join(tmp, "test.db"))
-        with patch("app.main.torn_client", mock_client), \
-             patch("app.main.key_store", mock_store), \
-             patch("app.main.analytics_store", real_analytics):
-            from app.main import app
+        with patch("api.main.torn_client", mock_client), \
+             patch("api.main.key_store", mock_store), \
+             patch("api.main.analytics_store", real_analytics):
+            from api.main import app
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
                 await ac.get("/api/overview", headers={"X-Player-Id": "123"})

@@ -502,8 +502,8 @@ wheels = [
 ]
 
 [[package]]
-name = "tm-war-room"
-version = "0.1.0"
+name = "tm-hub"
+version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "cryptography" },

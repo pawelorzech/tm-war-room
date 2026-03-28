@@ -2,7 +2,7 @@ import os
 import pytest
 from cryptography.fernet import Fernet
 
-from app.db import KeyStore
+from api.db import KeyStore
 
 
 @pytest.fixture

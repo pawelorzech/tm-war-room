@@ -1,6 +1,6 @@
 import time
 import pytest
-from app.auth import create_jwt, decode_jwt, RateLimiter
+from api.auth import create_jwt, decode_jwt, RateLimiter
 
 
 def test_create_and_decode_jwt():
