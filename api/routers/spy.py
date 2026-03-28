@@ -22,6 +22,27 @@ class SpySubmitBody(BaseModel):
     dexterity: float
 
 
+@router.get("/known")
+async def list_known_estimates(svc: SpyService = Depends(_require_service)):
+    """Return all players with known stat estimates."""
+    estimates = svc.repo.get_all_estimates()
+    now = datetime.now(timezone.utc)
+    result = []
+    for est in estimates:
+        reported = datetime.fromisoformat(est["reported_at"])
+        if reported.tzinfo is None:
+            reported = reported.replace(tzinfo=timezone.utc)
+        result.append({
+            "player_id": est["player_id"], "player_name": est["player_name"],
+            "strength": est["strength"], "defense": est["defense"],
+            "speed": est["speed"], "dexterity": est["dexterity"],
+            "total": est["total"], "confidence": est["confidence"],
+            "source": est["source"], "reported_at": est["reported_at"],
+            "age_days": (now - reported).days,
+        })
+    return {"estimates": result, "count": len(result)}
+
+
 @router.get("/{player_id}")
 async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_service)):
     est = svc.repo.get_estimate(player_id)
