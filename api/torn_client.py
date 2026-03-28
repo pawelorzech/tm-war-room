@@ -276,6 +276,24 @@ class TornClient:
         energy = raw.get("energy", {})
         happy = raw.get("happy", {})
 
+        # Parse steadfast bonuses from faction_perks (e.g. "Gym gains for strength +5%")
+        steadfast = {"strength": 0, "defense": 0, "speed": 0, "dexterity": 0}
+        for perk in raw.get("faction_perks", []):
+            p = perk.lower()
+            if "gym gains" in p or "steadfast" in p:
+                import re
+                match = re.search(r'(\d+)%', perk)
+                pct = int(match.group(1)) if match else 0
+                for stat in ("strength", "defense", "speed", "dexterity"):
+                    if stat in p:
+                        steadfast[stat] = pct
+                        break
+                else:
+                    # Generic "all gym gains" perk
+                    if "all" in p or not any(s in p for s in ("strength", "defense", "speed", "dexterity")):
+                        for stat in steadfast:
+                            steadfast[stat] = max(steadfast[stat], pct)
+
         return {
             "profile": {
                 "player_id": raw.get("player_id", 0),
@@ -307,9 +325,11 @@ class TornClient:
                 "statenhancersused": ps.get("statenhancersused", 0),
                 "rehabs": ps.get("rehabs", 0),
             },
-            "education_completed": education_completed,
-            "education_perks": raw.get("education_perks", []),
-            "book_perks": raw.get("book_perks", []),
+            "steadfast": steadfast,
+            "educationCompleted": education_completed,
+            "educationPerks": raw.get("education_perks", []),
+            "bookPerks": raw.get("book_perks", []),
+            "level": raw.get("level", 0),
         }
 
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:

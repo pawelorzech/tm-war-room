@@ -75,7 +75,7 @@ REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
 async def redirect_old_domains(request: Request, call_next):
     host = request.headers.get("host", "").split(":")[0]
     if host in REDIRECT_HOSTS:
-        path = "/war" if host.startswith("rw") else "/training"
+        path = "/team" if host.startswith("rw") else "/training"
         return RedirectResponse(
             url=f"https://{CANONICAL_HOST}{path}",
             status_code=301,
