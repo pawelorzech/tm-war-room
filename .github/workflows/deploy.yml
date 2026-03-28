@@ -13,6 +13,10 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --extra dev
       - run: uv run pytest -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd frontend && npm ci && npm run build
 
   deploy:
     needs: test
@@ -25,20 +29,12 @@ jobs:
           echo "$RESPONSE" | jq .
           DEPLOY_UUID=$(echo "$RESPONSE" | jq -r '.deployments[0].deployment_uuid')
           echo "Deployment queued: $DEPLOY_UUID"
-
-          # Poll for completion (max 2 minutes)
           for i in $(seq 1 24); do
             sleep 5
             STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
               "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" | jq -r '.status')
             echo "Status: $STATUS"
-            if [ "$STATUS" = "finished" ]; then
-              echo "Deploy successful!"
-              exit 0
-            elif [ "$STATUS" = "failed" ]; then
-              echo "Deploy failed!"
-              exit 1
-            fi
+            if [ "$STATUS" = "finished" ]; then echo "Deploy successful!"; exit 0; fi
+            if [ "$STATUS" = "failed" ]; then echo "Deploy failed!"; exit 1; fi
           done
-          echo "Deploy timed out"
-          exit 1
+          echo "Deploy timed out"; exit 1

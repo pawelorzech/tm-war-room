@@ -1,22 +1,24 @@
 services:
-  warroom:
+  hub:
     build: .
     ports:
       - "8000:8000"
     environment:
       - TORN_API_KEY=${TORN_API_KEY}
-      - FACTION_ID=${FACTION_ID:-11559}
+      - TORNSTATS_API_KEY=${TORNSTATS_API_KEY:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - FACTION_ID=${FACTION_ID:-11559}
       - CACHE_TTL=${CACHE_TTL:-60}
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
-      - warroom-data:/app/data
+      - hub-data:/app/data
     restart: unless-stopped
     networks:
       - coolify
 
+volumes:
+  hub-data:
+
 networks:
   coolify:
     external: true
-
-volumes:
-  warroom-data:
