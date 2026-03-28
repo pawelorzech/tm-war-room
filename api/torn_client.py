@@ -247,6 +247,79 @@ class TornClient:
         self._set_cached(cache_key, ps)
         return ps
 
+    async def fetch_training_data(self, api_key: str) -> dict | None:
+        """Fetch user's training-related data from Torn API."""
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "profile,battlestats,bars,gym,merits,education,personalstats", "key": api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/user/training", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/user/training", False, (time.time() - start) * 1000, str(e))
+            raise
+        if "error" in raw:
+            return None
+
+        # Parse battle stats
+        bs = raw.get("battlestats", {})
+
+        # Parse gym - get active gym info
+        gym = raw.get("gym", {})
+
+        # Parse merits
+        merits = raw.get("merits", {})
+
+        # Parse education - get completed courses
+        education = raw.get("education", {})
+        completed = [int(k) for k, v in education.get("courses", {}).items() if v.get("status") == "completed"]
+
+        # Parse bars
+        bars = raw.get("bars", {})
+
+        # Parse profile
+        profile = raw.get("profile", raw)
+
+        # Parse personalstats
+        ps = raw.get("personalstats", {})
+
+        return {
+            "profile": {
+                "player_id": raw.get("player_id", profile.get("player_id", 0)),
+                "name": raw.get("name", profile.get("name", "")),
+                "level": raw.get("level", profile.get("level", 0)),
+            },
+            "battlestats": {
+                "strength": bs.get("strength", 0),
+                "defense": bs.get("defense", 0),
+                "speed": bs.get("speed", 0),
+                "dexterity": bs.get("dexterity", 0),
+            },
+            "bars": {
+                "happy": {"current": bars.get("happy", {}).get("current", 0), "maximum": bars.get("happy", {}).get("maximum", 0)},
+                "energy": {"current": bars.get("energy", {}).get("current", 0), "maximum": bars.get("energy", {}).get("maximum", 0)},
+            },
+            "gym": {
+                "active_gym": gym.get("active_gym", 0),
+            },
+            "merits": {
+                "brawn": merits.get("Brawn", 0),
+                "protection": merits.get("Protection", 0),
+                "sharpness": merits.get("Sharpness", 0),
+                "evasion": merits.get("Evasion", 0),
+            },
+            "personalstats": {
+                "xantaken": ps.get("xantaken", 0),
+                "refills": ps.get("refills", 0),
+                "statenhancersused": ps.get("statenhancersused", 0),
+                "rehabs": ps.get("rehabs", 0),
+            },
+            "education_completed": completed,
+        }
+
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
         from api.models import PersonalStats
         cache_key = f"tspy_{faction_id}"
