@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-torn-green: #3fb950;
+  --color-torn-green-dim: #238636;
+  --color-torn-red: #f85149;
+  --color-torn-yellow: #d29922;
+  --color-torn-blue: #58a6ff;
+
+  --color-bg-primary: #0d1117;
+  --color-bg-surface: #161b22;
+  --color-bg-elevated: #1c2128;
+  --color-border: #30363d;
+  --color-border-light: #21262d;
+
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #484f58;
+}
