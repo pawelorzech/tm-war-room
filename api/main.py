@@ -6,9 +6,11 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID
@@ -36,8 +38,23 @@ async def lifespan(app: FastAPI):
     await torn_client.close()
 
 
-app = FastAPI(title="TM War Room", lifespan=lifespan)
+app = FastAPI(title="TM Hub", lifespan=lifespan)
 app.include_router(admin_router)
+
+CANONICAL_HOST = "hub.tri.ovh"
+REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
+
+
+@app.middleware("http")
+async def redirect_old_domains(request: Request, call_next):
+    host = request.headers.get("host", "").split(":")[0]
+    if host in REDIRECT_HOSTS:
+        path = "/war" if host.startswith("rw") else "/training"
+        return RedirectResponse(
+            url=f"https://{CANONICAL_HOST}{path}",
+            status_code=301,
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")
