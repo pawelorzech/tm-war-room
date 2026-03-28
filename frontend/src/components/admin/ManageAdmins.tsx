@@ -2,23 +2,32 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api-client";
 
 interface AdminFetch {
   <T>(path: string, init?: RequestInit): Promise<T>;
 }
 
+// Matches actual backend /api/admin/admins response
 interface AdminEntry {
   player_id: number;
-  name: string;
-  role: "admin" | "superadmin";
+  player_name: string;
+  granted_by: number;
   granted_at: string;
 }
 
 interface AdminsResponse {
   admins: AdminEntry[];
+  superadmin_id: number;
 }
 
-const SUPERADMIN_ID = 2362436;
+// Matches /api/admin/keys response
+interface KeyEntry {
+  player_id: number;
+  player_name: string;
+  is_faction_key: boolean;
+  created_at: string;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -31,10 +40,12 @@ function formatDate(iso: string): string {
 export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
   const { role } = useAuth();
   const [admins, setAdmins] = useState<AdminEntry[]>([]);
+  const [superadminId, setSuperadminId] = useState<number>(2362436);
+  const [registeredMembers, setRegisteredMembers] = useState<KeyEntry[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Promote form
-  const [promoteId, setPromoteId] = useState("");
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [promoting, setPromoting] = useState(false);
   const [promoteError, setPromoteError] = useState<string | null>(null);
   const [promoteSuccess, setPromoteSuccess] = useState(false);
@@ -43,17 +54,22 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
   const [demoting, setDemoting] = useState<number | null>(null);
   const [demoteError, setDemoteError] = useState<Record<number, string>>({});
 
-  const loadAdmins = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoadError(null);
     try {
-      const res = await adminFetch<AdminsResponse>("/api/admin/admins");
-      setAdmins(res.admins);
+      const [adminsRes, keysRes] = await Promise.all([
+        adminFetch<AdminsResponse>("/api/admin/admins"),
+        adminFetch<{ keys: KeyEntry[]; registered_count: number; total_faction_members: number }>("/api/admin/keys"),
+      ]);
+      setAdmins(adminsRes.admins);
+      setSuperadminId(adminsRes.superadmin_id);
+      setRegisteredMembers(keysRes.keys);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load admins");
+      setLoadError(e instanceof Error ? e.message : "Failed to load data");
     }
   }, [adminFetch]);
 
-  useEffect(() => { loadAdmins(); }, [loadAdmins]);
+  useEffect(() => { load(); }, [load]);
 
   if (role !== "superadmin") {
     return (
@@ -63,18 +79,22 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
     );
   }
 
+  // Filter out members who are already admins or superadmin for the picker
+  const adminIds = new Set([superadminId, ...admins.map((a) => a.player_id)]);
+  const promotable = registeredMembers.filter((m) => !adminIds.has(m.player_id));
+
   const handlePromote = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pid = parseInt(promoteId.trim(), 10);
+    const pid = parseInt(selectedPlayerId, 10);
     if (!pid || isNaN(pid)) return;
     setPromoting(true);
     setPromoteError(null);
     setPromoteSuccess(false);
     try {
       await adminFetch(`/api/admin/admins/${pid}`, { method: "POST" });
-      setPromoteId("");
+      setSelectedPlayerId("");
       setPromoteSuccess(true);
-      await loadAdmins();
+      await load();
       setTimeout(() => setPromoteSuccess(false), 3000);
     } catch (e) {
       setPromoteError(e instanceof Error ? e.message : "Failed to promote");
@@ -88,7 +108,7 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
     setDemoteError((prev) => ({ ...prev, [playerId]: "" }));
     try {
       await adminFetch(`/api/admin/admins/${playerId}`, { method: "DELETE" });
-      await loadAdmins();
+      await load();
     } catch (e) {
       setDemoteError((prev) => ({
         ...prev,
@@ -103,7 +123,7 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
     <div className="space-y-6">
       {/* Superadmin note */}
       <div className="bg-blue-900/20 border border-blue-700 text-blue-200 rounded p-3 text-sm">
-        Superadmin (player {SUPERADMIN_ID}) always has full access and cannot be demoted.
+        Superadmin (player {superadminId}) always has full access and cannot be demoted.
       </div>
 
       {loadError && (
@@ -118,14 +138,13 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
           Current Admins ({admins.length})
         </h2>
         {admins.length === 0 ? (
-          <p className="text-text-secondary text-sm">No admins found.</p>
+          <p className="text-text-secondary text-sm">No admins promoted yet. Use the form below to add one.</p>
         ) : (
           <div className="bg-bg-surface border border-border rounded overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2 text-text-secondary font-medium">Player</th>
-                  <th className="text-left px-3 py-2 text-text-secondary font-medium">Role</th>
                   <th className="text-left px-3 py-2 text-text-secondary font-medium">Granted</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -134,36 +153,23 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
                 {admins.map((a) => (
                   <tr key={a.player_id} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 text-text-primary">
-                      {a.name}
+                      {a.player_name}
                       <span className="ml-1 text-xs text-text-secondary">[{a.player_id}]</span>
                     </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-xs font-semibold uppercase ${
-                          a.role === "superadmin"
-                            ? "bg-purple-800 text-purple-200"
-                            : "bg-blue-800 text-blue-200"
-                        }`}
-                      >
-                        {a.role}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-text-secondary">{formatDate(a.granted_at)}</td>
+                    <td className="px-3 py-2 text-text-secondary text-xs">{formatDate(a.granted_at)}</td>
                     <td className="px-3 py-2 text-right">
-                      {a.role !== "superadmin" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleDemote(a.player_id)}
-                            disabled={demoting === a.player_id}
-                            className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                          >
-                            {demoting === a.player_id ? "Demoting..." : "Demote"}
-                          </button>
-                          {demoteError[a.player_id] && (
-                            <span className="text-xs text-red-400">{demoteError[a.player_id]}</span>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleDemote(a.player_id)}
+                          disabled={demoting === a.player_id}
+                          className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                        >
+                          {demoting === a.player_id ? "Demoting..." : "Demote"}
+                        </button>
+                        {demoteError[a.player_id] && (
+                          <span className="text-xs text-red-400">{demoteError[a.player_id]}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -176,24 +182,32 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
       {/* Promote Form */}
       <section>
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
-          Promote Player
+          Promote to Admin
         </h2>
         <form onSubmit={handlePromote} className="bg-bg-surface border border-border rounded p-4">
           <div className="flex gap-2 items-end">
             <div className="flex-1">
-              <label className="block text-xs text-text-secondary mb-1">Player ID</label>
-              <input
-                type="number"
-                value={promoteId}
-                onChange={(e) => setPromoteId(e.target.value)}
-                placeholder="e.g. 1234567"
-                className="w-full bg-bg-base border border-border rounded px-3 py-1.5 text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:border-torn-green"
-              />
+              <label className="block text-xs text-text-secondary mb-1">Select member</label>
+              <select
+                value={selectedPlayerId}
+                onChange={(e) => setSelectedPlayerId(e.target.value)}
+                className="w-full bg-bg-primary border border-border rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-torn-green"
+              >
+                <option value="">— choose a member —</option>
+                {promotable.map((m) => (
+                  <option key={m.player_id} value={m.player_id}>
+                    {m.player_name} [{m.player_id}]
+                  </option>
+                ))}
+              </select>
+              {promotable.length === 0 && registeredMembers.length > 0 && (
+                <p className="mt-1 text-text-muted text-xs">All registered members are already admins.</p>
+              )}
             </div>
             <button
               type="submit"
-              disabled={promoting || !promoteId.trim()}
-              className="px-4 py-1.5 bg-torn-green text-black text-sm font-medium rounded hover:opacity-90 disabled:opacity-50"
+              disabled={promoting || !selectedPlayerId}
+              className="px-4 py-2 bg-torn-green text-black text-sm font-medium rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {promoting ? "Promoting..." : "Promote"}
             </button>
