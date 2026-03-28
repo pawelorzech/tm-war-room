@@ -128,14 +128,37 @@
             </div>
             <div class="mobile-sort mobile-only" id="enemy-mobile-sort">
                 <span class="mobile-sort-summary" id="enemy-mobile-summary"></span>
-                <select id="enemy-sort-select" onchange="mobileSortEnemy(this.value)">
-                    <option value="threat_score">Sort: Threat</option>
-                    <option value="name">Sort: Name</option>
-                    <option value="level">Sort: Level</option>
-                    <option value="state">Sort: State</option>
-                </select>
+                <div class="mobile-sort-controls">
+                    <select id="enemy-filter-mobile" onchange="filterEnemy(this.value)">
+                        <option value="all">All</option>
+                        <option value="okay">Attackable</option>
+                        <option value="online">Online</option>
+                        <option value="idle">Idle</option>
+                        <option value="offline">Offline</option>
+                        <option value="hospital">Hospital</option>
+                    </select>
+                    <select id="enemy-sort-select" onchange="mobileSortEnemy(this.value)">
+                        <option value="threat_score">Threat</option>
+                        <option value="name">Name</option>
+                        <option value="level">Level</option>
+                        <option value="state">State</option>
+                    </select>
+                    <button id="enemy-sort-dir" class="sort-dir-btn" onclick="toggleMobileSortDir()">&#9650;</button>
+                </div>
             </div>
             <div id="enemy-cards" class="mobile-only card-list"></div>
+            <div class="enemy-filter-bar desktop-only">
+                <label>Filter:
+                    <select id="enemy-filter-select" onchange="filterEnemy(this.value)">
+                        <option value="all">All members</option>
+                        <option value="okay">Attackable</option>
+                        <option value="online">Online</option>
+                        <option value="idle">Idle</option>
+                        <option value="offline">Offline</option>
+                        <option value="hospital">Hospital</option>
+                    </select>
+                </label>
+            </div>
             <div class="table-wrap desktop-only">
                 <table>
                     <thead id="enemy-thead">
