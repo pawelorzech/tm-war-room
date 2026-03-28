@@ -1,0 +1,80 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { api } from "@/lib/api-client";
+import type {
+  OverviewResponse,
+  DetailResponse,
+  EnemyResponse,
+} from "@/types/war";
+
+const REFRESH_INTERVAL = 60_000;
+
+interface WarDataState {
+  overview: OverviewResponse | null;
+  detail: DetailResponse | null;
+  enemy: EnemyResponse | null;
+  loading: boolean;
+  lastUpdate: Date | null;
+  error: string | null;
+}
+
+export function useWarData() {
+  const [state, setState] = useState<WarDataState>({
+    overview: null,
+    detail: null,
+    enemy: null,
+    loading: true,
+    lastUpdate: null,
+    error: null,
+  });
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [ov, det, en] = await Promise.all([
+        api.overview(),
+        api.detail(),
+        api.enemy(),
+      ]);
+      setState({
+        overview: ov,
+        detail: det,
+        enemy: en,
+        loading: false,
+        lastUpdate: new Date(),
+        error: null,
+      });
+    } catch (e) {
+      console.error("Refresh failed:", e);
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: e instanceof Error ? e.message : "Refresh failed",
+      }));
+    }
+  }, []);
+
+  const loadEnemy = useCallback(async (factionId: number) => {
+    try {
+      const en = await api.enemy(factionId);
+      setState((prev) => ({ ...prev, enemy: en }));
+    } catch (e) {
+      console.error("Load enemy failed:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    intervalRef.current = setInterval(refresh, REFRESH_INTERVAL);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [refresh]);
+
+  return {
+    ...state,
+    refresh,
+    loadEnemy,
+  };
+}

@@ -1,0 +1,444 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { fmtCD } from "@/lib/format";
+import { MemberCard, getReadiness } from "./MemberCard";
+import type { Readiness } from "./MemberCard";
+import type { FactionMember, DetailResponse } from "@/types/war";
+import { isWarActive } from "./ChainStatus";
+import type { OverviewResponse } from "@/types/war";
+
+type SortCol = "name" | "level" | "state" | "energy" | "position" | null;
+
+interface SortState {
+  col: SortCol;
+  asc: boolean;
+}
+
+interface MemberTableProps {
+  members: FactionMember[];
+  detail: DetailResponse | null;
+  overview: OverviewResponse | null;
+}
+
+function getOurSortValue(
+  m: FactionMember,
+  dm: DetailResponse["members"],
+  col: SortCol,
+): string | number {
+  switch (col) {
+    case "name":
+      return m.name.toLowerCase();
+    case "level":
+      return m.level;
+    case "state":
+      return m.status.state + m.last_action.status;
+    case "energy":
+      return dm[m.id]?.energy ?? -1;
+    case "position":
+      return m.position;
+    default:
+      return 0;
+  }
+}
+
+export function MemberTable({ members, detail, overview }: MemberTableProps) {
+  const [sort, setSort] = useState<SortState>({ col: null, asc: true });
+
+  const dm = detail?.members || {};
+  const yataDown = detail?.yata_down || false;
+  const warActive = isWarActive(overview);
+  const now = Math.floor(Date.now() / 1000);
+
+  const sorted = useMemo(() => {
+    const ord: Record<Readiness, number> = {
+      green: 0,
+      yellow: 1,
+      gray: 2,
+      red: 3,
+    };
+    if (sort.col) {
+      return [...members].sort((a, b) => {
+        const va = getOurSortValue(a, dm, sort.col);
+        const vb = getOurSortValue(b, dm, sort.col);
+        const cmp =
+          typeof va === "string" && typeof vb === "string"
+            ? va.localeCompare(vb)
+            : (va as number) - (vb as number);
+        return sort.asc ? cmp : -cmp;
+      });
+    }
+    // Default: readiness sort
+    return [...members].sort((a, b) => {
+      const ra = ord[getReadiness(a, dm[a.id])] ?? 2;
+      const rb = ord[getReadiness(b, dm[b.id])] ?? 2;
+      return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
+    });
+  }, [members, dm, sort]);
+
+  // Summary stats
+  const { online, hospital, offline, withData, visible, inOc } = useMemo(() => {
+    let on = 0,
+      hosp = 0,
+      off = 0;
+    for (const m of members) {
+      if (m.last_action.status === "Online") on++;
+      else if (m.status.state === "Hospital") hosp++;
+      else off++;
+    }
+    const oc = members.filter((m) => m.is_in_oc).length;
+    const data = Object.values(dm).filter(
+      (d) => d.source === "torn_api" || d.source === "yata",
+    ).length;
+    const vis = Object.keys(dm).length;
+    return { online: on, hospital: hosp, offline: off, withData: data, visible: vis, inOc: oc };
+  }, [members, dm]);
+
+  const toggleSort = (col: SortCol) => {
+    if (sort.col === col) {
+      setSort({ col, asc: !sort.asc });
+    } else {
+      setSort({ col, asc: col === "name" });
+    }
+  };
+
+  const mobileSortChange = (val: string) => {
+    if (val === "readiness") {
+      setSort({ col: null, asc: true });
+    } else {
+      setSort({ col: val as SortCol, asc: val === "name" });
+    }
+  };
+
+  const SortArrow = ({ col }: { col: SortCol }) =>
+    sort.col === col ? (
+      <span className="ml-1 text-torn-green">
+        {sort.asc ? "\u25B2" : "\u25BC"}
+      </span>
+    ) : null;
+
+  const copyBounty = (name: string, id: number) => {
+    const text = `Can someone bounty ${name}? https://www.torn.com/profiles.php?XID=${id}`;
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div>
+      {/* YATA warning */}
+      {yataDown && (
+        <div className="bg-yellow-950/40 border border-yellow-800/40 rounded-lg px-4 py-2 mb-3 text-sm text-torn-yellow">
+          {"\u26A0\uFE0F"} YATA is currently down. Energy/drug data may be stale or unavailable.
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="text-sm text-text-secondary mb-3">
+        <span className="text-torn-green">{online}</span> online,{" "}
+        <span className="text-torn-yellow">{hospital}</span> hospital,{" "}
+        <span className="text-torn-red">{offline}</span> offline/away{" "}
+        {"\u2014"}{" "}
+        <span className="text-torn-green">{withData}</span>/
+        {visible || members.length} with data {"\u2014"} {inOc} in OC
+      </div>
+
+      {/* Mobile sort dropdown */}
+      <div className="lg:hidden mb-3">
+        <select
+          className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-sm text-text-primary w-full"
+          value={sort.col || "readiness"}
+          onChange={(e) => mobileSortChange(e.target.value)}
+        >
+          <option value="readiness">Sort: Readiness</option>
+          <option value="name">Sort: Name</option>
+          <option value="level">Sort: Level</option>
+          <option value="state">Sort: Status</option>
+          <option value="energy">Sort: Energy</option>
+        </select>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="lg:hidden space-y-2">
+        {sorted.map((m) => (
+          <MemberCard
+            key={m.id}
+            member={m}
+            detail={dm[m.id]}
+            warActive={warActive}
+          />
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden lg:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-text-muted text-xs">
+              <th className="py-2 px-2 w-6"></th>
+              <th
+                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                onClick={() => toggleSort("name")}
+              >
+                Name
+                <SortArrow col="name" />
+              </th>
+              <th className="py-2 px-2 w-6"></th>
+              <th
+                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                onClick={() => toggleSort("level")}
+              >
+                Lvl
+                <SortArrow col="level" />
+              </th>
+              <th
+                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                onClick={() => toggleSort("state")}
+              >
+                Status
+                <SortArrow col="state" />
+              </th>
+              <th className="py-2 px-2">Last Action</th>
+              <th
+                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                onClick={() => toggleSort("energy")}
+              >
+                Energy
+                <SortArrow col="energy" />
+              </th>
+              <th className="py-2 px-2">Drug CD</th>
+              <th
+                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                onClick={() => toggleSort("position")}
+              >
+                Position
+                <SortArrow col="position" />
+              </th>
+              <th className="py-2 px-2">Revive</th>
+              <th className="py-2 px-2">OC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((m) => {
+              const d = dm[m.id];
+              const r = getReadiness(m, d);
+
+              // Energy
+              let energyNode: React.ReactNode;
+              if (d && d.source === "torn_api") {
+                if (d.energy > (d.max_energy ?? 0)) {
+                  energyNode = (
+                    <span className="text-torn-green font-semibold">
+                      {d.energy}/{d.max_energy}
+                    </span>
+                  );
+                } else if (d.energy < (d.max_energy ?? 0)) {
+                  energyNode = (
+                    <span className="text-torn-red">
+                      {d.energy}/{d.max_energy}
+                    </span>
+                  );
+                } else {
+                  energyNode = (
+                    <span>
+                      {d.energy}/{d.max_energy}
+                    </span>
+                  );
+                }
+              } else if (d && d.source === "yata") {
+                energyNode = (
+                  <span>
+                    {d.energy ?? "\u2014"}E{" "}
+                    <span
+                      className="text-text-muted text-xs"
+                      title="From YATA (~1h cache)"
+                    >
+                      yata
+                    </span>
+                  </span>
+                );
+              } else if (d && d.source === "hidden") {
+                energyNode = (
+                  <span className="text-text-muted">Hidden</span>
+                );
+              } else if (d && d.source === "not_on_yata") {
+                energyNode = (
+                  <span className="text-text-muted">No data</span>
+                );
+              } else {
+                energyNode = (
+                  <span className="text-text-muted">{"\u2014"}</span>
+                );
+              }
+
+              // Drug CD
+              let cdNode: React.ReactNode;
+              if (d && (d.source === "torn_api" || d.source === "yata")) {
+                cdNode =
+                  d.drug_cd > 0 ? (
+                    <span className="text-torn-red">
+                      {fmtCD(d.drug_cd)}
+                    </span>
+                  ) : (
+                    <span className="text-torn-green">Ready</span>
+                  );
+              } else if (d && d.source === "hidden") {
+                cdNode = (
+                  <span className="text-text-muted">Hidden</span>
+                );
+              } else {
+                cdNode = (
+                  <span className="text-text-muted">{"\u2014"}</span>
+                );
+              }
+
+              // State text
+              let stateNode: React.ReactNode;
+              if (m.status.state === "Hospital") {
+                const reason = m.status.details || "hospitalized";
+                const shortReason = reason
+                  .replace("Overdosed on ", "OD ")
+                  .replace("Hospitalized by ", "by ")
+                  .replace("Mugged by ", "mugged ")
+                  .replace("Attacked by ", "atk ");
+                const left = m.status.until
+                  ? fmtCD(m.status.until - now)
+                  : "";
+                stateNode = (
+                  <span className="text-torn-yellow">
+                    Hosp: {shortReason}
+                    {left ? ` (${left})` : ""}
+                  </span>
+                );
+              } else if (
+                m.status.state === "Traveling" ||
+                m.status.state === "Abroad"
+              ) {
+                const desc = m.status.description || "";
+                const dest = desc
+                  .replace("Traveling to ", "\u2192 ")
+                  .replace("Returning to Torn from ", "\u2190 ")
+                  .replace("In ", "\u2022 ");
+                stateNode = (
+                  <span className="text-torn-yellow">{dest}</span>
+                );
+              } else if (m.status.state === "Jail") {
+                const left = m.status.until
+                  ? fmtCD(m.status.until - now)
+                  : "";
+                stateNode = (
+                  <span className="text-torn-red">
+                    Jail{left ? ` (${left})` : ""}
+                  </span>
+                );
+              } else {
+                stateNode = <span>{m.last_action.status}</span>;
+              }
+
+              // Revive
+              let reviveNode: React.ReactNode;
+              if (m.revive_setting === "No one") {
+                reviveNode = (
+                  <span className="text-torn-green">OFF</span>
+                );
+              } else if (m.revive_setting === "Friends & faction") {
+                reviveNode = (
+                  <span
+                    className="text-torn-yellow"
+                    title="Faction members can revive you"
+                  >
+                    Faction
+                  </span>
+                );
+              } else if (m.revive_setting === "Everyone") {
+                reviveNode = (
+                  <span
+                    className="text-torn-red"
+                    title="ANYONE can revive you - enemies can revive and attack again!"
+                  >
+                    {"\u26A0"} ALL
+                  </span>
+                );
+              } else {
+                reviveNode = (
+                  <span className="text-text-muted">{"\u2014"}</span>
+                );
+              }
+
+              const isNew = m.days_in_faction <= 30;
+              const needsBounty =
+                warActive &&
+                m.last_action.status === "Offline" &&
+                m.status.state !== "Hospital";
+
+              return (
+                <tr
+                  key={m.id}
+                  className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors"
+                >
+                  <td className="py-1.5 px-2">
+                    <span
+                      className={`w-2 h-2 rounded-full inline-block ${
+                        r === "green"
+                          ? "bg-green-500"
+                          : r === "yellow"
+                            ? "bg-yellow-500"
+                            : r === "red"
+                              ? "bg-red-500"
+                              : "bg-gray-500"
+                      }`}
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <a
+                      href={`https://www.torn.com/profiles.php?XID=${m.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-text-primary hover:text-torn-green transition-colors"
+                    >
+                      {m.name}
+                    </a>
+                    {isNew && (
+                      <span className="ml-1 text-[10px] bg-torn-green/20 text-torn-green px-1 py-0.5 rounded">
+                        new
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-1.5 px-2">
+                    {needsBounty && (
+                      <button
+                        onClick={() => copyBounty(m.name, m.id)}
+                        className="text-xs px-1 py-0.5 bg-bg-elevated rounded hover:bg-border transition-colors"
+                        title="Copy bounty request"
+                      >
+                        {"\uD83D\uDCCB"}
+                      </button>
+                    )}
+                  </td>
+                  <td className="py-1.5 px-2 text-text-muted">
+                    {m.level}
+                  </td>
+                  <td className="py-1.5 px-2">{stateNode}</td>
+                  <td className="py-1.5 px-2 text-text-muted">
+                    {m.last_action.relative}
+                  </td>
+                  <td className="py-1.5 px-2">{energyNode}</td>
+                  <td className="py-1.5 px-2">{cdNode}</td>
+                  <td className="py-1.5 px-2 text-text-muted">
+                    {m.position}
+                  </td>
+                  <td className="py-1.5 px-2">{reviveNode}</td>
+                  <td className="py-1.5 px-2">
+                    {m.is_in_oc ? (
+                      <span className="text-torn-green">{"\u2713"}</span>
+                    ) : (
+                      <span className="text-text-muted">{"\u2014"}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
