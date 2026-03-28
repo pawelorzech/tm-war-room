@@ -332,6 +332,49 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_stock_market(self) -> dict:
+        """Fetch all stock listings from Torn."""
+        cached = self._get_cached("stocks_market", ttl=300)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/torn/",
+                params={"selections": "stocks", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/torn/stocks", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/torn/stocks", False, (time.time() - start) * 1000, str(e))
+            raise
+        stocks = raw.get("stocks", {})
+        self._set_cached("stocks_market", stocks)
+        return stocks
+
+    async def fetch_user_stocks(self, api_key: str) -> dict:
+        """Fetch player's stock portfolio."""
+        cache_key = f"stocks_{api_key[:8]}"
+        cached = self._get_cached(cache_key, ttl=120)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "stocks", "key": api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/user/stocks", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/user/stocks", False, (time.time() - start) * 1000, str(e))
+            raise
+        stocks = raw.get("stocks", {})
+        self._set_cached(cache_key, stocks)
+        return stocks
+
     async def fetch_faction_revives(self) -> list[dict]:
         """Fetch recent faction revives (up to 990)."""
         cached = self._get_cached("revives", ttl=60)

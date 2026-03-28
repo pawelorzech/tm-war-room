@@ -39,6 +39,8 @@ from api.routers.loot import router as loot_router
 import api.routers.loot as loot_mod
 from api.routers.revives import router as revives_router
 import api.routers.revives as revives_mod
+from api.routers.stocks import router as stocks_router
+import api.routers.stocks as stocks_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -84,6 +86,8 @@ async def lifespan(app: FastAPI):
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
     revives_mod.torn_client = torn_client
+    stocks_mod.torn_client = torn_client
+    stocks_mod.key_store = key_store
 
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
@@ -110,6 +114,7 @@ app.include_router(awards_router)
 app.include_router(targets_router)
 app.include_router(loot_router)
 app.include_router(revives_router)
+app.include_router(stocks_router)
 
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}

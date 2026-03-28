@@ -75,6 +75,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/revives",
         icon: "\uD83D\uDC9A",
       },
+      {
+        label: "Stocks",
+        href: "/stocks",
+        icon: "\uD83D\uDCC9",
+      },
     ],
   },
 ];
