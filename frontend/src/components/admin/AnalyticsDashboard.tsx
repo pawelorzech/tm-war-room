@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { formatUptime } from "@/lib/format";
 
 interface AdminFetch {
   <T>(path: string, init?: RequestInit): Promise<T>;
@@ -35,15 +36,6 @@ interface KeysInfo {
   keys: Array<{ player_id: number; player_name: string; is_faction_key: boolean; created_at: string }>;
   registered_count: number;
   total_faction_members: number;
-}
-
-function formatUptime(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -103,8 +95,8 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const totalRequests = requestStats?.per_day.reduce((s, d) => s + d.count, 0) ?? 0;
-  const totalErrors = errorStats.reduce((s, e) => s + e.count, 0);
+  const totalRequests = useMemo(() => requestStats?.per_day.reduce((s, d) => s + d.count, 0) ?? 0, [requestStats]);
+  const totalErrors = useMemo(() => errorStats.reduce((s, e) => s + e.count, 0), [errorStats]);
 
   return (
     <div className="space-y-6">

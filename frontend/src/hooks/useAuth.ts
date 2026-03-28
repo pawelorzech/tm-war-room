@@ -22,11 +22,17 @@ export function useAuth() {
   useEffect(() => {
     const pid = localStorage.getItem("myKeyPlayer");
     const name = localStorage.getItem("myKeyName");
+    const cachedRole = localStorage.getItem("myKeyRole") as Role | null;
     if (!pid) {
       setState({ playerId: null, playerName: null, role: null, loading: false });
       return;
     }
+    // Use cached role immediately, refresh in background
+    if (cachedRole) {
+      setState({ playerId: Number(pid), playerName: name, role: cachedRole, loading: false });
+    }
     api.me().then((me) => {
+      localStorage.setItem("myKeyRole", me.role);
       setState({
         playerId: me.player_id,
         playerName: name,
@@ -34,18 +40,22 @@ export function useAuth() {
         loading: false,
       });
     }).catch(() => {
-      setState({ playerId: null, playerName: null, role: null, loading: false });
+      if (!cachedRole) {
+        setState({ playerId: null, playerName: null, role: null, loading: false });
+      }
     });
   }, []);
 
   const login = useCallback(async (apiKey: string) => {
     const result = await api.registerKey(apiKey);
+    const role = result.role || "member";
     localStorage.setItem("myKeyPlayer", String(result.player_id));
     localStorage.setItem("myKeyName", result.name);
+    localStorage.setItem("myKeyRole", role);
     setState({
       playerId: result.player_id,
       playerName: result.name,
-      role: result.role || "member",
+      role,
       loading: false,
     });
   }, []);
@@ -53,6 +63,7 @@ export function useAuth() {
   const logout = useCallback(() => {
     localStorage.removeItem("myKeyPlayer");
     localStorage.removeItem("myKeyName");
+    localStorage.removeItem("myKeyRole");
     localStorage.removeItem("adminToken");
     setState({ playerId: null, playerName: null, role: null, loading: false });
   }, []);
