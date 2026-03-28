@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import type { CalculatorState, CalculatorResults, EnergySources, TornUserData } from '@/types/training';
-import { calculateGymGain, calculateHappyContribution, compareFhcUseVsSell, compareStatEnhancer, projectDailyGain, daysToMilestone } from '@/lib/formulas';
+import { calculateGymGain, calculateHappyContribution, compareFhcUseVsSell, compareStatEnhancer, calculateRehabCostPerXanax, projectDailyGain, daysToMilestone } from '@/lib/formulas';
 import { generateRecommendations } from '@/lib/recommendations';
 import { DEFAULT_PRICES, STAT_MILESTONES, getGymGainById } from '@/lib/constants';
 
@@ -93,6 +93,9 @@ export function useCalculator(apiData: TornUserData | null) {
       xanaxPrice: DEFAULT_PRICES.xanax,
     });
 
+    const rehabs = apiData?.personalstats.rehabs ?? 0;
+    const rehabCostPerXanax = calculateRehabCostPerXanax(rehabs);
+
     const seComparison = compareStatEnhancer({
       currentStat: state.currentStat,
       sePrice: DEFAULT_PRICES.statEnhancer,
@@ -101,6 +104,7 @@ export function useCalculator(apiData: TornUserData | null) {
       happy: state.happy,
       steadfastBonus: state.steadfastBonus,
       educationBonus: totalEducation,
+      rehabCostPerXanax,
     });
 
     const gainPerDay = projectDailyGain({
