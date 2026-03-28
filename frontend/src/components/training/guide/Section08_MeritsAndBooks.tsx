@@ -221,15 +221,15 @@ export function Section08_MeritsAndBooks({
             <label className="text-sm font-semibold text-text-primary">
               Your education gym bonus
             </label>
-            <span className="text-torn-green font-bold text-lg">{formatPercent(educationBonus)}</span>
+            <span className="text-torn-green font-bold text-lg">{formatPercent(educationBonus * 100)}</span>
           </div>
           <input
             type="range"
             min={0}
             max={15}
             step={1}
-            value={educationBonus}
-            onChange={(e) => onUpdateEducation(Number(e.target.value))}
+            value={Math.round(educationBonus * 100)}
+            onChange={(e) => onUpdateEducation(Number(e.target.value) / 100)}
             className="w-full accent-torn-green"
           />
           <div className="flex justify-between text-xs text-text-secondary">
@@ -239,7 +239,8 @@ export function Section08_MeritsAndBooks({
 
           <div className="bg-bg-secondary rounded-lg p-3">
             <p className="text-xs text-text-secondary">
-              Key courses: <strong className="text-text-primary">Sports Science</strong> (+2% gains + 2% passive){' '}
+              Auto-detected from your API perks. Key courses:{' '}
+              <strong className="text-text-primary">Sports Science</strong> (+2% gains + 2% passive){' '}
               · <strong className="text-text-primary">Law</strong> (+1%) · More in Torn University
             </p>
           </div>

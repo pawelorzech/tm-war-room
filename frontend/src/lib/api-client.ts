@@ -44,6 +44,8 @@ export const api = {
     merits: { brawn: number; protection: number; sharpness: number; evasion: number };
     personalstats: { xantaken: number; refills: number; statenhancersused: number; rehabs: number };
     education_completed: number[];
+    education_perks: string[];
+    book_perks: string[];
   }>("/api/training/stats"),
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
