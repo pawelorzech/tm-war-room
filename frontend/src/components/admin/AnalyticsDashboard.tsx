@@ -6,41 +6,35 @@ interface AdminFetch {
   <T>(path: string, init?: RequestInit): Promise<T>;
 }
 
+// Matches actual backend response shapes
 interface RequestStats {
-  days: number;
-  total_requests: number;
-  hourly_breakdown: Array<{ hour: string; count: number }>;
-  top_endpoints: Array<{ endpoint: string; count: number }>;
+  per_day: Array<{ date: string; count: number; avg_response_ms: number }>;
+  per_endpoint: Array<{ endpoint: string; count: number; avg_response_ms: number }>;
 }
 
 interface UserStats {
-  days: number;
-  members: Array<{ player_id: number; name: string; request_count: number }>;
+  users: Array<{ player_id: number; player_name: string; request_count: number; last_seen: string }>;
 }
 
-interface ErrorStats {
-  days: number;
-  total_errors: number;
-  errors_by_endpoint: Array<{ endpoint: string; count: number }>;
-}
-
-interface Integration {
-  name: string;
-  status: "ok" | "error" | "unknown";
-  last_check?: string;
+interface ErrorEntry {
+  endpoint: string;
+  status_code: number;
+  count: number;
+  last_occurred: string;
+  last_error_message: string | null;
 }
 
 interface SystemInfo {
   uptime_seconds: number;
   version: string;
-  cache_entries: number;
-  last_refresh: string | null;
-  integrations: Integration[];
+  cache: { entries: number; last_refresh: number | null };
+  integrations: Record<string, { status: string; last_success: string | null; last_error: string | null; last_error_at: string | null }>;
 }
 
 interface KeysInfo {
-  total_keys: number;
-  total_members: number;
+  keys: Array<{ player_id: number; player_name: string; is_faction_key: boolean; created_at: string }>;
+  registered_count: number;
+  total_faction_members: number;
 }
 
 function formatUptime(seconds: number): string {
@@ -50,15 +44,6 @@ function formatUptime(seconds: number): string {
   if (d > 0) return `${d}d ${h}h ${m}m`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -87,7 +72,7 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
   const [days, setDays] = useState(7);
   const [requestStats, setRequestStats] = useState<RequestStats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [errorStats, setErrorStats] = useState<ErrorStats | null>(null);
+  const [errorStats, setErrorStats] = useState<ErrorEntry[]>([]);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [keysInfo, setKeysInfo] = useState<KeysInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,13 +85,13 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
       const [req, usr, err, sys, keys] = await Promise.all([
         adminFetch<RequestStats>(`/api/admin/stats/requests?days=${days}`),
         adminFetch<UserStats>(`/api/admin/stats/users?days=${days}`),
-        adminFetch<ErrorStats>(`/api/admin/stats/errors?days=${days}`),
+        adminFetch<{ errors: ErrorEntry[] }>(`/api/admin/stats/errors?days=${days}`),
         adminFetch<SystemInfo>("/api/admin/system"),
         adminFetch<KeysInfo>("/api/admin/keys"),
       ]);
       setRequestStats(req);
       setUserStats(usr);
-      setErrorStats(err);
+      setErrorStats(err.errors || []);
       setSystemInfo(sys);
       setKeysInfo(keys);
     } catch (e) {
@@ -117,6 +102,9 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
   }, [adminFetch, days]);
 
   useEffect(() => { load(); }, [load]);
+
+  const totalRequests = requestStats?.per_day.reduce((s, d) => s + d.count, 0) ?? 0;
+  const totalErrors = errorStats.reduce((s, e) => s + e.count, 0);
 
   return (
     <div className="space-y-6">
@@ -158,17 +146,19 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Uptime" value={formatUptime(systemInfo.uptime_seconds)} />
             <StatCard label="Version" value={systemInfo.version} />
-            <StatCard label="Cache Entries" value={systemInfo.cache_entries} />
+            <StatCard label="Cache Entries" value={systemInfo.cache.entries} />
             <StatCard
               label="Last Refresh"
-              value={systemInfo.last_refresh ? formatDate(systemInfo.last_refresh) : "N/A"}
+              value={systemInfo.cache.last_refresh
+                ? new Date(systemInfo.cache.last_refresh * 1000).toLocaleTimeString()
+                : "N/A"}
             />
           </div>
         </section>
       )}
 
       {/* Integration Health */}
-      {systemInfo?.integrations && systemInfo.integrations.length > 0 && (
+      {systemInfo?.integrations && (
         <section>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
             Integration Health
@@ -179,16 +169,16 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2 text-text-secondary font-medium">Integration</th>
                   <th className="text-left px-3 py-2 text-text-secondary font-medium">Status</th>
-                  <th className="text-left px-3 py-2 text-text-secondary font-medium">Last Check</th>
+                  <th className="text-left px-3 py-2 text-text-secondary font-medium">Last Success</th>
                 </tr>
               </thead>
               <tbody>
-                {systemInfo.integrations.map((int) => (
-                  <tr key={int.name} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 text-text-primary">{int.name}</td>
-                    <td className="px-3 py-2"><StatusBadge status={int.status} /></td>
-                    <td className="px-3 py-2 text-text-secondary">
-                      {int.last_check ? formatDate(int.last_check) : "—"}
+                {Object.entries(systemInfo.integrations).map(([name, info]) => (
+                  <tr key={name} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 text-text-primary">{name}</td>
+                    <td className="px-3 py-2"><StatusBadge status={info.status} /></td>
+                    <td className="px-3 py-2 text-text-secondary text-xs">
+                      {info.last_success || "—"}
                     </td>
                   </tr>
                 ))}
@@ -204,20 +194,15 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
             Requests (last {days}d)
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-            <StatCard label="Total Requests" value={requestStats.total_requests.toLocaleString()} />
-            {errorStats && (
-              <StatCard label="Total Errors" value={errorStats.total_errors.toLocaleString()} />
-            )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            <StatCard label="Total Requests" value={totalRequests.toLocaleString()} />
+            <StatCard label="Total Errors" value={totalErrors.toLocaleString()} />
             {keysInfo && (
-              <StatCard
-                label="Registered Keys"
-                value={`${keysInfo.total_keys} / ${keysInfo.total_members}`}
-              />
+              <StatCard label="Registered Keys" value={`${keysInfo.registered_count} / ${keysInfo.total_faction_members}`} />
             )}
           </div>
 
-          {requestStats.top_endpoints.length > 0 && (
+          {requestStats.per_endpoint.length > 0 && (
             <div className="bg-bg-surface border border-border rounded overflow-hidden">
               <div className="px-3 py-2 border-b border-border text-xs text-text-secondary font-medium uppercase tracking-wide">
                 Top Endpoints
@@ -227,13 +212,15 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
                   <tr className="border-b border-border">
                     <th className="text-left px-3 py-2 text-text-secondary font-medium">Endpoint</th>
                     <th className="text-right px-3 py-2 text-text-secondary font-medium">Requests</th>
+                    <th className="text-right px-3 py-2 text-text-secondary font-medium">Avg ms</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requestStats.top_endpoints.slice(0, 10).map((ep) => (
+                  {requestStats.per_endpoint.slice(0, 10).map((ep) => (
                     <tr key={ep.endpoint} className="border-b border-border last:border-0">
                       <td className="px-3 py-2 text-text-primary font-mono text-xs">{ep.endpoint}</td>
                       <td className="px-3 py-2 text-right text-text-primary">{ep.count.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-text-secondary">{Math.round(ep.avg_response_ms)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -244,7 +231,7 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
       )}
 
       {/* User Activity */}
-      {userStats && userStats.members.length > 0 && (
+      {userStats && userStats.users.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
             User Activity (last {days}d)
@@ -259,11 +246,11 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
                 </tr>
               </thead>
               <tbody>
-                {userStats.members.slice(0, 20).map((m, i) => (
+                {userStats.users.slice(0, 20).map((m, i) => (
                   <tr key={m.player_id} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 text-text-secondary">{i + 1}</td>
                     <td className="px-3 py-2 text-text-primary">
-                      {m.name}
+                      {m.player_name}
                       <span className="ml-1 text-xs text-text-secondary">[{m.player_id}]</span>
                     </td>
                     <td className="px-3 py-2 text-right text-text-primary">{m.request_count.toLocaleString()}</td>
@@ -276,23 +263,25 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
       )}
 
       {/* Error Stats */}
-      {errorStats && errorStats.errors_by_endpoint.length > 0 && (
+      {errorStats.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
-            Errors by Endpoint (last {days}d)
+            Errors (last {days}d)
           </h2>
           <div className="bg-bg-surface border border-border rounded overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2 text-text-secondary font-medium">Endpoint</th>
-                  <th className="text-right px-3 py-2 text-text-secondary font-medium">Errors</th>
+                  <th className="text-right px-3 py-2 text-text-secondary font-medium">Status</th>
+                  <th className="text-right px-3 py-2 text-text-secondary font-medium">Count</th>
                 </tr>
               </thead>
               <tbody>
-                {errorStats.errors_by_endpoint.slice(0, 10).map((ep) => (
-                  <tr key={ep.endpoint} className="border-b border-border last:border-0">
+                {errorStats.slice(0, 10).map((ep, i) => (
+                  <tr key={`${ep.endpoint}-${ep.status_code}-${i}`} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 text-text-primary font-mono text-xs">{ep.endpoint}</td>
+                    <td className="px-3 py-2 text-right text-text-secondary">{ep.status_code}</td>
                     <td className="px-3 py-2 text-right text-red-400">{ep.count.toLocaleString()}</td>
                   </tr>
                 ))}
