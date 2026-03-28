@@ -41,6 +41,11 @@ const NAV_SECTIONS: NavSection[] = [
         icon: "\uD83D\uDCC8",
       },
       {
+        label: "Market",
+        href: "/market",
+        icon: "\uD83D\uDED2",
+      },
+      {
         label: "Spy Central",
         href: "/spy",
         icon: "\uD83D\uDD0D",
