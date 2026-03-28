@@ -66,6 +66,7 @@ export const api = {
   targetsRemove: (playerId: number) =>
     apiFetch<unknown>(`/api/targets/${playerId}`, { method: 'DELETE' }),
   lootTimers: () => apiFetch<unknown>('/api/loot'),
+  revives: () => apiFetch<unknown>('/api/revives'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),

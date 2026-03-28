@@ -3,6 +3,7 @@ import time
 import logging
 from fastapi import APIRouter, HTTPException, Query
 from api.db.repos.attacks import AttackRepository
+from api.config import FACTION_ID
 
 logger = logging.getLogger("tm-hub.chain")
 
@@ -178,6 +179,7 @@ async def list_chains(force: bool = Query(default=False)):
         "chains": chains,
         "total_chains": len(chains),
         "attacks_in_db": attack_repo.get_count(),
+        "faction_id": FACTION_ID,
     }
 
 
