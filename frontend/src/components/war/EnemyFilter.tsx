@@ -25,7 +25,7 @@ const OPTIONS: { value: EnemyFilterValue; label: string }[] = [
 export function EnemyFilter({ value, onChange }: EnemyFilterProps) {
   return (
     <select
-      className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-sm text-text-primary"
+      className="bg-bg-elevated border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary appearance-none focus:outline-none focus:border-torn-green/50 transition-colors"
       value={value}
       onChange={(e) => onChange(e.target.value as EnemyFilterValue)}
     >
