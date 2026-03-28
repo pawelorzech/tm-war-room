@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
+import { RefreshButton } from '@/components/layout/RefreshButton';
 
 /* ── Types ── */
 
@@ -111,10 +112,10 @@ export default function ChainPage() {
   const [sortCol, setSortCol] = useState<DetailSort>('total_respect');
   const [sortAsc, setSortAsc] = useState(false);
 
-  useEffect(() => {
+  const loadData = (force?: boolean) => {
     setLoading(true);
     Promise.all([
-      api.chainList(),
+      api.chainList(force),
       api.chainRecent(100),
     ]).then(([c, a]) => {
       const chainData = c as { chains: ChainSummary[]; attacks_in_db: number };
@@ -122,7 +123,9 @@ export default function ChainPage() {
       setAttacksInDb(chainData.attacks_in_db);
       setRecent((a as { attacks: RecentAttack[] }).attacks);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   const openChain = (chain: ChainSummary) => {
     setSelectedChain(chain);
@@ -157,12 +160,15 @@ export default function ChainPage() {
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Chain Tracker</h1>
-          <p className="text-text-secondary text-sm mt-1">
-            Detected chains, per-member breakdown, and recent attacks.
-            {attacksInDb > 0 && <span className="ml-2 text-text-muted">({attacksInDb.toLocaleString()} attacks in DB)</span>}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Chain Tracker</h1>
+            <p className="text-text-secondary text-sm mt-1">
+              Detected chains, per-member breakdown, and recent attacks.
+              {attacksInDb > 0 && <span className="ml-2 text-text-muted">({attacksInDb.toLocaleString()} attacks in DB)</span>}
+            </p>
+          </div>
+          <RefreshButton onRefresh={() => loadData(true)} />
         </div>
 
         <PageExplainer id="chain" title="Chain Tracker — What's here?" bullets={[
@@ -232,13 +238,11 @@ function ChainListView({ chains, onSelect }: { chains: ChainSummary[]; onSelect:
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-bold text-text-primary">
-                  {c.max_chain.toLocaleString()}-hit chain
+                  Chain #{c.max_chain.toLocaleString()}
                 </span>
-                {c.max_chain >= 100 && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-torn-green/20 text-torn-green uppercase tracking-wider">
-                    {c.max_chain >= 1000 ? 'mega' : c.max_chain >= 250 ? 'big' : 'nice'}
-                  </span>
-                )}
+                <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-bg-elevated text-text-secondary">
+                  {c.hits} {c.hits === 1 ? 'hit' : 'hits'} logged
+                </span>
               </div>
               <p className="text-xs text-text-muted mt-0.5">
                 {fmtDate(c.start_ts)} — {fmtDuration(c.duration)}
@@ -311,7 +315,7 @@ function ChainDetailView({
       <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h2 className="text-xl font-bold">{chain.max_chain.toLocaleString()}-hit chain</h2>
+            <h2 className="text-xl font-bold">Chain #{chain.max_chain.toLocaleString()} <span className="text-sm font-normal text-text-secondary">({chain.hits} hits logged)</span></h2>
             <p className="text-xs text-text-muted mt-0.5">{fmtDate(chain.start_ts)} — {fmtDuration(chain.duration)}</p>
           </div>
           <div className="text-right">

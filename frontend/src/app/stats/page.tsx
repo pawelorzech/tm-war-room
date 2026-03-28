@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import dynamic from 'next/dynamic';
 import { PageExplainer } from '@/components/layout/PageExplainer';
+import { RefreshButton } from '@/components/layout/RefreshButton';
 
 const StatGrowthChart = dynamic(
   () => import('@/components/stats/StatGrowthChart').then(m => ({ default: m.StatGrowthChart })),
@@ -52,7 +53,7 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
     const pid = selectedPlayer || playerId;
     if (!pid) return;
     setLoading(true);
@@ -67,16 +68,21 @@ export default function StatsPage() {
     }).finally(() => setLoading(false));
   }, [playerId, selectedPlayer]);
 
+  useEffect(() => { loadStats(); }, [loadStats]);
+
   const currentPid = selectedPlayer || playerId;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Stat Growth</h1>
-          <p className="text-text-secondary text-sm mt-1">
-            Track battle stat progress over time. Data collected daily at 4:00 UTC.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Stat Growth</h1>
+            <p className="text-text-secondary text-sm mt-1">
+              Track battle stat progress over time. Data collected daily at 4:00 UTC.
+            </p>
+          </div>
+          <RefreshButton onRefresh={loadStats} />
         </div>
 
         <PageExplainer id="stats" title="Stat Growth — What's here?" bullets={[

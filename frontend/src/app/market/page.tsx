@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
+import { RefreshButton } from '@/components/layout/RefreshButton';
 
 interface MarketItem {
   item_id: number;
@@ -52,10 +53,13 @@ export default function MarketPage() {
               Live prices for key training and war items from the Item Market.
             </p>
           </div>
-          <button onClick={load} disabled={loading}
-                  className="px-4 py-2 bg-torn-green text-white text-sm font-semibold rounded-lg hover:bg-torn-green/90 transition-colors disabled:opacity-50">
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            <RefreshButton onRefresh={load} />
+            <button onClick={load} disabled={loading}
+                    className="px-4 py-2 bg-torn-green text-white text-sm font-semibold rounded-lg hover:bg-torn-green/90 transition-colors disabled:opacity-50">
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         <PageExplainer id="market" title="Market Scanner — What's here?" bullets={[

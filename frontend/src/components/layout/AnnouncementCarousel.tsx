@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Announcement } from "@/types/admin";
 
 const typeStyles: Record<Announcement["type"], string> = {
-  alert: "bg-red-950/50 border-red-500/60 text-red-200",
-  warning: "bg-yellow-950/30 border-yellow-600/50 text-yellow-200",
-  info: "bg-blue-950/30 border-blue-500/40 text-blue-200",
-  success: "bg-green-950/30 border-green-500/40 text-green-200",
+  alert: "banner-alert",
+  warning: "banner-warning",
+  info: "banner-info",
+  success: "banner-success",
 };
 
 const typeIcons: Record<Announcement["type"], string> = {
