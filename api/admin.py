@@ -5,7 +5,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
 
-from api.config import ADMIN_PLAYER_IDS, JWT_SECRET, APP_VERSION
+from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
 from api.auth import create_jwt, decode_jwt, rate_limiter
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -33,10 +33,19 @@ async def require_admin(request: Request) -> dict:
     payload = decode_jwt(token, JWT_SECRET)
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if payload["sub"] not in ADMIN_PLAYER_IDS:
+    pid = payload["sub"]
+    if pid != SUPERADMIN_ID and not _key_store.is_admin(pid):
         raise HTTPException(status_code=403, detail="Not an admin")
-    if not rate_limiter.check(f"admin:{payload['sub']}", max_requests=60):
+    if not rate_limiter.check(f"admin:{pid}", max_requests=60):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    payload["role"] = "superadmin" if pid == SUPERADMIN_ID else "admin"
+    return payload
+
+
+async def require_superadmin(request: Request) -> dict:
+    payload = await require_admin(request)
+    if payload["role"] != "superadmin":
+        raise HTTPException(status_code=403, detail="Superadmin only")
     return payload
 
 
@@ -45,7 +54,7 @@ async def create_session(request: Request, x_player_id: int = Header()):
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.check(f"session:{client_ip}", max_requests=5):
         raise HTTPException(status_code=429, detail="Too many attempts, try again later")
-    if x_player_id not in ADMIN_PLAYER_IDS:
+    if x_player_id != SUPERADMIN_ID and not _key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Not an admin")
     all_keys = _key_store.get_all_keys()
     user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
@@ -126,3 +135,26 @@ async def admin_system(admin: dict = Depends(require_admin)):
         },
         "integrations": integrations,
     }
+
+
+@router.get("/admins")
+async def list_admins(admin: dict = Depends(require_admin)):
+    admins = _key_store.get_admins()
+    return {"admins": admins, "superadmin_id": SUPERADMIN_ID}
+
+
+@router.post("/admins/{player_id}")
+async def promote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
+    all_keys = _key_store.get_all_keys()
+    if not any(k["player_id"] == player_id for k in all_keys):
+        raise HTTPException(status_code=404, detail="Player not registered")
+    if player_id == SUPERADMIN_ID:
+        raise HTTPException(status_code=400, detail="Superadmin cannot be promoted")
+    _key_store.promote_admin(player_id, admin["sub"])
+    return {"status": "ok", "promoted": player_id}
+
+
+@router.delete("/admins/{player_id}")
+async def demote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
+    _key_store.demote_admin(player_id)
+    return {"status": "ok", "demoted": player_id}
