@@ -1,6 +1,6 @@
 [project]
 name = "tm-war-room"
-version = "0.1.0"
+version = "0.2.0"
 description = "RW prep dashboard for The Masters faction"
 requires-python = ">=3.12"
 dependencies = [
