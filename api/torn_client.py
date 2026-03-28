@@ -149,7 +149,10 @@ class TornClient:
         """
         cached = self._get_cached("yata_members", ttl=YATA_CACHE_TTL)
         if cached is not None:
-            return cached
+            return cached if cached != "_yata_down" else None
+        # Negative cache: don't hammer YATA if it just failed
+        if self._get_cached("yata_down", ttl=60) is not None:
+            return None
         key = api_key or self._api_key
         start = time.time()
         try:
@@ -162,6 +165,7 @@ class TornClient:
             data = await _json(resp)
             if "error" in data:
                 self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, "API error response")
+                self._set_cached("yata_down", True)
                 return None
             self._log_integration("yata", "/api/v1/faction/members/", True, (time.time() - start) * 1000)
             members = data.get("members", data)  # YATA wraps members under "members" key
@@ -169,6 +173,7 @@ class TornClient:
             return members
         except Exception as e:
             self._log_integration("yata", "/api/v1/faction/members/", False, (time.time() - start) * 1000, str(e))
+            self._set_cached("yata_down", True)
             return None
 
     async def fetch_enemy_members(self, faction_id: int) -> list[FactionMember]:

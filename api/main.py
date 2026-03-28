@@ -208,29 +208,27 @@ async def members_detail(x_player_id: int = Header()):
     else:
         return {"yata_down": False, "members": {}, "cached_at": int(time.time())}
 
-    # Fetch YATA data (try faction key first, fallback to any registered key)
+    # Fetch YATA data (single attempt with one fallback key, no loop)
     yata_data = await torn_client.fetch_yata_members()
-    if yata_data is None:
-        already_tried = torn_client._api_key
-        for entry in all_keys:
-            if entry["api_key"] == already_tried:
-                continue
-            yata_data = await torn_client.fetch_yata_members(api_key=entry["api_key"])
-            if yata_data is not None:
-                break
+    if yata_data is None and all_keys:
+        fallback_key = next((k["api_key"] for k in all_keys if k["api_key"] != torn_client._api_key), None)
+        if fallback_key:
+            yata_data = await torn_client.fetch_yata_members(api_key=fallback_key)
     yata_down = yata_data is None
 
-    # Fetch per-key data for registered members
-    per_key = {}
-    for entry in all_keys:
-        pid = entry["player_id"]
-        if pid not in visible_ids:
-            continue
+    # Fetch per-key data for registered members (parallel)
+    import asyncio
+    visible_keys = [(e["player_id"], e["api_key"]) for e in all_keys if e["player_id"] in visible_ids]
+
+    async def _fetch_bars(pid: int, api_key: str) -> tuple[int, Any]:
         try:
-            bars = await torn_client.fetch_member_bars(entry["api_key"])
-            per_key[pid] = bars
+            bars = await torn_client.fetch_member_bars(api_key)
+            return pid, bars
         except Exception:
-            pass
+            return pid, None
+
+    bar_results = await asyncio.gather(*[_fetch_bars(pid, key) for pid, key in visible_keys])
+    per_key = {pid: bars for pid, bars in bar_results if bars is not None}
 
     # Merge: per-key wins, then YATA, then status flags
     result = {}
