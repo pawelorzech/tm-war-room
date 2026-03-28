@@ -23,10 +23,10 @@ function getReadiness(
 }
 
 const DOT_COLORS: Record<Readiness, string> = {
-  green: "bg-green-500",
-  yellow: "bg-yellow-500",
-  red: "bg-red-500",
-  gray: "bg-gray-500",
+  green: "bg-green-500 text-green-500",
+  yellow: "bg-yellow-500 text-yellow-500",
+  red: "bg-red-500 text-red-500",
+  gray: "bg-gray-500 text-gray-500",
 };
 
 const NAME_COLORS: Record<Readiness, string> = {
@@ -158,8 +158,8 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
 
   return (
     <div
-      className={`bg-bg-surface border rounded-lg p-3 cursor-pointer transition-all ${
-        expanded ? EXPANDED_BORDER[r] : "border-border"
+      className={`bg-bg-surface border rounded-lg p-3 cursor-pointer transition-all duration-200 active:scale-[0.99] ${
+        expanded ? `${EXPANDED_BORDER[r]} bg-bg-elevated/30` : "border-border hover:border-border-light"
       }`}
       onClick={() => setExpanded(!expanded)}
     >
@@ -167,7 +167,8 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <span
-            className={`w-2 h-2 rounded-full shrink-0 ${DOT_COLORS[r]}`}
+            className={`w-2.5 h-2.5 rounded-full shrink-0 ${DOT_COLORS[r]}`}
+            style={{ animation: r === "green" ? "tm-dot-glow 2s ease-in-out infinite" : undefined }}
           />
           <a
             href={`https://www.torn.com/profiles.php?XID=${m.id}`}
@@ -184,7 +185,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
           {needsBounty && (
             <button
               onClick={copyBounty}
-              className="text-xs px-1.5 py-0.5 bg-bg-elevated rounded hover:bg-border transition-colors"
+              className="text-xs px-1.5 py-0.5 bg-bg-elevated rounded hover:bg-border transition-colors active:scale-95"
               title="Copy bounty request"
             >
               {"\uD83D\uDCCB"}
@@ -197,7 +198,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
       </div>
 
       {/* Row 2: status chips */}
-      <div className="flex items-center gap-3 mt-1.5 text-xs flex-wrap">
+      <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
         {stateNode}
         {energyNode}
         {cdNode}
@@ -206,7 +207,10 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
 
       {/* Expanded details */}
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-border text-xs text-text-secondary space-y-1">
+        <div
+          className="mt-3 pt-3 border-t border-border text-xs text-text-secondary space-y-1.5"
+          style={{ animation: "tm-expand 0.25s ease-out" }}
+        >
           <div>
             <span className="text-text-muted">Position:</span> {m.position}
           </div>
@@ -232,12 +236,12 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
               <span className="text-torn-yellow">{m.status.details}</span>
             </div>
           )}
-          <div className="pt-1">
+          <div className="pt-1.5">
             <a
               href={`https://www.torn.com/profiles.php?XID=${m.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-torn-blue hover:underline"
+              className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
               View Profile {"\u2197"}

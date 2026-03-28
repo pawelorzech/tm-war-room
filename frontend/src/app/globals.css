@@ -54,3 +54,38 @@
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
 }
+
+@keyframes tm-war-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(63, 185, 80, 0.15), inset 0 0 8px rgba(63, 185, 80, 0.05); }
+  50% { box-shadow: 0 0 20px rgba(63, 185, 80, 0.3), inset 0 0 16px rgba(63, 185, 80, 0.08); }
+}
+
+@keyframes tm-alert-border {
+  0%, 100% { box-shadow: 0 0 6px rgba(248, 81, 73, 0.3), inset 0 0 4px rgba(248, 81, 73, 0.05); border-color: rgba(248, 81, 73, 0.6); }
+  50% { box-shadow: 0 0 18px rgba(248, 81, 73, 0.5), inset 0 0 8px rgba(248, 81, 73, 0.1); border-color: rgba(248, 81, 73, 0.9); }
+}
+
+@keyframes tm-countdown-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes tm-progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes tm-expand {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+
+@keyframes tm-carousel-slide-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes tm-dot-glow {
+  0%, 100% { box-shadow: 0 0 3px currentColor; }
+  50% { box-shadow: 0 0 8px currentColor, 0 0 12px currentColor; }
+}

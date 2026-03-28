@@ -17,24 +17,33 @@ const THREAT_COLORS: Record<string, string> = {
   unknown: "bg-bg-elevated text-text-muted border-border",
 };
 
+const THREAT_GLOW: Record<string, string> = {
+  easy: "0 0 8px rgba(74, 222, 128, 0.2)",
+  medium: "0 0 8px rgba(250, 204, 21, 0.2)",
+  hard: "0 0 8px rgba(248, 113, 113, 0.2)",
+  avoid: "0 0 8px rgba(192, 132, 252, 0.25)",
+  unknown: "none",
+};
+
 export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
   const [expanded, setExpanded] = useState(false);
   const now = Math.floor(Date.now() / 1000);
 
   const ok =
     m.last_action.status !== "Offline" && m.status.state === "Okay";
+  const isHosp = m.status.state === "Hospital";
   const dotColor = ok
-    ? "bg-green-500"
-    : m.status.state === "Hospital"
-      ? "bg-yellow-500"
-      : "bg-red-500";
+    ? "bg-green-500 text-green-500"
+    : isHosp
+      ? "bg-yellow-500 text-yellow-500"
+      : "bg-red-500 text-red-500";
 
   // State
   let stateNode: React.ReactNode;
-  if (m.status.state === "Hospital") {
+  if (isHosp) {
     const left = m.status.until ? fmtCD(m.status.until - now) : "";
     stateNode = (
-      <span className="text-torn-yellow">
+      <span className="text-torn-yellow font-mono text-[11px]">
         {"\uD83C\uDFE5"} {left}
       </span>
     );
@@ -47,17 +56,19 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
   }
 
   // Threat badge
+  const threatLabel = m.threat_label || "unknown";
   const threatNode = hasBaseline ? (
     <span
-      className={`rounded px-2 py-0.5 text-xs font-medium border ${
-        THREAT_COLORS[m.threat_label] || THREAT_COLORS.unknown
+      className={`rounded-md px-2 py-0.5 text-xs font-semibold border ${
+        THREAT_COLORS[threatLabel] || THREAT_COLORS.unknown
       }`}
+      style={{ boxShadow: THREAT_GLOW[threatLabel] || THREAT_GLOW.unknown }}
     >
       {m.threat_label} {m.threat_score}
     </span>
   ) : (
     <span
-      className={`rounded px-2 py-0.5 text-xs font-medium border cursor-pointer ${THREAT_COLORS.unknown}`}
+      className={`rounded-md px-2 py-0.5 text-xs font-medium border cursor-pointer ${THREAT_COLORS.unknown}`}
     >
       add key
     </span>
@@ -67,15 +78,18 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
 
   return (
     <div
-      className={`bg-bg-surface border rounded-lg p-3 cursor-pointer transition-all ${
-        expanded ? "border-border" : "border-border"
+      className={`bg-bg-surface border rounded-lg p-3 cursor-pointer transition-all duration-200 active:scale-[0.99] ${
+        expanded ? "border-border bg-bg-elevated/30" : "border-border hover:border-border-light"
       }`}
       onClick={() => setExpanded(!expanded)}
     >
       {/* Row 1 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+          <span
+            className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`}
+            style={ok ? { boxShadow: "0 0 6px currentColor" } : undefined}
+          />
           <span className="font-medium text-text-primary truncate">
             {m.name}
           </span>
@@ -85,28 +99,31 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
       </div>
 
       {/* Row 2 */}
-      <div className="flex items-center justify-between mt-1.5">
+      <div className="flex items-center justify-between mt-2">
         <span className="text-xs">{stateNode}</span>
         <a
           href={m.attack_url}
           target="_blank"
           rel="noopener noreferrer"
-          className={`text-xs px-3 py-1 rounded font-medium transition-colors ${
-            m.status.state === "Hospital"
+          className={`text-xs px-4 py-1.5 rounded-md font-semibold transition-all active:scale-95 ${
+            isHosp
               ? "bg-bg-elevated text-text-muted border border-border"
-              : "bg-torn-green/20 text-torn-green border border-torn-green/30 hover:bg-torn-green/30"
+              : "bg-torn-green/20 text-torn-green border border-torn-green/30 hover:bg-torn-green/30 hover:shadow-[0_0_12px_rgba(63,185,80,0.2)]"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          Attack
+          {isHosp ? "In Hosp" : "Attack"}
         </a>
       </div>
 
       {/* Expanded */}
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-border text-xs text-text-secondary">
+        <div
+          className="mt-3 pt-3 border-t border-border text-xs text-text-secondary"
+          style={{ animation: "tm-expand 0.25s ease-out" }}
+        >
           {ps ? (
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
               <div>
                 <span className="text-text-muted">Xanax:</span>{" "}
                 {ps.xanax_taken.toLocaleString()}
@@ -153,12 +170,12 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
               No TornStats data available
             </div>
           )}
-          <div className="flex gap-3 mt-2 pt-2 border-t border-border">
+          <div className="flex gap-4 mt-2.5 pt-2.5 border-t border-border">
             <a
               href={m.stats_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-torn-blue hover:underline"
+              className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
               Stats {"\u2197"}
@@ -167,7 +184,7 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
               href={m.profile_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-torn-blue hover:underline"
+              className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
               Profile {"\u2197"}

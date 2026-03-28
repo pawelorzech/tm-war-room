@@ -42,6 +42,13 @@ function getOurSortValue(
   }
 }
 
+const DOT_GLOW: Record<Readiness, string> = {
+  green: "text-green-500",
+  yellow: "text-yellow-500",
+  red: "text-red-500",
+  gray: "text-gray-500",
+};
+
 export function MemberTable({ members, detail, overview }: MemberTableProps) {
   const [sort, setSort] = useState<SortState>({ col: null, asc: true });
 
@@ -132,19 +139,21 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
       )}
 
       {/* Summary */}
-      <div className="text-sm text-text-secondary mb-3">
-        <span className="text-torn-green">{online}</span> online,{" "}
-        <span className="text-torn-yellow">{hospital}</span> hospital,{" "}
-        <span className="text-torn-red">{offline}</span> offline/away{" "}
-        {"\u2014"}{" "}
-        <span className="text-torn-green">{withData}</span>/
-        {visible || members.length} with data {"\u2014"} {inOc} in OC
+      <div className="text-sm text-text-secondary mb-3 flex flex-wrap items-center gap-x-1">
+        <span className="text-torn-green font-medium">{online}</span> <span>online,</span>{" "}
+        <span className="text-torn-yellow font-medium">{hospital}</span> <span>hospital,</span>{" "}
+        <span className="text-torn-red font-medium">{offline}</span> <span>offline/away</span>{" "}
+        <span className="text-text-muted">{"\u2014"}</span>{" "}
+        <span className="text-torn-green font-medium">{withData}</span>
+        <span>/{visible || members.length} with data</span>{" "}
+        <span className="text-text-muted">{"\u2014"}</span>{" "}
+        <span>{inOc} in OC</span>
       </div>
 
       {/* Mobile sort dropdown */}
       <div className="lg:hidden mb-3">
         <select
-          className="bg-bg-elevated border border-border rounded px-2 py-1.5 text-sm text-text-primary w-full"
+          className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full appearance-none focus:outline-none focus:border-torn-green/50 transition-colors"
           value={sort.col || "readiness"}
           onChange={(e) => mobileSortChange(e.target.value)}
         >
@@ -172,48 +181,48 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
       <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-text-muted text-xs">
-              <th className="py-2 px-2 w-6"></th>
+            <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+              <th className="py-2.5 px-2 w-6"></th>
               <th
-                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
                 onClick={() => toggleSort("name")}
               >
                 Name
                 <SortArrow col="name" />
               </th>
-              <th className="py-2 px-2 w-6"></th>
+              <th className="py-2.5 px-2 w-6"></th>
               <th
-                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
                 onClick={() => toggleSort("level")}
               >
                 Lvl
                 <SortArrow col="level" />
               </th>
               <th
-                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
                 onClick={() => toggleSort("state")}
               >
                 Status
                 <SortArrow col="state" />
               </th>
-              <th className="py-2 px-2">Last Action</th>
+              <th className="py-2.5 px-2">Last Action</th>
               <th
-                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
                 onClick={() => toggleSort("energy")}
               >
                 Energy
                 <SortArrow col="energy" />
               </th>
-              <th className="py-2 px-2">Drug CD</th>
+              <th className="py-2.5 px-2">Drug CD</th>
               <th
-                className="py-2 px-2 cursor-pointer hover:text-text-primary transition-colors"
+                className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
                 onClick={() => toggleSort("position")}
               >
                 Position
                 <SortArrow col="position" />
               </th>
-              <th className="py-2 px-2">Revive</th>
-              <th className="py-2 px-2">OC</th>
+              <th className="py-2.5 px-2">Revive</th>
+              <th className="py-2.5 px-2">OC</th>
             </tr>
           </thead>
           <tbody>
@@ -372,11 +381,11 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
               return (
                 <tr
                   key={m.id}
-                  className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors"
+                  className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors group"
                 >
-                  <td className="py-1.5 px-2">
+                  <td className="py-2 px-2">
                     <span
-                      className={`w-2 h-2 rounded-full inline-block ${
+                      className={`w-2.5 h-2.5 rounded-full inline-block ${DOT_GLOW[r]} ${
                         r === "green"
                           ? "bg-green-500"
                           : r === "yellow"
@@ -385,9 +394,14 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                               ? "bg-red-500"
                               : "bg-gray-500"
                       }`}
+                      style={
+                        r !== "gray"
+                          ? { boxShadow: `0 0 6px currentColor` }
+                          : undefined
+                      }
                     />
                   </td>
-                  <td className="py-1.5 px-2">
+                  <td className="py-2 px-2">
                     <a
                       href={`https://www.torn.com/profiles.php?XID=${m.id}`}
                       target="_blank"
@@ -397,36 +411,36 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                       {m.name}
                     </a>
                     {isNew && (
-                      <span className="ml-1 text-[10px] bg-torn-green/20 text-torn-green px-1 py-0.5 rounded">
+                      <span className="ml-1.5 text-[10px] bg-torn-green/20 text-torn-green px-1 py-0.5 rounded font-medium">
                         new
                       </span>
                     )}
                   </td>
-                  <td className="py-1.5 px-2">
+                  <td className="py-2 px-2">
                     {needsBounty && (
                       <button
                         onClick={() => copyBounty(m.name, m.id)}
-                        className="text-xs px-1 py-0.5 bg-bg-elevated rounded hover:bg-border transition-colors"
+                        className="text-xs px-1 py-0.5 bg-bg-elevated rounded hover:bg-border transition-colors active:scale-95"
                         title="Copy bounty request"
                       >
                         {"\uD83D\uDCCB"}
                       </button>
                     )}
                   </td>
-                  <td className="py-1.5 px-2 text-text-muted">
+                  <td className="py-2 px-2 text-text-muted">
                     {m.level}
                   </td>
-                  <td className="py-1.5 px-2">{stateNode}</td>
-                  <td className="py-1.5 px-2 text-text-muted">
+                  <td className="py-2 px-2">{stateNode}</td>
+                  <td className="py-2 px-2 text-text-muted">
                     {m.last_action.relative}
                   </td>
-                  <td className="py-1.5 px-2">{energyNode}</td>
-                  <td className="py-1.5 px-2">{cdNode}</td>
-                  <td className="py-1.5 px-2 text-text-muted">
+                  <td className="py-2 px-2">{energyNode}</td>
+                  <td className="py-2 px-2">{cdNode}</td>
+                  <td className="py-2 px-2 text-text-muted">
                     {m.position}
                   </td>
-                  <td className="py-1.5 px-2">{reviveNode}</td>
-                  <td className="py-1.5 px-2">
+                  <td className="py-2 px-2">{reviveNode}</td>
+                  <td className="py-2 px-2">
                     {m.is_in_oc ? (
                       <span className="text-torn-green">{"\u2713"}</span>
                     ) : (
