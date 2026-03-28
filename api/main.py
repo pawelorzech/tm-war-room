@@ -310,14 +310,17 @@ class KeyRegister(BaseModel):
 
 @app.post("/api/keys")
 async def register_key(body: KeyRegister):
-    resp = await torn_client._http.get(
-        "https://api.torn.com/user/",
-        params={"selections": "profile", "key": body.api_key},
-    )
-    resp.raise_for_status()
-    raw = resp.json()
-    if inspect.isawaitable(raw):
-        raw = await raw
+    try:
+        resp = await torn_client._http.get(
+            "https://api.torn.com/user/",
+            params={"selections": "profile", "key": body.api_key},
+        )
+        resp.raise_for_status()
+        raw = resp.json()
+        if inspect.isawaitable(raw):
+            raw = await raw
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to validate key with Torn API: {e}")
     if "error" in raw:
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
     faction = raw.get("faction", {})
