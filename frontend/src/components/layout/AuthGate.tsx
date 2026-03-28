@@ -77,7 +77,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="Paste your API key"
-                className="w-full px-3 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:border-torn-green focus:outline-none transition-all duration-200 focus:[animation:tm-focus-ring_0.3s_ease-out_forwards]"
+                disabled={submitting}
+                className="w-full px-3 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:border-torn-green focus:outline-none transition-all duration-200 focus:[animation:tm-focus-ring_0.3s_ease-out_forwards] disabled:opacity-50 disabled:cursor-not-allowed"
                 autoFocus
               />
               <button

@@ -350,7 +350,7 @@ async def register_key(body: KeyRegister):
     key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
     role = get_role(raw["player_id"])
     logger.info("Key registered: %s [%d] role=%s", raw["name"], raw["player_id"], role)
-    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"]}
+    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"], "role": role}
 
 
 @app.get("/api/announcements")
