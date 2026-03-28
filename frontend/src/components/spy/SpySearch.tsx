@@ -12,19 +12,22 @@ export function SpySearch() {
   const [loading, setLoading] = useState(false);
 
   const handleSearch = async () => {
-    const playerId = parseInt(query.trim(), 10);
-    if (isNaN(playerId) || playerId <= 0) {
-      setError('Enter a valid player ID');
-      return;
-    }
+    const q = query.trim();
+    if (!q) { setError('Enter a player name or ID'); return; }
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const data = await api.spyEstimate(playerId);
+      const isNumeric = /^\d+$/.test(q);
+      let data: SpyEstimate;
+      if (isNumeric) {
+        data = await api.spyEstimate(parseInt(q, 10));
+      } else {
+        data = await api.spySearch(q);
+      }
       setResult(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'No spy data found');
+      setError(e instanceof Error ? e.message : 'Player not found');
     } finally {
       setLoading(false);
     }
@@ -38,7 +41,7 @@ export function SpySearch() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSearch()}
-          placeholder="Player ID (e.g. 2362436)"
+          placeholder="Player name or ID"
           className="flex-1 bg-bg-card border border-text-secondary/30 rounded-lg px-4 py-2.5 text-text-primary text-sm focus:outline-none focus:border-torn-green focus:ring-1 focus:ring-torn-green"
         />
         <button
