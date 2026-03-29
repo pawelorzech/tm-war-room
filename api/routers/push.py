@@ -52,5 +52,9 @@ async def update_preferences(req: PreferencesRequest, x_player_id: int = Header(
 async def unsubscribe(endpoint: str, x_player_id: int = Header()):
     if not push_repo:
         raise HTTPException(status_code=503, detail="Not initialized")
+    # Verify ownership before deleting
+    subs = push_repo.get_by_player(x_player_id)
+    if not any(s["endpoint"] == endpoint for s in subs):
+        raise HTTPException(status_code=403, detail="Not your subscription")
     push_repo.delete_by_endpoint(endpoint)
     return {"status": "unsubscribed"}

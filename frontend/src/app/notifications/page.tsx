@@ -121,7 +121,6 @@ export default function NotificationsPage() {
                 { key: 'loot_level4' as const, label: 'NPC Loot Level 4+', desc: 'When an NPC reaches loot level 4 or higher' },
                 { key: 'war_start' as const, label: 'War Started', desc: 'When a ranked war begins' },
                 { key: 'stakeout_change' as const, label: 'Stakeout Alert', desc: 'When a stakeout target changes status' },
-                { key: 'oc_ready' as const, label: 'OC Ready', desc: 'When organized crime is ready to initiate' },
               ].map(({ key, label, desc }) => (
                 <label key={key} className="flex items-center gap-3 cursor-pointer group">
                   <input
