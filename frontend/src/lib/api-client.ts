@@ -96,6 +96,22 @@ export const api = {
   stockHistory: (stockId: number, days?: number) => apiFetch<unknown>(`/api/stocks/history/${stockId}${days ? `?days=${days}` : ''}`),
   stockROI: () => apiFetch<unknown>('/api/stocks/roi'),
   revives: () => apiFetch<unknown>('/api/revives'),
+  companyCatalog: () => apiFetch<{
+    companies: {
+      id: number; name: string; cost: number; default_employees: number;
+      positions: { name: string; man_required: number; int_required: number; end_required: number; special_ability?: string }[];
+      stock: { name: string; cost: number; rrp: number }[];
+      specials: { name: string; effect: string; cost: number; rating_required: number }[];
+    }[];
+    count: number;
+  }>('/api/company/catalog'),
+  companyFaction: () => apiFetch<{
+    companies: {
+      company_id: number; company_name: string; company_type: number;
+      members: { player_id: number; player_name: string; position: string }[];
+    }[];
+    count: number;
+  }>('/api/company/faction'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),

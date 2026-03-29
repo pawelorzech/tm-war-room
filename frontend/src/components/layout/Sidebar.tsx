@@ -46,6 +46,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Market", href: "/market", icon: "\uD83D\uDED2" },
       { label: "Stocks", href: "/stocks", icon: "\uD83D\uDCC9" },
       { label: "Travel", href: "/travel", icon: "\u2708\uFE0F" },
+      { label: "Companies", href: "/company", icon: "\uD83C\uDFE2" },
     ],
   },
   {
