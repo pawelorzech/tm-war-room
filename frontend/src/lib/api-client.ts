@@ -77,6 +77,9 @@ export const api = {
   ocOverview: (cat?: string) => apiFetch<unknown>(`/api/oc${cat ? `?cat=${cat}` : ''}`),
   warHistory: () => apiFetch<unknown>('/api/wars'),
   bounties: () => apiFetch<unknown>('/api/bounties'),
+  notifications: () => apiFetch<unknown>('/api/notifications'),
+  notificationsUnread: () => apiFetch<unknown>('/api/notifications/unread'),
+  notificationsReadAll: () => apiFetch<unknown>('/api/notifications/read-all', { method: 'POST' }),
   stakeoutList: () => apiFetch<unknown>('/api/stakeout'),
   stakeoutAdd: (data: { player_id: number; player_name?: string; notes?: string }) =>
     apiFetch<unknown>('/api/stakeout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
@@ -84,6 +87,7 @@ export const api = {
     apiFetch<unknown>(`/api/stakeout/${playerId}`, { method: 'DELETE' }),
   stockMarket: () => apiFetch<unknown>('/api/stocks/market'),
   stockPortfolio: () => apiFetch<unknown>('/api/stocks/portfolio'),
+  stockHistory: (stockId: number, days?: number) => apiFetch<unknown>(`/api/stocks/history/${stockId}${days ? `?days=${days}` : ''}`),
   revives: () => apiFetch<unknown>('/api/revives'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),

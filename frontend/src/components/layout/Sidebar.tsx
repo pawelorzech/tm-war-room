@@ -28,6 +28,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Activity", href: "/activity", icon: "\uD83D\uDFE2" },
       { label: "Stakeout", href: "/stakeout", icon: "\uD83D\uDC41\uFE0F" },
       { label: "Bounties", href: "/bounties", icon: "\uD83D\uDCB5" },
+      { label: "Notifications", href: "/notifications", icon: "\uD83D\uDD14" },
     ],
   },
   {

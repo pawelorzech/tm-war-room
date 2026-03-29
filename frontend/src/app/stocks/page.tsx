@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
+
+const StockPriceChart = dynamic(
+  () => import('@/components/stocks/StockPriceChart').then(m => ({ default: m.StockPriceChart })),
+  { ssr: false, loading: () => <div className="h-48 bg-bg-card rounded-lg animate-pulse" /> }
+);
 
 /* ── Types ── */
 
@@ -77,6 +83,9 @@ export default function StocksPage() {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedStock, setSelectedStock] = useState<{ id: number; name: string; acronym: string } | null>(null);
+  const [priceHistory, setPriceHistory] = useState<{ price: number; recorded_at: number }[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -91,6 +100,20 @@ export default function StocksPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const selectStock = (id: number, name: string, acronym: string) => {
+    if (selectedStock?.id === id) {
+      setSelectedStock(null);
+      setPriceHistory([]);
+      return;
+    }
+    setSelectedStock({ id, name, acronym });
+    setChartLoading(true);
+    api.stockHistory(id, 30)
+      .then(d => setPriceHistory((d as { prices: { price: number; recorded_at: number }[] }).prices))
+      .catch(() => setPriceHistory([]))
+      .finally(() => setChartLoading(false));
+  };
 
   const filteredMarket = search
     ? market.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.acronym.toLowerCase().includes(search.toLowerCase()))
@@ -124,6 +147,25 @@ export default function StocksPage() {
             </button>
           ))}
         </div>
+
+        {/* Price chart panel */}
+        {selectedStock && (
+          <div className="bg-bg-card border border-torn-green/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold">
+                <span className="text-torn-green">{selectedStock.acronym}</span>
+                <span className="text-text-secondary ml-1">{selectedStock.name}</span>
+              </h3>
+              <button onClick={() => { setSelectedStock(null); setPriceHistory([]); }}
+                className="text-xs text-text-muted hover:text-text-primary">Close</button>
+            </div>
+            {chartLoading ? (
+              <div className="h-48 bg-bg-elevated rounded-lg animate-pulse" />
+            ) : (
+              <StockPriceChart prices={priceHistory} name={selectedStock.acronym} />
+            )}
+          </div>
+        )}
 
         {loading ? (
           <>
@@ -160,7 +202,8 @@ export default function StocksPage() {
                     </thead>
                     <tbody>
                       {portfolio.holdings.map(h => (
-                        <tr key={h.stock_id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
+                        <tr key={h.stock_id} onClick={() => selectStock(h.stock_id, h.name, h.acronym)}
+                          className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${selectedStock?.id === h.stock_id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3">
                             <span className="font-semibold">{h.acronym}</span>
                             <span className="ml-1.5 text-text-muted text-xs">{h.name}</span>
@@ -221,7 +264,8 @@ export default function StocksPage() {
                     </thead>
                     <tbody>
                       {filteredMarket.map(s => (
-                        <tr key={s.id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
+                        <tr key={s.id} onClick={() => selectStock(s.id, s.name, s.acronym)}
+                          className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${selectedStock?.id === s.id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3">
                             <a href={`https://www.torn.com/stockexchange.php#stock=${s.acronym}`} target="_blank"
                               className="text-text-primary hover:text-torn-green transition-colors">
