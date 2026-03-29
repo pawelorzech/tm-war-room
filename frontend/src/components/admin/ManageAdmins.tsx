@@ -64,6 +64,11 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const promotable = useMemo(() => {
+    const adminIds = new Set([superadminId, ...admins.map((a) => a.player_id)]);
+    return registeredMembers.filter((m) => !adminIds.has(m.player_id));
+  }, [superadminId, admins, registeredMembers]);
+
   if (role !== "superadmin") {
     return (
       <p className="text-text-secondary text-sm">
@@ -71,11 +76,6 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
       </p>
     );
   }
-
-  const promotable = useMemo(() => {
-    const adminIds = new Set([superadminId, ...admins.map((a) => a.player_id)]);
-    return registeredMembers.filter((m) => !adminIds.has(m.player_id));
-  }, [superadminId, admins, registeredMembers]);
 
   const handlePromote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,10 +147,10 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
                 {admins.map((a) => (
                   <tr key={a.player_id} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 text-text-primary">
-                      {a.player_name}
+                      {a.player_name || 'Unknown'}
                       <span className="ml-1 text-xs text-text-secondary">[{a.player_id}]</span>
                     </td>
-                    <td className="px-3 py-2 text-text-secondary text-xs">{formatDateShort(a.granted_at)}</td>
+                    <td className="px-3 py-2 text-text-secondary text-xs">{a.granted_at ? formatDateShort(a.granted_at) : '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
