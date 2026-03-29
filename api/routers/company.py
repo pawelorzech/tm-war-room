@@ -22,9 +22,9 @@ async def company_catalog():
             "name": c.get("name", f"Company {cid}"),
             "cost": c.get("cost", 0),
             "default_employees": c.get("default_employees", 0),
-            "positions": c.get("positions", []),
-            "stock": c.get("stock", []),
-            "specials": c.get("specials", []),
+            "positions": list(c.get("positions", {}).values()) if isinstance(c.get("positions"), dict) else (c.get("positions") or []),
+            "stock": list(c.get("stock", {}).values()) if isinstance(c.get("stock"), dict) else (c.get("stock") or []),
+            "specials": list(c.get("specials", {}).values()) if isinstance(c.get("specials"), dict) else (c.get("specials") or []),
         })
     return {"companies": companies, "count": len(companies)}
 
