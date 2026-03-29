@@ -72,11 +72,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               <label className="block text-text-secondary text-[11px] uppercase tracking-wider font-medium mb-1.5">
                 Torn API Key
               </label>
+              <p className="text-text-muted text-[10px] mb-2 leading-relaxed">
+                Use a <span className="text-torn-green font-semibold">Full Access</span> key for all features.
+                Get it from <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline underline-offset-2">Torn Settings → API Keys</a>.
+                Limited/Minimal keys will show incomplete data.
+              </p>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Paste your API key"
+                placeholder="Paste your Full Access API key"
                 disabled={submitting}
                 className="w-full px-3 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:border-torn-green focus:outline-none transition-all duration-200 focus:[animation:tm-focus-ring_0.3s_ease-out_forwards] disabled:opacity-50 disabled:cursor-not-allowed"
                 autoFocus
