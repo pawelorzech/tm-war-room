@@ -18,6 +18,7 @@ async def create_and_start_scheduler(app_state: dict):
     from apscheduler.triggers.cron import CronTrigger
     from api.scheduler.jobs.collect_stats import run_collect_stats
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
+    from api.scheduler.jobs.refresh_data import run_refresh_data
 
     global _state
     _state = app_state
@@ -28,6 +29,7 @@ async def create_and_start_scheduler(app_state: dict):
     # Register callables explicitly, then reference by task_id
     await scheduler.configure_task("collect_stats", func=run_collect_stats)
     await scheduler.configure_task("refresh_spies", func=run_refresh_spies)
+    await scheduler.configure_task("refresh_data", func=run_refresh_data)
 
     await scheduler.add_schedule(
         "collect_stats",
@@ -39,7 +41,12 @@ async def create_and_start_scheduler(app_state: dict):
         IntervalTrigger(minutes=30),
         id="refresh_spies_schedule",
     )
+    await scheduler.add_schedule(
+        "refresh_data",
+        IntervalTrigger(minutes=2),
+        id="refresh_data_schedule",
+    )
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min)")
+    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min), refresh_data (every 2min)")
     return scheduler

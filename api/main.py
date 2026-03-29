@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
         "spy_service": spy_mod.spy_service,
         "torn_client": torn_client,
         "tornstats_key": TORNSTATS_API_KEY,
+        "attack_repo": attack_repo,
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
