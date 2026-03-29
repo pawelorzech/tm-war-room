@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface TravelItem {
   name: string;
@@ -51,13 +52,24 @@ export default function TravelPage() {
   const [data, setData] = useState<TravelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [travelers, setTravelers] = useState<{ id: number; name: string; status: string }[]>([]);
 
   const loadData = useCallback(() => {
     setLoading(true);
-    api.travelInfo()
-      .then(d => setData(d as TravelData))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.travelInfo(),
+      api.overview().catch(() => null),
+    ]).then(([travel, overview]) => {
+      setData(travel as TravelData);
+      if (overview) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const members = ((overview as any).members || []) as { id: number; name: string; status: string }[];
+        setTravelers(members.filter(m => {
+          const s = (m.status || '').toLowerCase();
+          return s.includes('travel') || s.includes('abroad') || s.includes('returning');
+        }));
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -80,8 +92,23 @@ export default function TravelPage() {
           "Prices update every 5 minutes from Torn API.",
         ]} />
 
+        {/* Currently traveling members */}
+        {travelers.length > 0 && (
+          <div className="bg-bg-card border border-torn-blue/20 rounded-xl p-4">
+            <h2 className="text-sm font-semibold text-torn-blue mb-2">Currently Traveling ({travelers.length})</h2>
+            <div className="flex flex-wrap gap-2">
+              {travelers.map(t => (
+                <a key={t.id} href={`https://www.torn.com/profiles.php?XID=${t.id}`} target="_blank"
+                  className="px-2.5 py-1 text-xs rounded-full bg-torn-blue/10 text-torn-blue hover:bg-torn-blue/20 transition-colors font-medium">
+                  {t.name} <span className="text-torn-blue/60">— {t.status}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading travel data...</p>
+          <CardSkeleton count={4} />
         ) : data ? (
           <div className="space-y-2">
             {data.countries.map(c => {
