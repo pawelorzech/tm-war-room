@@ -134,8 +134,36 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
             svc.refresh_estimate(player_id)
             est = svc.repo.get_estimate(player_id)
     if not est:
+        # Fallback: try personalstats-based estimation
+        if torn_client:
+            try:
+                ps = await torn_client.fetch_personalstats(torn_client._api_key)
+                # We can only estimate for players we can fetch personalstats for
+                # For now, just return 404 — estimation needs the target's personalstats
+                pass
+            except Exception:
+                pass
         raise HTTPException(status_code=404, detail="No spy data available for this player")
-    return _fmt_estimate(est, datetime.now(timezone.utc))
+    result = _fmt_estimate(est, datetime.now(timezone.utc))
+    # Add stat estimate from personalstats if available
+    if torn_client and result.get("confidence") in ("estimate", "unknown"):
+        try:
+            from api.stat_estimator import estimate_stats
+            resp = await torn_client._http.get(
+                "https://api.torn.com/user/",
+                params={"selections": "personalstats,profile", "key": torn_client._api_key, "id": player_id},
+            )
+            if resp.status_code == 200:
+                from api.torn_client import _json
+                raw = await _json(resp)
+                ps_raw = raw.get("personalstats", {})
+                level = raw.get("level", 0)
+                age = raw.get("age", 0)
+                est_data = estimate_stats(ps_raw, level, age)
+                result["stat_estimate"] = est_data
+        except Exception:
+            pass
+    return result
 
 
 @router.post("/submit")
