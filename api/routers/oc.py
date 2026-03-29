@@ -34,13 +34,7 @@ async def oc_overview(cat: str = Query(default="planning")):
     for c in crimes:
         if not isinstance(c, dict):
             continue
-        # Debug: log raw keys and success-related fields for first crime
-        if not parsed:
-            logger.info("OC raw keys: %s", list(c.keys()))
-            # Log first 500 chars of raw crime data for debugging
-            import json
-            raw_str = json.dumps(c, default=str)[:500]
-            logger.info("OC raw first crime: %s", raw_str)
+
 
         participants = []
         slots = c.get("slots", c.get("participants", []))
