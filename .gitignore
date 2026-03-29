@@ -9,3 +9,10 @@ NOTES.md
 frontend/node_modules/
 frontend/out/
 frontend/.next/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+
+# Screenshots and debug files
+*.png
+.playwright-mcp/
+firebase-debug.log
