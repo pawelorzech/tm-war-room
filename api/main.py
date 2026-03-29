@@ -55,6 +55,8 @@ from api.routers.notifications import router as notifications_router
 import api.routers.notifications as notifications_mod
 from api.routers.company import router as company_router
 import api.routers.company as company_mod
+from api.routers.push import router as push_router
+import api.routers.push as push_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -128,6 +130,21 @@ async def lifespan(app: FastAPI):
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
 
+    from api.db.repos.push_repository import PushRepository
+    push_repo = PushRepository(db_path="data/keys.db")
+    push_mod.push_repo = push_repo
+    from api.config import VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_MAILTO
+    push_mod.vapid_public_key = VAPID_PUBLIC_KEY
+
+    from api.push_service import PushService
+    push_service = PushService(
+        push_repo=push_repo,
+        notification_repo=notification_repo,
+        vapid_private_key=VAPID_PRIVATE_KEY,
+        vapid_claims={"sub": VAPID_MAILTO} if VAPID_PRIVATE_KEY else {},
+    )
+    push_mod.push_service = push_service
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -138,6 +155,7 @@ async def lifespan(app: FastAPI):
         "attack_repo": attack_repo,
         "history_repo": history_repo_inst,
         "notification_repo": notification_repo,
+        "push_service": push_service,
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
@@ -164,6 +182,7 @@ app.include_router(stakeout_router)
 app.include_router(bounties_router)
 app.include_router(notifications_router)
 app.include_router(company_router)
+app.include_router(push_router)
 
 @app.get("/api/status")
 async def app_status():
