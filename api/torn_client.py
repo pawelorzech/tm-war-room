@@ -338,6 +338,28 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_bounties(self) -> list[dict]:
+        """Fetch available bounties."""
+        cached = self._get_cached("bounties", ttl=60)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/torn/",
+                params={"selections": "bounties", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/torn/bounties", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/torn/bounties", False, (time.time() - start) * 1000, str(e))
+            raise
+        bounties = raw.get("bounties", {})
+        result = list(bounties.values()) if isinstance(bounties, dict) else bounties if isinstance(bounties, list) else []
+        self._set_cached("bounties", result)
+        return result
+
     async def fetch_war_history(self) -> dict:
         """Fetch full war data including history."""
         cached = self._get_cached("war_history", ttl=120)
