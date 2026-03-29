@@ -332,6 +332,27 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_war_history(self) -> dict:
+        """Fetch full war data including history."""
+        cached = self._get_cached("war_history", ttl=120)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/",
+                params={"selections": "wars", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/faction/wars_full", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/wars_full", False, (time.time() - start) * 1000, str(e))
+            raise
+        wars = raw.get("wars", {})
+        self._set_cached("war_history", wars)
+        return wars
+
     async def fetch_faction_crimes(self, cat: str = "planning") -> list[dict]:
         """Fetch faction organized crimes. cat: planning, completed, executing."""
         cache_key = f"oc_{cat}"

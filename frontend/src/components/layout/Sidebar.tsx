@@ -90,6 +90,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/oc",
         icon: "\uD83D\uDD74\uFE0F",
       },
+      {
+        label: "War Reports",
+        href: "/wars",
+        icon: "\uD83D\uDCCA",
+      },
     ],
   },
 ];
