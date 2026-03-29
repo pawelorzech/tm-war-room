@@ -18,14 +18,18 @@ Live at **[hub.tri.ovh](https://hub.tri.ovh)** (faction members only).
 - **Market Scanner** — 14 tracked items with live prices, discount %, buy links
 - **Spy Central** — player search (ID=live TornStats, name=local DB), faction lookup, submit spy form, admin CRUD
 - **Chain Tracker** — auto-detected chains from attack data, per-member breakdown, bonus hits, recent attacks feed
-- **Awards Tracker** — honors & medals progress, category filters, sortable table, TornStats detail links, inline detail panels
+- **Awards Tracker** — honors & medals progress, category filters, sortable table, detail subpage per award
 - **Target Lists** — save/tag enemy targets with difficulty ratings, notes, quick attack links
-- **NPC Loot Timers** — live loot levels from TornStats, countdown timers, level progression bars
+- **NPC Loot Timers** — live loot levels from TornStats, countdown timers, reservation system for faction coordination
 - **Revive Tracker** — revive leaderboard (given/received, success rate), recent revives feed
-- **Stock Tracker** — portfolio with P/L calculations, benefit/dividend progress; market overview with all stocks
-- **Travel Planner** — 11 countries with travel times, items abroad, current market prices
+- **Stock Tracker** — portfolio with P/L calculations, benefit/dividend progress; market overview, price history
+- **Travel Planner** — 11 countries with travel times, items abroad, current market prices, who's traveling
 - **OC Planner** — organized crime status (planning/completed), participant roles, checkpoint pass rates
 - **War Reports** — ranked war scores, raids, territory battles
+- **Bounty Board** — active bounties sorted by reward, attack links to collect
+- **Stakeout** — watch specific players, track status changes in real-time
+- **Dashboard** — faction overview: online members, hospital, travelers, attacks, NPC loot, quick links
+- **Faction Activity** — member status overview with online/idle/offline/hospital/traveling/jail filters
 
 ### Platform
 - **Light/dark mode** — full theme toggle with CSS variables
@@ -41,7 +45,7 @@ Live at **[hub.tri.ovh](https://hub.tri.ovh)** (faction members only).
 - **Auth:** Torn API key → encrypted storage (Fernet) → X-Player-Id header
 - **Integrations:** Torn API v1/v2, TornStats API, YATA API
 - **Deploy:** Docker (multi-stage) → Coolify → Contabo VPS
-- **Tests:** 107 backend pytest tests
+- **Tests:** 202 backend pytest tests
 
 ## Architecture
 
