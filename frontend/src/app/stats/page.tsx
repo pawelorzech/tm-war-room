@@ -33,6 +33,7 @@ interface GrowthData {
 }
 
 interface LeaderboardEntry extends Snapshot {
+  player_name?: string;
   xanax_taken: number | null;
   refills: number | null;
   networth: number | null;
@@ -160,7 +161,8 @@ export default function StatsPage() {
                           onClick={() => setSelectedPlayer(m.player_id)}>
                         <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                         <td className="py-1.5 px-3 text-text-primary font-medium">
-                          Player #{m.player_id}
+                          {m.player_name || `#${m.player_id}`}
+                          <span className="ml-1 text-[10px] text-text-muted">[{m.player_id}]</span>
                           {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(viewing)</span>}
                         </td>
                         <td className="py-1.5 px-3 font-semibold text-torn-green">{fmt(m.total)}</td>
