@@ -127,4 +127,31 @@ async def war_history():
     result["raids"].sort(key=lambda r: r.get("start", 0), reverse=True)
     result["territory"].sort(key=lambda t: t.get("start", 0), reverse=True)
 
+    # Fetch past ranked wars from torn/rankedwars
+    try:
+        past_wars_raw = await torn_client.fetch_ranked_wars()
+        past_wars = []
+        for w in past_wars_raw:
+            if not isinstance(w, dict):
+                continue
+            factions = _parse_factions(w.get("factions", {}))
+            # Filter to only show wars involving our faction
+            from api.config import FACTION_ID
+            our_faction_ids = {FACTION_ID}
+            is_ours = any(f["faction_id"] in our_faction_ids for f in factions) if factions else False
+            if not is_ours and factions:
+                continue  # Skip wars we weren't in
+            past_wars.append({
+                "war_id": w.get("war_id") or w.get("id", 0),
+                "start": w.get("start", 0),
+                "end": w.get("end", 0),
+                "winner": w.get("winner", 0),
+                "factions": factions,
+            })
+        past_wars.sort(key=lambda w: w.get("start", 0), reverse=True)
+        result["past_ranked"] = past_wars[:20]
+    except Exception as e:
+        logger.error("Failed to fetch past ranked wars: %s", e)
+        result["past_ranked"] = []
+
     return result

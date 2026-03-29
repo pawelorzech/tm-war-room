@@ -101,6 +101,23 @@ After each commit:
 
 This is non-negotiable. Real users depend on this. No shipping broken features.
 
+## Design philosophy
+
+Every feature must HELP players, not just display data:
+- **Explain WHY data matters** — don't just show numbers, explain what they mean for gameplay decisions
+- **Show data sources** — tell users where data comes from (Torn API, TornStats, cached, estimated)
+- **Teach the game** — every page should have educational content: how mechanics work, what strategies to use, links to wiki/forums for deeper learning
+- **Help decisions** — highlight what action the player should take based on the data
+- **Be a backup** — cache data from external services (TornStats, YATA) so players have access even when those services are down
+- **Build trust** — no broken pages, no empty data without explanation, always show loading/error states clearly
+
+When building a new feature:
+1. Research the game mechanic on Torn Wiki, forums, Reddit
+2. Understand WHY a player would want this data
+3. Build the feature with educational context (not just raw data)
+4. Add data source attribution and useful external links
+5. Test with real data before deploying
+
 ## Testing notes
 
 - Backend tests use `pytest-asyncio` with `asyncio_mode = "auto"` — all async test functions auto-detected

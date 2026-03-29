@@ -40,10 +40,19 @@ interface TerritoryWar {
   winner: number;
 }
 
+interface PastRankedWar {
+  war_id: number;
+  start: number;
+  end: number;
+  winner: number;
+  factions: WarFaction[];
+}
+
 interface WarData {
   ranked: RankedWar | null;
   raids: Raid[];
   territory: TerritoryWar[];
+  past_ranked: PastRankedWar[];
 }
 
 function fmtDate(ts: number): string {
@@ -150,6 +159,39 @@ export default function WarsPage() {
                 </div>
               )}
             </section>
+
+            {/* Past Ranked Wars */}
+            {data.past_ranked && data.past_ranked.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
+                  Past Ranked Wars ({data.past_ranked.length})
+                </h2>
+                <div className="space-y-2">
+                  {data.past_ranked.map(w => (
+                    <div key={w.war_id} className="bg-bg-card border border-text-secondary/15 rounded-xl p-3">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {w.factions.map(f => (
+                            <span key={f.faction_id} className={`text-sm font-medium ${
+                              f.faction_id === w.winner ? 'text-torn-green' : 'text-text-primary'
+                            }`}>
+                              {f.name || `#${f.faction_id}`} ({f.score})
+                              {f.faction_id === w.winner && ' ✓'}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-xs text-text-muted">{fmtDate(w.start)}</span>
+                      </div>
+                      {w.end > 0 && (
+                        <p className="text-[10px] text-text-muted mt-0.5">
+                          Duration: {fmtDuration(w.start, w.end)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Raids */}
             <section>

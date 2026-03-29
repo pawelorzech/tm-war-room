@@ -339,26 +339,24 @@ class TornClient:
         }
 
     async def fetch_bounties(self) -> list[dict]:
-        """Fetch available bounties."""
+        """Fetch available bounties from Torn global bounty list."""
         cached = self._get_cached("bounties", ttl=60)
         if cached is not None:
             return cached
         start = time.time()
         try:
+            # Try v2 endpoint first
             resp = await self._http.get(
-                f"{V1_BASE}/torn/",
+                f"{V2_BASE}/torn",
                 params={"selections": "bounties", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/torn/bounties", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/torn/bounties", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/torn/bounties", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/torn/bounties", False, (time.time() - start) * 1000, str(e))
             raise
-        bounties = raw.get("bounties", {})
-        import logging
-        logging.getLogger("tm-hub.bounties").info("Torn bounties raw keys=%s, bounties type=%s, len=%s",
-            list(raw.keys())[:5], type(bounties).__name__, len(bounties) if bounties else 0)
+        bounties = raw.get("bounties", [])
         if isinstance(bounties, dict):
             result = list(bounties.values())
         elif isinstance(bounties, list):
@@ -366,6 +364,33 @@ class TornClient:
         else:
             result = []
         self._set_cached("bounties", result)
+        return result
+
+    async def fetch_ranked_wars(self) -> list[dict]:
+        """Fetch past ranked war summaries."""
+        cached = self._get_cached("ranked_wars", ttl=300)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/torn/",
+                params={"selections": "rankedwars", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v1/torn/rankedwars", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v1/torn/rankedwars", False, (time.time() - start) * 1000, str(e))
+            raise
+        wars = raw.get("rankedwars", {})
+        if isinstance(wars, dict):
+            result = list(wars.values())
+        elif isinstance(wars, list):
+            result = wars
+        else:
+            result = []
+        self._set_cached("ranked_wars", result)
         return result
 
     async def fetch_war_history(self) -> dict:
