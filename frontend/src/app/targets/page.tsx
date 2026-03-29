@@ -140,11 +140,12 @@ export default function TargetsPage() {
         </div>
 
         <PageExplainer id="targets" title="Target Lists — What's here?" bullets={[
-          "Add enemy player IDs with tags, notes, and difficulty ratings.",
-          "Filter by tag to organize targets (e.g. 'war', 'chain', 'revenge').",
-          "Quick attack links directly to Torn attack page.",
-          "Shared across all faction members — everyone sees the same list.",
-        ]} />
+          "Target lists let you save players to attack later — no more losing track of that perfect chain target or easy win you found.",
+          "Tags help organize targets by purpose: 'war' for ranked war enemies, 'chain' for reliable chain targets, 'avoid' for players who will wreck you.",
+          "Difficulty ratings are based on spy data when available — 'easy' means you likely outstat them, 'hard' means proceed with caution.",
+          "A well-maintained target list massively improves chain efficiency. Instead of searching randomly, your faction can work through a curated list of beatable opponents.",
+          "Lists are shared across all faction members — coordinate by tagging targets so everyone knows who to hit and who to avoid during wars and chains.",
+        ]} dataSources={["Locally stored target lists in faction database", "Torn profile links for quick access"]} links={[["Torn Wiki: Attacking", "https://wiki.torn.com/wiki/Attacking"]]} />
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">

@@ -26,11 +26,14 @@ export default function EnemiesPage() {
         <RefreshButton onRefresh={refresh} />
       </div>
       <PageExplainer id="enemies" title="Enemies — What's here?" bullets={[
-        "Enemy faction members with threat scores based on spy data or combat stats.",
-        "During active war, auto-detects the enemy faction. Otherwise, enter a faction ID.",
-        "Click any column header to sort. One-click attack links to Torn.",
-        "Threat scoring uses Spy Central data when available for accurate stat comparison.",
-      ]} />
+        "Enemy faction members with threat levels based on how their stats compare to yours. Threat scoring uses two methods: relative (spy-based stat comparison) and absolute (personalstats ratios like attacks won/lost).",
+        "During active war, the enemy faction is auto-detected. Target selection strategy: attack weak online enemies first, avoid hospitalized players (they can't be hit), and skip players with very high threat levels unless you're confident.",
+        "Spy data shows estimated battle stats (strength, speed, dexterity, defense) gathered from TornStats Spy Central. When available, this gives the most accurate threat assessment.",
+        "Click any column header to sort — sort by threat to find easy targets, or by status to find online enemies. One-click attack links take you directly to the Torn attack page.",
+      ]}
+      dataSources={["Torn API v2 faction members", "TornStats spy API for battle stat estimates", "Personalstats-based threat scoring"]}
+      links={[["Torn Wiki: Wars", "https://wiki.torn.com/wiki/War"], ["Torn Wiki: Attacking", "https://wiki.torn.com/wiki/Attacking"]]}
+      />
       {overview && (
         <div className="space-y-2">
           <WarBanner

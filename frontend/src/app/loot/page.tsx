@@ -106,11 +106,14 @@ export default function LootPage() {
         </div>
 
         <PageExplainer id="loot" title="NPC Loot — What's here?" bullets={[
-          "NPCs accumulate loot over time in 5 levels (more looters = higher level).",
-          "Level 2: +30min, Level 3: +90min, Level 4: +3.5h, Level 5: +7.5h after hospital release.",
-          "Reserve an NPC — claim which one you want to hit and at what level. Others see your claim.",
-          "Data from TornStats, refreshed every 30 seconds automatically.",
-        ]} />
+          "NPCs (Duke, Leslie, Jimmy, etc.) accumulate loot in 5 levels after leaving hospital. Level 4 is the sweet spot — drops worth $5-50M including rare items. Level 5 gives the best loot but takes much longer to reach.",
+          "Timing is everything: NPCs respawn at specific intervals after being hospitalized. Loot levels increase over time — Level 2: +30min, Level 3: +90min, Level 4: +3.5h, Level 5: +7.5h after hospital release. Plan your attacks around these windows.",
+          "Reserve an NPC to coordinate with your faction — claim which NPC you want to hit and at what loot level. This prevents multiple faction members from wasting attacks on the same target at low levels.",
+          "Pro tip: Attack at Level 4+ for the best return on your energy. Coordinate with faction members so everyone benefits — one person looting at Level 2 wastes potential profit for everyone.",
+        ]}
+        dataSources={["Torn API v2 NPC data", "Loot timers estimated from Torn attack reports", "Community-sourced NPC schedules"]}
+        links={[["Torn Wiki: NPC", "https://wiki.torn.com/wiki/NPC"]]}
+        />
 
         {loading && !data ? (
           <CardSkeleton count={5} />

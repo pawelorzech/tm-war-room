@@ -30,12 +30,12 @@ export default function SpyPage() {
         <FactionLookup key={`faction-${refreshKey}`} />
 
         <PageExplainer id="spy" title="Spy Central — What's here?" bullets={[
-          "Look up any player's estimated battle stats by ID (live TornStats query) or by name (searches local database).",
-          "Faction Lookup: enter a faction ID to see estimates for all their members at once.",
-          "Submit Spy Reports: did a spy in Torn? Paste the exact stats — these get highest priority ('exact' confidence).",
-          "Data sources: TornStats estimates (auto-fetched), scheduler refreshes during wars, and manual member submissions.",
-          "Known Stats table shows everyone in our database. Admins can delete, block, or hide entries.",
-        ]} />
+          "Spy reports give you exact battle stats from a successful spy — this is the gold standard for knowing if you can beat someone.",
+          "Stat estimates use a rough calculation from personalstats (attacks won, defends lost, etc.) — useful when no spy report exists, but less accurate.",
+          "Knowing enemy stats is critical for target selection: attack players you can beat, avoid those who will hospitalize you.",
+          "Spy data ages quickly — a report from 6 months ago may be wildly outdated if the player has been actively training. Always check the report date.",
+          "Submit your own spy reports: if you successfully spy someone in Torn, paste their exact stats here. These get highest priority ('exact' confidence) and help the whole faction.",
+        ]} dataSources={["TornStats spy API estimates", "Member-submitted spy reports", "Personalstats-based estimation algorithm"]} links={[["Torn Wiki: Spying", "https://wiki.torn.com/wiki/Spy"], ["TornStats", "https://www.tornstats.com"]]} />
 
         <SpySubmitForm key={`submit-${refreshKey}`} />
 

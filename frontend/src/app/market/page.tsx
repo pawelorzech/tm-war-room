@@ -118,12 +118,14 @@ export default function MarketPage() {
         </div>
 
         <PageExplainer id="market" title="Market Scanner — What's here?" bullets={[
-          "All Torn items with market value, NPC buy/sell prices.",
-          "Profit = market value - NPC buy price (buy from NPC, sell on market).",
-          "Filter by profitable items only, search by name, filter by type.",
-          "Tax toggle simulates a sell fee to show net profit.",
-          "Data cached 5 min from Torn API.",
-        ]} />
+          "Torn's item market lets players buy and sell items. Profit opportunities exist when NPC buy prices are lower than player market prices — buy from NPCs, sell on the market for profit.",
+          "Key items to watch: flowers and plushies (collected sets are valuable), drugs (Xanax, LSD, ecstasy for energy/happiness), energy drinks (FHCs, cans), and travel items (country-specific goods with high resale margins).",
+          "The Top 20 Profit filter shows the best money-making items right now. Use the tax toggle to simulate potential sell fees and see your real net profit margin.",
+          "Price tracking matters because Torn's market fluctuates based on supply/demand, events, and updates. Items that are profitable today may not be tomorrow — check regularly for the best arbitrage opportunities.",
+        ]}
+        dataSources={["Torn API v2 market prices, cached 60s", "Prices update with each market refresh"]}
+        links={[["Torn Wiki: Item Market", "https://wiki.torn.com/wiki/Item_Market"]]}
+        />
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">

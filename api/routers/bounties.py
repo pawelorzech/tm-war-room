@@ -1,16 +1,28 @@
 from __future__ import annotations
+import asyncio
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header, Query
+
+from api.threat import compute_threat, compute_stat_threat
+from api.models import PersonalStats
+from api.stat_estimator import estimate_stats
 
 logger = logging.getLogger("tm-hub.bounties")
 
 router = APIRouter(prefix="/api/bounties", tags=["bounties"])
 torn_client = None  # Set by main.py
+key_store = None  # Set by main.py
+spy_service = None  # Set by main.py
+
+# Max targets to look up personalstats for (API rate limiting)
+MAX_PROFILE_LOOKUPS = 15
 
 
 @router.get("")
-async def list_bounties():
-    """Get available bounties."""
+async def list_bounties(
+    x_player_id: int | None = Header(default=None),
+):
+    """Get available bounties with threat assessment."""
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
     raw = await torn_client.fetch_bounties()
@@ -25,6 +37,7 @@ async def list_bounties():
         bounties.append({
             "target_id": b.get("target_id") or b.get("target", 0),
             "target_name": b.get("target_name", ""),
+            "target_level": b.get("target_level") or b.get("level", 0),
             "lister_id": b.get("lister_id") or b.get("lister", 0),
             "lister_name": b.get("lister_name", ""),
             "reward": b.get("reward", 0),
@@ -34,4 +47,106 @@ async def list_bounties():
 
     bounties.sort(key=lambda b: b["reward"], reverse=True)
     total_value = sum(b["reward"] for b in bounties)
-    return {"bounties": bounties, "count": len(bounties), "total_value": total_value}
+
+    # --- Threat scoring ---
+    # 1. Get baseline (requesting player's stats) for relative scoring
+    baseline = None
+    baseline_spy = None
+    threat_mode = "none"
+    if x_player_id and key_store:
+        all_keys = key_store.get_all_keys()
+        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        if user_key:
+            try:
+                baseline = await torn_client.fetch_personalstats(user_key["api_key"])
+                threat_mode = "relative"
+            except Exception:
+                pass
+        if spy_service:
+            baseline_spy = spy_service.repo.get_estimate(x_player_id)
+
+    # 2. For each bounty target, try spy data first, then personalstats lookup
+    target_ids = [b["target_id"] for b in bounties]
+    spy_data = {}
+    if spy_service:
+        for tid in target_ids:
+            est = spy_service.repo.get_estimate(tid)
+            if est:
+                spy_data[tid] = est
+
+    # 3. For top bounties without spy data, fetch personalstats + status
+    target_status = {}  # player_id -> status_state
+    lookups_done = 0
+    for b in bounties:
+        tid = b["target_id"]
+        if tid in spy_data or lookups_done >= MAX_PROFILE_LOOKUPS:
+            continue
+        profile = await torn_client.fetch_user_profile_stats(tid)
+        if profile:
+            ps_raw = profile.get("personalstats", {})
+            level = profile.get("level", 0) or b.get("target_level", 0)
+            b["target_level"] = level
+            # Track status for filtering
+            target_status[tid] = profile.get("status_state", "")
+            # Store as PersonalStats for threat computation
+            ps = PersonalStats.from_torn_api(ps_raw)
+            # Also estimate stats for display
+            est_data = estimate_stats(ps_raw, level, profile.get("age", 0))
+            spy_data[tid] = {
+                "total": est_data["estimated_total"],
+                "confidence": est_data["confidence"],
+                "source": "personalstats_estimate",
+                "personalstats": ps,
+            }
+        lookups_done += 1
+
+    # 4. Compute threat for each bounty
+    for b in bounties:
+        tid = b["target_id"]
+        level = b.get("target_level", 0)
+
+        if tid in spy_data:
+            sd = spy_data[tid]
+            # If we have real spy estimates (from DB) and baseline spy, use stat threat
+            if baseline_spy and isinstance(sd, dict) and sd.get("total", 0) > 0 and "personalstats" not in sd:
+                score, label = compute_stat_threat(sd, baseline_spy)
+                b["threat_score"] = score
+                b["threat_label"] = label
+                b["threat_source"] = sd.get("source", "spy")
+                b["estimated_total"] = sd.get("total", 0)
+            elif "personalstats" in sd and baseline:
+                # personalstats-based relative threat
+                score, label = compute_threat(sd["personalstats"], level, baseline=baseline)
+                b["threat_score"] = score
+                b["threat_label"] = label
+                b["threat_source"] = "estimated"
+                b["estimated_total"] = sd.get("total", 0)
+            elif "personalstats" in sd:
+                # Absolute threat from personalstats
+                score, label = compute_threat(sd["personalstats"], level)
+                b["threat_score"] = score
+                b["threat_label"] = label
+                b["threat_source"] = "estimated"
+                b["estimated_total"] = sd.get("total", 0)
+            else:
+                # Spy data without personalstats, absolute estimate
+                b["threat_score"] = 50
+                b["threat_label"] = "unknown"
+                b["threat_source"] = "none"
+                b["estimated_total"] = sd.get("total", 0)
+        else:
+            b["threat_score"] = 0
+            b["threat_label"] = "unknown"
+            b["threat_source"] = "none"
+            b["estimated_total"] = None
+
+        # Add target status (available/hospital/jail/etc)
+        status = target_status.get(tid, "")
+        b["target_status"] = status.lower() if status else "unknown"
+
+    return {
+        "bounties": bounties,
+        "count": len(bounties),
+        "total_value": total_value,
+        "threat_mode": threat_mode,
+    }

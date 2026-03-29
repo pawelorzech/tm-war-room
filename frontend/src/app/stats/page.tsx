@@ -87,12 +87,12 @@ export default function StatsPage() {
         </div>
 
         <PageExplainer id="stats" title="Stat Growth — What's here?" bullets={[
-          "Track your battle stat progress over time with daily snapshots.",
-          "Growth cards show how much each stat changed in the last 30 days, plus daily rate.",
-          "Chart shows stat history — click legend items to toggle individual stats.",
-          "Faction Leaderboard ranks all members by total stats. Click any row to view their chart.",
-          "Data collected daily at 4:00 UTC. First visit fetches your current stats immediately.",
-        ]} />
+          "Battle stats (STR, DEF, SPD, DEX) grow every time you train at the gym. This page tracks that growth over time so you can see if your training routine is working.",
+          "Xanax gives +250E, refills restore your energy bar, and stat enhancers (SEs) give a direct stat boost — tracking these helps you understand where your gains come from.",
+          "Growth rate (per day) tells you how efficiently you're training. If your rate drops, you may need to switch gyms, optimize happy, or adjust your energy management.",
+          "The faction leaderboard shows relative strength — see where you stand compared to other members and identify who might need training advice.",
+          "Snapshot history shows training consistency. Gaps or flat lines mean missed training days. Consistent daily gains compound into massive advantages over months.",
+        ]} dataSources={["Daily stat snapshots collected at 04:00 UTC", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"]]} />
 
         {loading && !snapshots.length ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading stat data...</div>

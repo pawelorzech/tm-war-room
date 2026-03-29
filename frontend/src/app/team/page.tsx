@@ -25,12 +25,15 @@ export default function TeamPage() {
         <RefreshButton onRefresh={refresh} />
       </div>
       <PageExplainer id="team" title="Our Team — What's here?" bullets={[
-        "Live status of all faction members — who's online, in hospital, traveling, or in jail.",
-        "Energy levels and drug cooldowns (from registered API keys or YATA).",
-        "Sort by any column. Click 'Online' to see who's available right now.",
-        "Data refreshes every 60 seconds automatically. Hit Refresh for instant update.",
-        "Revive settings shown — members with 'Everyone' should change this during war!",
-      ]} />
+        "Live status of all faction members — Online, Idle, Offline, Hospital, Traveling, or Jail. Use this to coordinate attacks, revives, and faction activities in real time.",
+        "\"Last action\" shows when a member was last active on Torn. Members idle for 5+ minutes may be AFK — important for war coordination and chain timing.",
+        "Energy levels and drug cooldowns help plan when members can attack next. During war, knowing who has energy ready is critical for keeping chains alive.",
+        "Sort by any column to quickly find available members. During war, filter for Online members with energy to maximize your faction's attack output.",
+        "Revive settings matter during war — members set to 'Everyone' can be revived by enemies. Change to 'Faction only' or 'Nobody' during active wars!",
+      ]}
+      dataSources={["Torn API v2 faction members endpoint, cached 60s", "Status updates every 30s via background scheduler"]}
+      links={[["Torn Wiki: Factions", "https://wiki.torn.com/wiki/Faction"]]}
+      />
       {overview && (
         <div className="space-y-2">
           <WarBanner

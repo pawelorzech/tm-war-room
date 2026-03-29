@@ -232,3 +232,46 @@ async def test_yata_caching(client):
         await client.fetch_yata_members()
         await client.fetch_yata_members()
     mock_get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_profile_stats(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "personalstats": {"xantaken": 200, "refills": 100, "attackswon": 3000},
+        "level": 45,
+        "age": 800,
+        "name": "TargetPlayer",
+    }
+    mock_resp.raise_for_status = lambda: None
+    mock_resp.status_code = 200
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        result = await client.fetch_user_profile_stats(12345)
+
+    assert result is not None
+    assert result["level"] == 45
+    assert result["name"] == "TargetPlayer"
+    assert result["personalstats"]["xantaken"] == 200
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_profile_stats_caching(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "personalstats": {}, "level": 10, "age": 100, "name": "Cached",
+    }
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        await client.fetch_user_profile_stats(99999)
+        await client.fetch_user_profile_stats(99999)
+    mock_get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_profile_stats_error(client):
+    async def _raise(*a, **kw):
+        raise Exception("API error")
+    with patch.object(client._http, "get", side_effect=_raise):
+        result = await client.fetch_user_profile_stats(77777)
+    assert result is None

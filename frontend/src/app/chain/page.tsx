@@ -176,11 +176,14 @@ export default function ChainPage() {
         </div>
 
         <PageExplainer id="chain" title="Chain Tracker — What's here?" bullets={[
-          "Chains: auto-detected from attack data. Click any chain to see per-member breakdown and bonus hits.",
-          "Recent Attacks: live feed of the last 100 faction attacks with results and respect.",
-          "Chain detection: a new chain starts each time the chain counter resets to 1.",
-          "Data fetched from Torn API on each page load (up to 1000 attacks with pagination).",
-        ]} />
+          "Chains are consecutive faction attacks with a 5-minute timeout between hits. They start at 10 hits and build toward bonus thresholds: 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000+. Each bonus hit awards extra respect.",
+          "Bonus hits are the most valuable attacks in a chain — the player who lands hit #10, #25, #50, etc. gets a large respect multiplier. Coordinate with your faction to give bonus hits to members who can maximize respect gain (high-level targets).",
+          "To keep a chain alive, someone must land a successful attack every 5 minutes. Use the timer and member list to ensure coverage — especially during overnight hours or when activity is low.",
+          "Click any chain to see the per-member breakdown: who contributed the most hits, who landed bonus hits, and who started/ended the chain. Use this to recognize top contributors and improve future chain coordination.",
+        ]}
+        dataSources={["Torn API v2 faction attacks", "Chain detection from attack timestamps"]}
+        links={[["Torn Wiki: Chain", "https://wiki.torn.com/wiki/Chain"]]}
+        />
 
         {/* Tab switcher */}
         <div className="flex gap-2">

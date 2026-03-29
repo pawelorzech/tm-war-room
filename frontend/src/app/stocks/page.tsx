@@ -131,10 +131,14 @@ export default function StocksPage() {
         </div>
 
         <PageExplainer id="stocks" title="Stock Tracker — What's here?" bullets={[
-          "Portfolio: your holdings with profit/loss, benefit and dividend progress.",
-          "Market: all Torn stocks with prices, market cap, investors, and benefit info.",
-          "Prices cached for 5 minutes from Torn API.",
-        ]} />
+          "Torn's stock market works differently from real stocks — each company offers a unique passive benefit (free items, stat boosts, bank interest bonuses, etc.) when you hold enough shares. Benefits activate at specific share thresholds, typically requiring millions of shares.",
+          "Stock benefits are the main reason to invest. Check the 'Benefit' column to see what each stock offers and how many shares you need. Some benefits (like SYS free laptop, or TCB bank interest boost) are highly valuable for your progression.",
+          "Dividend tracking shows when your stocks will pay out cash dividends. Dividends are periodic cash payments based on your holdings — the 'Div!' indicator means a payout is ready to collect on Torn.",
+          "Price history charts help you time purchases — buy when prices dip to get more shares for your money. Click any stock row to see its 30-day price trend and identify good entry points.",
+        ]}
+        dataSources={["Torn API v2 stock market prices", "Historical prices collected every 30min by background scheduler"]}
+        links={[["Torn Wiki: Stock Market", "https://wiki.torn.com/wiki/Stock_Market"]]}
+        />
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">

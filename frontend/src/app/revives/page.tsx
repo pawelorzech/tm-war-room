@@ -77,11 +77,12 @@ export default function RevivesPage() {
         </div>
 
         <PageExplainer id="revives" title="Revive Tracker — What's here?" bullets={[
-          "Leaderboard: who performed the most revives, success rate.",
-          "Recent: live feed of recent faction revives.",
-          "Data from Torn API — up to 990 recent revives.",
-          "Useful during wars to track who's keeping the team alive.",
-        ]} />
+          "Reviving restores a player from the hospital — it costs 25 energy and has a success chance based on your medical items and the target's injuries. In war, fast revives keep your team fighting.",
+          "Tracking revives matters because revivers are your faction's lifeline during ranked wars. Knowing who's actively reviving helps leadership coordinate and recognize key contributors.",
+          "Revive contracts let you hire external revivers (like NPC hospitals or revive services) — useful when your faction's own revivers are hospitalized or offline.",
+          "Faction revive coordination is critical: assign dedicated revivers, ensure they have medical items stocked, and track who's pulling their weight on the leaderboard.",
+          "A player is only 'revivable' if they have revives enabled in their Torn settings. Some players disable this — you cannot revive them no matter what.",
+        ]} dataSources={["Torn API v2 faction revives", "Recent revive activity from attack logs"]} links={[["Torn Wiki: Reviving", "https://wiki.torn.com/wiki/Revive"]]} />
 
         {loading && !data ? (
           <>
