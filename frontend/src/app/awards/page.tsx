@@ -7,6 +7,7 @@ import { useSort } from '@/hooks/useSort';
 import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ExportButton } from '@/components/layout/ExportButton';
 
 /* ── Types ── */
 
@@ -150,7 +151,7 @@ export default function AwardsPage() {
         ) : view ? (
           <>
             {/* ── Tabs ── */}
-            <div className="flex flex-wrap border-b border-border">
+            <div className="flex flex-wrap items-center border-b border-border">
               <TabBtn active={tab === 'honors'} onClick={() => switchTab('honors')}>
                 Honors {view.honorsEarned}/{view.honors.length} ({pct(view.honorsEarned, view.honors.length)})
               </TabBtn>
@@ -160,6 +161,19 @@ export default function AwardsPage() {
               <TabBtn active={tab === 'incomplete'} onClick={() => switchTab('incomplete')} red>
                 Incomplete {view.allIncomplete.length}/{view.honors.length + view.medals.length}
               </TabBtn>
+              <div className="ml-auto -mb-px">
+                <ExportButton
+                  rows={sortedAwards as unknown as Record<string, unknown>[]}
+                  columns={[
+                    { key: 'name', label: 'Name' },
+                    { key: 'description', label: 'Description' },
+                    { key: 'circulation', label: 'Circulation' },
+                    { key: 'type', label: 'Type' },
+                    { key: 'earned', label: 'Earned' },
+                  ]}
+                  filename="tm-hub-awards.csv"
+                />
+              </div>
             </div>
 
             {/* ── Category chips ── */}

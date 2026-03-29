@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ExportButton } from '@/components/layout/ExportButton';
 
 /* ── Types ── */
 
@@ -198,13 +199,27 @@ export default function ChainPage() {
         />
 
         {/* Tab switcher */}
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {([['chains', 'Chains'], ['recent', 'Recent Attacks'], ['activity', 'Activity']] as const).map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'chains') closeDetail(); }}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${tab === key ? 'bg-torn-green/20 text-torn-green font-semibold' : 'text-text-secondary hover:text-text-primary'}`}>
               {label}
             </button>
           ))}
+          <div className="ml-auto">
+            <ExportButton
+              rows={recent as unknown as Record<string, unknown>[]}
+              columns={[
+                { key: 'attacker_name', label: 'Attacker' },
+                { key: 'defender_name', label: 'Defender' },
+                { key: 'result', label: 'Result' },
+                { key: 'respect_gain', label: 'Respect' },
+                { key: 'chain', label: 'Chain' },
+                { key: 'started', label: 'Timestamp' },
+              ]}
+              filename="tm-hub-attacks.csv"
+            />
+          </div>
         </div>
 
         {loading ? (

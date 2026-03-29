@@ -7,6 +7,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading, login } = useAuth();
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
@@ -61,7 +62,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 setError("");
                 setSubmitting(true);
                 try {
-                  await login(apiKey);
+                  const result = await login(apiKey);
+                  if (result?.access_level === "limited") {
+                    setWarning(`Your API key has limited access. Some features (${result.limited_features?.join(", ") || "stocks, etc"}) may not work. Use a Full Access key for all features.`);
+                  }
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "Failed to register key");
                 } finally {
@@ -114,6 +118,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               {error && (
                 <p className="mt-3 text-torn-red text-xs text-center bg-torn-red/10 rounded-md py-1.5 px-2">
                   {error}
+                </p>
+              )}
+              {warning && (
+                <p className="mt-3 text-torn-yellow text-xs text-center bg-torn-yellow/10 rounded-md py-1.5 px-2">
+                  {warning}
                 </p>
               )}
             </form>
