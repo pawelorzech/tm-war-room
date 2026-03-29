@@ -33,6 +33,12 @@ interface FactionCompany {
 
 type SpecialFilter = 'all' | 'energy' | 'items' | 'passive';
 
+function safeSpecials(specials: unknown): Special[] {
+  if (Array.isArray(specials)) return specials;
+  if (specials && typeof specials === 'object') return Object.values(specials);
+  return [];
+}
+
 function classifySpecial(s: Special): 'energy' | 'items' | 'passive' {
   const e = s.effect.toLowerCase();
   if (e.includes('energy') || e.includes('nerve') || e.includes('happy')) return 'energy';
@@ -74,7 +80,7 @@ export default function CompanyPage() {
     setLoading(true);
     setError(null);
     api.companyCatalog()
-      .then(d => setCatalog(d.companies))
+      .then(d => setCatalog(d.companies.map(c => ({ ...c, specials: safeSpecials(c.specials), positions: Array.isArray(c.positions) ? c.positions : [], stock: Array.isArray(c.stock) ? c.stock : [] }))))
       .catch(e => setError(e.message || 'Failed to load'))
       .finally(() => setLoading(false));
   };
