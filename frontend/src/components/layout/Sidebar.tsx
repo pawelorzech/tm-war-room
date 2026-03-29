@@ -80,6 +80,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/stocks",
         icon: "\uD83D\uDCC9",
       },
+      {
+        label: "Travel",
+        href: "/travel",
+        icon: "\u2708\uFE0F",
+      },
     ],
   },
 ];
