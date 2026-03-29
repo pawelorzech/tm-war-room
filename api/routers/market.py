@@ -1,111 +1,83 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query
-import httpx
-import time
 import logging
+import time
+from fastapi import APIRouter, HTTPException
+from api.torn_client import _json
 
 logger = logging.getLogger("tm-hub.market")
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 torn_client = None  # Set by main.py
 
-# Key items for training/war
-TRACKED_ITEMS = {
-    206: "Xanax",
-    367: "Stat Enhancer",
-    366: "Feathery Hotel Coupon",
-    196: "Energy Drink",
-    197: "Small Energy Drink",
-    198: "Can of Damp Rid",
-    199: "Can of Munster",
-    200: "Bottle of Beer",
-    264: "Box of Chocolate Bars",
-    265: "Bag of Candy Kisses",
-    266: "Bag of Tootsie Rolls",
-    370: "Drug Pack",
-    176: "Ecstasy",
-    392: "Erotic DVD",
-}
-
-# In-memory cache
-_cache: dict[str, tuple[float, dict]] = {}
-CACHE_TTL = 120  # 2 min
+_items_cache: list[dict] | None = None
+_items_cache_ts: float = 0
+CACHE_TTL = 300  # 5 min
 
 
 @router.get("/prices")
-async def get_market_prices(items: str = Query(default="")):
-    """Get current market prices for tracked items or specific item IDs."""
+async def get_all_items():
+    """Get ALL items with market values, buy/sell prices for profit calculations."""
+    global _items_cache, _items_cache_ts
     if not torn_client:
         raise HTTPException(status_code=503, detail="Market not initialized")
 
-    if items:
-        item_ids = [int(x.strip()) for x in items.split(",") if x.strip().isdigit()]
-    else:
-        item_ids = list(TRACKED_ITEMS.keys())
-
     now = time.time()
-    results = []
+    if _items_cache and now - _items_cache_ts < CACHE_TTL:
+        return {"items": _items_cache, "count": len(_items_cache)}
 
-    for item_id in item_ids:
-        cache_key = f"market_{item_id}"
-        if cache_key in _cache and now - _cache[cache_key][0] < CACHE_TTL:
-            results.append(_cache[cache_key][1])
+    try:
+        resp = await torn_client._http.get(
+            "https://api.torn.com/torn/",
+            params={"selections": "items", "key": torn_client._api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        items_data = raw.get("items", {})
+    except Exception as e:
+        logger.error("Failed to fetch items: %s", e)
+        if _items_cache:
+            return {"items": _items_cache, "count": len(_items_cache)}
+        raise HTTPException(status_code=502, detail="Failed to fetch item data")
+
+    items = []
+    for iid_str, item in items_data.items():
+        try:
+            iid = int(iid_str)
+        except ValueError:
             continue
 
-        try:
-            resp = await torn_client._http.get(
-                f"https://api.torn.com/v2/market",
-                params={"key": torn_client._api_key, "selections": "itemmarket", "id": item_id},
-            )
-            resp.raise_for_status()
-            raw = resp.json()
-            listings = raw.get("itemmarket", {}).get("listings", raw.get("itemmarket", []))
-            if isinstance(listings, list) and listings:
-                cheapest = listings[0]
-                avg_price = sum(l["price"] for l in listings[:5]) / min(len(listings), 5)
-                total_available = sum(l.get("amount", 1) for l in listings)
-            else:
-                cheapest = None
-                avg_price = 0
-                total_available = 0
+        name = item.get("name", "")
+        if not name:
+            continue
 
-            # Get item market value
-            item_resp = await torn_client._http.get(
-                f"https://api.torn.com/v2/torn",
-                params={"key": torn_client._api_key, "selections": "items", "id": item_id},
-            )
-            item_raw = item_resp.json()
-            item_data = item_raw.get("items", {})
-            if isinstance(item_data, list) and item_data:
-                item_info = item_data[0]
-            elif isinstance(item_data, dict):
-                item_info = item_data
-            else:
-                item_info = {}
+        market_value = item.get("market_value", 0) or 0
+        buy_price = item.get("buy_price", 0) or 0
+        sell_price = item.get("sell_price", 0) or 0
+        circulation = item.get("circulation", 0) or 0
+        item_type = item.get("type", "")
 
-            market_value = item_info.get("value", {}).get("market_price", 0) if isinstance(item_info.get("value"), dict) else 0
-            item_name = item_info.get("name", TRACKED_ITEMS.get(item_id, f"Item #{item_id}"))
+        # Profit calculations
+        # If you buy from NPC (buy_price) and sell on market (market_value)
+        profit_buy_npc = (market_value - buy_price) if buy_price > 0 and market_value > 0 else 0
+        # If you buy from NPC and sell to NPC
+        profit_npc_npc = (sell_price - buy_price) if buy_price > 0 and sell_price > 0 else 0
 
-            entry = {
-                "item_id": item_id,
-                "name": item_name,
-                "market_value": market_value,
-                "cheapest_price": cheapest["price"] if cheapest else None,
-                "cheapest_amount": cheapest.get("amount", 0) if cheapest else 0,
-                "avg_top5_price": round(avg_price),
-                "total_available": total_available,
-                "listings_count": len(listings) if isinstance(listings, list) else 0,
-                "discount_pct": round((1 - cheapest["price"] / market_value) * 100, 1) if cheapest and market_value > 0 else 0,
-            }
-            _cache[cache_key] = (now, entry)
-            results.append(entry)
-        except Exception as e:
-            logger.error("Market fetch failed for item %d: %s", item_id, e)
-            results.append({
-                "item_id": item_id,
-                "name": TRACKED_ITEMS.get(item_id, f"Item #{item_id}"),
-                "error": str(e),
-            })
+        items.append({
+            "id": iid,
+            "name": name,
+            "type": item_type,
+            "market_value": market_value,
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "circulation": circulation,
+            "profit_buy_sell": profit_buy_npc,
+            "profit_margin_pct": round((profit_buy_npc / buy_price) * 100, 1) if buy_price > 0 and profit_buy_npc > 0 else 0,
+        })
 
-    results.sort(key=lambda r: abs(r.get("discount_pct", 0)), reverse=True)
-    return {"items": results, "count": len(results)}
+    # Sort by market value descending
+    items.sort(key=lambda i: i["market_value"], reverse=True)
+
+    _items_cache = items
+    _items_cache_ts = now
+    logger.info("Loaded %d items for market scanner", len(items))
+    return {"items": items, "count": len(items)}
