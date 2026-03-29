@@ -12,8 +12,8 @@ self.addEventListener('push', function(event) {
 
   const options = {
     body: payload.body || '',
-    icon: payload.icon || '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: payload.icon || '/favicon.ico',
+    badge: '/favicon.ico',
     data: { url: payload.url || '/' },
     vibrate: [200, 100, 200],
     tag: payload.tag || 'tm-hub-notification',

@@ -52,7 +52,7 @@ class PushService:
         return self._send_to_subs(subs, title, body, url)
 
     def _send_to_subs(self, subs: list[dict], title: str, body: str, url: str) -> int:
-        payload = json.dumps({"title": title, "body": body, "icon": "/icon-192.png", "url": url})
+        payload = json.dumps({"title": title, "body": body, "icon": "/favicon.ico", "url": url})
         sent = 0
         for sub in subs:
             try:

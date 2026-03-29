@@ -101,7 +101,7 @@ export function usePushNotifications() {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification('TM Hub Test', {
       body: 'Push notifications are working!',
-      icon: '/icon-192.png',
+      icon: '/favicon.ico',
     });
   }, []);
 
