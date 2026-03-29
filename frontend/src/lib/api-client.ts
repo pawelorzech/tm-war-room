@@ -47,6 +47,8 @@ export const api = {
     educationCompleted: number[];
     educationPerks: string[];
     bookPerks: string[];
+    companyPerks: string[];
+    job: { company_name: string; company_type: number; position: string };
     level: number;
   }>("/api/training/stats"),
   spyEstimate: (playerId: number) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/${playerId}`),

@@ -92,6 +92,9 @@ export function useCalculator(apiData: TornUserData | null) {
       ? parseBookPerks(apiData.bookPerks, highest.stat)
       : 'none';
 
+    // Auto-detect company from API
+    const companyType = apiData.job?.company_name || null;
+
     setState(prev => ({
       ...prev,
       currentStat: highest.value,
@@ -102,6 +105,7 @@ export function useCalculator(apiData: TornUserData | null) {
       steadfastBonus,
       educationBonus,
       bookBonus,
+      companyType,
     }));
   }, [apiData]);
 

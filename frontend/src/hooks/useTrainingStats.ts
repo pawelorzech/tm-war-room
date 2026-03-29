@@ -55,6 +55,8 @@ export function useTrainingStats() {
           educationCompleted: raw.educationCompleted ?? [],
           educationPerks: raw.educationPerks ?? [],
           bookPerks: raw.bookPerks ?? [],
+          companyPerks: raw.companyPerks ?? [],
+          job: raw.job ?? { company_name: '', company_type: 0, position: '' },
         };
         setData(mapped);
       })
