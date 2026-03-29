@@ -51,13 +51,20 @@ export default function DashboardPage() {
   const [chainCount, setChainCount] = useState(0);
   const [attackCount, setAttackCount] = useState(0);
 
+  const [easyBounties, setEasyBounties] = useState(0);
+  const [bountyValue, setBountyValue] = useState(0);
+  const [ocReady, setOcReady] = useState(0);
+  const [ocTotal, setOcTotal] = useState(0);
+
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([
       api.overview().catch(() => null),
       api.lootTimers().catch(() => null),
       api.chainList().catch(() => null),
-    ]).then(([overview, lootData, chainData]) => {
+      api.bounties().catch(() => null),
+      api.ocOverview('planning').catch(() => null),
+    ]).then(([overview, lootData, chainData, bountyData, ocData]) => {
       // Status from a simple fetch (no auth needed)
       fetch('/api/status').then(r => r.json()).then(s => setStatus(s)).catch(() => {});
 
@@ -91,6 +98,27 @@ export default function DashboardPage() {
         const cd = chainData as any;
         setChainCount(cd.total_chains || 0);
         setAttackCount(cd.attacks_in_db || 0);
+      }
+
+      if (bountyData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bd = bountyData as any;
+        const bounties = bd.bounties || [];
+        const easy = bounties.filter((b: { threat_label: string }) => b.threat_label === 'easy').length;
+        setEasyBounties(easy);
+        setBountyValue(bd.total_value || 0);
+      }
+
+      if (ocData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const od = ocData as any;
+        const crimes = od.crimes || [];
+        setOcTotal(crimes.length);
+        // Count crimes where all participants have planning_complete
+        const ready = crimes.filter((c: { participants: { planning_complete: boolean }[] }) =>
+          c.participants.length > 0 && c.participants.every((p: { planning_complete: boolean }) => p.planning_complete)
+        ).length;
+        setOcReady(ready);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -138,22 +166,52 @@ export default function DashboardPage() {
           </Widget>
         </div>
 
-        {topLoot && (
-          <Widget title="Best NPC Loot Right Now" href="/loot">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold">{topLoot.name}</p>
-                <p className="text-xs text-text-muted">
-                  {topLoot.reservations?.length > 0 && `${topLoot.reservations.length} reserved · `}
-                  {topLoot.status}
-                </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {topLoot && (
+            <Widget title="Best NPC Loot Right Now" href="/loot">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-bold">{topLoot.name}</p>
+                  <p className="text-xs text-text-muted">
+                    {topLoot.reservations?.length > 0 && `${topLoot.reservations.length} reserved · `}
+                    {topLoot.status}
+                  </p>
+                </div>
+                <p className={`text-2xl font-bold ${
+                  topLoot.level >= 4 ? 'text-torn-yellow' : topLoot.level >= 3 ? 'text-torn-green' : 'text-text-muted'
+                }`}>Lv {topLoot.level}</p>
               </div>
-              <p className={`text-2xl font-bold ${
-                topLoot.level >= 4 ? 'text-torn-yellow' : topLoot.level >= 3 ? 'text-torn-green' : 'text-text-muted'
-              }`}>Lv {topLoot.level}</p>
-            </div>
-          </Widget>
-        )}
+            </Widget>
+          )}
+          {easyBounties > 0 && (
+            <Widget title="Easy Bounties Available" href="/bounties">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-bold text-torn-green">{easyBounties} easy targets</p>
+                  <p className="text-xs text-text-muted">
+                    ${(bountyValue / 1e6).toFixed(1)}M total on board
+                  </p>
+                </div>
+                <span className="text-2xl">💰</span>
+              </div>
+            </Widget>
+          )}
+          {ocTotal > 0 && (
+            <Widget title="OC Planning" href="/oc">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-bold">{ocTotal} crimes in planning</p>
+                  <p className="text-xs text-text-muted">
+                    {ocReady > 0 ? (
+                      <span className="text-torn-green font-medium">{ocReady} ready to initiate!</span>
+                    ) : 'none ready yet'}
+                  </p>
+                </div>
+                <span className="text-2xl">🕴️</span>
+              </div>
+            </Widget>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
