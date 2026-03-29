@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
+import { useSort } from '@/hooks/useSort';
+import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -84,6 +86,8 @@ export default function LootPage() {
     return () => clearInterval(timer);
   }, []);
 
+  const { sorted: sortedNpcs, sortCol, sortDir, toggle: toggleSort } = useSort(data?.npcs ?? [], 'level');
+
   const handleReserve = async (npc: NPC, level: number) => {
     await api.lootReserve(npc.id, npc.name, level);
     loadData();
@@ -121,7 +125,22 @@ export default function LootPage() {
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-danger text-sm">{error}</div>
         ) : data ? (
           <div className="space-y-3">
-            {data.npcs.map(npc => {
+            <table className="hidden"><thead><tr>
+              <SortableHeader label="Name" column="name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+              <SortableHeader label="Level" column="level" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+            </tr></thead></table>
+            <div className="flex items-center gap-3 text-xs text-text-muted">
+              <span>Sort by:</span>
+              <button onClick={() => toggleSort('name')}
+                className={`px-2 py-1 rounded transition-colors ${sortCol === 'name' ? 'bg-torn-green/20 text-torn-green font-medium' : 'hover:text-text-secondary'}`}>
+                Name {sortCol === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+              </button>
+              <button onClick={() => toggleSort('level')}
+                className={`px-2 py-1 rounded transition-colors ${sortCol === 'level' ? 'bg-torn-green/20 text-torn-green font-medium' : 'hover:text-text-secondary'}`}>
+                Level {sortCol === 'level' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+              </button>
+            </div>
+            {sortedNpcs.map(npc => {
               const isHosp = npc.status?.toLowerCase().includes('hosp');
               const myReservation = npc.reservations?.find(r => r.player_id === playerId);
 

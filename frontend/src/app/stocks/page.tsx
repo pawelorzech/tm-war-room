@@ -262,17 +262,17 @@ export default function StocksPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                        <th className="py-2 px-3">Stock</th>
-                        <th className="py-2 px-3 text-right">Shares</th>
-                        <th className="py-2 px-3 text-right">Price</th>
-                        <th className="py-2 px-3 text-right">Value</th>
-                        <th className="py-2 px-3 text-right">P/L</th>
-                        <th className="py-2 px-3 text-right">Return</th>
+                        <SortableHeader label="Stock" column="acronym" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} />
+                        <SortableHeader label="Shares" column="total_shares" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} className="text-right" />
+                        <SortableHeader label="Price" column="current_price" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} className="text-right" />
+                        <SortableHeader label="Value" column="current_value" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} className="text-right" />
+                        <SortableHeader label="P/L" column="profit" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} className="text-right" />
+                        <SortableHeader label="Return" column="profit_pct" currentCol={portfolioSortCol} currentDir={portfolioSortDir} onSort={togglePortfolioSort} className="text-right" />
                         <th className="py-2 px-3">Benefit</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {portfolio.holdings.map(h => (
+                      {sortedHoldings.map(h => (
                         <tr key={h.stock_id} onClick={() => selectStock(h.stock_id, h.name, h.acronym)}
                           className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${selectedStock?.id === h.stock_id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3">
