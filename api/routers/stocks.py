@@ -115,6 +115,131 @@ async def stock_portfolio(x_player_id: int = Header()):
     }
 
 
+# Known stock benefit payout values (from Torn game data)
+# Format: stock_id -> list of increments [{shares_needed, payout_value, frequency_days}]
+# Payout values are estimated market values of items received
+STOCK_PAYOUTS: dict[int, list[dict]] = {
+    # SYM — Drug Pack (~$4.3M value)
+    25: [{"shares": 500_000, "payout": 4_324_640, "freq": 7}],
+    # FHG — Feathery Hotel Coupon (~$12.4M value)
+    31: [{"shares": 2_000_000, "payout": 12_446_756, "freq": 7}],
+    # TCT — $1M cash
+    2: [{"shares": 100_000, "payout": 1_000_000, "freq": 31}],
+    # PRN — Erotic DVD (~$4M value)
+    32: [{"shares": 1_000_000, "payout": 4_015_007, "freq": 7}],
+    # GRN — $4M cash
+    27: [{"shares": 500_000, "payout": 4_000_000, "freq": 31}],
+    # IOU — $12M cash
+    18: [{"shares": 3_000_000, "payout": 12_000_000, "freq": 31}],
+    # MUN — Six-Pack of Energy Drink (~$13M value)
+    30: [{"shares": 5_000_000, "payout": 12_990_513, "freq": 7}],
+    # THS — Box of Medical Supplies (~$273K value)
+    14: [{"shares": 150_000, "payout": 272_871, "freq": 7}],
+    # PTS — 100 points (~$3.4M value)
+    29: [{"shares": 10_000_000, "payout": 3_365_600, "freq": 7}],
+    # TMI — $25M cash
+    33: [{"shares": 6_000_000, "payout": 25_000_000, "freq": 31}],
+    # EWM — Box of Grenades (~$1.1M value)
+    15: [{"shares": 1_000_000, "payout": 1_092_430, "freq": 7}],
+    # HRG — Random Property (~$45.5M value)
+    23: [{"shares": 10_000_000, "payout": 45_456_058, "freq": 31}],
+    # LSC — Lottery Voucher (~$894K value)
+    13: [{"shares": 500_000, "payout": 894_234, "freq": 7}],
+    # TSB — $50M cash
+    3: [{"shares": 3_000_000, "payout": 50_000_000, "freq": 31}],
+    # ASS — Six-Pack of Alcohol (~$878K value)
+    34: [{"shares": 1_000_000, "payout": 878_841, "freq": 7}],
+    # CNC — $80M cash
+    24: [{"shares": 7_500_000, "payout": 80_000_000, "freq": 31}],
+    # TCC — Clothing Cache (~$12.4M value, same as FHG?)
+    16: [{"shares": 7_500_000, "payout": 12_446_756, "freq": 7}],
+    # TCP — Company sales boost (hard to value, skip)
+    # MCS — 100 energy (~$807K value based on xanax equiv)
+    35: [{"shares": 350_000, "payout": 807_440, "freq": 7}],  # approximate
+    # CBD — 50 nerve
+    40: [{"shares": 350_000, "payout": 272_871, "freq": 7}],  # approximate
+    # TGP — Company advertising boost (hard to value, skip)
+}
+
+
+@router.get("/roi")
+async def stock_roi(x_player_id: int | None = Header(default=None)):
+    """Compute ROI for each stock benefit block — days to payback, annual ROI %."""
+    if not torn_client:
+        raise HTTPException(status_code=503, detail="Not initialized")
+
+    market = await torn_client.fetch_stock_market()
+
+    # Get player holdings if available
+    holdings = {}
+    if x_player_id and key_store:
+        all_keys = key_store.get_all_keys()
+        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        if user_key:
+            try:
+                portfolio = await torn_client.fetch_user_stocks(user_key["api_key"])
+                for sid, h in portfolio.items():
+                    holdings[int(sid)] = h.get("total_shares", 0)
+            except Exception:
+                pass
+
+    recommendations = []
+    for stock_id, increments in STOCK_PAYOUTS.items():
+        market_info = market.get(str(stock_id), {})
+        if not market_info:
+            continue
+        current_price = market_info.get("current_price", 0)
+        if current_price <= 0:
+            continue
+
+        acronym = market_info.get("acronym", "")
+        name = market_info.get("name", "")
+        benefit = market_info.get("benefit", {})
+        benefit_desc = benefit.get("description", "")
+        owned_shares = holdings.get(stock_id, 0)
+
+        for inc_idx, inc in enumerate(increments):
+            shares_needed = inc["shares"] * (2 ** inc_idx)  # Each increment doubles
+            total_shares_for_inc = sum(inc["shares"] * (2 ** i) for i in range(inc_idx + 1))
+            cost = shares_needed * current_price
+            payout_value = inc["payout"]
+            freq = inc["freq"]
+
+            daily_value = payout_value / freq
+            days_to_breakeven = cost / daily_value if daily_value > 0 else 99999
+            roi_annual = (365 / days_to_breakeven * 100) if days_to_breakeven > 0 else 0
+
+            # How many shares still needed
+            shares_still_needed = max(0, total_shares_for_inc - owned_shares)
+            cost_remaining = shares_still_needed * current_price
+            days_remaining = cost_remaining / daily_value if daily_value > 0 else 99999
+
+            recommendations.append({
+                "stock_id": stock_id,
+                "acronym": acronym,
+                "name": name,
+                "benefit_desc": benefit_desc,
+                "increment": inc_idx + 1,
+                "shares_required": total_shares_for_inc,
+                "cost_total": round(cost, 0),
+                "payout_value": payout_value,
+                "payout_freq_days": freq,
+                "daily_value": round(daily_value, 0),
+                "days_to_breakeven": round(days_to_breakeven, 0),
+                "roi_annual_pct": round(roi_annual, 2),
+                "owned_shares": owned_shares,
+                "shares_needed": shares_still_needed,
+                "cost_remaining": round(cost_remaining, 0),
+                "days_remaining": round(days_remaining, 0),
+                "is_active": owned_shares >= total_shares_for_inc,
+            })
+
+    # Sort by ROI (highest first), active at bottom
+    recommendations.sort(key=lambda r: (r["is_active"], -r["roi_annual_pct"]))
+
+    return {"recommendations": recommendations, "count": len(recommendations)}
+
+
 @router.get("/history/{stock_id}")
 async def stock_price_history(stock_id: int, days: int = Query(default=30, ge=1, le=365)):
     """Get historical price data for a stock."""

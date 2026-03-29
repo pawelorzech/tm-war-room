@@ -88,6 +88,7 @@ export const api = {
   stockMarket: () => apiFetch<unknown>('/api/stocks/market'),
   stockPortfolio: () => apiFetch<unknown>('/api/stocks/portfolio'),
   stockHistory: (stockId: number, days?: number) => apiFetch<unknown>(`/api/stocks/history/${stockId}${days ? `?days=${days}` : ''}`),
+  stockROI: () => apiFetch<unknown>('/api/stocks/roi'),
   revives: () => apiFetch<unknown>('/api/revives'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
