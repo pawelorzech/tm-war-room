@@ -1,12 +1,13 @@
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 
 logger = logging.getLogger("tm-hub.stocks")
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 torn_client = None  # Set by main.py
 key_store = None  # Set by main.py
+history_repo = None  # Set by main.py
 
 
 @router.get("/market")
@@ -112,3 +113,12 @@ async def stock_portfolio(x_player_id: int = Header()):
         "total_profit": round(total_profit, 2),
         "total_profit_pct": round(((total_value / total_cost) - 1) * 100, 2) if total_cost > 0 else 0,
     }
+
+
+@router.get("/history/{stock_id}")
+async def stock_price_history(stock_id: int, days: int = Query(default=30, ge=1, le=365)):
+    """Get historical price data for a stock."""
+    if not history_repo:
+        raise HTTPException(status_code=503, detail="History not available")
+    data = history_repo.get_stock_history(stock_id, days)
+    return {"stock_id": stock_id, "prices": data, "count": len(data)}
