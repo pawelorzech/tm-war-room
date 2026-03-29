@@ -68,6 +68,7 @@ export const api = {
   lootTimers: () => apiFetch<unknown>('/api/loot'),
   travelInfo: () => apiFetch<unknown>('/api/travel'),
   ocOverview: (cat?: string) => apiFetch<unknown>(`/api/oc${cat ? `?cat=${cat}` : ''}`),
+  warHistory: () => apiFetch<unknown>('/api/wars'),
   stockMarket: () => apiFetch<unknown>('/api/stocks/market'),
   stockPortfolio: () => apiFetch<unknown>('/api/stocks/portfolio'),
   revives: () => apiFetch<unknown>('/api/revives'),
