@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import { useSort } from '@/hooks/useSort';
+import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -81,7 +83,6 @@ export default function BountiesPage() {
   const [search, setSearch] = useState('');
   const [filterThreat, setFilterThreat] = useState<string>('all');
   const [hideUnavailable, setHideUnavailable] = useState(true);
-  const [sortBy, setSortBy] = useState<'reward' | 'threat'>('reward');
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -111,9 +112,7 @@ export default function BountiesPage() {
     filtered = filtered.filter(b => !UNAVAILABLE_STATES.includes(b.target_status));
   }
 
-  if (sortBy === 'threat') {
-    filtered = [...filtered].sort((a, b) => a.threat_score - b.threat_score);
-  }
+  const { sorted: sortedBounties, sortCol, sortDir, toggle: toggleSort } = useSort(filtered, 'reward');
 
   const easyCount = bounties.filter(b => b.threat_label === 'easy').length;
   const mediumCount = bounties.filter(b => b.threat_label === 'medium').length;
@@ -168,10 +167,7 @@ export default function BountiesPage() {
             {hideUnavailable ? 'Available only' : 'Show all'}
           </button>
 
-          <button onClick={() => setSortBy(s => s === 'reward' ? 'threat' : 'reward')}
-            className="ml-auto px-2.5 py-1 text-xs bg-bg-card text-text-secondary rounded-lg hover:bg-bg-elevated transition-colors">
-            Sort: {sortBy === 'reward' ? '$ Reward' : 'Threat ↑'}
-          </button>
+          <span className="ml-auto text-[10px] text-text-muted">Click column headers to sort</span>
         </div>
 
         {/* Quick stats */}
@@ -192,22 +188,22 @@ export default function BountiesPage() {
 
         {loading ? (
           <TableSkeleton rows={10} cols={5} />
-        ) : filtered.length > 0 ? (
+        ) : sortedBounties.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                    <th className="py-2 px-3">Target</th>
-                    <th className="py-2 px-3">Threat</th>
-                    <th className="py-2 px-3 text-right">Reward</th>
-                    <th className="py-2 px-3 hidden sm:table-cell">Listed by</th>
+                    <SortableHeader label="Target" column="target_name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+                    <SortableHeader label="Threat" column="threat_score" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+                    <SortableHeader label="Reward" column="reward" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <th className="py-2 px-3 hidden sm:table-cell text-text-muted text-xs uppercase tracking-wider">Listed by</th>
                     <th className="py-2 px-3 hidden md:table-cell">Reason</th>
                     <th className="py-2 px-3 text-right">Qty</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((b, i) => {
+                  {sortedBounties.map((b, i) => {
                     const unavailable = UNAVAILABLE_STATES.includes(b.target_status);
                     return (
                     <tr key={`${b.target_id}-${i}`} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${unavailable ? 'opacity-40' : ''}`}>

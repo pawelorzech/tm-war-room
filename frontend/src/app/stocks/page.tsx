@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { api } from '@/lib/api-client';
+import { useSort } from '@/hooks/useSort';
+import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -167,6 +169,8 @@ export default function StocksPage() {
   const filteredMarket = search
     ? market.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.acronym.toLowerCase().includes(search.toLowerCase()))
     : market;
+
+  const { sorted: sortedHoldings, sortCol: portfolioSortCol, sortDir: portfolioSortDir, toggle: togglePortfolioSort } = useSort(portfolio?.holdings ?? [], 'current_value');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
