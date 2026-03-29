@@ -113,7 +113,7 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background awards refresh failed: %s", e)
 
-    # 7. NPC loot — every 2nd cycle (~1min)
+    # 7. NPC loot — every 2nd cycle (~1min) + auto-reset reservations
     if tornstats_key and _cycle % 2 == 0:
         try:
             import inspect
@@ -129,10 +129,18 @@ async def run_refresh_data() -> None:
                 if key in ("status", "message", "loot") or not isinstance(val, dict):
                     continue
                 try:
-                    int(key)
+                    npc_id = int(key)
                 except ValueError:
                     continue
                 npcs.append(val)
+                # Auto-reset reservations when NPC is in hospital
+                npc_status = (val.get("status") or "").lower()
+                if "hosp" in npc_status and loot_mod.reservation_repo:
+                    existing = loot_mod.reservation_repo.get_for_npc(npc_id)
+                    if existing:
+                        loot_mod.reservation_repo.clear_npc(npc_id)
+                        logger.info("Auto-cleared %d reservations for NPC %s (hospitalized)",
+                                    len(existing), val.get("name", npc_id))
             if npcs:
                 loot_mod._cache_ts = 0
                 refreshed.append(f"loot:{len(npcs)}")
