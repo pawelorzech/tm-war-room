@@ -84,58 +84,23 @@ function profitClass(n: number): string {
 }
 
 interface StockROI {
-  id: number;
+  stock_id: number;
   acronym: string;
   name: string;
-  current_price: number;
   benefit_desc: string;
-  benefit_requirement: number;
-  cost_to_benefit: number;
+  increment: number;
+  shares_required: number;
+  cost_total: number;
+  payout_value: number;
+  payout_freq_days: number;
+  daily_value: number;
+  days_to_breakeven: number;
+  roi_annual_pct: number;
   owned_shares: number;
   shares_needed: number;
   cost_remaining: number;
-  owned: boolean;
-  benefit_active: boolean;
-}
-
-function computeROI(market: MarketStock[], portfolio: PortfolioData | null): StockROI[] {
-  const holdingsMap = new Map<number, Holding>();
-  if (portfolio) {
-    for (const h of portfolio.holdings) {
-      holdingsMap.set(h.stock_id, h);
-    }
-  }
-
-  return market
-    .filter(s => s.benefit_requirement > 0 && s.benefit_desc)
-    .map(s => {
-      const h = holdingsMap.get(s.id);
-      const owned = h ? h.total_shares : 0;
-      const needed = Math.max(0, s.benefit_requirement - owned);
-      const costRemaining = needed * s.current_price;
-      const totalCost = s.benefit_requirement * s.current_price;
-      return {
-        id: s.id,
-        acronym: s.acronym,
-        name: s.name,
-        current_price: s.current_price,
-        benefit_desc: s.benefit_desc,
-        benefit_requirement: s.benefit_requirement,
-        cost_to_benefit: totalCost,
-        owned_shares: owned,
-        shares_needed: needed,
-        cost_remaining: costRemaining,
-        owned: owned > 0,
-        benefit_active: owned >= s.benefit_requirement,
-      };
-    })
-    .sort((a, b) => {
-      // Already active go last
-      if (a.benefit_active && !b.benefit_active) return 1;
-      if (!a.benefit_active && b.benefit_active) return -1;
-      // Sort by remaining cost (cheapest first = best immediate ROI)
-      return a.cost_remaining - b.cost_remaining;
-    });
+  days_remaining: number;
+  is_active: boolean;
 }
 
 /* ── Component ── */
@@ -150,23 +115,24 @@ export default function StocksPage() {
   const [priceHistory, setPriceHistory] = useState<{ price: number; recorded_at: number }[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartDays, setChartDays] = useState(30);
+  const [roiData, setRoiData] = useState<StockROI[]>([]);
 
   const ownedIds = useMemo(() => {
     if (!portfolio) return new Set<number>();
     return new Set(portfolio.holdings.map(h => h.stock_id));
   }, [portfolio]);
 
-  const recommendations = useMemo(() => computeROI(market, portfolio), [market, portfolio]);
-
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
       api.stockMarket(),
       api.stockPortfolio().catch(() => null),
-    ]).then(([m, p]) => {
+      api.stockROI().catch(() => null),
+    ]).then(([m, p, r]) => {
       const md = m as { stocks: MarketStock[] };
       setMarket(md.stocks);
       if (p) setPortfolio(p as PortfolioData);
+      if (r) setRoiData((r as { recommendations: StockROI[] }).recommendations || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -341,17 +307,17 @@ export default function StocksPage() {
             </div>
           )
         ) : tab === 'recommendations' ? (
-          /* ── Recommendations ── */
+          /* ── ROI Recommendations ── */
           <div className="space-y-4">
             <div className="bg-torn-green/5 border border-torn-green/20 rounded-lg p-3">
-              <p className="text-sm font-medium text-text-primary">Investment advisor</p>
+              <p className="text-sm font-medium text-text-primary">Investment advisor — sorted by ROI</p>
               <p className="text-xs text-text-secondary mt-1">
-                Sorted by cheapest remaining cost to unlock a benefit. Already-active benefits shown at the bottom.
-                Buy the top stock you don&apos;t have yet for the best bang-for-buck.
+                Ranked by annual return on investment. &ldquo;Days to payback&rdquo; = how long until the benefit pays for itself.
+                Higher ROI% = better investment. Buy the top non-active stock first.
               </p>
             </div>
 
-            {recommendations.length > 0 ? (
+            {roiData.length > 0 ? (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -359,55 +325,56 @@ export default function StocksPage() {
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
                         <th className="py-2 px-3">#</th>
                         <th className="py-2 px-3">Stock</th>
-                        <th className="py-2 px-3">Benefit</th>
-                        <th className="py-2 px-3 text-right">Required</th>
-                        <th className="py-2 px-3 text-right">You Own</th>
-                        <th className="py-2 px-3 text-right">Need</th>
-                        <th className="py-2 px-3 text-right">Cost to Go</th>
+                        <th className="py-2 px-3 hidden md:table-cell">Benefit</th>
+                        <th className="py-2 px-3 text-right">Payout</th>
+                        <th className="py-2 px-3 text-right">Cost</th>
+                        <th className="py-2 px-3 text-right">Payback</th>
+                        <th className="py-2 px-3 text-right">ROI</th>
                         <th className="py-2 px-3">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {recommendations.map((r, i) => (
-                        <tr key={r.id} onClick={() => selectStock(r.id, r.name, r.acronym)}
+                      {roiData.map((r, i) => (
+                        <tr key={`${r.stock_id}-${r.increment}`} onClick={() => selectStock(r.stock_id, r.name, r.acronym)}
                           className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${
-                            r.benefit_active ? 'opacity-50' : ''
-                          } ${selectedStock?.id === r.id ? 'bg-torn-green/5' : ''}`}>
+                            r.is_active ? 'opacity-50' : ''
+                          } ${selectedStock?.id === r.stock_id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3 text-text-muted text-xs">
-                            {r.benefit_active ? '—' : i + 1}
+                            {r.is_active ? '—' : i + 1}
                           </td>
                           <td className="py-1.5 px-3">
                             <span className="font-semibold">{r.acronym}</span>
-                            <span className="ml-1.5 text-text-muted text-xs">{r.name}</span>
+                            {r.increment > 1 && <span className="text-text-muted text-[10px] ml-0.5">x{r.increment}</span>}
+                            <span className="ml-1.5 text-text-muted text-xs hidden sm:inline">{r.name}</span>
                           </td>
-                          <td className="py-1.5 px-3 text-xs text-text-secondary max-w-[200px]">{r.benefit_desc}</td>
-                          <td className="py-1.5 px-3 text-right tabular-nums text-text-muted text-xs">
-                            {r.benefit_requirement.toLocaleString()}
+                          <td className="py-1.5 px-3 text-xs text-text-secondary max-w-[180px] truncate hidden md:table-cell">{r.benefit_desc}</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary text-xs">
+                            {fmtMoney(r.payout_value)}<span className="text-text-muted">/{r.payout_freq_days}d</span>
                           </td>
-                          <td className="py-1.5 px-3 text-right tabular-nums">
-                            {r.owned_shares > 0 ? (
-                              <span className="text-torn-green">{r.owned_shares.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-text-muted">0</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-3 text-right tabular-nums">
-                            {r.shares_needed > 0 ? r.shares_needed.toLocaleString() : (
-                              <span className="text-torn-green">0</span>
-                            )}
-                          </td>
-                          <td className="py-1.5 px-3 text-right tabular-nums font-medium">
+                          <td className="py-1.5 px-3 text-right tabular-nums text-xs">
                             {r.cost_remaining > 0 ? fmtMoney(r.cost_remaining) : (
                               <span className="text-torn-green">$0</span>
                             )}
                           </td>
+                          <td className="py-1.5 px-3 text-right tabular-nums font-medium">
+                            {r.is_active ? '—' : (
+                              <span className={r.days_remaining < 365 ? 'text-torn-green' : r.days_remaining < 730 ? 'text-torn-yellow' : 'text-text-secondary'}>
+                                {Math.round(r.days_remaining)}d
+                              </span>
+                            )}
+                          </td>
+                          <td className={`py-1.5 px-3 text-right tabular-nums font-bold ${
+                            r.roi_annual_pct > 30 ? 'text-torn-green' : r.roi_annual_pct > 15 ? 'text-torn-yellow' : 'text-text-secondary'
+                          }`}>
+                            {r.roi_annual_pct.toFixed(1)}%
+                          </td>
                           <td className="py-1.5 px-3">
-                            {r.benefit_active ? (
+                            {r.is_active ? (
                               <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-green/15 text-torn-green">ACTIVE</span>
-                            ) : r.owned ? (
+                            ) : r.owned_shares > 0 ? (
                               <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-yellow/15 text-torn-yellow">PARTIAL</span>
                             ) : (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-bg-elevated text-text-muted">NOT OWNED</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-bg-elevated text-text-muted">BUY</span>
                             )}
                           </td>
                         </tr>
@@ -423,7 +390,7 @@ export default function StocksPage() {
             )}
 
             <p className="text-[10px] text-text-muted text-center">
-              Cost calculated at current market price. Actual cost may vary. Lower &ldquo;Cost to Go&rdquo; = better immediate ROI.
+              ROI = annual return %. Payback = days until benefit pays for the shares. Payout values estimated from market prices.
             </p>
           </div>
         ) : (
