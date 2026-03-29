@@ -229,6 +229,17 @@ async def recent_attacks(limit: int = Query(default=50, ge=1, le=200), force: bo
     return {"attacks": attacks, "count": len(attacks)}
 
 
+@router.get("/timeline")
+async def attack_timeline(hours: int = Query(default=48, ge=1, le=720)):
+    """Get hourly attack activity timeline."""
+    if not attack_repo:
+        raise HTTPException(status_code=503, detail="Chain tracker not initialized")
+    await _fetch_and_store_attacks()
+    since = int(time.time()) - (hours * 3600)
+    timeline = attack_repo.get_activity_timeline(since=since, bucket_seconds=3600)
+    return {"period_hours": hours, "since": since, "timeline": timeline, "buckets": len(timeline)}
+
+
 @router.get("/war/{faction_id}")
 async def war_report(faction_id: int, hours: int = Query(default=48, ge=1, le=720)):
     if not attack_repo:
