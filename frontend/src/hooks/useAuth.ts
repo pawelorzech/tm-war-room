@@ -52,12 +52,15 @@ export function useAuth() {
     localStorage.setItem("myKeyPlayer", String(result.player_id));
     localStorage.setItem("myKeyName", result.name);
     localStorage.setItem("myKeyRole", role);
+    if (result.access_level) localStorage.setItem("myKeyAccess", result.access_level);
+    if (result.limited_features?.length) localStorage.setItem("myKeyLimited", JSON.stringify(result.limited_features));
     setState({
       playerId: result.player_id,
       playerName: result.name,
       role,
       loading: false,
     });
+    return result;
   }, []);
 
   const logout = useCallback(() => {

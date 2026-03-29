@@ -48,14 +48,18 @@ export class ErrorBoundary extends React.Component<
 
           <div className="flex gap-2">
             <button
+              onClick={() => this.setState({ error: null })}
+              className="px-4 py-2 text-sm bg-torn-green text-white rounded-lg hover:bg-torn-green/90 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
               onClick={async () => {
                 const text = `${error.name}: ${error.message}\n\n${error.stack || ""}`;
                 try {
                   await navigator.clipboard.writeText(text);
-                  (document.activeElement as HTMLButtonElement)?.blur();
                   alert("Error copied to clipboard!");
                 } catch {
-                  // Fallback: select the stack trace text
                   const pre = document.querySelector('pre');
                   if (pre) {
                     const range = document.createRange();
@@ -70,11 +74,8 @@ export class ErrorBoundary extends React.Component<
               Copy Error
             </button>
             <button
-              onClick={() => {
-                this.setState({ error: null });
-                window.location.reload();
-              }}
-              className="px-4 py-2 text-sm bg-torn-green text-white rounded-lg hover:bg-torn-green/90 transition-colors"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-sm bg-bg-elevated border border-border rounded-lg text-text-secondary hover:bg-bg-card transition-colors"
             >
               Reload Page
             </button>

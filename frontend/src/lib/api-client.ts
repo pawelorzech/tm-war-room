@@ -109,6 +109,6 @@ export const api = {
     }).then(async (r) => {
       const body = await r.json();
       if (!r.ok) throw new Error(body.detail || "Failed");
-      return body as { player_id: number; name: string; role: import("@/types/admin").Role };
+      return body as { player_id: number; name: string; role: import("@/types/admin").Role; access_level?: string; limited_features?: string[] };
     }),
 };

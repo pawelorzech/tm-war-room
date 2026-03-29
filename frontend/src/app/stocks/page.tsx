@@ -7,6 +7,7 @@ import { useSort } from '@/hooks/useSort';
 import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ExportButton } from '@/components/layout/ExportButton';
 import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 const StockPriceChart = dynamic(
@@ -195,7 +196,7 @@ export default function StocksPage() {
         />
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-border">
+        <div className="flex items-center gap-2 border-b border-border">
           {([['portfolio', 'Portfolio'], ['market', 'Market'], ['recommendations', 'What to Buy']] as const).map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key as Tab); setSearch(''); }}
               className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -204,6 +205,22 @@ export default function StocksPage() {
               {label}
             </button>
           ))}
+          {tab === 'portfolio' && (
+            <div className="ml-auto -mb-px">
+              <ExportButton
+                rows={sortedHoldings as unknown as Record<string, unknown>[]}
+                columns={[
+                  { key: 'acronym', label: 'Stock' },
+                  { key: 'total_shares', label: 'Shares' },
+                  { key: 'current_price', label: 'Price' },
+                  { key: 'current_value', label: 'Value' },
+                  { key: 'profit', label: 'Profit/Loss' },
+                  { key: 'profit_pct', label: 'Return %' },
+                ]}
+                filename="tm-hub-portfolio.csv"
+              />
+            </div>
+          )}
         </div>
 
         {/* Price chart panel */}

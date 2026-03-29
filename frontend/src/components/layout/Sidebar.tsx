@@ -39,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "Targets", href: "/targets", icon: "\uD83C\uDFAF" },
       { label: "Stakeout", href: "/stakeout", icon: "\uD83D\uDC41\uFE0F" },
       { label: "Spy Central", href: "/spy", icon: "\uD83D\uDD0D" },
+      { label: "Compare", href: "/compare", icon: "\u2696\uFE0F" },
       { label: "NPC Loot", href: "/loot", icon: "\uD83D\uDCB0" },
       { label: "Revives", href: "/revives", icon: "\uD83D\uDC9A" },
       { label: "Market", href: "/market", icon: "\uD83D\uDED2" },

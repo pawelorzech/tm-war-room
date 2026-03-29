@@ -503,7 +503,28 @@ async def register_key(body: KeyRegister):
     key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
     role = get_role(raw["player_id"])
     logger.info("Key registered: %s [%d] role=%s", raw["name"], raw["player_id"], role)
-    return {"status": "ok", "player_id": raw["player_id"], "name": raw["name"], "role": role}
+
+    # Test key access level — check if stocks/battlestats work
+    access_level = "full"
+    limited_features: list[str] = []
+    try:
+        test_resp = await torn_client._http.get(
+            "https://api.torn.com/user/",
+            params={"selections": "stocks", "key": body.api_key},
+        )
+        test_raw = test_resp.json()
+        if inspect.isawaitable(test_raw):
+            test_raw = await test_raw
+        if "error" in test_raw:
+            access_level = "limited"
+            limited_features.append("stocks")
+    except Exception:
+        pass
+
+    return {
+        "status": "ok", "player_id": raw["player_id"], "name": raw["name"], "role": role,
+        "access_level": access_level, "limited_features": limited_features,
+    }
 
 
 @app.get("/api/announcements")
