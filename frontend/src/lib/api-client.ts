@@ -66,6 +66,7 @@ export const api = {
   targetsRemove: (playerId: number) =>
     apiFetch<unknown>(`/api/targets/${playerId}`, { method: 'DELETE' }),
   lootTimers: () => apiFetch<unknown>('/api/loot'),
+  travelInfo: () => apiFetch<unknown>('/api/travel'),
   stockMarket: () => apiFetch<unknown>('/api/stocks/market'),
   stockPortfolio: () => apiFetch<unknown>('/api/stocks/portfolio'),
   revives: () => apiFetch<unknown>('/api/revives'),
