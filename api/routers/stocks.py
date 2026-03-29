@@ -115,50 +115,30 @@ async def stock_portfolio(x_player_id: int = Header()):
     }
 
 
-# Known stock benefit payout values (from Torn game data)
-# Format: stock_id -> list of increments [{shares_needed, payout_value, frequency_days}]
-# Payout values are estimated market values of items received
+# Known stock benefit payout values — ONLY stocks with measurable $ payouts
+# Values from user's spreadsheet (verified March 2026)
+# Format: stock_id -> [{shares, payout ($ value), freq (days), desc}]
+# Excluded: perks with no $ value (education reduction, racing boost, company boost, etc)
 STOCK_PAYOUTS: dict[int, list[dict]] = {
-    # SYM — Drug Pack (~$4.3M value)
-    25: [{"shares": 500_000, "payout": 4_324_640, "freq": 7}],
-    # FHG — Feathery Hotel Coupon (~$12.4M value)
-    31: [{"shares": 2_000_000, "payout": 12_446_756, "freq": 7}],
-    # TCT — $1M cash
-    2: [{"shares": 100_000, "payout": 1_000_000, "freq": 31}],
-    # PRN — Erotic DVD (~$4M value)
-    32: [{"shares": 1_000_000, "payout": 4_015_007, "freq": 7}],
-    # GRN — $4M cash
-    27: [{"shares": 500_000, "payout": 4_000_000, "freq": 31}],
-    # IOU — $12M cash
-    18: [{"shares": 3_000_000, "payout": 12_000_000, "freq": 31}],
-    # MUN — Six-Pack of Energy Drink (~$13M value)
-    30: [{"shares": 5_000_000, "payout": 12_990_513, "freq": 7}],
-    # THS — Box of Medical Supplies (~$273K value)
-    14: [{"shares": 150_000, "payout": 272_871, "freq": 7}],
-    # PTS — 100 points (~$3.4M value)
-    29: [{"shares": 10_000_000, "payout": 3_365_600, "freq": 7}],
-    # TMI — $25M cash
-    33: [{"shares": 6_000_000, "payout": 25_000_000, "freq": 31}],
-    # EWM — Box of Grenades (~$1.1M value)
-    15: [{"shares": 1_000_000, "payout": 1_092_430, "freq": 7}],
-    # HRG — Random Property (~$45.5M value)
-    23: [{"shares": 10_000_000, "payout": 45_456_058, "freq": 31}],
-    # LSC — Lottery Voucher (~$894K value)
-    13: [{"shares": 500_000, "payout": 894_234, "freq": 7}],
-    # TSB — $50M cash
-    3: [{"shares": 3_000_000, "payout": 50_000_000, "freq": 31}],
-    # ASS — Six-Pack of Alcohol (~$878K value)
-    34: [{"shares": 1_000_000, "payout": 878_841, "freq": 7}],
-    # CNC — $80M cash
-    24: [{"shares": 7_500_000, "payout": 80_000_000, "freq": 31}],
-    # TCC — Clothing Cache (~$12.4M value, same as FHG?)
-    16: [{"shares": 7_500_000, "payout": 12_446_756, "freq": 7}],
-    # TCP — Company sales boost (hard to value, skip)
-    # MCS — 100 energy (~$807K value based on xanax equiv)
-    35: [{"shares": 350_000, "payout": 807_440, "freq": 7}],  # approximate
-    # CBD — 50 nerve
-    40: [{"shares": 350_000, "payout": 272_871, "freq": 7}],  # approximate
-    # TGP — Company advertising boost (hard to value, skip)
+    # Cash payouts
+    2:  [{"shares": 100_000, "payout": 1_000_000, "freq": 31, "desc": "$1M cash"}],        # TCT
+    27: [{"shares": 500_000, "payout": 4_000_000, "freq": 31, "desc": "$4M cash"}],         # GRN
+    18: [{"shares": 3_000_000, "payout": 12_000_000, "freq": 31, "desc": "$12M cash"}],     # IOU
+    33: [{"shares": 6_000_000, "payout": 25_000_000, "freq": 31, "desc": "$25M cash"}],     # TMI
+    3:  [{"shares": 3_000_000, "payout": 50_000_000, "freq": 31, "desc": "$50M cash"}],     # TSB
+    24: [{"shares": 7_500_000, "payout": 80_000_000, "freq": 31, "desc": "$80M cash"}],     # CNC
+    # Item payouts (market values from user's spreadsheet)
+    25: [{"shares": 500_000, "payout": 4_324_640, "freq": 7, "desc": "Drug Pack"}],         # SYM
+    31: [{"shares": 2_000_000, "payout": 12_446_756, "freq": 7, "desc": "Hotel Coupon"}],   # FHG
+    32: [{"shares": 1_000_000, "payout": 4_015_007, "freq": 7, "desc": "Erotic DVD"}],      # PRN
+    14: [{"shares": 150_000, "payout": 272_871, "freq": 7, "desc": "Medical Supplies"}],    # THS
+    29: [{"shares": 10_000_000, "payout": 3_365_600, "freq": 7, "desc": "100 points"}],     # PTS
+    15: [{"shares": 1_000_000, "payout": 1_092_430, "freq": 7, "desc": "Box of Grenades"}], # EWM
+    23: [{"shares": 10_000_000, "payout": 45_456_058, "freq": 31, "desc": "Random Property"}], # HRG
+    13: [{"shares": 500_000, "payout": 894_234, "freq": 7, "desc": "Lottery Voucher"}],     # LSC
+    34: [{"shares": 1_000_000, "payout": 878_841, "freq": 7, "desc": "Six-Pack Alcohol"}],  # ASS
+    30: [{"shares": 5_000_000, "payout": 12_990_513, "freq": 7, "desc": "Energy Drinks"}],  # MUN
+    16: [{"shares": 7_500_000, "payout": 12_446_756, "freq": 7, "desc": "Clothing Cache"}], # TCC
 }
 
 
@@ -218,7 +198,7 @@ async def stock_roi(x_player_id: int | None = Header(default=None)):
                 "stock_id": stock_id,
                 "acronym": acronym,
                 "name": name,
-                "benefit_desc": benefit_desc,
+                "benefit_desc": inc.get("desc", benefit_desc),
                 "increment": inc_idx + 1,
                 "shares_required": total_shares_for_inc,
                 "cost_total": round(cost, 0),
