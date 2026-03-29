@@ -27,7 +27,7 @@ class TornClient:
     def __init__(self, api_key: str, cache_ttl: int = 60, analytics_store=None) -> None:
         self._api_key = api_key
         self._cache_ttl = cache_ttl
-        self._http = httpx.AsyncClient(timeout=15.0)
+        self._http = httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "TM-Hub/1.0"})
         self._cache: dict[str, tuple[float, Any]] = {}
         self._analytics = analytics_store
 
