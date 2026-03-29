@@ -2,13 +2,17 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
+from pydantic import BaseModel
+from api.db.repos.loot_reservations import LootReservationRepository
 
 logger = logging.getLogger("tm-hub.loot")
 
 router = APIRouter(prefix="/api/loot", tags=["loot"])
 torn_client = None  # Set by main.py
 tornstats_key: str = ""  # Set by main.py
+reservation_repo: LootReservationRepository | None = None  # Set by main.py
+key_store = None  # Set by main.py
 
 _cache: dict | None = None
 _cache_ts: float = 0
@@ -99,6 +103,22 @@ async def loot_timers():
     # Sort: highest level first, then by next level time
     npcs.sort(key=lambda n: (-n["level"], n.get("next_level_at") or float("inf")))
 
+    # Attach reservations to each NPC
+    reservations_by_npc: dict[int, list] = {}
+    if reservation_repo:
+        for r in reservation_repo.get_all():
+            nid = r["npc_id"]
+            if nid not in reservations_by_npc:
+                reservations_by_npc[nid] = []
+            reservations_by_npc[nid].append({
+                "player_id": r["player_id"],
+                "player_name": r["player_name"],
+                "target_level": r["target_level"],
+            })
+
+    for npc in npcs:
+        npc["reservations"] = reservations_by_npc.get(npc["id"], [])
+
     result = {
         "npcs": npcs,
         "count": len(npcs),
@@ -107,3 +127,39 @@ async def loot_timers():
     _cache = result
     _cache_ts = now
     return result
+
+
+class ReserveRequest(BaseModel):
+    npc_id: int
+    npc_name: str = ""
+    target_level: int = 4
+
+
+@router.post("/reserve")
+async def reserve_npc(body: ReserveRequest, x_player_id: int = Header()):
+    """Reserve a spot on an NPC loot."""
+    global _cache_ts
+    if not reservation_repo or not key_store:
+        raise HTTPException(status_code=503, detail="Not initialized")
+    all_keys = key_store.get_all_keys()
+    user = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    reservation_repo.reserve(
+        npc_id=body.npc_id, npc_name=body.npc_name,
+        player_id=x_player_id, player_name=user["player_name"],
+        target_level=body.target_level,
+    )
+    _cache_ts = 0  # Invalidate cache so next request shows updated reservations
+    return {"status": "ok"}
+
+
+@router.delete("/reserve/{npc_id}")
+async def cancel_reservation(npc_id: int, x_player_id: int = Header()):
+    """Cancel your reservation on an NPC."""
+    global _cache_ts
+    if not reservation_repo:
+        raise HTTPException(status_code=503, detail="Not initialized")
+    reservation_repo.cancel(npc_id, x_player_id)
+    _cache_ts = 0
+    return {"status": "ok"}

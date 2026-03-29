@@ -67,6 +67,10 @@ export const api = {
   targetsRemove: (playerId: number) =>
     apiFetch<unknown>(`/api/targets/${playerId}`, { method: 'DELETE' }),
   lootTimers: () => apiFetch<unknown>('/api/loot'),
+  lootReserve: (npc_id: number, npc_name: string, target_level: number) =>
+    apiFetch<unknown>('/api/loot/reserve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ npc_id, npc_name, target_level }) }),
+  lootCancelReserve: (npc_id: number) =>
+    apiFetch<unknown>(`/api/loot/reserve/${npc_id}`, { method: 'DELETE' }),
   travelInfo: () => apiFetch<unknown>('/api/travel'),
   ocOverview: (cat?: string) => apiFetch<unknown>(`/api/oc${cat ? `?cat=${cat}` : ''}`),
   warHistory: () => apiFetch<unknown>('/api/wars'),

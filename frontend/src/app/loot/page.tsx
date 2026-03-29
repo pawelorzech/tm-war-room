@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/hooks/useAuth';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+
+interface Reservation {
+  player_id: number;
+  player_name: string;
+  target_level: number;
+}
 
 interface NPC {
   id: number;
@@ -14,6 +21,7 @@ interface NPC {
   next_level_at: number | null;
   level_times: Record<string, number>;
   updated: number;
+  reservations: Reservation[];
 }
 
 interface LootData {
@@ -27,19 +35,15 @@ const LEVEL_BG = ['', 'bg-text-muted/10', 'bg-torn-blue/10', 'bg-torn-green/10',
 
 function Countdown({ targetTs }: { targetTs: number }) {
   const [now, setNow] = useState(Date.now() / 1000);
-
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now() / 1000), 1000);
     return () => clearInterval(timer);
   }, []);
-
   const diff = Math.max(0, targetTs - now);
   if (diff <= 0) return <span className="text-torn-green font-semibold">Ready!</span>;
-
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   const s = Math.floor(diff % 60);
-
   return (
     <span className="font-mono text-text-primary">
       {h > 0 ? `${h}h ` : ''}{m.toString().padStart(2, '0')}m {s.toString().padStart(2, '0')}s
@@ -60,6 +64,7 @@ function LevelBar({ level }: { level: number }) {
 }
 
 export default function LootPage() {
+  const { playerId } = useAuth();
   const [data, setData] = useState<LootData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,20 +72,26 @@ export default function LootPage() {
   const loadData = () => {
     setLoading(true);
     setError(null);
-    api.lootTimers().then(d => {
-      setData(d as LootData);
-    }).catch(e => {
-      setError(e.message || 'Failed to load loot data');
-    }).finally(() => setLoading(false));
+    api.lootTimers().then(d => setData(d as LootData))
+      .catch(e => setError(e.message || 'Failed to load'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
-
-  // Auto-refresh every 30s
   useEffect(() => {
     const timer = setInterval(loadData, 30000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleReserve = async (npc: NPC, level: number) => {
+    await api.lootReserve(npc.id, npc.name, level);
+    loadData();
+  };
+
+  const handleCancel = async (npcId: number) => {
+    await api.lootCancelReserve(npcId);
+    loadData();
+  };
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -88,9 +99,7 @@ export default function LootPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">NPC Loot Timers</h1>
-            <p className="text-text-secondary text-sm mt-1">
-              Live NPC loot levels and countdowns. Auto-refreshes every 30s.
-            </p>
+            <p className="text-text-secondary text-sm mt-1">Live loot levels, countdowns, and reservations. Auto-refreshes every 30s.</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
@@ -98,9 +107,8 @@ export default function LootPage() {
         <PageExplainer id="loot" title="NPC Loot — What's here?" bullets={[
           "NPCs accumulate loot over time in 5 levels (more looters = higher level).",
           "Level 2: +30min, Level 3: +90min, Level 4: +3.5h, Level 5: +7.5h after hospital release.",
-          "Higher levels = more players get loot drops. Level 5 is the most valuable.",
+          "Reserve an NPC — claim which one you want to hit and at what level. Others see your claim.",
           "Data from TornStats, refreshed every 30 seconds automatically.",
-          "Attack an NPC at the right moment to maximize your loot chance!",
         ]} />
 
         {loading && !data ? (
@@ -111,6 +119,8 @@ export default function LootPage() {
           <div className="space-y-3">
             {data.npcs.map(npc => {
               const isHosp = npc.status?.toLowerCase().includes('hosp');
+              const myReservation = npc.reservations?.find(r => r.player_id === playerId);
+
               return (
                 <div key={npc.id}
                   className={`bg-bg-card border rounded-xl p-4 transition-colors ${
@@ -118,6 +128,7 @@ export default function LootPage() {
                     npc.level >= 3 ? 'border-torn-green/20' :
                     'border-text-secondary/15'
                   }`}>
+                  {/* NPC header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -130,8 +141,11 @@ export default function LootPage() {
                           Lv {npc.level}
                         </span>
                         {isHosp && (
-                          <span className="px-1.5 py-0.5 text-[10px] rounded bg-torn-red/15 text-torn-red font-medium">
-                            Hospital
+                          <span className="px-1.5 py-0.5 text-[10px] rounded bg-torn-red/15 text-torn-red font-medium">Hospital</span>
+                        )}
+                        {npc.reservations?.length > 0 && (
+                          <span className="px-1.5 py-0.5 text-[10px] rounded bg-torn-blue/15 text-torn-blue font-medium">
+                            {npc.reservations.length} reserved
                           </span>
                         )}
                       </div>
@@ -168,12 +182,51 @@ export default function LootPage() {
                         const time = new Date(ts * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                         return (
                           <span key={lvl} className={isPast ? LEVEL_COLORS[lvl] : 'text-text-muted'}>
-                            L{lvl}: {time} {isPast ? '✓' : ''}
+                            L{lvl}: {time} {isPast ? '\u2713' : ''}
                           </span>
                         );
                       })}
                     </div>
                   )}
+
+                  {/* Reservations */}
+                  {npc.reservations?.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border-light">
+                      <div className="flex flex-wrap gap-1.5">
+                        {npc.reservations.map(r => (
+                          <span key={r.player_id}
+                            className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                              r.player_id === playerId
+                                ? 'bg-torn-green/20 text-torn-green'
+                                : 'bg-bg-elevated text-text-secondary'
+                            }`}>
+                            {r.player_name || `#${r.player_id}`} @ Lv{r.target_level}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reserve / Cancel buttons */}
+                  <div className="mt-2 flex items-center gap-2">
+                    {myReservation ? (
+                      <button onClick={() => handleCancel(npc.id)}
+                        className="text-xs text-danger hover:underline">
+                        Cancel my reservation
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-text-muted">Reserve at:</span>
+                        {[3, 4, 5].map(lvl => (
+                          <button key={lvl} onClick={() => handleReserve(npc, lvl)}
+                            className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                              LEVEL_BG[lvl]} ${LEVEL_COLORS[lvl]} hover:opacity-80`}>
+                            Lv{lvl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
