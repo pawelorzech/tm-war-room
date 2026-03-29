@@ -46,7 +46,22 @@ async def stock_portfolio(x_player_id: int = Header()):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
     market = await torn_client.fetch_stock_market()
-    portfolio = await torn_client.fetch_user_stocks(user_key["api_key"])
+    try:
+        portfolio = await torn_client.fetch_user_stocks(user_key["api_key"])
+    except Exception as e:
+        err_str = str(e).lower()
+        if "access" in err_str or "permission" in err_str or "incorrect" in err_str:
+            raise HTTPException(
+                status_code=403,
+                detail="Your API key doesn't have stock access. Use a Full Access key from Torn Settings → API Keys."
+            )
+        raise HTTPException(status_code=502, detail=f"Torn API error: {e}")
+
+    if not portfolio:
+        raise HTTPException(
+            status_code=403,
+            detail="No stock data returned. Your API key may be limited. Use a Full Access key."
+        )
 
     holdings = []
     total_value = 0

@@ -65,7 +65,8 @@ export function useAuth() {
     localStorage.removeItem("myKeyName");
     localStorage.removeItem("myKeyRole");
     localStorage.removeItem("adminToken");
-    setState({ playerId: null, playerName: null, role: null, loading: false });
+    // Force full page reload to clear all cached state, hooks, and data
+    window.location.href = "/";
   }, []);
 
   return { ...state, login, logout, isLoggedIn: state.playerId !== null };

@@ -118,6 +118,7 @@ export default function StocksPage() {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartDays, setChartDays] = useState(30);
   const [roiData, setRoiData] = useState<StockROI[]>([]);
+  const [portfolioError, setPortfolioError] = useState('');
 
   const ownedIds = useMemo(() => {
     if (!portfolio) return new Set<number>();
@@ -128,7 +129,7 @@ export default function StocksPage() {
     setLoading(true);
     Promise.all([
       api.stockMarket(),
-      api.stockPortfolio().catch(() => null),
+      api.stockPortfolio().catch((e) => { setPortfolioError(e?.message || 'Could not load portfolio — use a Full Access API key'); return null; }),
       api.stockROI().catch(() => null),
     ]).then(([m, p, r]) => {
       const md = m as { stocks: MarketStock[] };
@@ -306,8 +307,15 @@ export default function StocksPage() {
               </div>
             </>
           ) : (
-            <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
-              No stock holdings found. Buy stocks on the <a href="https://www.torn.com/stockexchange.php" target="_blank" className="text-torn-green hover:underline">Torn Stock Exchange</a>.
+            <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary space-y-2">
+              {portfolioError ? (
+                <>
+                  <p className="text-danger font-medium">{portfolioError}</p>
+                  <p className="text-xs">Your API key may not have stock access. Go to <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" className="text-torn-green underline">Torn Settings → API Keys</a> and create a <strong>Full Access</strong> key.</p>
+                </>
+              ) : (
+                <p>No stock holdings found. Buy stocks on the <a href="https://www.torn.com/stockexchange.php" target="_blank" className="text-torn-green hover:underline">Torn Stock Exchange</a>.</p>
+              )}
             </div>
           )
         ) : tab === 'recommendations' ? (

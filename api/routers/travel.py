@@ -88,8 +88,12 @@ async def travel_info():
             yata_items = country_data.get("stocks", country_data.get("items", []))
             last_update = country_data.get("update", 0)
 
+            seen_ids = set()
             for yi in yata_items:
                 item_id = yi.get("id", 0)
+                if item_id in seen_ids:
+                    continue  # Deduplicate by item_id
+                seen_ids.add(item_id)
                 item_name = yi.get("name", "")
                 abroad_cost = yi.get("cost", 0)
                 quantity = yi.get("quantity", 0)
