@@ -19,6 +19,7 @@ async def create_and_start_scheduler(app_state: dict):
     from api.scheduler.jobs.collect_stats import run_collect_stats
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
     from api.scheduler.jobs.refresh_data import run_refresh_data
+    from api.scheduler.jobs.collect_circulation import run_collect_circulation
 
     global _state
     _state = app_state
@@ -30,6 +31,7 @@ async def create_and_start_scheduler(app_state: dict):
     await scheduler.configure_task("collect_stats", func=run_collect_stats)
     await scheduler.configure_task("refresh_spies", func=run_refresh_spies)
     await scheduler.configure_task("refresh_data", func=run_refresh_data)
+    await scheduler.configure_task("collect_circulation", func=run_collect_circulation)
 
     await scheduler.add_schedule(
         "collect_stats",
@@ -46,7 +48,12 @@ async def create_and_start_scheduler(app_state: dict):
         IntervalTrigger(seconds=30),
         id="refresh_data_schedule",
     )
+    await scheduler.add_schedule(
+        "collect_circulation",
+        CronTrigger(hour=5, minute=0),
+        id="collect_circulation_schedule",
+    )
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min), refresh_data (every 30s)")
+    logger.info("Scheduler started: collect_stats (4:00), circulation (5:00), refresh_spies (30min), refresh_data (30s)")
     return scheduler

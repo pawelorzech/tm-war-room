@@ -89,6 +89,8 @@ async def lifespan(app: FastAPI):
 
     awards_mod.torn_client = torn_client
     awards_mod.key_store = key_store
+    from api.db.repos.circulation import CirculationRepository
+    awards_mod.circulation_repo = CirculationRepository(db_path="data/keys.db")
 
     from api.db.repos.targets import TargetRepository
     target_repo = TargetRepository(db_path="data/keys.db")

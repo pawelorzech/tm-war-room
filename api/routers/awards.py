@@ -1,12 +1,13 @@
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 
 logger = logging.getLogger("tm-hub.awards")
 
 router = APIRouter(prefix="/api/awards", tags=["awards"])
 torn_client = None  # Set by main.py
 key_store = None  # Set by main.py
+circulation_repo = None  # Set by main.py
 
 
 @router.get("/catalog")
@@ -146,3 +147,14 @@ async def my_awards(x_player_id: int = Header()):
         "medals_earned": len(medals_awarded),
         "medals_total": len(all_medals),
     }
+
+
+@router.get("/circulation/{kind}/{award_id}")
+async def award_circulation_history(kind: str, award_id: int, days: int = Query(default=30, ge=1, le=365)):
+    """Get circulation history for an honor or medal."""
+    if kind not in ("honor", "medal"):
+        raise HTTPException(status_code=400, detail="kind must be 'honor' or 'medal'")
+    if not circulation_repo:
+        return {"history": [], "count": 0}
+    history = circulation_repo.get_history(award_id, kind, days)
+    return {"award_id": award_id, "kind": kind, "history": history, "count": len(history)}
