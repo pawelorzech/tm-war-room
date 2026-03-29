@@ -53,6 +53,23 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background members refresh failed: %s", e)
 
+    # 1b. Record activity snapshot (daily, on full cycles)
+    if is_full_cycle:
+        try:
+            history_repo = state.get("history_repo")
+            members = await torn_client.fetch_members()
+            if history_repo and members:
+                total = len(members)
+                online = sum(1 for m in members if getattr(m, 'last_action', None) and
+                             hasattr(m.last_action, 'status') and m.last_action.status == 'Online')
+                hospital = sum(1 for m in members if hasattr(m, 'status') and
+                               hasattr(m.status, 'state') and m.status.state == 'Hospital')
+                traveling = sum(1 for m in members if hasattr(m, 'status') and
+                                hasattr(m.status, 'state') and m.status.state in ('Traveling', 'Abroad'))
+                history_repo.record_activity_snapshot(total, online, hospital, traveling)
+        except Exception as e:
+            logger.error("Activity snapshot failed: %s", e)
+
     # 2. Attacks — always during war, every 2nd cycle peacetime
     if attack_repo and (war_active or _cycle % 2 == 0):
         try:
@@ -97,11 +114,23 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background revive refresh failed: %s", e)
 
-    # 5. Stocks — full cycle only (every 2min)
+    # 5. Stocks — full cycle only (every 2min) + record history
     if is_full_cycle:
         try:
-            await torn_client.fetch_stock_market()
+            stocks = await torn_client.fetch_stock_market()
             refreshed.append("stocks")
+            # Record stock price history
+            history_repo = state.get("history_repo")
+            if history_repo and isinstance(stocks, dict) and _cycle % 8 == 0:
+                prices = []
+                for sid, s in stocks.items():
+                    try:
+                        prices.append((int(sid), s.get("current_price", 0)))
+                    except (ValueError, AttributeError):
+                        pass
+                if prices:
+                    history_repo.record_stock_prices_bulk(prices)
+                    refreshed.append(f"stock_hist:{len(prices)}")
         except Exception as e:
             logger.error("Background stock refresh failed: %s", e)
 

@@ -99,8 +99,11 @@ async def lifespan(app: FastAPI):
     loot_mod.reservation_repo = LootReservationRepository(db_path="data/keys.db")
     loot_mod.key_store = key_store
     revives_mod.torn_client = torn_client
+    from api.db.repos.history import HistoryRepository
+    history_repo_inst = HistoryRepository(db_path="data/keys.db")
     stocks_mod.torn_client = torn_client
     stocks_mod.key_store = key_store
+    stocks_mod.history_repo = history_repo_inst
     travel_mod.torn_client = torn_client
     oc_mod.torn_client = torn_client
     wars_mod.torn_client = torn_client
@@ -119,6 +122,7 @@ async def lifespan(app: FastAPI):
         "torn_client": torn_client,
         "tornstats_key": TORNSTATS_API_KEY,
         "attack_repo": attack_repo,
+        "history_repo": history_repo_inst,
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
