@@ -29,7 +29,7 @@ export function SpyResultCard({ data }: { data: SpyEstimate }) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-lg font-bold text-text-primary">
-            {data.player_name || `Player #${data.player_id}`}
+            {data.player_name || `#${data.player_id}`}
           </h3>
           <p className="text-xs text-text-secondary">
             <a href={`https://www.torn.com/profiles.php?XID=${data.player_id}`}

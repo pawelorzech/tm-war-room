@@ -79,4 +79,16 @@ async def get_leaderboard():
         from api.scheduler.jobs.collect_stats import collect_stat_snapshots
         await collect_stat_snapshots(key_repo, stats_repo, torn_client)
         latest = stats_repo.get_all_latest()
+    # Enrich with player names from faction members
+    name_lookup: dict[int, str] = {}
+    if torn_client:
+        try:
+            members = await torn_client.fetch_members()
+            name_lookup = {m.id: m.name for m in members}
+        except Exception:
+            pass
+    for entry in latest:
+        pid = entry.get("player_id", 0)
+        if pid and pid in name_lookup:
+            entry["player_name"] = name_lookup[pid]
     return {"members": latest, "count": len(latest)}
