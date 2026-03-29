@@ -122,6 +122,13 @@ export const api = {
       headers: { "Content-Type": "application/json", "X-Player-Id": (typeof window !== "undefined" && localStorage.getItem("myKeyPlayer")) || "" },
       body: JSON.stringify(data),
     }).then(r => r.json()),
+  pushVapidKey: () => apiFetch<{ vapid_public_key: string | null; enabled: boolean }>('/api/push/vapid-key'),
+  pushSubscribe: (data: { endpoint: string; keys: { p256dh: string; auth: string }; preferences: Record<string, boolean> }) =>
+    apiFetch<unknown>('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+  pushPreferences: (prefs: Record<string, boolean>) =>
+    apiFetch<unknown>('/api/push/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferences: prefs }) }),
+  pushUnsubscribe: (endpoint: string) =>
+    apiFetch<unknown>(`/api/push/unsubscribe?endpoint=${encodeURIComponent(endpoint)}`, { method: 'DELETE' }),
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
