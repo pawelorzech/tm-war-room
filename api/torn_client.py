@@ -332,6 +332,30 @@ class TornClient:
             "level": raw.get("level", 0),
         }
 
+    async def fetch_faction_crimes(self, cat: str = "planning") -> list[dict]:
+        """Fetch faction organized crimes. cat: planning, completed, executing."""
+        cache_key = f"oc_{cat}"
+        cached = self._get_cached(cache_key, ttl=60)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/faction/crimes",
+                params={"cat": cat, "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", f"/v2/faction/crimes?cat={cat}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", f"/v2/faction/crimes?cat={cat}", False, (time.time() - start) * 1000, str(e))
+            raise
+        crimes = raw.get("crimes", [])
+        if isinstance(crimes, dict):
+            crimes = list(crimes.values())
+        self._set_cached(cache_key, crimes)
+        return crimes
+
     async def fetch_stock_market(self) -> dict:
         """Fetch all stock listings from Torn."""
         cached = self._get_cached("stocks_market", ttl=300)

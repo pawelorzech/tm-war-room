@@ -85,6 +85,11 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/travel",
         icon: "\u2708\uFE0F",
       },
+      {
+        label: "OC Planner",
+        href: "/oc",
+        icon: "\uD83D\uDD74\uFE0F",
+      },
     ],
   },
 ];
