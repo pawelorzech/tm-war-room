@@ -1,97 +1,92 @@
-# TM War Room
+# TM Hub
 
-Real-time Ranked War command center for **The Masters** faction in [Torn.com](https://www.torn.com).
+Faction toolkit for **The Masters [TM]** in [Torn.com](https://www.torn.com). Full-featured alternative to YATA and TornStats for faction management.
 
-Live at **[rw.tri.ovh](https://rw.tri.ovh)** (faction members only).
+Live at **[hub.tri.ovh](https://hub.tri.ovh)** (faction members only).
 
 ## Features
 
-### Our Team
-- Live member status — online/offline, hospital (with reason + timer), traveling (with destination), jail
-- Energy stacking & drug cooldown tracking (members register their API key)
-- Revive settings — warns when members have revives disabled
-- OC participation status
-- New member badges (< 30 days)
-- Sortable columns
+### Faction
+- **Our Team** — live member status (online/offline, hospital timers, travel, jail), energy stacking, drug cooldowns, OC status, revive settings
+- **Enemies** — auto-detect enemy from active Ranked War, threat scoring (relative to your stats via TornStats), attack buttons, sortable columns
 
-### Enemy Targets
-- Auto-detects enemy faction from active Ranked War (or manual faction ID input)
-- Threat scoring — relative to YOUR stats, powered by TornStats spy data
-- One-click Attack buttons + Torn profile/stats links
-- Hospital timers, travel status
-- Sortable by threat level, name, level, xanax, attacks won
+### Training
+- **Training Guide** — gym formula reference, happy jumping calculator, energy management, stat enhancers, rehab cost comparison (SE vs Xanax), merit/book/education perks — all auto-populated from API
 
-### War Dashboard
-- Live score tracker with progress bars
-- Chain status during active RW
-- Clickable faction links to Torn
+### Tools
+- **Stat Growth** — Chart.js line charts, 30-day growth cards, faction leaderboard
+- **Market Scanner** — 14 tracked items with live prices, discount %, buy links
+- **Spy Central** — player search (ID=live TornStats, name=local DB), faction lookup, submit spy form, admin CRUD
+- **Chain Tracker** — auto-detected chains from attack data, per-member breakdown, bonus hits, recent attacks feed
+- **Awards Tracker** — honors & medals progress, category filters, sortable table, TornStats detail links, inline detail panels
+- **Target Lists** — save/tag enemy targets with difficulty ratings, notes, quick attack links
+- **NPC Loot Timers** — live loot levels from TornStats, countdown timers, level progression bars
+- **Revive Tracker** — revive leaderboard (given/received, success rate), recent revives feed
+- **Stock Tracker** — portfolio with P/L calculations, benefit/dividend progress; market overview with all stocks
+- **Travel Planner** — 11 countries with travel times, items abroad, current market prices
+- **OC Planner** — organized crime status (planning/completed), participant roles, checkpoint pass rates
+- **War Reports** — ranked war scores, raids, territory battles
 
-### Security
-- Faction-only access — must be a member of The Masters to log in
-- API keys stored encrypted (Fernet) in SQLite
-- All data endpoints require authentication
-- Keys validated against Torn API on registration
+### Platform
+- **Light/dark mode** — full theme toggle with CSS variables
+- **Admin panel** — analytics dashboard, announcement editor, spy data management, admin roles
+- **PageExplainer** — dismissible tutorial panel on every page
+- **Admin refresh** — force data re-fetch button on all pages (admin only)
+- **Mobile-first** — responsive sidebar + mobile drawer
 
 ## Stack
 
-- **Backend:** Python 3.12, FastAPI, httpx, SQLite, cryptography
-- **Frontend:** Vanilla HTML/CSS/JS — no build step, no framework
-- **Integrations:** Torn API v1/v2, TornStats API
-- **Deploy:** Docker on Coolify
-- **DNS:** BunnyCDN
+- **Backend:** Python 3.12, FastAPI, SQLite (WAL), httpx, APScheduler 4
+- **Frontend:** Next.js 15 (static export), React 19, TypeScript, Tailwind CSS v4, Chart.js
+- **Auth:** Torn API key → encrypted storage (Fernet) → X-Player-Id header
+- **Integrations:** Torn API v1/v2, TornStats API, YATA API
+- **Deploy:** Docker (multi-stage) → Coolify → Contabo VPS
+- **Tests:** 107 backend pytest tests
 
-## Dev
+## Architecture
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+```
+api/
+├── main.py              # FastAPI app, lifespan, middleware
+├── config.py            # env vars
+├── torn_client.py       # Torn/YATA/TornStats async client
+├── threat.py            # threat scoring
+├── auth.py              # JWT + rate limiting
+├── admin.py             # admin panel router
+├── db/
+│   ├── __init__.py      # KeyStore facade
+│   ├── migrations/      # 011 SQL migrations
+│   └── repos/           # SQLite repositories
+├── services/spy.py      # SpyService
+├── routers/             # spy, stats, market, chain, awards, targets, loot, revives, stocks, travel, oc, wars
+└── scheduler/           # APScheduler 4 background jobs
 
-# Required env vars
-export TORN_API_KEY=your_torn_api_key
-export TORNSTATS_API_KEY=your_tornstats_key  # optional, enables threat scoring
-
-uvicorn app.main:app --reload --port 8080
+frontend/src/
+├── app/                 # Next.js pages (18 routes)
+├── components/          # React components by domain
+├── hooks/               # useAuth, useWarData, useTeamData, etc.
+├── lib/api-client.ts    # centralized API wrapper
+└── types/               # TypeScript interfaces
 ```
 
-## Test
+## Development
 
 ```bash
-pytest -v
-```
+# Backend
+uv run pytest tests/ -v
+TORN_API_KEY=xxx uvicorn api.main:app --reload --port 8000
 
-29 tests covering models, API client, threat scoring, routes, and auth.
+# Frontend
+cd frontend && npm run dev    # dev server (port 3000)
+cd frontend && npm run build  # static export (build test)
+```
 
 ## Deploy
 
-Deployed via [Coolify](https://coolify.io) as a Docker application from this repo.
+Push to `master` → GitHub Actions → Coolify auto-deploy → Docker build.
 
-```
-rw.tri.ovh → BunnyCDN DNS → Coolify (Traefik + Let's Encrypt) → Docker container
-```
-
-### Env vars on Coolify
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TORN_API_KEY` | yes | Any faction member's Torn API key |
-| `TORNSTATS_API_KEY` | no | TornStats key for enemy threat data |
-| `ENCRYPTION_KEY` | yes | Fernet key for encrypting stored API keys |
-| `FACTION_ID` | no | Default: 11559 (The Masters) |
-| `CACHE_TTL` | no | Default: 60 seconds |
-
-## API
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/` | no | Dashboard HTML |
-| GET | `/api/overview` | yes | Faction members + war status + chain |
-| GET | `/api/members/detail` | yes | Energy/cooldowns for opted-in members |
-| GET | `/api/enemy` | yes | Enemy faction + threat scores |
-| GET | `/api/keys` | yes | List registered keys |
-| POST | `/api/keys` | no | Register API key (validates faction membership) |
-| DELETE | `/api/keys/{id}` | no | Remove a key |
-
-Auth = `X-Player-Id` header with a registered player ID.
+- Production: `hub.tri.ovh`
+- Redirects: `rw.tri.ovh` → `/team`, `train.tri.ovh` → `/training`
 
 ## License
 
