@@ -350,7 +350,7 @@ export default function OCPage() {
 
         {/* Completed summary stats */}
         {completedStats && tab === 'completed' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
               <p className="text-lg font-bold text-text-primary">{completedStats.rate}%</p>
               <p className="text-[10px] text-text-muted uppercase">Success Rate</p>
@@ -360,12 +360,8 @@ export default function OCPage() {
               <p className="text-[10px] text-text-muted uppercase">Successes</p>
             </div>
             <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
-              <p className="text-lg font-bold text-torn-green">{fmtMoney(completedStats.totalMoney)}</p>
-              <p className="text-[10px] text-text-muted uppercase">Total Earned</p>
-            </div>
-            <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
-              <p className="text-lg font-bold text-text-primary">{completedStats.totalRespect.toFixed(1)}</p>
-              <p className="text-[10px] text-text-muted uppercase">Respect</p>
+              <p className="text-lg font-bold text-danger">{completedStats.failCount}</p>
+              <p className="text-[10px] text-text-muted uppercase">Failures</p>
             </div>
           </div>
         )}

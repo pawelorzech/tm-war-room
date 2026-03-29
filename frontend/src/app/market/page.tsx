@@ -197,7 +197,7 @@ export default function MarketPage() {
                     return (
                       <tr key={item.id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
                         <td className="py-1.5 px-3 font-medium text-text-primary">
-                          <a href={`https://www.torn.com/imarket.php#/p=shop&step=shop&type=&searchname=${encodeURIComponent(item.name)}`}
+                          <a href={`https://www.torn.com/imarket.php#/p=shop&step=shop&type=&searchname=${encodeURIComponent(item.name)}&ID=${item.id}`}
                             target="_blank" className="hover:text-torn-green transition-colors">
                             {item.name}
                           </a>
