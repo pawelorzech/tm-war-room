@@ -24,18 +24,22 @@ const FAQ_SECTIONS: FAQSection[] = [
     description: 'How fighting works in Torn and how to get stronger.',
     faqs: [
       {
-        q: 'How do battle stats work?',
-        a: 'You have 4 battle stats: Strength (damage dealt), Defense (damage absorbed), Speed (hit chance), and Dexterity (dodge chance). Total stats determine your fighting power. Stats are gained by training at the gym using energy.',
+        q: 'What do the four battle stats actually do?',
+        a: 'Strength increases damage dealt per hit. Defense reduces damage taken per hit. Speed increases your chance of hitting the opponent. Dexterity increases your chance of dodging attacks. Str+Spd are offensive; Dex+Def are defensive.',
         tip: 'Focus all energy on ONE stat early on for fastest growth. Switch to balanced training later.',
       },
       {
         q: 'How do I know if I can beat someone?',
-        a: "Check their threat level on our Bounty Board or Enemies page. 'Easy' means you'll likely win, 'Avoid' means don't try. Threat is calculated from spy data or estimated from their personalstats (xanax taken, attacks won, etc).",
-        tip: 'Look at their xanax taken — someone with 5000+ xanax is likely very strong.',
+        a: "Check their threat level on our Bounty Board or Enemies page. 'Easy' means you'll likely win, 'Avoid' means don't try. Threat is calculated from spy data or estimated from personalstats (xanax taken, attacks won, etc).",
+        tip: 'Xanax taken is the best single indicator of strength — someone with 5000+ xanax is likely very strong.',
       },
       {
-        q: 'What affects fight outcomes besides stats?',
-        a: 'Weapon quality (damage bonus), armor (damage reduction), temporary items (stat boosters), merits (combat perks), and faction perks all matter. Being in a faction with war bonuses helps too.',
+        q: 'What is the Fair Fight (FF) multiplier?',
+        a: 'Fair Fight ranges from 1x to 3x and rewards attacking players near your strength level. Attacking someone with ~75% or more of your total battle stats yields the maximum 3x FF. The multiplier drops toward 1x the weaker your target is. This is why farming very weak targets gives poor respect.',
+      },
+      {
+        q: 'What stat ratio should I train?',
+        a: "Two popular approaches: Hank's Ratio (1.25:1:1:0) — trains 3 stats, good for focused builds. Baldr's Ratio (1.25:1:0.75:0.75) — more balanced, better for Str/Spd offensive builds. Choose early so you're in ratio when you unlock George's Gym.",
       },
       {
         q: 'How do I train effectively?',
@@ -44,7 +48,7 @@ const FAQ_SECTIONS: FAQSection[] = [
       },
       {
         q: 'What are SE (Stat Enhancers) and when should I use them?',
-        a: 'Stat Enhancers give a random stat boost to one of your 4 battle stats. They\'re worth using when you have high total stats (100M+) as the boost scales with your current stats. Earlier on, xanax and refills give better value.',
+        a: "Stat Enhancers give a random stat boost to one of your 4 battle stats. They're worth using when you have high total stats (100M+) as the boost scales with your current stats. Earlier on, xanax and refills give better value per dollar.",
       },
     ],
   },
@@ -56,21 +60,21 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: 'How do chains work?',
-        a: 'A chain starts after 10 attacks by faction members within 5 minutes of each other. Each subsequent attack must happen within 5 minutes of the last, or the chain breaks. Longer chains = bigger respect bonuses.',
+        a: 'Your faction must land 10 successful attacks within 5 minutes to start a chain. After that, each new hit resets a 5-minute timer. If the timer hits 0:00, the chain breaks. All attack outcomes (leave, mug, hospitalize) count — you do NOT need to hospitalize.',
       },
       {
-        q: 'What are chain bonuses?',
-        a: 'Bonus respect is awarded at hits 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, and 100000. The bonus multiplier increases at each tier. Hit 10 for a 10x bonus, hit 100 for a 10x bonus of a higher base.',
-        tip: 'Save your strongest attacks for bonus hits — they multiply the respect earned.',
+        q: 'What are chain bonuses and when do they trigger?',
+        a: 'Bonuses trigger at 13 milestones: 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, and 100000 hits. The bonus hit provides a large flat amount of respect. Between bonuses, each hit gets a small logarithmic multiplier that gradually increases.',
+        tip: 'Save your strongest attacks for bonus hits — coordinate with faction to give bonus hits to members attacking high-level targets.',
       },
       {
         q: 'How do I prevent a chain timeout?',
-        a: "Watch the chain timer — if it's getting close to 5 minutes, anyone in faction should attack ASAP. Use easy targets (low-level players, NPCs) as 'timeout saves'. Our Chain Tracker shows the current timer.",
-        tip: 'Coordinate with faction — assign timezone shifts so someone is always watching.',
+        a: "Watch the chain timer — if it's getting close to 5 minutes, anyone should attack ASAP. Use easy targets (low-level players, NPCs) as timeout saves. Our Chain Tracker shows the current timer.",
+        tip: 'Coordinate timezone shifts so someone is always watching the chain during long runs.',
       },
       {
-        q: 'Do assists and mugs count for chains?',
-        a: 'Yes! Any successful attack outcome (hospitalize, mug, leave, arrest, special) counts toward the chain. Even leaving someone counts.',
+        q: 'What weapons help with chaining?',
+        a: 'For fast hits, use HEGs (Hand-Held EMP Grenades) to cycle through targets quickly. Smoke Grenades have no counter and pair with Tyrosine for a Dex:Spd advantage. For permanent weapons, Rifles (Armalite, SIG 552, Enfield, Gold AK47) offer the best damage and mod selection.',
       },
     ],
   },
@@ -82,20 +86,24 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: 'How does OC 2.0 work?',
-        a: 'Organized Crimes are team-based missions where faction members fill specific roles. Each crime has a planning phase (members prepare) and an execution phase. Success depends on team composition, planning quality, and crime difficulty.',
+        a: 'OC 2.0 divides each crime into checkpoints. Each participant takes a role, and their Checkpoint Pass Rate (CPR) determines success likelihood at each checkpoint. Multiple consecutive failures push toward overall failure, but single failures are recoverable via Recovery checkpoints.',
       },
       {
-        q: 'What is Checkpoint Pass Rate (CPR)?',
-        a: "CPR shows how well a member is completing their role's checkpoints during the planning phase. Higher CPR = better chance of success. Aim for 100% CPR on all participants before initiating.",
-        tip: 'Don\'t start the crime until all members show "Planning Complete" and high CPR.',
+        q: 'What determines my Checkpoint Pass Rate?',
+        a: "CPR depends on your role's stat requirements plus Crime Experience (CE). Combat roles (Muscle, Enforcer) need high STR/DEF. Sleight-of-hand roles (Thief, Picklock) favor DEX. Fast-reaction roles (Sniper, Robber) favor SPD. CE acts as a multiplier on top.",
+        tip: "A CPR between 70-80% is generally sufficient for high overall success rates.",
       },
       {
-        q: 'What do I get from successful OCs?',
-        a: 'Cash rewards (varies by crime difficulty and success), respect for the faction, and sometimes special items. Higher difficulty crimes give more rewards but are harder to succeed.',
+        q: 'What is Crime Experience (CE)?',
+        a: 'CE is a hidden metric that determines your Natural Nerve Bar (NNB) and influences OC success rates. You gain CE by completing organized crimes successfully. Higher CE = higher NNB (more nerve for solo crimes) + better CPR in OCs.',
+      },
+      {
+        q: 'How should we assign roles?',
+        a: 'Place strongest members in critical/mainline checkpoint roles and weaker members in lenient or recovery roles. Not everyone needs very high CPR — a mix works. Ensure nobody is in hospital, jail, or traveling when the crime starts.',
       },
       {
         q: 'Why did our OC fail?',
-        a: 'Common reasons: not all members completed planning, low CPR, wrong member roles (some roles need specific stat thresholds), or crime difficulty too high for your team. Check the completed crimes tab to see what went wrong.',
+        a: "Common reasons: members hadn't completed planning, low CPR on critical roles, wrong role assignments (some roles need specific stat thresholds), or crime difficulty too high. Check our OC Planner's 'What went wrong?' analysis on failed crimes.",
       },
     ],
   },
@@ -107,17 +115,17 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: 'What are the best ways to make money?',
-        a: 'For new players: travel trading (buy abroad, sell at home). Mid-game: stock market benefits, company specials. Late game: bounty collecting, high-level NPC looting, organized crimes. Our Market Scanner shows current item prices.',
-        tip: 'Flower and plushie sets from travel are consistent earners.',
+        a: 'Early game: travel trading (buy abroad, sell at home). Mid-game: stock market benefits, company specials. Late game: bounty collecting, high-level NPC looting, organized crimes, property rental income.',
+        tip: 'Plushie and flower sets from travel are consistently the most profitable trade items.',
       },
       {
-        q: 'How does travel trading work?',
-        a: 'Fly to other countries, buy items cheaper there, bring them back and sell on the market. Each country has different items. Check travel costs vs profit margins. Airstrip and Private Island reduce travel time.',
+        q: 'How does the stock market work?',
+        a: "Torn stocks differ from real stocks — the main value is in BENEFITS, not price appreciation. Owning enough shares of a stock gives passive benefits (reduced hospital time, bonus money, energy, ammo) every 7 or 31 days. Key thresholds vary by stock. Buying has no tax; selling has a 0.1% fee.",
+        tip: 'Prioritize benefit blocks with the highest ROI for your capital level. Smaller blocks like SYM and TCHS are accessible earlier.',
       },
       {
-        q: 'How do stocks work in Torn?',
-        a: "Torn stocks aren't like real stocks — the main value is in BENEFITS, not price appreciation. Each stock gives a passive benefit (reduced hospital time, bonus money, etc) when you hold enough shares. Check thresholds: 1M/2M/5M/10M shares.",
-        tip: 'Buy stocks for benefits, not for trading. The benefit at 1M shares is usually the best value.',
+        q: 'How do I protect my money from mugging?',
+        a: 'Deposit in the City Bank (earns interest), use your faction bank (deposit anytime), or invest in stocks/property. Never carry large amounts of cash on hand — muggers can take it.',
       },
     ],
   },
@@ -129,16 +137,16 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: 'How does NPC looting work?',
-        a: 'NPCs (like Duke, Leslie, etc) drop loot when attacked. There are 4 loot levels — level 4 gives the best items worth $5-50M+. Loot level increases as more people attack the NPC. After enough attacks, it resets.',
+        a: 'Certain NPCs (Duke, Leslie, Jimmy, Tiny, Fernando) are lootable. When defeated, loot is distributed lottery-style — the more damage you contribute, the higher your chance of receiving loot. The NPC\'s loot level determines how many players receive loot AND the rarity of drops.',
       },
       {
-        q: 'How do I know when an NPC is at level 4?',
-        a: "Our NPC Loot page tracks estimated loot levels and timing. NPCs cycle through levels on somewhat predictable schedules. The community coordinates to push NPCs to level 4 for maximum drops.",
-        tip: 'Reserve a spot on our loot tracker so your faction can coordinate the best loot windows.',
+        q: 'What are the loot level timings?',
+        a: 'After an NPC is defeated, levels increase on a fixed schedule: Level 1 = immediately (1 player gets loot), Level 2 = 30 min (2 players), Level 3 = 90 min (3 players), Level 4 = 3.5 hours (4 players), Level 5 = 7.5 hours (5 players). Higher levels also increase rare drop chance.',
+        tip: 'Level 4 (3.5 hours) is the sweet spot — good loot count, decent rare drops, reasonable wait. Level 5 takes 4 more hours for only marginal improvement.',
       },
       {
         q: 'Can I loot NPCs at any level?',
-        a: 'You need to be strong enough to successfully attack the NPC. Some NPCs are much harder than others. Start with easier NPCs and work your way up as your stats grow.',
+        a: 'You need to be strong enough to successfully attack the NPC. Some NPCs are much harder than others. Start with easier NPCs and work your way up as your stats grow. Use our NPC Loot page to track timers and coordinate with faction.',
       },
     ],
   },
@@ -150,20 +158,20 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: 'How do bounties work?',
-        a: 'Players can place bounties on other players. To collect, you need to successfully attack the target. The reward is per-attack — if a bounty has quantity x3, it can be collected 3 times.',
+        a: 'Anyone can place a bounty on another player. To claim it, you must hospitalize the target. The bounty placer pays the reward plus a 50% listing fee (e.g., $10M bounty costs $15M to place). Anonymity costs an additional 50%. Unclaimed bounties expire after 7 days.',
       },
       {
         q: 'How do I know if I can beat a bounty target?',
         a: "Check the threat level badge on our Bounty Board. Green 'Easy' = you should win. Yellow 'Medium' = bring supplies. Orange 'Hard' = risky. Red 'Avoid' = don't try. 'Unknown' = check their profile first.",
-        tip: 'Filter by "Easy" to find guaranteed money. High-reward + Easy = jackpot.',
+        tip: "Filter by 'Easy' to find guaranteed money. High-reward + Easy = jackpot.",
       },
       {
-        q: 'Can I get bounties placed on me?',
-        a: "Yes, anyone can place a bounty on you. It costs money to place bounties. You can't remove a bounty on yourself — just wait for someone to collect it, or hide in another country.",
+        q: 'How can I protect myself from bounties?',
+        a: 'Working at a Private Security Firm lets you exchange 20 job points for 72 hours of bounty protection. Otherwise, being in hospital, traveling abroad, or being in jail makes you harder to hit. Strong battle stats are the best long-term defense.',
       },
       {
         q: 'Are bounties anonymous?',
-        a: 'The lister is usually shown, but some bounties can be placed anonymously for extra cost. Our board shows lister info when available.',
+        a: 'Bounties can be placed anonymously for extra cost (additional 50% of the reward). Our board shows lister info when available. Each player can have 10 active bounties placed at any one time.',
       },
     ],
   },
@@ -174,21 +182,21 @@ const FAQ_SECTIONS: FAQSection[] = [
     description: 'How wars work and how to win them.',
     faqs: [
       {
-        q: 'What types of wars are there?',
-        a: 'Ranked Wars (matched by the system, ranked competition), Raid Wars (declared by factions, territory-based), and Territory Wars (fighting over turf). Each type has different rules and rewards.',
+        q: 'How do ranked wars work?',
+        a: 'Factions enlist in the ranked war pool (requires 10+ active members). You\'re matched 1v1. The win condition is reaching a "lead target" in respect — e.g., if the target is 5,000, you need to be 5,000 ahead. Mugging gives 75% of the score that leaving/hospitalizing gives. Chain bonuses generate large score amounts.',
+        tip: 'Focus on hospitalizing online enemies who are fighting. Ignore enemies already in hospital.',
       },
       {
-        q: 'How do ranked wars work?',
-        a: 'Two factions are matched and fight for a set period. Each successful hospitalization of an enemy = 1 point. Faction with more points at the end wins respect, rank points, and other rewards.',
-        tip: 'Focus on hospitalizing enemies who are online and fighting. Ignore enemies in hospital already.',
+        q: 'What rewards do ranked wars give?',
+        a: 'Winners get 2x reward multiplier; losers get 1x. Rewards include bonus respect and caches containing special weapons and armor. Higher faction rank and division provide greater rewards.',
       },
       {
         q: 'How should I prepare for war?',
-        a: 'Stock up on medical items (morphine, blood bags), fill your energy, get happy boosts ready, coordinate online times with faction. Check the Enemies page for threat analysis during war.',
+        a: 'Stock up on medical items (morphine, blood bags), fill your energy, get happy boosts ready, coordinate online times with faction. Check the Enemies page for threat analysis. Keep revives enabled — every second in hospital is a lost attack.',
       },
       {
-        q: 'What do I get from winning wars?',
-        a: 'Respect (faction ranking), rank points (determines your faction tier), and bragging rights. Higher-ranked factions get more perks and can recruit stronger members.',
+        q: 'How do territories work?',
+        a: 'Territories are city map blocks that factions claim. Owning territory provides daily respect. Some territories spawn Rackets (levels 1-5) that provide daily resources. Assaulting a territory creates a 72-hour wall where attackers fill a score bar while defenders deplete it. Need 10+ members to assault.',
       },
     ],
   },
@@ -199,17 +207,21 @@ const FAQ_SECTIONS: FAQSection[] = [
     description: 'How to get revived and revive others.',
     faqs: [
       {
-        q: 'How do revives work?',
-        a: 'When you\'re in hospital, another player with the "revive" ability can bring you back immediately. It costs them energy (75E). Players need to be Level 12+ and have completed the medical education course.',
+        q: 'How do revives work mechanically?',
+        a: 'You gain the revive ability at Brain Surgeon rank in the Medical job (kept permanently). Each attempt costs 75 energy (reducible to 25 with faction perks), whether successful or not. Revive skill level determines how much life is restored (level 10 = 10%, level 90 = 90%).',
+      },
+      {
+        q: 'Why do revives sometimes fail?',
+        a: 'Each revive a player receives decreases future success chance by ~8%, which slowly fades over 24 hours. If someone has been revived many times recently, the success rate drops significantly. Revivers may decline targets with too many recent revives.',
       },
       {
         q: 'What are revive contracts?',
-        a: 'Factions and individual players offer revive services — they agree to revive you when you need it, usually for a fee or as part of faction membership. Our Revive Tracker shows recent revive activity.',
+        a: 'Factions hire reviving factions to provide revives during ranked wars. The reviving faction earns payment per revive (successful or not). This is a major income source for dedicated reviving factions and critical for war performance.',
+        tip: 'ALWAYS keep revives enabled during war. Every second in hospital is a lost attack.',
       },
       {
-        q: 'How do I enable revives?',
-        a: "Go to your Torn settings and make sure revives are enabled. If disabled, no one can revive you. During wars, being revivable is critical — you're back in the fight immediately.",
-        tip: 'ALWAYS keep revives enabled during war. Every second in hospital is a lost attack.',
+        q: 'How do I get revived?',
+        a: 'Ask in Hospital chat or Trade chat — revivers monitor these channels. You can also message a known reviving faction directly. Some factions offer free revives for allies; others charge a fee (typically $500K-$1M per revive). Make sure "Allow revives" is ON in your settings.',
       },
     ],
   },
@@ -221,16 +233,41 @@ const FAQ_SECTIONS: FAQSection[] = [
     faqs: [
       {
         q: "What's the difference between honors and medals?",
-        a: 'Honors are awarded for specific achievements (attack milestones, travel accomplishments, etc). Medals are special honors with limited circulation. Both give honor bar points that increase respect earned.',
+        a: 'Awards include Honors (honor bars) and Medals, earned by completing challenges across all game activities. There are 347+ honor bars. Each award earned grants 1 Merit point. Higher honor bar = more respect from attacks.',
+      },
+      {
+        q: 'What are Merits and how should I spend them?',
+        a: 'Merits are upgrade points earned from awards. You can spend them on 10 different perks (each upgradable 10 times, 55 total merits to max one). Popular investments: extra energy, nerve, or happy; increased gym gains; crime skill boosts; hospitalization time reduction.',
       },
       {
         q: 'What does circulation mean?',
         a: 'Circulation = how many players have earned that award. Lower circulation = rarer = more honor bar points. Some awards have circulation under 100, making them extremely valuable.',
-        tip: 'Focus on low-circulation awards you\'re close to completing for the best honor bar gains.',
+        tip: "Track progress on TornStats to see which honors you're close to completing. Focus on near-threshold honors.",
       },
       {
-        q: 'How do awards help me?',
-        a: 'Each award earned increases your honor bar. Higher honor bar = more respect earned from attacks, which helps your faction ranking. Some awards also give unique perks or item rewards.',
+        q: 'Is there a strategy for farming awards?',
+        a: 'Yes. Focus on honors where you are near the threshold. Some players do specific activities in bulk (reviving sprees, travel runs, weapon-type grinding). The "Decorated" honor requires 100 total awards, incentivizing breadth over depth.',
+      },
+    ],
+  },
+  {
+    id: 'travel',
+    icon: '✈️',
+    title: 'Travel & Trading',
+    description: 'How to profit from international travel.',
+    faqs: [
+      {
+        q: 'How does travel trading work?',
+        a: 'Fly to a foreign country, buy items at local prices, return to Torn, sell on the item market or bazaar for profit. Different destinations offer different items. Base capacity is 5 items per trip, expandable significantly.',
+      },
+      {
+        q: 'What are the most profitable items?',
+        a: 'Plushies and Flowers are consistently the most profitable. Plushies are generally more profitable than flowers. Consumables (narcotics, alcohol, energy drinks) are also strong. Use TornStats Travel Profits or TornTravel.com for real-time profit calculations.',
+      },
+      {
+        q: 'How do I increase carrying capacity?',
+        a: 'Base is 5 items. Large Suitcase adds 4. Business Class Ticket increases base to 10. Private Island Airstrip + Pilot adds +10 and removes airfare. WLT stock benefit block adds more. A PI with Airstrip is considered essential for serious travel trading.',
+        tip: 'Popular high-profit destinations: Argentina, UK, Mexico, Cayman Islands, UAE. Use travel calculators for real-time comparisons.',
       },
     ],
   },
@@ -246,15 +283,15 @@ const FAQ_SECTIONS: FAQSection[] = [
       },
       {
         q: 'How often does data refresh?',
-        a: "Most data refreshes every 30-60 seconds via our background scheduler. You can manually refresh any page with the refresh button. War mode increases polling frequency. Some data (like stock history) is collected every 30 minutes.",
+        a: 'Most data refreshes every 30-60 seconds via our background scheduler. You can manually refresh any page with the refresh button. War mode increases polling frequency. Historical data (like stock prices) is collected every 30 minutes.',
       },
       {
         q: 'What does the threat level mean?',
-        a: "Threat level compares another player to YOU. It uses spy data (best accuracy), personalstats estimates, or absolute scoring. 'Easy' means you're much stronger, 'Avoid' means they're much stronger. 'Unknown' means we have no data.",
+        a: "Threat level compares another player to YOU. It uses spy data (best accuracy), personalstats estimates, or absolute scoring. 'Easy' = you're much stronger, 'Avoid' = they're much stronger. 'Unknown' = no data available.",
       },
       {
         q: 'Why do some pages show "no data"?',
-        a: "Some features need time to accumulate data (like stock charts, stat growth). If a page is empty: 1) Check if you're logged in, 2) Try the refresh button, 3) The Torn API might be slow. Data loads in the background.",
+        a: 'Some features need time to accumulate data (stock charts, stat growth). If a page is empty: 1) Check if you\'re logged in, 2) Try the refresh button, 3) The Torn API might be slow. Data loads in the background automatically.',
       },
     ],
   },
@@ -309,7 +346,6 @@ export default function FAQPage() {
 
   const collapseAll = () => setOpenItems(new Set());
 
-  // Filter by search
   const filteredSections = search
     ? FAQ_SECTIONS.map(section => ({
         ...section,
@@ -334,7 +370,6 @@ export default function FAQPage() {
           </p>
         </div>
 
-        {/* Search and controls */}
         <div className="flex flex-wrap gap-2 items-center">
           <input type="text" placeholder="Search questions..." value={search}
             onChange={e => { setSearch(e.target.value); setActiveSection(null); }}
@@ -349,7 +384,6 @@ export default function FAQPage() {
           </button>
         </div>
 
-        {/* Category chips */}
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => { setActiveSection(null); setSearch(''); }}
             className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
@@ -367,7 +401,6 @@ export default function FAQPage() {
           ))}
         </div>
 
-        {/* FAQ sections */}
         {filteredSections.length > 0 ? (
           <div className="space-y-4">
             {filteredSections.map(section => (
@@ -397,7 +430,6 @@ export default function FAQPage() {
           </div>
         )}
 
-        {/* Footer links */}
         <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4 space-y-2">
           <p className="text-sm font-medium text-text-primary">Learn more</p>
           <div className="flex flex-wrap gap-3">
@@ -407,6 +439,7 @@ export default function FAQPage() {
               ['r/torncity', 'https://reddit.com/r/torncity'],
               ['TornStats', 'https://www.tornstats.com'],
               ['YATA', 'https://yata.yt'],
+              ['TornTravel', 'https://www.torntravel.com'],
             ].map(([label, url]) => (
               <a key={url} href={url} target="_blank" rel="noopener noreferrer"
                 className="text-xs text-torn-green hover:text-torn-green/80 underline underline-offset-2 transition-colors">
@@ -415,7 +448,7 @@ export default function FAQPage() {
             ))}
           </div>
           <p className="text-[10px] text-text-muted mt-2">
-            TM Hub is a community tool built for The Masters [TM] faction. Data from Torn API, TornStats, and YATA.
+            Content sourced from Torn Wiki, Torn Forums, and community guides. TM Hub is built for The Masters [TM] faction.
           </p>
         </div>
       </div>
