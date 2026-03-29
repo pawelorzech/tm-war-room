@@ -130,18 +130,20 @@ async def war_history():
     # Fetch past ranked wars from torn/rankedwars
     try:
         past_wars_raw = await torn_client.fetch_ranked_wars()
+        logger.info("Past ranked wars: type=%s, len=%s", type(past_wars_raw).__name__, len(past_wars_raw) if past_wars_raw else 0)
+        if past_wars_raw and len(past_wars_raw) > 0:
+            first = past_wars_raw[0]
+            logger.info("First past war keys: %s", list(first.keys())[:10] if isinstance(first, dict) else "not dict")
         past_wars = []
         for w in past_wars_raw:
             if not isinstance(w, dict):
                 continue
             factions = _parse_factions(w.get("factions", {}))
-            # Filter to only show wars involving our faction
+            # Check if our faction was involved
             from api.config import FACTION_ID
-            our_faction_ids = {FACTION_ID}
-            is_ours = any(f["faction_id"] in our_faction_ids for f in factions) if factions else False
-            if not is_ours and factions:
-                continue  # Skip wars we weren't in
+            is_ours = any(f["faction_id"] == FACTION_ID for f in factions) if factions else False
             past_wars.append({
+                "is_ours": is_ours,
                 "war_id": w.get("war_id") or w.get("id", 0),
                 "start": w.get("start", 0),
                 "end": w.get("end", 0),
