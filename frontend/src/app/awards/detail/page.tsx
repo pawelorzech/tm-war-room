@@ -70,7 +70,7 @@ function AwardDetailContent() {
     if (!id) return;
     api.awardCirculation(kind, id, circulationDays)
       .then(d => setCirculationHistory(d.history))
-      .catch(() => {});
+      .catch(() => setCirculationHistory([]));
   }, [kind, id, circulationDays]);
 
   useEffect(() => { loadCirculation(); }, [loadCirculation]);
@@ -174,7 +174,7 @@ function AwardDetailContent() {
                         ? 'bg-torn-green/20 text-torn-green'
                         : 'text-text-muted hover:text-text-secondary'
                     }`}>
-                    {d === 365 ? 'All' : `${d}d`}
+                    {d === 365 ? '1Y' : `${d}d`}
                   </button>
                 ))}
               </div>
