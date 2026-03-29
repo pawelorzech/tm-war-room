@@ -14,6 +14,9 @@ async def list_bounties():
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
     raw = await torn_client.fetch_bounties()
+    logger.info("Bounties raw: type=%s, len=%s, sample=%s",
+                type(raw).__name__, len(raw) if raw else 0,
+                str(raw[0])[:100] if raw and len(raw) > 0 else "empty")
 
     bounties = []
     for b in raw:

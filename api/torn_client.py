@@ -356,7 +356,15 @@ class TornClient:
             self._log_integration("torn_api", "/v1/torn/bounties", False, (time.time() - start) * 1000, str(e))
             raise
         bounties = raw.get("bounties", {})
-        result = list(bounties.values()) if isinstance(bounties, dict) else bounties if isinstance(bounties, list) else []
+        import logging
+        logging.getLogger("tm-hub.bounties").info("Torn bounties raw keys=%s, bounties type=%s, len=%s",
+            list(raw.keys())[:5], type(bounties).__name__, len(bounties) if bounties else 0)
+        if isinstance(bounties, dict):
+            result = list(bounties.values())
+        elif isinstance(bounties, list):
+            result = bounties
+        else:
+            result = []
         self._set_cached("bounties", result)
         return result
 
