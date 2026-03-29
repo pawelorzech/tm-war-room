@@ -110,6 +110,7 @@ export default function AwardsPage() {
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState<SortCol>('name');
   const [sortAsc, setSortAsc] = useState(true);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -208,25 +209,14 @@ export default function AwardsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {view.list.map(a => (
-                        <tr key={`${a.kind}-${a.id}`}
-                          className={`border-b border-border-light transition-colors ${a.earned ? 'hover:bg-bg-elevated/50' : 'opacity-60 hover:opacity-100'}`}>
-                          <td className="py-1.5 px-3 font-medium whitespace-nowrap">
-                            <a href={tsLink(a)} target="_blank" rel="noopener"
-                              className="text-text-primary hover:text-torn-green transition-colors">
-                              {a.name} <span className="text-text-muted/50 text-[10px]">↗</span>
-                            </a>
-                          </td>
-                          <td className="py-1.5 px-3 text-text-secondary text-right tabular-nums">{a.circulation.toLocaleString()}</td>
-                          <td className="py-1.5 px-3 text-text-muted text-xs max-w-xs truncate">{a.description}</td>
-                          <td className="py-1.5 px-3 text-text-muted text-xs whitespace-nowrap">{typeName(a.type)}</td>
-                          <td className="py-1.5 px-3 text-right whitespace-nowrap">
-                            {a.earned
-                              ? <span className="text-torn-green font-semibold text-xs">Completed!</span>
-                              : <span className="text-danger font-semibold text-xs">Incomplete</span>}
-                          </td>
-                        </tr>
-                      ))}
+                      {view.list.map(a => {
+                        const key = `${a.kind}-${a.id}`;
+                        const isOpen = expandedKey === key;
+                        return (
+                          <AwardRow key={key} award={a} isOpen={isOpen}
+                            onToggle={() => setExpandedKey(isOpen ? null : key)} />
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -247,6 +237,103 @@ export default function AwardsPage() {
 
 function pct(n: number, total: number) {
   return total > 0 ? `${Math.round((n / total) * 100)}%` : '0%';
+}
+
+function fmtDate(ts: number): string {
+  return new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const RARITY_COLORS: Record<string, string> = {
+  'Common': 'text-text-muted',
+  'Uncommon': 'text-text-secondary',
+  'Limited': 'text-torn-blue',
+  'Rare': 'text-torn-blue',
+  'Very Rare': 'text-torn-yellow',
+  'Extremely Rare': 'text-torn-red',
+};
+
+function AwardRow({ award: a, isOpen, onToggle }: { award: Award; isOpen: boolean; onToggle: () => void }) {
+  return (
+    <>
+      <tr onClick={onToggle}
+        className={`border-b border-border-light cursor-pointer transition-colors ${
+          isOpen ? 'bg-bg-elevated/70' : a.earned ? 'hover:bg-bg-elevated/50' : 'opacity-60 hover:opacity-100'
+        }`}>
+        <td className="py-1.5 px-3 font-medium whitespace-nowrap">
+          <span className="text-text-primary">{a.name}</span>
+          <span className="ml-1 text-text-muted/40 text-[10px]">{isOpen ? '▾' : '▸'}</span>
+        </td>
+        <td className="py-1.5 px-3 text-text-secondary text-right tabular-nums">{a.circulation.toLocaleString()}</td>
+        <td className="py-1.5 px-3 text-text-muted text-xs max-w-xs truncate">{a.description}</td>
+        <td className="py-1.5 px-3 text-text-muted text-xs whitespace-nowrap">{typeName(a.type)}</td>
+        <td className="py-1.5 px-3 text-right whitespace-nowrap">
+          {a.earned
+            ? <span className="text-torn-green font-semibold text-xs">Completed!</span>
+            : <span className="text-danger font-semibold text-xs">Incomplete</span>}
+        </td>
+      </tr>
+      {isOpen && (
+        <tr className="bg-bg-elevated/40">
+          <td colSpan={5} className="px-3 py-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Honor bar image */}
+              <div className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://www.torn.com/images/${a.kind === 'medal' ? 'medals' : 'honors'}/${a.id}/medium.png`}
+                  alt={a.name}
+                  className="h-12 rounded bg-bg-card border border-border"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+
+              {/* Details */}
+              <div className="flex-1 space-y-2">
+                <div>
+                  <h3 className="text-base font-bold text-text-primary">{a.name}</h3>
+                  <p className="text-sm text-text-secondary mt-0.5">{a.description}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                  <div>
+                    <span className="text-text-muted">Category:</span>{' '}
+                    <span className="text-text-primary font-medium">{typeName(a.type)}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Type:</span>{' '}
+                    <span className="text-text-primary font-medium capitalize">{a.kind}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-muted">Circulation:</span>{' '}
+                    <span className="text-text-primary font-medium">{a.circulation.toLocaleString()} players</span>
+                  </div>
+                  {a.rarity && (
+                    <div>
+                      <span className="text-text-muted">Rarity:</span>{' '}
+                      <span className={`font-medium ${RARITY_COLORS[a.rarity] || 'text-text-primary'}`}>{a.rarity}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-text-muted">Status:</span>{' '}
+                    {a.earned
+                      ? <span className="text-torn-green font-medium">Completed{a.earned_at ? ` on ${fmtDate(a.earned_at)}` : ''}</span>
+                      : <span className="text-danger font-medium">Incomplete</span>}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <a href={tsLink(a)} target="_blank" rel="noopener"
+                    className="text-[11px] text-text-muted hover:text-torn-green transition-colors">
+                    View on TornStats ↗
+                  </a>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
 }
 
 function TabBtn({ active, onClick, children, red }: {
