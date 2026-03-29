@@ -52,6 +52,12 @@ export interface TornSteadfast {
   dexterity: number;
 }
 
+export interface TornJob {
+  company_name: string;
+  company_type: number;
+  position: string;
+}
+
 export interface TornUserData {
   profile: TornProfile;
   battlestats: TornBattleStats;
@@ -63,6 +69,8 @@ export interface TornUserData {
   educationCompleted: number[];
   educationPerks: string[];
   bookPerks: string[];
+  companyPerks: string[];
+  job: TornJob;
 }
 
 export interface TornApiError {

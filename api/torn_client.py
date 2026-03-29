@@ -329,6 +329,12 @@ class TornClient:
             "educationCompleted": education_completed,
             "educationPerks": raw.get("education_perks", []),
             "bookPerks": raw.get("book_perks", []),
+            "companyPerks": raw.get("company_perks", []),
+            "job": {
+                "company_name": raw.get("job", {}).get("company_name") or raw.get("company", {}).get("name", ""),
+                "company_type": raw.get("job", {}).get("company_type") or raw.get("company", {}).get("company_type", 0),
+                "position": raw.get("job", {}).get("position", ""),
+            },
             "level": raw.get("level", 0),
         }
 
