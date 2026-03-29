@@ -361,3 +361,41 @@ async def test_company_faction(mock_client, mock_store):
     assert len(data["companies"]) == 1
     assert data["companies"][0]["company_name"] == "Cool Farm"
     assert len(data["companies"][0]["members"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_push_vapid_key():
+    with patch("api.main.torn_client", MagicMock()), \
+         patch("api.main.key_store", MagicMock()):
+        import api.routers.push as push_mod
+        push_mod.vapid_public_key = "test_public_key_base64"
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/push/vapid-key")
+    assert resp.status_code == 200
+    assert resp.json()["vapid_public_key"] == "test_public_key_base64"
+
+
+@pytest.mark.asyncio
+async def test_push_subscribe(mock_client, mock_store):
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.push as push_mod
+        mock_push_repo = MagicMock()
+        push_mod.push_repo = mock_push_repo
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/push/subscribe", json={
+                "endpoint": "https://push.example.com/abc",
+                "keys": {"p256dh": "key123", "auth": "auth123"},
+                "preferences": {"loot_level4": True, "war_start": True},
+            }, headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    mock_push_repo.save.assert_called_once_with(
+        player_id=123,
+        endpoint="https://push.example.com/abc",
+        p256dh="key123",
+        auth="auth123",
+        preferences={"loot_level4": True, "war_start": True},
+    )
