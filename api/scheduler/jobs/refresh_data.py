@@ -168,6 +168,38 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background OC refresh failed: %s", e)
 
+    # 9. Stakeouts — check watched players every cycle during war, every 4th peacetime
+    if war_active or _cycle % 4 == 0:
+        try:
+            from api.routers.stakeout import stakeout_repo
+            if stakeout_repo:
+                watched = stakeout_repo.get_all()
+                if watched:
+                    from api.torn_client import _json
+                    changes = 0
+                    for w in watched[:20]:  # Max 20 per cycle to save API calls
+                        try:
+                            resp = await torn_client._http.get(
+                                "https://api.torn.com/user/",
+                                params={"selections": "profile", "key": torn_client._api_key, "id": w["player_id"]},
+                            )
+                            if resp.status_code == 200:
+                                data = await _json(resp) if hasattr(resp, 'json') else resp.json()
+                                status_desc = data.get("status", {}).get("description", "Unknown") if isinstance(data.get("status"), dict) else str(data.get("status", "Unknown"))
+                                last_action = data.get("last_action", {}).get("relative", "") if isinstance(data.get("last_action"), dict) else ""
+                                name = data.get("name", "")
+                                changed = stakeout_repo.update_status(w["player_id"], status_desc, last_action, name or None)
+                                if changed:
+                                    changes += 1
+                        except Exception:
+                            pass
+                    if changes > 0:
+                        refreshed.append(f"stakeouts:{changes}changes")
+                    elif watched:
+                        refreshed.append(f"stakeouts:{len(watched)}checked")
+        except Exception as e:
+            logger.error("Background stakeout check failed: %s", e)
+
     elapsed = (time.time() - start) * 1000
     last_full_refresh = time.time()
     if refreshed:
