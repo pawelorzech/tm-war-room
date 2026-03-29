@@ -18,6 +18,13 @@ async def oc_overview(cat: str = Query(default="planning")):
 
     crimes = await torn_client.fetch_faction_crimes(cat=cat)
 
+    # Log first crime structure for debugging
+    if crimes:
+        first = crimes[0] if isinstance(crimes, list) else next(iter(crimes.values()), None) if isinstance(crimes, dict) else None
+        if first and isinstance(first, dict):
+            logger.info("OC crime keys: %s, slots keys: %s", list(first.keys())[:10],
+                         list((first.get("slots") or first.get("participants") or {}).keys())[:3] if isinstance(first.get("slots") or first.get("participants"), dict) else "list/none")
+
     # Parse and normalize crime data
     parsed = []
     for c in crimes:

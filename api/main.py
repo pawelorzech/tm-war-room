@@ -132,6 +132,18 @@ app.include_router(travel_router)
 app.include_router(oc_router)
 app.include_router(wars_router)
 
+@app.get("/api/status")
+async def app_status():
+    """System status including war detection for adaptive polling."""
+    from api.scheduler.jobs.refresh_data import war_active, last_full_refresh, _cycle
+    return {
+        "war_active": war_active,
+        "poll_interval": 15 if war_active else 60,
+        "last_refresh": int(last_full_refresh),
+        "refresh_cycle": _cycle,
+    }
+
+
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
 

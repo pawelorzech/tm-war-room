@@ -43,10 +43,10 @@ async def create_and_start_scheduler(app_state: dict):
     )
     await scheduler.add_schedule(
         "refresh_data",
-        IntervalTrigger(minutes=2),
+        IntervalTrigger(seconds=30),
         id="refresh_data_schedule",
     )
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min), refresh_data (every 2min)")
+    logger.info("Scheduler started: collect_stats (daily 4:00 UTC), refresh_spies (every 30min), refresh_data (every 30s)")
     return scheduler

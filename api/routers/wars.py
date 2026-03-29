@@ -14,7 +14,13 @@ async def war_history():
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
 
-    raw = await torn_client.fetch_war_history()
+    try:
+        raw = await torn_client.fetch_war_history()
+    except Exception as e:
+        logger.error("Failed to fetch war history: %s", e)
+        return {"ranked": None, "raids": [], "territory": []}
+
+    logger.info("War history raw keys: %s", list(raw.keys()) if raw else "None")
 
     result = {
         "ranked": None,
@@ -44,8 +50,8 @@ async def war_history():
             "factions": faction_list,
         }
 
-    # Raids
-    raids = raw.get("raids", {})
+    # Raids — wrap in try/except for resilience
+    raids = raw.get("raids", {}) or {}
     if isinstance(raids, dict):
         for rid, rdata in raids.items():
             if not isinstance(rdata, dict):
@@ -68,7 +74,7 @@ async def war_history():
             })
 
     # Territory wars
-    territory = raw.get("territory", {})
+    territory = raw.get("territory", {}) or {}
     if isinstance(territory, dict):
         for tid, tdata in territory.items():
             if not isinstance(tdata, dict):
