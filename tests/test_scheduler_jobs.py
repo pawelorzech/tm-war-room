@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from api.db.repos.stats import StatSnapshotRepository
 from api.db.repos.keys import KeyRepository
 from api.db.migrations.runner import run_migrations
@@ -48,3 +48,23 @@ async def test_collect_stats_skips_failed_fetch(key_repo, stats_repo):
     await collect_stat_snapshots(key_repo, stats_repo, mock_client)
     snaps = stats_repo.get_snapshots(123)
     assert len(snaps) == 0
+
+
+def test_loot_level4_triggers_push():
+    """When an NPC crosses from level <4 to >=4, push notification is dispatched."""
+    from api.scheduler.jobs.refresh_data import _prev_npc_levels, _check_loot_push
+    _prev_npc_levels.clear()
+    _prev_npc_levels[4] = 3  # Duke was level 3
+
+    mock_push = MagicMock()
+    mock_push.dispatch = MagicMock()
+
+    _check_loot_push(
+        npcs=[{"id": 4, "name": "Duke", "level": 4}],
+        push_service=mock_push,
+    )
+
+    mock_push.dispatch.assert_called_once()
+    args = mock_push.dispatch.call_args
+    assert args[0][0] == "loot_level4"
+    assert "Duke" in args[0][1]
