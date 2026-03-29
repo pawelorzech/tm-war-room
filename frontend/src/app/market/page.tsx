@@ -18,7 +18,7 @@ interface MarketItem {
 }
 
 type SortCol = 'name' | 'market_value' | 'buy_price' | 'sell_price' | 'profit_buy_sell' | 'profit_margin_pct';
-type Filter = 'all' | 'profitable' | 'tradeable';
+type Filter = 'top20' | 'all' | 'profitable' | 'tradeable';
 
 function fmtMoney(n: number): string {
   if (!n) return '—';
@@ -33,7 +33,7 @@ export default function MarketPage() {
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>('top20');
   const [sortCol, setSortCol] = useState<SortCol>('profit_buy_sell');
   const [sortAsc, setSortAsc] = useState(false);
   const [taxPct, setTaxPct] = useState(0);
@@ -69,7 +69,12 @@ export default function MarketPage() {
     }
 
     // Filter
-    if (filter === 'profitable') {
+    if (filter === 'top20') {
+      list = list.filter(i => i.profit_buy_sell > 0 && i.buy_price > 0);
+      list.sort((a, b) => b.profit_buy_sell - a.profit_buy_sell);
+      list = list.slice(0, 20);
+      return list; // Skip further sorting for top20
+    } else if (filter === 'profitable') {
       list = list.filter(i => {
         const netProfit = i.profit_buy_sell * (1 - taxPct / 100);
         return netProfit > 0;
@@ -126,7 +131,7 @@ export default function MarketPage() {
             className="w-full max-w-[200px] bg-bg-card border border-text-secondary/20 rounded-lg px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50" />
 
           <div className="flex gap-1">
-            {([['all', 'All'], ['profitable', 'Profitable'], ['tradeable', 'Tradeable']] as const).map(([key, label]) => (
+            {([['top20', 'Top 20 Profit'], ['profitable', 'All Profitable'], ['tradeable', 'Tradeable'], ['all', 'All Items']] as const).map(([key, label]) => (
               <button key={key} onClick={() => setFilter(key)}
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors ${filter === key ? 'bg-torn-green/20 text-torn-green font-medium' : 'text-text-muted hover:text-text-secondary'}`}>
                 {label}

@@ -8,6 +8,17 @@ router = APIRouter(prefix="/api/oc", tags=["oc"])
 torn_client = None  # Set by main.py
 
 
+async def _get_member_names() -> dict[int, str]:
+    """Build player_id → name lookup from faction members."""
+    if not torn_client:
+        return {}
+    try:
+        members = await torn_client.fetch_members()
+        return {m.id: m.name for m in members}
+    except Exception:
+        return {}
+
+
 @router.get("")
 async def oc_overview(cat: str = Query(default="planning")):
     """Get organized crimes data. cat: planning, completed, executing."""
@@ -17,21 +28,13 @@ async def oc_overview(cat: str = Query(default="planning")):
         cat = "planning"
 
     crimes = await torn_client.fetch_faction_crimes(cat=cat)
+    name_lookup = await _get_member_names()
 
-    # Log first crime structure for debugging
-    if crimes:
-        first = crimes[0] if isinstance(crimes, list) else next(iter(crimes.values()), None) if isinstance(crimes, dict) else None
-        if first and isinstance(first, dict):
-            logger.info("OC crime keys: %s, slots keys: %s", list(first.keys())[:10],
-                         list((first.get("slots") or first.get("participants") or {}).keys())[:3] if isinstance(first.get("slots") or first.get("participants"), dict) else "list/none")
-
-    # Parse and normalize crime data
     parsed = []
     for c in crimes:
         if not isinstance(c, dict):
             continue
 
-        # Extract participants
         participants = []
         slots = c.get("slots", c.get("participants", []))
         if isinstance(slots, dict):
@@ -39,9 +42,14 @@ async def oc_overview(cat: str = Query(default="planning")):
         for s in (slots if isinstance(slots, list) else []):
             if isinstance(s, dict):
                 user = s.get("user") or s
+                pid = user.get("id") or s.get("player_id") or s.get("id", 0)
+                pname = user.get("name") or s.get("player_name") or s.get("name", "")
+                # Fallback to member lookup
+                if not pname and pid:
+                    pname = name_lookup.get(pid, "")
                 participants.append({
-                    "player_id": user.get("id") or s.get("player_id") or s.get("id", 0),
-                    "player_name": user.get("name") or s.get("player_name") or s.get("name", ""),
+                    "player_id": pid,
+                    "player_name": pname or f"#{pid}",
                     "role": s.get("role") or s.get("position", ""),
                     "checkpoint_pass_rate": s.get("checkpoint_pass_rate") or s.get("cpr", 0),
                     "planning_complete": s.get("planning_complete", False),
