@@ -275,3 +275,28 @@ async def test_fetch_user_profile_stats_error(client):
     with patch.object(client._http, "get", side_effect=_raise):
         result = await client.fetch_user_profile_stats(77777)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_catalog(client):
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "companies": {
+            "1": {
+                "name": "Hair Salon",
+                "cost": 500000,
+                "default_employees": 3,
+                "positions": [{"name": "Stylist", "man_required": 0, "int_required": 0, "end_required": 0}],
+                "stock": [{"name": "Shampoo", "cost": 10, "rrp": 25}],
+                "specials": [{"name": "Perm", "effect": "+2 happiness", "cost": 1, "rating_required": 1}],
+            }
+        }
+    }
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        result = await client.fetch_company_catalog()
+
+    assert "1" in result
+    assert result["1"]["name"] == "Hair Salon"
+    assert len(result["1"]["specials"]) == 1
