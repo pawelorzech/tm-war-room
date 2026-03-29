@@ -73,10 +73,18 @@ async def travel_info():
 
     # 2. Fetch YATA abroad stocks (cached 15 min in torn_client)
     yata_raw = await torn_client.fetch_yata_travel_stocks()
+    logger.info("YATA raw type=%s, keys=%s", type(yata_raw).__name__, list(yata_raw.keys())[:5] if isinstance(yata_raw, dict) else "N/A")
     # YATA wraps country data under "stocks" key
     yata_stocks = yata_raw.get("stocks", yata_raw) if yata_raw and isinstance(yata_raw, dict) else {}
     if yata_stocks:
-        logger.info("YATA travel keys: %s", list(yata_stocks.keys())[:5])
+        logger.info("YATA travel stocks keys: %s", list(yata_stocks.keys())[:5])
+        # Log first country data structure
+        first_key = next(iter(yata_stocks), None)
+        if first_key:
+            fd = yata_stocks[first_key]
+            logger.info("YATA first country '%s': keys=%s, stocks_len=%s",
+                        first_key, list(fd.keys()) if isinstance(fd, dict) else "not dict",
+                        len(fd.get("stocks", [])) if isinstance(fd, dict) else "N/A")
 
     # 3. Build response — YATA provides real abroad items + prices
     countries = []
