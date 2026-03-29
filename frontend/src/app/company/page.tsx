@@ -36,7 +36,7 @@ type SpecialFilter = 'all' | 'energy' | 'items' | 'passive';
 function classifySpecial(s: Special): 'energy' | 'items' | 'passive' {
   const e = s.effect.toLowerCase();
   if (e.includes('energy') || e.includes('nerve') || e.includes('happy')) return 'energy';
-  if (s.cost > 1 || e.includes('+') && (e.includes('item') || e.includes('drug') || e.includes('weapon') || e.includes('car') || e.includes('bomb') || e.includes('ammo'))) return 'items';
+  if (e.includes('item') || e.includes('drug') || e.includes('weapon') || e.includes('car') || e.includes('bomb') || e.includes('ammo') || e.includes('virus') || e.includes('salt') || e.includes('molotov')) return 'items';
   return 'passive';
 }
 
