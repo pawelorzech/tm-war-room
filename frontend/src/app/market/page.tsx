@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import { useSort } from '@/hooks/useSort';
+import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 
@@ -17,7 +19,6 @@ interface MarketItem {
   profit_margin_pct: number;
 }
 
-type SortCol = 'name' | 'market_value' | 'buy_price' | 'sell_price' | 'profit_buy_sell' | 'profit_margin_pct';
 type Filter = 'top20' | 'all' | 'profitable' | 'tradeable';
 
 function fmtMoney(n: number): string {
@@ -34,8 +35,6 @@ export default function MarketPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('top20');
-  const [sortCol, setSortCol] = useState<SortCol>('profit_buy_sell');
-  const [sortAsc, setSortAsc] = useState(false);
   const [taxPct, setTaxPct] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
 
@@ -55,8 +54,8 @@ export default function MarketPage() {
   // Get unique item types
   const types = [...new Set(items.map(i => i.type).filter(Boolean))].sort();
 
-  // Compute display list
-  const displayItems = (() => {
+  // Compute filtered list (sorting handled by useSort)
+  const filteredItems = (() => {
     let list = items;
 
     // Type filter
@@ -71,9 +70,8 @@ export default function MarketPage() {
     // Filter
     if (filter === 'top20') {
       list = list.filter(i => i.profit_buy_sell > 0 && i.buy_price > 0);
-      list.sort((a, b) => b.profit_buy_sell - a.profit_buy_sell);
+      list = [...list].sort((a, b) => b.profit_buy_sell - a.profit_buy_sell);
       list = list.slice(0, 20);
-      return list; // Skip further sorting for top20
     } else if (filter === 'profitable') {
       list = list.filter(i => {
         const netProfit = i.profit_buy_sell * (1 - taxPct / 100);
@@ -83,25 +81,10 @@ export default function MarketPage() {
       list = list.filter(i => i.market_value > 0 && i.buy_price > 0);
     }
 
-    // Sort
-    list = [...list].sort((a, b) => {
-      let va: number, vb: number;
-      if (sortCol === 'name') return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      va = a[sortCol] ?? 0;
-      vb = b[sortCol] ?? 0;
-      return sortAsc ? va - vb : vb - va;
-    });
-
     return list;
   })();
 
-  const toggleSort = (col: SortCol) => {
-    if (sortCol === col) setSortAsc(!sortAsc);
-    else { setSortCol(col); setSortAsc(false); }
-  };
-
-  const SortArrow = ({ col }: { col: SortCol }) =>
-    sortCol === col ? <span className="ml-0.5 text-torn-green">{sortAsc ? '▲' : '▼'}</span> : null;
+  const { sorted: displayItems, sortCol, sortDir, toggle: toggleSort } = useSort(filteredItems, 'market_value');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -169,25 +152,13 @@ export default function MarketPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                    <th className="py-2 px-3 cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('name')}>
-                      Item<SortArrow col="name" />
-                    </th>
+                    <SortableHeader label="Item" column="name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
                     <th className="py-2 px-3">Type</th>
-                    <th className="py-2 px-3 text-right cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('market_value')}>
-                      Market<SortArrow col="market_value" />
-                    </th>
-                    <th className="py-2 px-3 text-right cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('buy_price')}>
-                      NPC Buy<SortArrow col="buy_price" />
-                    </th>
-                    <th className="py-2 px-3 text-right cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('sell_price')}>
-                      NPC Sell<SortArrow col="sell_price" />
-                    </th>
-                    <th className="py-2 px-3 text-right cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('profit_buy_sell')}>
-                      Profit{taxPct > 0 ? ' (net)' : ''}<SortArrow col="profit_buy_sell" />
-                    </th>
-                    <th className="py-2 px-3 text-right cursor-pointer select-none hover:text-text-primary" onClick={() => toggleSort('profit_margin_pct')}>
-                      Margin<SortArrow col="profit_margin_pct" />
-                    </th>
+                    <SortableHeader label="Market" column="market_value" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortableHeader label="NPC Buy" column="buy_price" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortableHeader label="NPC Sell" column="sell_price" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortableHeader label={`Profit${taxPct > 0 ? ' (net)' : ''}`} column="profit_buy_sell" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortableHeader label="Margin" column="profit_margin_pct" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
                   </tr>
                 </thead>
                 <tbody>

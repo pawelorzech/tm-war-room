@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { useSort } from '@/hooks/useSort';
+import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 
@@ -35,7 +37,6 @@ interface AwardsData {
 }
 
 type MainTab = 'honors' | 'medals' | 'incomplete';
-type SortCol = 'name' | 'circulation' | 'type';
 
 /* ── Helpers ── */
 
@@ -57,7 +58,7 @@ function typeName(t: number) { return TYPE_NAMES[t] || `Type ${t}`; }
 
 /* ── Pure compute — no hooks, no memos ── */
 
-function compute(data: AwardsData, tab: MainTab, catFilter: number | null, search: string, sortCol: SortCol, sortAsc: boolean) {
+function compute(data: AwardsData, tab: MainTab, catFilter: number | null, search: string) {
   // 1. Build clean lists with kind tag
   const honors: Award[] = data.honors.filter(a => !isJunk(a)).map(a => ({ ...a, kind: 'honor' }));
   const medals: Award[] = data.medals.filter(a => !isJunk(a)).map(a => ({ ...a, kind: 'medal' }));
@@ -83,15 +84,6 @@ function compute(data: AwardsData, tab: MainTab, catFilter: number | null, searc
     list = list.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
   }
 
-  // 5. Sort
-  list = [...list].sort((a, b) => {
-    let c = 0;
-    if (sortCol === 'name') c = a.name.localeCompare(b.name);
-    else if (sortCol === 'circulation') c = a.circulation - b.circulation;
-    else if (sortCol === 'type') c = a.type - b.type;
-    return sortAsc ? c : -c;
-  });
-
   return { list, categories, honors, medals, honorsEarned, medalsEarned, allIncomplete };
 }
 
@@ -105,8 +97,6 @@ export default function AwardsPage() {
   const [tab, setTab] = useState<MainTab>('honors');
   const [catFilter, setCatFilter] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [sortCol, setSortCol] = useState<SortCol>('name');
-  const [sortAsc, setSortAsc] = useState(true);
   const router = useRouter();
 
   const loadData = useCallback(() => {
@@ -126,13 +116,10 @@ export default function AwardsPage() {
     setSearch('');
   };
 
-  const toggleSort = (col: SortCol) => {
-    if (sortCol === col) setSortAsc(v => !v);
-    else { setSortCol(col); setSortAsc(true); }
-  };
-
   // Single computation — no chained memos
-  const view = data ? compute(data, tab, catFilter, search, sortCol, sortAsc) : null;
+  const view = data ? compute(data, tab, catFilter, search) : null;
+
+  const { sorted: sortedAwards, sortCol, sortDir, toggle: toggleSort } = useSort(view?.list ?? [], 'circulation', 'asc');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -201,15 +188,15 @@ export default function AwardsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                        <SortTh label="Name" col="name" current={sortCol} asc={sortAsc} onSort={toggleSort} />
-                        <SortTh label="Circulation" col="circulation" current={sortCol} asc={sortAsc} onSort={toggleSort} className="text-right" />
+                        <SortableHeader label="Name" column="name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+                        <SortableHeader label="Circulation" column="circulation" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
                         <th className="py-2 px-3">Description</th>
-                        <SortTh label="Category" col="type" current={sortCol} asc={sortAsc} onSort={toggleSort} />
-                        <th className="py-2 px-3 text-right">Status</th>
+                        <SortableHeader label="Category" column="type" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
+                        <SortableHeader label="Status" column="earned" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
                       </tr>
                     </thead>
                     <tbody>
-                      {view.list.map(a => (
+                      {sortedAwards.map(a => (
                         <tr key={`${a.kind}-${a.id}`}
                           onClick={() => router.push(`/awards/detail?kind=${a.kind}&id=${a.id}`)}
                           className={`border-b border-border-light cursor-pointer transition-colors ${a.earned ? 'hover:bg-bg-elevated/50' : 'opacity-60 hover:opacity-100'}`}>
@@ -273,14 +260,3 @@ function Chip({ active, onClick, children }: {
   );
 }
 
-function SortTh({ label, col, current, asc, onSort, className = '' }: {
-  label: string; col: SortCol; current: SortCol; asc: boolean;
-  onSort: (c: SortCol) => void; className?: string;
-}) {
-  return (
-    <th className={`py-2 px-3 cursor-pointer select-none hover:text-text-primary ${className}`}
-      onClick={() => onSort(col)}>
-      {label}{current === col && <span className="ml-0.5 text-torn-green">{asc ? '▲' : '▼'}</span>}
-    </th>
-  );
-}
