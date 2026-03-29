@@ -63,6 +63,10 @@ export const api = {
   chainAnalytics: (days: number = 7) => apiFetch<unknown>(`/api/chain/analytics?days=${days}`),
   awardsMe: () => apiFetch<unknown>(`/api/awards/me`),
   awardDetail: (kind: string, id: number) => apiFetch<unknown>(`/api/awards/detail/${kind}/${id}`),
+  awardCirculation: (kind: string, id: number, days?: number) =>
+    apiFetch<{ award_id: number; kind: string; history: { snapshot_date: string; circulation: number }[]; count: number }>(
+      `/api/awards/circulation/${kind}/${id}${days ? `?days=${days}` : ''}`
+    ),
   targetsList: (tag?: string) => apiFetch<unknown>(`/api/targets${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`),
   targetsAdd: (data: { player_id: number; player_name?: string; tag?: string; notes?: string; difficulty?: string }) =>
     apiFetch<unknown>('/api/targets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
