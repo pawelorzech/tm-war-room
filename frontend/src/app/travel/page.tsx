@@ -56,13 +56,10 @@ function itemProfit(item: TravelItem): number {
   return sellAfterFee - item.buy_price;
 }
 
-/** Compute trip profit for top N items */
+/** Compute trip profit — fill capacity with copies of the most profitable item */
 function tripProfit(items: TravelItem[], capacity: number): number {
-  const profitable = items
-    .map(i => ({ ...i, profit: itemProfit(i) }))
-    .filter(i => i.profit > 0)
-    .sort((a, b) => b.profit - a.profit);
-  return profitable.slice(0, capacity).reduce((sum, i) => sum + i.profit, 0);
+  const bestProfit = Math.max(0, ...items.map(i => itemProfit(i)));
+  return bestProfit * capacity;
 }
 
 export default function TravelPage() {
@@ -242,8 +239,7 @@ export default function TravelPage() {
                       {bestItem && bestItem.profit > 0 && (
                         <div className="bg-torn-green/5 border border-torn-green/15 rounded-lg px-3 py-2 mt-2 mb-2">
                           <p className="text-xs text-torn-green font-medium">
-                            Buy {Math.min(capacity, profitItems.filter(i => i.profit > 0).length)}x most profitable items.
-                            Best: {bestItem.name} (+{fmtMoney(bestItem.profit)} profit each after 5% fee).
+                            Fill all {capacity} slots with {bestItem.name} — {fmtMoney(bestItem.profit)} profit each after 5% fee = {fmtMoney(bestItem.profit * capacity)} total.
                           </p>
                         </div>
                       )}
@@ -261,13 +257,17 @@ export default function TravelPage() {
                         <tbody>
                           {profitItems.map((item, idx) => {
                             const afterFee = item.market_value * (1 - MARKET_FEE);
-                            const wouldBuy = idx < capacity && item.profit > 0;
+                            const profitable = item.profit > 0;
+                            const isBest = idx === 0 && profitable;
                             return (
-                              <tr key={item.name} className={`border-t border-border-light/50 ${wouldBuy ? '' : 'opacity-40'}`}>
+                              <tr key={item.name} className={`border-t border-border-light/50 ${profitable ? '' : 'opacity-40'}`}>
                                 <td className="py-1.5 pr-3 text-text-primary">
                                   {item.name}
-                                  {wouldBuy && (
-                                    <span className="ml-1 text-[9px] text-torn-green font-bold">BUY</span>
+                                  {isBest && (
+                                    <span className="ml-1 px-1.5 py-0.5 text-[9px] text-torn-green font-bold bg-torn-green/10 rounded">BEST — fill all {capacity}</span>
+                                  )}
+                                  {!isBest && profitable && (
+                                    <span className="ml-1 text-[9px] text-text-muted">also profitable</span>
                                   )}
                                 </td>
                                 <td className="py-1.5 pr-3 text-right tabular-nums text-text-secondary">
