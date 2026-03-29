@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const CirculationChart = dynamic(
+  () => import('@/components/awards/CirculationChart').then(m => ({ default: m.CirculationChart })),
+  { ssr: false, loading: () => <div className="h-48 bg-bg-card rounded-lg animate-pulse" /> }
+);
 
 interface AwardDetail {
   id: number;
@@ -45,6 +51,8 @@ function AwardDetailContent() {
   const [data, setData] = useState<AwardDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [circulationHistory, setCirculationHistory] = useState<{ snapshot_date: string; circulation: number }[]>([]);
+  const [circulationDays, setCirculationDays] = useState(30);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -57,6 +65,15 @@ function AwardDetailContent() {
   }, [kind, id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadCirculation = useCallback(() => {
+    if (!id) return;
+    api.awardCirculation(kind, id, circulationDays)
+      .then(d => setCirculationHistory(d.history))
+      .catch(() => {});
+  }, [kind, id, circulationDays]);
+
+  useEffect(() => { loadCirculation(); }, [loadCirculation]);
 
   if (!id) {
     return <p className="text-text-secondary">No award specified.</p>;
@@ -143,6 +160,26 @@ function AwardDetailContent() {
               className="text-text-muted hover:text-torn-green transition-colors">
               Torn Wiki ↗
             </a>
+          </div>
+
+          {/* Circulation trend */}
+          <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text-primary">Circulation Trend</h2>
+              <div className="flex gap-1">
+                {[7, 30, 90, 365].map(d => (
+                  <button key={d} onClick={() => setCirculationDays(d)}
+                    className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                      circulationDays === d
+                        ? 'bg-torn-green/20 text-torn-green'
+                        : 'text-text-muted hover:text-text-secondary'
+                    }`}>
+                    {d === 365 ? 'All' : `${d}d`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <CirculationChart history={circulationHistory} />
           </div>
         </>
       ) : null}
