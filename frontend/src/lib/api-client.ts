@@ -59,6 +59,7 @@ export const api = {
   chainDetail: (start: number, end: number) => apiFetch<unknown>(`/api/chain/chains/detail?start=${start}&end=${end}`),
   chainReport: (hours: number = 24) => apiFetch<unknown>(`/api/chain/report?hours=${hours}`),
   chainRecent: (limit: number = 50) => apiFetch<unknown>(`/api/chain/recent?limit=${limit}`),
+  chainTimeline: (hours: number = 48) => apiFetch<unknown>(`/api/chain/timeline?hours=${hours}`),
   awardsMe: () => apiFetch<unknown>(`/api/awards/me`),
   awardDetail: (kind: string, id: number) => apiFetch<unknown>(`/api/awards/detail/${kind}/${id}`),
   targetsList: (tag?: string) => apiFetch<unknown>(`/api/targets${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`),

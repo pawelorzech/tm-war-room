@@ -92,6 +92,22 @@ class AttackRepository(BaseRepository):
             "their_hits": [dict(r) for r in their_attacks],
         }
 
+    def get_activity_timeline(self, since: int = 0, bucket_seconds: int = 3600) -> list[dict]:
+        """Get attack activity bucketed by time intervals."""
+        rows = self.execute("""
+            SELECT (started / ?) * ? as bucket_start,
+                   COUNT(*) as hits,
+                   SUM(respect_gain) as respect,
+                   SUM(CASE WHEN result IN ('Hospitalized','Attacked') THEN 1 ELSE 0 END) as wins,
+                   SUM(CASE WHEN result = 'Lost' THEN 1 ELSE 0 END) as losses,
+                   COUNT(DISTINCT attacker_id) as active_members
+            FROM attack_log
+            WHERE started >= ?
+            GROUP BY bucket_start
+            ORDER BY bucket_start ASC
+        """, (bucket_seconds, bucket_seconds, since))
+        return [dict(r) for r in rows]
+
     def get_count(self) -> int:
         row = self.execute_one("SELECT COUNT(*) as cnt FROM attack_log")
         return row["cnt"] if row else 0

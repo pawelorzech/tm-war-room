@@ -94,7 +94,16 @@ const RESULT_COLOR: Record<string, string> = {
   Lost: 'text-danger', Stalemate: 'text-warning', Assist: 'text-blue-400', Escape: 'text-text-muted',
 };
 
-type Tab = 'chains' | 'recent';
+interface TimelineBucket {
+  bucket_start: number;
+  hits: number;
+  respect: number;
+  wins: number;
+  losses: number;
+  active_members: number;
+}
+
+type Tab = 'chains' | 'recent' | 'activity';
 type DetailSort = 'hits' | 'wins' | 'losses' | 'total_respect' | 'max_chain' | 'last_attack';
 
 /* ── Main Component ── */
@@ -102,6 +111,7 @@ type DetailSort = 'hits' | 'wins' | 'losses' | 'total_respect' | 'max_chain' | '
 export default function ChainPage() {
   const [chains, setChains] = useState<ChainSummary[]>([]);
   const [recent, setRecent] = useState<RecentAttack[]>([]);
+  const [timeline, setTimeline] = useState<TimelineBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('chains');
   const [attacksInDb, setAttacksInDb] = useState(0);
@@ -120,12 +130,14 @@ export default function ChainPage() {
     Promise.all([
       api.chainList(force),
       api.chainRecent(100),
-    ]).then(([c, a]) => {
+      api.chainTimeline(48),
+    ]).then(([c, a, t]) => {
       const chainData = c as { chains: ChainSummary[]; attacks_in_db: number; faction_id: number };
       setChains(chainData.chains);
       if (chainData.faction_id) setFactionId(chainData.faction_id);
       setAttacksInDb(chainData.attacks_in_db);
       setRecent((a as { attacks: RecentAttack[] }).attacks);
+      if (t) setTimeline((t as { timeline: TimelineBucket[] }).timeline || []);
     }).catch(() => {}).finally(() => setLoading(false));
   };
 
@@ -187,7 +199,7 @@ export default function ChainPage() {
 
         {/* Tab switcher */}
         <div className="flex gap-2">
-          {([['chains', 'Chains'], ['recent', 'Recent Attacks']] as const).map(([key, label]) => (
+          {([['chains', 'Chains'], ['recent', 'Recent Attacks'], ['activity', 'Activity']] as const).map(([key, label]) => (
             <button key={key} onClick={() => { setTab(key); if (key === 'chains') closeDetail(); }}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${tab === key ? 'bg-torn-green/20 text-torn-green font-semibold' : 'text-text-secondary hover:text-text-primary'}`}>
               {label}
@@ -215,6 +227,8 @@ export default function ChainPage() {
           ) : (
             <ChainListView chains={chains} onSelect={openChain} />
           )
+        ) : tab === 'activity' ? (
+          <ActivityView timeline={timeline} />
         ) : (
           <RecentAttacksView attacks={recent} factionId={factionId} />
         )}
@@ -436,6 +450,99 @@ function RecentAttacksView({ attacks, factionId = 0 }: { attacks: RecentAttack[]
     );
   }
   return <AttackTable attacks={attacks} factionId={factionId} />;
+}
+
+/* ── Activity Timeline View ── */
+
+function ActivityView({ timeline }: { timeline: TimelineBucket[] }) {
+  if (timeline.length === 0) {
+    return (
+      <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
+        No activity data yet. Attacks need to be tracked first.
+      </div>
+    );
+  }
+
+  const maxHits = Math.max(...timeline.map(t => t.hits), 1);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">Hourly Attack Activity (last 48h)</h3>
+        <div className="flex items-end gap-px h-32">
+          {timeline.map((t, i) => {
+            const pct = (t.hits / maxHits) * 100;
+            const d = new Date(t.bucket_start * 1000);
+            const label = `${d.getHours()}:00`;
+            const isNow = i === timeline.length - 1;
+            return (
+              <div key={t.bucket_start} className="flex-1 flex flex-col items-center group relative min-w-0"
+                title={`${fmtDate(t.bucket_start)}: ${t.hits} hits, ${fmtResp(t.respect)} respect, ${t.active_members} members`}>
+                <div className={`w-full rounded-t transition-all ${
+                  isNow ? 'bg-torn-green' : t.hits > 0 ? 'bg-torn-green/60' : 'bg-bg-elevated'
+                }`} style={{ height: `${Math.max(2, pct)}%` }} />
+                {i % 6 === 0 && (
+                  <span className="text-[8px] text-text-muted mt-0.5 hidden sm:block">{label}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-2 text-[10px] text-text-muted">
+          <span>{timeline.length > 0 ? fmtDate(timeline[0].bucket_start) : ''}</span>
+          <span>Now</span>
+        </div>
+      </div>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
+          <p className="text-lg font-bold text-text-primary">{timeline.reduce((s, t) => s + t.hits, 0)}</p>
+          <p className="text-[10px] text-text-muted uppercase">Total Hits</p>
+        </div>
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
+          <p className="text-lg font-bold text-torn-green">{fmtResp(timeline.reduce((s, t) => s + t.respect, 0))}</p>
+          <p className="text-[10px] text-text-muted uppercase">Respect</p>
+        </div>
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
+          <p className="text-lg font-bold text-text-primary">{timeline.reduce((s, t) => s + t.wins, 0)}</p>
+          <p className="text-[10px] text-text-muted uppercase">Wins</p>
+        </div>
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 text-center">
+          <p className="text-lg font-bold text-danger">{timeline.reduce((s, t) => s + t.losses, 0)}</p>
+          <p className="text-[10px] text-text-muted uppercase">Losses</p>
+        </div>
+      </div>
+
+      {/* Hourly breakdown table */}
+      <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-bg-card">
+              <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                <th className="py-2 px-3">Time</th>
+                <th className="py-2 px-3 text-right">Hits</th>
+                <th className="py-2 px-3 text-right">Wins</th>
+                <th className="py-2 px-3 text-right">Respect</th>
+                <th className="py-2 px-3 text-right">Members</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...timeline].reverse().map(t => (
+                <tr key={t.bucket_start} className="border-b border-border-light hover:bg-bg-elevated/50">
+                  <td className="py-1.5 px-3 text-text-secondary text-xs">{fmtDate(t.bucket_start)}</td>
+                  <td className="py-1.5 px-3 text-right tabular-nums font-medium">{t.hits}</td>
+                  <td className="py-1.5 px-3 text-right tabular-nums text-torn-green">{t.wins}</td>
+                  <td className="py-1.5 px-3 text-right tabular-nums text-torn-green">{fmtResp(t.respect)}</td>
+                  <td className="py-1.5 px-3 text-right tabular-nums text-text-muted">{t.active_members}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Shared Attack Table ── */
