@@ -240,6 +240,26 @@ async def attack_timeline(hours: int = Query(default=48, ge=1, le=720)):
     return {"period_hours": hours, "since": since, "timeline": timeline, "buckets": len(timeline)}
 
 
+@router.get("/analytics")
+async def faction_analytics(days: int = Query(default=7, ge=1, le=30)):
+    """Faction attack analytics — top attackers and daily trends."""
+    if not attack_repo:
+        raise HTTPException(status_code=503, detail="Chain tracker not initialized")
+    await _fetch_and_store_attacks()
+    top = attack_repo.get_top_attackers(days=days)
+    daily = attack_repo.get_member_daily_stats(days=days)
+    timeline = attack_repo.get_activity_timeline(
+        since=int(time.time()) - (days * 86400),
+        bucket_seconds=86400,  # Daily buckets
+    )
+    return {
+        "period_days": days,
+        "top_attackers": top,
+        "daily_breakdown": daily,
+        "daily_timeline": timeline,
+    }
+
+
 @router.get("/war/{faction_id}")
 async def war_report(faction_id: int, hours: int = Query(default=48, ge=1, le=720)):
     if not attack_repo:

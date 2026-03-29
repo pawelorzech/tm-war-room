@@ -108,6 +108,42 @@ class AttackRepository(BaseRepository):
         """, (bucket_seconds, bucket_seconds, since))
         return [dict(r) for r in rows]
 
+    def get_member_daily_stats(self, days: int = 7) -> list[dict]:
+        """Per-member daily attack counts for the last N days."""
+        import time
+        since = int(time.time()) - (days * 86400)
+        rows = self.execute("""
+            SELECT attacker_id, attacker_name,
+                   date(started, 'unixepoch') as day,
+                   COUNT(*) as hits,
+                   SUM(respect_gain) as respect,
+                   SUM(CASE WHEN result IN ('Hospitalized','Attacked') THEN 1 ELSE 0 END) as wins
+            FROM attack_log
+            WHERE started >= ?
+            GROUP BY attacker_id, day
+            ORDER BY day ASC, respect DESC
+        """, (since,))
+        return [dict(r) for r in rows]
+
+    def get_top_attackers(self, days: int = 7, limit: int = 20) -> list[dict]:
+        """Top attackers by respect in last N days."""
+        import time
+        since = int(time.time()) - (days * 86400)
+        rows = self.execute("""
+            SELECT attacker_id, attacker_name,
+                   COUNT(*) as total_hits,
+                   SUM(respect_gain) as total_respect,
+                   SUM(CASE WHEN result IN ('Hospitalized','Attacked') THEN 1 ELSE 0 END) as wins,
+                   SUM(CASE WHEN result = 'Lost' THEN 1 ELSE 0 END) as losses,
+                   COUNT(DISTINCT date(started, 'unixepoch')) as active_days
+            FROM attack_log
+            WHERE started >= ?
+            GROUP BY attacker_id
+            ORDER BY total_respect DESC
+            LIMIT ?
+        """, (since, limit))
+        return [dict(r) for r in rows]
+
     def get_count(self) -> int:
         row = self.execute_one("SELECT COUNT(*) as cnt FROM attack_log")
         return row["cnt"] if row else 0
