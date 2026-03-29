@@ -5,6 +5,19 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 
+interface RawMember {
+  id: number;
+  name: string;
+  level: number;
+  days_in_faction: number;
+  last_action: unknown;
+  status: unknown;
+  position: string;
+  is_on_wall: boolean;
+  is_revivable: boolean;
+  is_in_oc: boolean;
+}
+
 interface Member {
   id: number;
   name: string;
@@ -16,6 +29,14 @@ interface Member {
   is_on_wall: boolean;
   is_revivable: boolean;
   is_in_oc: boolean;
+}
+
+function normalizeMember(m: RawMember): Member {
+  const status = typeof m.status === 'string' ? m.status :
+    (m.status && typeof m.status === 'object') ? ((m.status as Record<string, string>).description || (m.status as Record<string, string>).state || 'Unknown') : 'Unknown';
+  const lastAction = typeof m.last_action === 'string' ? m.last_action :
+    (m.last_action && typeof m.last_action === 'object') ? ((m.last_action as Record<string, string>).relative || (m.last_action as Record<string, string>).status || '') : '';
+  return { ...m, status, last_action: lastAction };
 }
 
 type SortCol = 'name' | 'last_action_ts' | 'level' | 'days_in_faction' | 'status';
@@ -79,7 +100,8 @@ export default function ActivityPage() {
     setLoading(true);
     api.overview()
       .then(d => {
-        setMembers((d.members || []) as unknown as Member[]);
+        const raw = (d.members || []) as unknown as RawMember[];
+        setMembers(raw.map(normalizeMember));
       })
       .catch(() => {})
       .finally(() => setLoading(false));

@@ -63,10 +63,16 @@ export default function TravelPage() {
       setData(travel as TravelData);
       if (overview) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const members = ((overview as any).members || []) as { id: number; name: string; status: string }[];
+        const members = ((overview as any).members || []) as Record<string, unknown>[];
         setTravelers(members.filter(m => {
-          const s = (m.status || '').toLowerCase();
+          const st = m.status;
+          const desc = typeof st === 'string' ? st : (st && typeof st === 'object') ? ((st as Record<string, string>).description || '') : '';
+          const s = desc.toLowerCase();
           return s.includes('travel') || s.includes('abroad') || s.includes('returning');
+        }).map(m => {
+          const st = m.status;
+          const desc = typeof st === 'string' ? st : (st && typeof st === 'object') ? ((st as Record<string, string>).description || '') : '';
+          return { id: m.id as number, name: m.name as string, status: desc };
         }));
       }
     }).catch(() => {}).finally(() => setLoading(false));

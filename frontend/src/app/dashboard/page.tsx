@@ -11,21 +11,27 @@ interface StatusData {
   refresh_cycle: number;
 }
 
-interface OverviewMember {
-  id: number;
-  name: string;
-  status: string;
-  last_action: string;
-  is_on_wall: boolean;
-}
-
 interface LootNPC {
   id: number;
   name: string;
   level: number;
-  next_level_at: number | null;
   status: string;
   reservations: { player_name: string }[];
+}
+
+// Helper to safely extract status string from member data
+function getStatusStr(m: Record<string, unknown>): string {
+  const s = m.status;
+  if (typeof s === 'string') return s;
+  if (s && typeof s === 'object') return (s as Record<string, unknown>).description as string || (s as Record<string, unknown>).state as string || '';
+  return '';
+}
+
+function getLastActionStr(m: Record<string, unknown>): string {
+  const la = m.last_action;
+  if (typeof la === 'string') return la;
+  if (la && typeof la === 'object') return (la as Record<string, unknown>).relative as string || (la as Record<string, unknown>).status as string || '';
+  return '';
 }
 
 function Widget({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
@@ -49,38 +55,42 @@ export default function DashboardPage() {
     setLoading(true);
     Promise.all([
       api.overview().catch(() => null),
-      fetch('/api/status').then(r => r.json()).catch(() => null),
-      fetch('/api/loot').then(r => r.json()).catch(() => null),
-      fetch('/api/chain/chains').then(r => r.json()).catch(() => null),
-    ]).then(([overview, statusData, lootData, chainData]) => {
-      if (statusData) setStatus(statusData);
+      api.lootTimers().catch(() => null),
+      api.chainList().catch(() => null),
+    ]).then(([overview, lootData, chainData]) => {
+      // Status from a simple fetch (no auth needed)
+      fetch('/api/status').then(r => r.json()).then(s => setStatus(s)).catch(() => {});
 
       if (overview) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const members = ((overview as any).members || []) as OverviewMember[];
-        const now = members.length;
+        const members = ((overview as any).members || []) as Record<string, unknown>[];
+        const total = members.length;
         const online = members.filter(m => {
-          const la = (m.last_action || '').toLowerCase();
-          return la.includes('online') || la.match(/(\d+)\s+second/) || (la.match(/(\d+)\s+minute/) && parseInt(la) <= 5);
+          const la = getLastActionStr(m).toLowerCase();
+          return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
         }).length;
-        const hospital = members.filter(m => (m.status || '').toLowerCase().includes('hospital')).length;
+        const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
         const traveling = members.filter(m => {
-          const s = (m.status || '').toLowerCase();
+          const s = getStatusStr(m).toLowerCase();
           return s.includes('travel') || s.includes('abroad');
         }).length;
-        const onWall = members.filter(m => m.is_on_wall).length;
-        setMemberCounts({ total: now, online, hospital, traveling, onWall });
+        const onWall = members.filter(m => !!m.is_on_wall).length;
+        setMemberCounts({ total, online, hospital, traveling, onWall });
       }
 
-      if (lootData?.npcs) {
-        const best = lootData.npcs.reduce((a: LootNPC | null, b: LootNPC) =>
+      if (lootData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const npcs = (lootData as any).npcs as LootNPC[] || [];
+        const best = npcs.reduce((a: LootNPC | null, b: LootNPC) =>
           !a || b.level > a.level ? b : a, null);
         setTopLoot(best);
       }
 
       if (chainData) {
-        setChainCount(chainData.total_chains || 0);
-        setAttackCount(chainData.attacks_in_db || 0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cd = chainData as any;
+        setChainCount(cd.total_chains || 0);
+        setAttackCount(cd.attacks_in_db || 0);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -102,7 +112,6 @@ export default function DashboardPage() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <h1 className="text-2xl font-bold">Dashboard</h1>
 
-        {/* War alert */}
         {status?.war_active && (
           <div className="bg-torn-red/15 border border-torn-red/40 rounded-xl p-4 text-center" style={{ animation: 'tm-countdown-pulse 2s infinite' }}>
             <p className="text-torn-red font-bold text-lg uppercase">Active War</p>
@@ -110,7 +119,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Quick stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Widget title="Members Online" href="/activity">
             <p className="text-3xl font-bold text-torn-green">{memberCounts.online}</p>
@@ -130,7 +138,6 @@ export default function DashboardPage() {
           </Widget>
         </div>
 
-        {/* NPC Loot quick status */}
         {topLoot && (
           <Widget title="Best NPC Loot Right Now" href="/loot">
             <div className="flex items-center justify-between">
@@ -141,16 +148,13 @@ export default function DashboardPage() {
                   {topLoot.status}
                 </p>
               </div>
-              <div className="text-right">
-                <p className={`text-2xl font-bold ${
-                  topLoot.level >= 4 ? 'text-torn-yellow' : topLoot.level >= 3 ? 'text-torn-green' : 'text-text-muted'
-                }`}>Lv {topLoot.level}</p>
-              </div>
+              <p className={`text-2xl font-bold ${
+                topLoot.level >= 4 ? 'text-torn-yellow' : topLoot.level >= 3 ? 'text-torn-green' : 'text-text-muted'
+              }`}>Lv {topLoot.level}</p>
             </div>
           </Widget>
         )}
 
-        {/* Quick links */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
             { label: 'Our Team', href: '/team', icon: '👥' },
@@ -171,7 +175,6 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* System status */}
         {status && (
           <div className="text-[10px] text-text-muted text-center">
             Background refresh: cycle #{status.refresh_cycle} · {status.war_active ? 'War mode' : 'Peace mode'} · {status.poll_interval}s interval
