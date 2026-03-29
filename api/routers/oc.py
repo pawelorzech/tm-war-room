@@ -34,6 +34,13 @@ async def oc_overview(cat: str = Query(default="planning")):
     for c in crimes:
         if not isinstance(c, dict):
             continue
+        # Debug: log raw keys and success-related fields for first crime
+        if not parsed:
+            logger.info("OC raw keys: %s", list(c.keys()))
+            # Log first 500 chars of raw crime data for debugging
+            import json
+            raw_str = json.dumps(c, default=str)[:500]
+            logger.info("OC raw first crime: %s", raw_str)
 
         participants = []
         slots = c.get("slots", c.get("participants", []))
@@ -55,6 +62,32 @@ async def oc_overview(cat: str = Query(default="planning")):
                     "planning_complete": s.get("planning_complete", False),
                 })
 
+        # Parse success — API may use bool, string, int, or nested result
+        raw_success = c.get("success")
+        if raw_success is None:
+            # Try alternative field names
+            raw_success = c.get("result") or c.get("outcome")
+        # Status field "Successful"/"Failed" can also indicate success
+        status_str = str(c.get("status", "")).lower()
+        if raw_success is None and status_str in ("successful", "success"):
+            raw_success = True
+        elif raw_success is None and status_str in ("failed", "failure"):
+            raw_success = False
+
+        if isinstance(raw_success, str):
+            success = raw_success.lower() in ("success", "successful", "true", "1", "yes")
+        elif isinstance(raw_success, (int, float)):
+            success = bool(raw_success)
+        elif isinstance(raw_success, bool):
+            success = raw_success
+        else:
+            success = None
+
+        # Parse rewards — API may nest under "reward" or use different names
+        reward = c.get("reward") or {}
+        money_gain = c.get("money_gain", 0) or reward.get("money", 0) or c.get("cash_gain", 0) or 0
+        respect_gain = c.get("respect_gain", 0) or reward.get("respect", 0) or 0
+
         parsed.append({
             "id": c.get("id", 0),
             "name": c.get("name") or c.get("crime_name", "Unknown Crime"),
@@ -63,9 +96,9 @@ async def oc_overview(cat: str = Query(default="planning")):
             "initiated_at": c.get("initiated_at") or c.get("planning_at", 0),
             "executed_at": c.get("executed_at", 0),
             "ready_at": c.get("ready_at", 0),
-            "success": c.get("success"),
-            "money_gain": c.get("money_gain", 0),
-            "respect_gain": c.get("respect_gain", 0),
+            "success": success,
+            "money_gain": money_gain,
+            "respect_gain": respect_gain,
             "participants": participants,
             "participant_count": len(participants),
         })
