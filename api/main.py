@@ -53,6 +53,8 @@ from api.routers.bounties import router as bounties_router
 import api.routers.bounties as bounties_mod
 from api.routers.notifications import router as notifications_router
 import api.routers.notifications as notifications_mod
+from api.routers.company import router as company_router
+import api.routers.company as company_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -123,6 +125,8 @@ async def lifespan(app: FastAPI):
     from api.db.repos.notifications import NotificationRepository
     notification_repo = NotificationRepository(db_path="data/keys.db")
     notifications_mod.notification_repo = notification_repo
+    company_mod.torn_client = torn_client
+    company_mod.key_store = key_store
 
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
@@ -159,6 +163,7 @@ app.include_router(wars_router)
 app.include_router(stakeout_router)
 app.include_router(bounties_router)
 app.include_router(notifications_router)
+app.include_router(company_router)
 
 @app.get("/api/status")
 async def app_status():
