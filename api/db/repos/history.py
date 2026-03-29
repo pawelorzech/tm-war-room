@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+from datetime import date
 from api.db.repos.base import BaseRepository
 
 
@@ -38,7 +39,6 @@ class HistoryRepository(BaseRepository):
         return [dict(r) for r in rows]
 
     def record_activity_snapshot(self, total: int, online: int, hospital: int, traveling: int) -> None:
-        from datetime import date
         today = date.today().isoformat()
         now = int(time.time())
         self.mutate("""
