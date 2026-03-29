@@ -314,3 +314,50 @@ async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
     data = resp.json()
     assert data["members"]["456"]["source"] == "hidden"
     assert data["members"]["789"]["source"] == "not_on_yata"
+
+
+@pytest.mark.asyncio
+async def test_company_catalog(mock_client, mock_store):
+    mock_client.fetch_company_catalog = AsyncMock(return_value={
+        "1": {"name": "Hair Salon", "cost": 500000, "default_employees": 3,
+              "positions": [], "stock": [],
+              "specials": [{"name": "Perm", "effect": "+2 happy", "cost": 1, "rating_required": 1}]}
+    })
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company as company_mod
+        company_mod.torn_client = mock_client
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/catalog", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "companies" in data
+    assert len(data["companies"]) == 1
+    assert data["companies"][0]["name"] == "Hair Salon"
+
+
+@pytest.mark.asyncio
+async def test_company_faction(mock_client, mock_store):
+    mock_store.get_all_keys.return_value = [
+        {"player_id": 123, "player_name": "Bombel", "api_key": "key1"},
+        {"player_id": 456, "player_name": "Tester", "api_key": "key2"},
+    ]
+    mock_client.fetch_training_data = AsyncMock(side_effect=[
+        {"job": {"company_id": 100, "company_name": "Cool Farm", "company_type": 34, "position": "Farmer"}},
+        {"job": {"company_id": 100, "company_name": "Cool Farm", "company_type": 34, "position": "Manager"}},
+    ])
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company as company_mod
+        company_mod.torn_client = mock_client
+        company_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/faction", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "companies" in data
+    assert len(data["companies"]) == 1
+    assert data["companies"][0]["company_name"] == "Cool Farm"
+    assert len(data["companies"][0]["members"]) == 2
