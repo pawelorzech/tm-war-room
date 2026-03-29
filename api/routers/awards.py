@@ -25,6 +25,55 @@ async def honor_catalog():
     }
 
 
+@router.get("/detail/{kind}/{award_id}")
+async def award_detail(kind: str, award_id: int, x_player_id: int = Header(default=0)):
+    """Get detail for a single honor or medal, including player's earned status."""
+    if not torn_client:
+        raise HTTPException(status_code=503, detail="Not initialized")
+    if kind not in ("honor", "medal"):
+        raise HTTPException(status_code=400, detail="kind must be 'honor' or 'medal'")
+
+    catalog = await torn_client.fetch_honor_catalog()
+    section = "honors" if kind == "honor" else "medals"
+    all_items = catalog.get(section, {})
+    item = all_items.get(str(award_id))
+    if not item:
+        raise HTTPException(status_code=404, detail=f"{kind} #{award_id} not found")
+
+    result = {
+        "id": award_id,
+        "kind": kind,
+        "name": item.get("name", ""),
+        "description": item.get("description", ""),
+        "type": item.get("type", 0),
+        "rarity": item.get("rarity", ""),
+        "circulation": item.get("circulation", 0),
+        "earned": False,
+        "earned_at": None,
+    }
+
+    # Check if player has earned it
+    if x_player_id and key_store:
+        all_keys = key_store.get_all_keys()
+        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        if user_key:
+            try:
+                user_data = await torn_client.fetch_user_honors(user_key["api_key"])
+                awarded_key = "honors_awarded" if kind == "honor" else "medals_awarded"
+                time_key = "honors_time" if kind == "honor" else "medals_time"
+                awarded_list = user_data.get(awarded_key, [])
+                time_list = user_data.get(time_key, [])
+                if award_id in awarded_list:
+                    result["earned"] = True
+                    idx = awarded_list.index(award_id)
+                    if idx < len(time_list):
+                        result["earned_at"] = time_list[idx]
+            except Exception:
+                pass
+
+    return result
+
+
 @router.get("/me")
 async def my_awards(x_player_id: int = Header()):
     """Get current player's awarded honors and medals."""
@@ -45,11 +94,9 @@ async def my_awards(x_player_id: int = Header()):
     honors_time = user_data.get("honors_time", [])
     medals_time = user_data.get("medals_time", [])
 
-    # Build honors list with earned status
     all_honors = catalog.get("honors", {})
     all_medals = catalog.get("medals", {})
 
-    # Build time lookup: position in honors_awarded list → timestamp
     honors_awarded_list = user_data.get("honors_awarded", [])
     honor_time_map = {}
     for i, hid in enumerate(honors_awarded_list):
