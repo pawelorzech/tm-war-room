@@ -15,6 +15,29 @@ war_active: bool = False
 last_full_refresh: float = 0
 _cycle: int = 0
 
+# Track NPC levels between cycles for push notification triggers
+_prev_npc_levels: dict[int, int] = {}
+
+
+def _check_loot_push(npcs: list[dict], push_service) -> None:
+    """Check if any NPC crossed from <4 to >=4 and send push notifications."""
+    global _prev_npc_levels
+    if not push_service:
+        return
+    for npc in npcs:
+        npc_id = npc.get("id", 0)
+        level = npc.get("level", 0)
+        name = npc.get("name", f"NPC #{npc_id}")
+        prev = _prev_npc_levels.get(npc_id, 0)
+        if prev < 4 and level >= 4:
+            push_service.dispatch(
+                "loot_level4",
+                f"{name} — Loot Level {level}!",
+                f"{name} reached Level {level}. Time to attack for high-value loot!",
+                "/loot",
+            )
+        _prev_npc_levels[npc_id] = level
+
 
 async def run_refresh_data() -> None:
     """Top-level entry for APScheduler. Runs every 30s."""
@@ -49,6 +72,9 @@ async def run_refresh_data() -> None:
                 notif_repo.create("war", "War Started!", "An active war has been detected. Polling increased to every 30s.", {})
             else:
                 notif_repo.create("war", "War Ended", "The war has ended. Returning to normal polling.", {})
+        push_svc = state.get("push_service")
+        if push_svc and war_active:
+            push_svc.dispatch("war_start", "War Started!", "An active war has been detected. Get ready for battle!", "/wars")
     state["_prev_war_active"] = war_active
 
     # Decide what to refresh this cycle
@@ -196,6 +222,17 @@ async def run_refresh_data() -> None:
                                     len(existing), val.get("name", npc_id))
             if npcs:
                 loot_mod._cache_ts = 0
+                push_svc = state.get("push_service")
+                if push_svc and npcs:
+                    npc_parsed = []
+                    for key2, val2 in raw.items():
+                        if key2 in ("status", "message", "loot") or not isinstance(val2, dict):
+                            continue
+                        try:
+                            npc_parsed.append({"id": int(key2), "name": val2.get("name", ""), "level": val2.get("level", 0)})
+                        except ValueError:
+                            pass
+                    _check_loot_push(npc_parsed, push_svc)
                 refreshed.append(f"loot:{len(npcs)}")
         except Exception as e:
             logger.error("Background loot refresh failed: %s", e)
@@ -231,15 +268,24 @@ async def run_refresh_data() -> None:
                                 changed = stakeout_repo.update_status(w["player_id"], status_desc, last_action, name or None)
                                 if changed:
                                     changes += 1
+                                    pname = name or w.get("player_name") or f"#{w['player_id']}"
                                     # Create notification for stakeout status change
                                     notif_repo = state.get("notification_repo")
                                     if notif_repo:
-                                        pname = name or w.get("player_name") or f"#{w['player_id']}"
                                         notif_repo.create(
                                             type="stakeout",
                                             title=f"{pname} is now {status_desc}",
                                             message=f"Stakeout alert: {pname} changed from {w.get('last_status', '?')} to {status_desc}",
                                             data={"player_id": w["player_id"], "old_status": w.get("last_status"), "new_status": status_desc},
+                                        )
+                                    push_svc = state.get("push_service")
+                                    if push_svc:
+                                        push_svc.dispatch_to_player(
+                                            w.get("added_by", 0),
+                                            "stakeout_change",
+                                            f"{pname} is now {status_desc}",
+                                            f"Stakeout alert: {pname} changed status",
+                                            "/stakeout",
                                         )
                         except Exception:
                             pass
