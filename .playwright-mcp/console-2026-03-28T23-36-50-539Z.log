@@ -1,0 +1,7 @@
+[   15704ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://hub.tri.ovh/api/overview:0
+[   15704ms] [ERROR] Team refresh failed: Error: HTTP 500
+    at r (https://hub.tri.ovh/_next/static/chunks/13-61mhgcwxcg.js:1:3733)
+    at async Promise.all (index 0)
+    at async https://hub.tri.ovh/_next/static/chunks/0.hd2_7unv5hk.js:1:24080 @ https://hub.tri.ovh/_next/static/chunks/0.hd2_7unv5hk.js:0
+[   15709ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://hub.tri.ovh/api/members/detail:0
+[   64887ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://hub.tri.ovh/api/loot:0

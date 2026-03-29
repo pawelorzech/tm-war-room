@@ -1,0 +1,9 @@
+[   18636ms] [ERROR] Failed to load resource: the server responded with a status of 405 () @ https://hub.tri.ovh/inbox:0
+[   18639ms] [ERROR] Failed to load resource: the server responded with a status of 405 () @ https://hub.tri.ovh/training:0
+[   18674ms] [ERROR] Failed to load resource: the server responded with a status of 405 () @ https://hub.tri.ovh/admin:0
+[   26739ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://hub.tri.ovh/api/enemy?baseline_pid=2362436:0
+[   26739ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://hub.tri.ovh/api/members/detail:0
+[   26740ms] [ERROR] Refresh failed: Error: HTTP 500
+    at r (https://hub.tri.ovh/_next/static/chunks/0pk7il3~2r~j2.js:1:3733)
+    at async Promise.all (index 2)
+    at async https://hub.tri.ovh/_next/static/chunks/0w1z4137fwpfg.js:8:2654 @ https://hub.tri.ovh/_next/static/chunks/0w1z4137fwpfg.js:7
