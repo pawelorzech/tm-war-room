@@ -91,6 +91,9 @@ async def lifespan(app: FastAPI):
 
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
+    from api.db.repos.loot_reservations import LootReservationRepository
+    loot_mod.reservation_repo = LootReservationRepository(db_path="data/keys.db")
+    loot_mod.key_store = key_store
     revives_mod.torn_client = torn_client
     stocks_mod.torn_client = torn_client
     stocks_mod.key_store = key_store
