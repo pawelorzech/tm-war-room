@@ -608,6 +608,27 @@ class TornClient:
         self._set_cached("honor_catalog", result)
         return result
 
+    async def fetch_company_catalog(self) -> dict:
+        """Fetch all company type definitions with specials, positions, stock."""
+        cached = self._get_cached("company_catalog", ttl=3600)
+        if cached is not None:
+            return cached
+        t0 = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/torn/",
+                params={"selections": "companies", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            data = await _json(resp)
+            companies = data.get("companies", {})
+            self._set_cached("company_catalog", companies)
+            self._log_integration("torn", "torn/companies", True, (time.time() - t0) * 1000)
+            return companies
+        except Exception as e:
+            self._log_integration("torn", "torn/companies", False, (time.time() - t0) * 1000, str(e))
+            raise
+
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
         from api.models import PersonalStats
         cache_key = f"tspy_{faction_id}"
