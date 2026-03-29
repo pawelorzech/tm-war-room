@@ -24,6 +24,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Our Team", href: "/team", icon: "\uD83D\uDC65" },
       { label: "Enemies", href: "/enemies", icon: "\u2694\uFE0F" },
+      { label: "Activity", href: "/activity", icon: "\uD83D\uDFE2" },
     ],
   },
   {

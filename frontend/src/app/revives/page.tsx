@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface ReviveMember {
   reviver_id: number;
@@ -83,7 +84,10 @@ export default function RevivesPage() {
         ]} />
 
         {loading && !data ? (
-          <div className="text-text-secondary text-sm animate-pulse">Loading revive data...</div>
+          <>
+            <StatCardsSkeleton count={3} />
+            <TableSkeleton rows={8} cols={6} />
+          </>
         ) : data ? (
           <>
             {/* Summary */}

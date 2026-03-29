@@ -105,6 +105,19 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background stock refresh failed: %s", e)
 
+    # 5b. Market items — every 8th cycle (~4min, cached 5min in router)
+    if _cycle % 8 == 1:
+        try:
+            from api.torn_client import _json
+            resp = await torn_client._http.get(
+                "https://api.torn.com/torn/",
+                params={"selections": "items", "key": torn_client._api_key},
+            )
+            resp.raise_for_status()
+            refreshed.append("market_items")
+        except Exception as e:
+            logger.error("Background market refresh failed: %s", e)
+
     # 6. Awards catalog — every 8th cycle (~4min)
     if _cycle % 8 == 0:
         try:

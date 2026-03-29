@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 /* ── Types ── */
 
@@ -125,7 +126,10 @@ export default function StocksPage() {
         </div>
 
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading stock data...</p>
+          <>
+            <StatCardsSkeleton count={4} />
+            <TableSkeleton rows={6} cols={7} />
+          </>
         ) : tab === 'portfolio' ? (
           /* ── Portfolio ── */
           portfolio && portfolio.holdings.length > 0 ? (

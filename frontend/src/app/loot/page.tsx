@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface Reservation {
   player_id: number;
@@ -112,7 +113,7 @@ export default function LootPage() {
         ]} />
 
         {loading && !data ? (
-          <div className="text-text-secondary text-sm animate-pulse">Loading NPC loot data...</div>
+          <CardSkeleton count={5} />
         ) : error ? (
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-danger text-sm">{error}</div>
         ) : data ? (

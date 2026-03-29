@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface WarFaction {
   faction_id: number;
@@ -96,7 +97,7 @@ export default function WarsPage() {
         ]} />
 
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading war data...</p>
+          <CardSkeleton count={2} />
         ) : data ? (
           <div className="space-y-6">
             {/* Ranked War */}
