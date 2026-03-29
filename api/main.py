@@ -49,6 +49,8 @@ from api.routers.wars import router as wars_router
 import api.routers.wars as wars_mod
 from api.routers.stakeout import router as stakeout_router
 import api.routers.stakeout as stakeout_mod
+from api.routers.bounties import router as bounties_router
+import api.routers.bounties as bounties_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -107,6 +109,7 @@ async def lifespan(app: FastAPI):
     stakeout_repo = StakeoutRepository(db_path="data/keys.db")
     stakeout_mod.stakeout_repo = stakeout_repo
     stakeout_mod.key_store = key_store
+    bounties_mod.torn_client = torn_client
 
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
@@ -139,6 +142,7 @@ app.include_router(travel_router)
 app.include_router(oc_router)
 app.include_router(wars_router)
 app.include_router(stakeout_router)
+app.include_router(bounties_router)
 
 @app.get("/api/status")
 async def app_status():
