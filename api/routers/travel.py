@@ -9,33 +9,25 @@ logger = logging.getLogger("tm-hub.travel")
 router = APIRouter(prefix="/api/travel", tags=["travel"])
 torn_client = None  # Set by main.py
 
-# Items per country — verified against TornTravel.com and Torn Wiki (March 2026)
-# Each country has: 1 flower, 1 plushie (except Hawaii), and drugs on black market
+# YATA country codes → our IDs
+YATA_COUNTRY_MAP = {
+    "mex": "mexico", "cay": "cayman", "can": "canada", "haw": "hawaii",
+    "uni": "uk", "arg": "argentina", "swi": "switzerland",
+    "jap": "japan", "chi": "china", "uae": "uae", "sou": "south_africa",
+}
+
 COUNTRIES = [
-    {"id": "mexico", "name": "Mexico", "flag": "MX", "travel_min": 26,
-     "items": ["Dahlia", "Jaguar Plushie"]},
-    {"id": "cayman", "name": "Cayman Islands", "flag": "KY", "travel_min": 35,
-     "items": ["Banana Orchid", "Stingray Plushie"]},
-    {"id": "canada", "name": "Canada", "flag": "CA", "travel_min": 41,
-     "items": ["Crocus", "Wolverine Plushie", "Cannabis", "Ecstasy", "PCP"]},
-    {"id": "hawaii", "name": "Hawaii", "flag": "US", "travel_min": 134,
-     "items": ["Orchid"]},
-    {"id": "uk", "name": "United Kingdom", "flag": "GB", "travel_min": 159,
-     "items": ["Heather", "Red Fox Plushie", "Nessie Plushie",
-               "Ecstasy", "Shrooms", "Cannabis", "Ketamine", "PCP"]},
-    {"id": "argentina", "name": "Argentina", "flag": "AR", "travel_min": 167,
-     "items": ["Ceibo Flower", "Monkey Plushie", "LSD", "Shrooms", "Ketamine"]},
-    {"id": "switzerland", "name": "Switzerland", "flag": "CH", "travel_min": 175,
-     "items": ["Edelweiss", "Chamois Plushie",
-               "Cannabis", "Shrooms", "Ketamine", "LSD", "PCP", "Speed"]},
-    {"id": "japan", "name": "Japan", "flag": "JP", "travel_min": 225,
-     "items": ["Cherry Blossom", "Ecstasy", "Opium", "Shrooms", "Ketamine", "Vicodin", "Speed"]},
-    {"id": "china", "name": "China", "flag": "CN", "travel_min": 242,
-     "items": ["Peony", "Panda Plushie", "Opium", "Ecstasy", "LSD"]},
-    {"id": "uae", "name": "UAE", "flag": "AE", "travel_min": 267,
-     "items": ["Tribulus Omanense", "Camel Plushie"]},
-    {"id": "south_africa", "name": "South Africa", "flag": "ZA", "travel_min": 340,
-     "items": ["African Violet", "Lion Plushie", "LSD", "Opium", "Shrooms", "PCP"]},
+    {"id": "mexico", "name": "Mexico", "flag": "MX", "travel_min": 26},
+    {"id": "cayman", "name": "Cayman Islands", "flag": "KY", "travel_min": 35},
+    {"id": "canada", "name": "Canada", "flag": "CA", "travel_min": 41},
+    {"id": "hawaii", "name": "Hawaii", "flag": "US", "travel_min": 134},
+    {"id": "uk", "name": "United Kingdom", "flag": "GB", "travel_min": 159},
+    {"id": "argentina", "name": "Argentina", "flag": "AR", "travel_min": 167},
+    {"id": "switzerland", "name": "Switzerland", "flag": "CH", "travel_min": 175},
+    {"id": "japan", "name": "Japan", "flag": "JP", "travel_min": 225},
+    {"id": "china", "name": "China", "flag": "CN", "travel_min": 242},
+    {"id": "uae", "name": "UAE", "flag": "AE", "travel_min": 267},
+    {"id": "south_africa", "name": "South Africa", "flag": "ZA", "travel_min": 340},
 ]
 
 _price_cache: dict | None = None
@@ -45,18 +37,17 @@ PRICE_CACHE_TTL = 300
 
 @router.get("")
 async def travel_info():
-    """Get travel planner data: countries, items, and current market prices."""
+    """Get travel planner data with YATA abroad prices + Torn market values."""
     global _price_cache, _price_cache_ts
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
 
-    # Fetch item prices (cached 5 min)
+    # 1. Fetch Torn item market values (cached 5 min)
     now = time.time()
     if _price_cache and now - _price_cache_ts < PRICE_CACHE_TTL:
-        prices = _price_cache
+        market_prices = _price_cache
     else:
         try:
-            # Fetch all items to get market values
             resp = await torn_client._http.get(
                 "https://api.torn.com/torn/",
                 params={"selections": "items", "key": torn_client._api_key},
@@ -64,45 +55,78 @@ async def travel_info():
             resp.raise_for_status()
             raw = await _json(resp)
             items_data = raw.get("items", {})
-            prices = {}
+            market_prices = {}
             for iid, item in items_data.items():
                 name = item.get("name", "")
-                mv = item.get("market_value", 0)
-                buy_price = item.get("buy_price", 0)
-                sell_price = item.get("sell_price", 0)
-                prices[name.lower()] = {
+                market_prices[int(iid)] = {
                     "id": int(iid),
                     "name": name,
-                    "market_value": mv,
-                    "buy_price": buy_price,
-                    "sell_price": sell_price,
+                    "market_value": item.get("market_value", 0),
                 }
-            _price_cache = prices
+                # Also index by lowercase name for fallback
+                market_prices[name.lower()] = market_prices[int(iid)]
+            _price_cache = market_prices
             _price_cache_ts = now
         except Exception as e:
             logger.error("Failed to fetch item data: %s", e)
-            prices = _price_cache or {}
+            market_prices = _price_cache or {}
 
-    # Build response with prices attached to country items
+    # 2. Fetch YATA abroad stocks (cached 15 min in torn_client)
+    yata_stocks = await torn_client.fetch_yata_travel_stocks()
+    if yata_stocks:
+        logger.info("YATA travel data: %d countries", len([k for k in yata_stocks if k in YATA_COUNTRY_MAP]))
+
+    # 3. Build response — YATA provides real abroad items + prices
     countries = []
     for c in COUNTRIES:
         items = []
-        for item_name in c["items"]:
-            price_info = prices.get(item_name.lower(), {})
-            items.append({
-                "name": item_name,
-                "market_value": price_info.get("market_value", 0),
-                "buy_price": price_info.get("buy_price", 0),
-                "sell_price": price_info.get("sell_price", 0),
-                "item_id": price_info.get("id", 0),
-            })
-        # Sort by market value descending
-        items.sort(key=lambda x: x["market_value"], reverse=True)
-        best_value = max((i["market_value"] for i in items), default=0)
-        countries.append({
-            **c,
-            "items": items,
-            "best_value": best_value,
-        })
+        yata_key = next((yk for yk, cid in YATA_COUNTRY_MAP.items() if cid == c["id"]), None)
+
+        if yata_stocks and yata_key and yata_key in yata_stocks:
+            country_data = yata_stocks[yata_key]
+            yata_items = country_data.get("items", [])
+            last_update = country_data.get("update", 0)
+
+            for yi in yata_items:
+                item_id = yi.get("id", 0)
+                item_name = yi.get("name", "")
+                abroad_cost = yi.get("cost", 0)
+                quantity = yi.get("quantity", 0)
+
+                # Get market value from Torn API
+                mp = market_prices.get(item_id) or market_prices.get(item_name.lower(), {})
+                market_value = mp.get("market_value", 0)
+
+                items.append({
+                    "name": item_name,
+                    "item_id": item_id,
+                    "abroad_cost": abroad_cost,
+                    "market_value": market_value,
+                    "quantity": quantity,
+                    "source": "yata",
+                })
+
+            c_entry = {
+                **c,
+                "items": items,
+                "last_update": last_update,
+                "data_source": "yata",
+            }
+        else:
+            # Fallback: no YATA data
+            c_entry = {
+                **c,
+                "items": [],
+                "last_update": 0,
+                "data_source": "none",
+            }
+
+        # Sort by profit descending
+        for item in c_entry["items"]:
+            item["profit"] = int(item["market_value"] * 0.95 - item["abroad_cost"]) if item["market_value"] > 0 and item["abroad_cost"] > 0 else 0
+        c_entry["items"].sort(key=lambda x: x["profit"], reverse=True)
+        c_entry["best_profit"] = c_entry["items"][0]["profit"] if c_entry["items"] else 0
+
+        countries.append(c_entry)
 
     return {"countries": countries, "count": len(countries)}
