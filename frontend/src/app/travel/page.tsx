@@ -68,6 +68,7 @@ export default function TravelPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [travelers, setTravelers] = useState<{ id: number; name: string; status: string }[]>([]);
   const [capacity, setCapacity] = useState(5);
+  const [capacityInput, setCapacityInput] = useState('5');
   const [sortBy, setSortBy] = useState<'profit' | 'time' | 'perHour'>('perHour');
 
   const loadData = useCallback(() => {
@@ -138,15 +139,21 @@ export default function TravelPage() {
             <label className="text-xs text-text-secondary">Items per trip:</label>
             <div className="flex gap-1 items-center">
               {[5, 10, 15, 20].map(n => (
-                <button key={n} onClick={() => setCapacity(n)}
+                <button key={n} onClick={() => { setCapacity(n); setCapacityInput(String(n)); }}
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     capacity === n ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-card text-text-secondary hover:bg-bg-elevated'
                   }`}>
                   {n}
                 </button>
               ))}
-              <input type="number" min={1} max={50} value={capacity}
-                onChange={e => setCapacity(Math.max(1, Math.min(50, parseInt(e.target.value) || 5)))}
+              <input type="text" inputMode="numeric" value={capacityInput}
+                onChange={e => setCapacityInput(e.target.value)}
+                onBlur={() => {
+                  const n = Math.max(1, Math.min(50, parseInt(capacityInput) || 5));
+                  setCapacity(n);
+                  setCapacityInput(String(n));
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                 className="w-12 bg-bg-card border border-text-secondary/20 rounded px-1.5 py-1 text-xs text-center text-text-primary tabular-nums focus:outline-none focus:border-torn-green/50"
               />
             </div>

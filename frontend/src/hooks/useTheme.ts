@@ -21,8 +21,8 @@ export function useTheme() {
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     localStorage.setItem("theme", t);
-    document.documentElement.classList.toggle("dark", t === "dark");
-    document.documentElement.classList.toggle("light", t === "light");
+    document.documentElement.classList.remove("dark", "light");
+    document.documentElement.classList.add(t);
   }, []);
 
   const toggle = useCallback(() => {
