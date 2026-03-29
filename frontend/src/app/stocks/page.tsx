@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
@@ -54,7 +54,15 @@ interface PortfolioData {
   total_profit_pct: number;
 }
 
-type Tab = 'portfolio' | 'market';
+type Tab = 'portfolio' | 'market' | 'recommendations';
+
+const CHART_PERIODS = [
+  { label: '1D', days: 1 },
+  { label: '7D', days: 7 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+  { label: 'All', days: 365 },
+] as const;
 
 /* ── Helpers ── */
 
@@ -75,6 +83,61 @@ function profitClass(n: number): string {
   return 'text-text-muted';
 }
 
+interface StockROI {
+  id: number;
+  acronym: string;
+  name: string;
+  current_price: number;
+  benefit_desc: string;
+  benefit_requirement: number;
+  cost_to_benefit: number;
+  owned_shares: number;
+  shares_needed: number;
+  cost_remaining: number;
+  owned: boolean;
+  benefit_active: boolean;
+}
+
+function computeROI(market: MarketStock[], portfolio: PortfolioData | null): StockROI[] {
+  const holdingsMap = new Map<number, Holding>();
+  if (portfolio) {
+    for (const h of portfolio.holdings) {
+      holdingsMap.set(h.stock_id, h);
+    }
+  }
+
+  return market
+    .filter(s => s.benefit_requirement > 0 && s.benefit_desc)
+    .map(s => {
+      const h = holdingsMap.get(s.id);
+      const owned = h ? h.total_shares : 0;
+      const needed = Math.max(0, s.benefit_requirement - owned);
+      const costRemaining = needed * s.current_price;
+      const totalCost = s.benefit_requirement * s.current_price;
+      return {
+        id: s.id,
+        acronym: s.acronym,
+        name: s.name,
+        current_price: s.current_price,
+        benefit_desc: s.benefit_desc,
+        benefit_requirement: s.benefit_requirement,
+        cost_to_benefit: totalCost,
+        owned_shares: owned,
+        shares_needed: needed,
+        cost_remaining: costRemaining,
+        owned: owned > 0,
+        benefit_active: owned >= s.benefit_requirement,
+      };
+    })
+    .sort((a, b) => {
+      // Already active go last
+      if (a.benefit_active && !b.benefit_active) return 1;
+      if (!a.benefit_active && b.benefit_active) return -1;
+      // Sort by remaining cost (cheapest first = best immediate ROI)
+      return a.cost_remaining - b.cost_remaining;
+    });
+}
+
 /* ── Component ── */
 
 export default function StocksPage() {
@@ -86,6 +149,14 @@ export default function StocksPage() {
   const [selectedStock, setSelectedStock] = useState<{ id: number; name: string; acronym: string } | null>(null);
   const [priceHistory, setPriceHistory] = useState<{ price: number; recorded_at: number }[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
+  const [chartDays, setChartDays] = useState(30);
+
+  const ownedIds = useMemo(() => {
+    if (!portfolio) return new Set<number>();
+    return new Set(portfolio.holdings.map(h => h.stock_id));
+  }, [portfolio]);
+
+  const recommendations = useMemo(() => computeROI(market, portfolio), [market, portfolio]);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -101,6 +172,14 @@ export default function StocksPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const loadChart = useCallback((id: number, days: number) => {
+    setChartLoading(true);
+    api.stockHistory(id, days)
+      .then(d => setPriceHistory((d as { prices: { price: number; recorded_at: number }[] }).prices))
+      .catch(() => setPriceHistory([]))
+      .finally(() => setChartLoading(false));
+  }, []);
+
   const selectStock = (id: number, name: string, acronym: string) => {
     if (selectedStock?.id === id) {
       setSelectedStock(null);
@@ -108,11 +187,15 @@ export default function StocksPage() {
       return;
     }
     setSelectedStock({ id, name, acronym });
-    setChartLoading(true);
-    api.stockHistory(id, 30)
-      .then(d => setPriceHistory((d as { prices: { price: number; recorded_at: number }[] }).prices))
-      .catch(() => setPriceHistory([]))
-      .finally(() => setChartLoading(false));
+    setChartDays(30);
+    loadChart(id, 30);
+  };
+
+  const changeChartPeriod = (days: number) => {
+    setChartDays(days);
+    if (selectedStock) {
+      loadChart(selectedStock.id, days);
+    }
   };
 
   const filteredMarket = search
@@ -125,25 +208,25 @@ export default function StocksPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Stock Tracker</h1>
-            <p className="text-text-secondary text-sm mt-1">Portfolio &amp; market overview.</p>
+            <p className="text-text-secondary text-sm mt-1">Portfolio, market, and investment recommendations.</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
 
-        <PageExplainer id="stocks" title="Stock Tracker — What's here?" bullets={[
-          "Torn's stock market works differently from real stocks — each company offers a unique passive benefit (free items, stat boosts, bank interest bonuses, etc.) when you hold enough shares. Benefits activate at specific share thresholds, typically requiring millions of shares.",
-          "Stock benefits are the main reason to invest. Check the 'Benefit' column to see what each stock offers and how many shares you need. Some benefits (like SYS free laptop, or TCB bank interest boost) are highly valuable for your progression.",
-          "Dividend tracking shows when your stocks will pay out cash dividends. Dividends are periodic cash payments based on your holdings — the 'Div!' indicator means a payout is ready to collect on Torn.",
-          "Price history charts help you time purchases — buy when prices dip to get more shares for your money. Click any stock row to see its 30-day price trend and identify good entry points.",
+        <PageExplainer id="stocks" title="Stock Tracker — How to use this" bullets={[
+          "Torn stocks are about BENEFITS, not price trading. Each company offers a unique passive perk (free items, stat boosts, bank interest, etc.) when you hold enough shares.",
+          "PORTFOLIO tab shows your current holdings with profit/loss. MARKET tab shows all stocks. RECOMMENDATIONS tab suggests what to buy next based on cheapest benefit cost.",
+          "Click any stock row to see its price chart. Use the period selector (1D/7D/30D/90D) to spot trends and time your purchases.",
+          "Stocks marked 'OWNED' in the market tab are ones you already hold. Green 'ACTIVE' means you have enough shares for the benefit.",
         ]}
-        dataSources={["Torn API v2 stock market prices", "Historical prices collected every 30min by background scheduler"]}
+        dataSources={["Torn API v2 stock market prices", "Your portfolio from Torn API via your key", "Historical prices collected every 30min"]}
         links={[["Torn Wiki: Stock Market", "https://wiki.torn.com/wiki/Stock_Market"]]}
         />
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-border">
-          {([['portfolio', 'Portfolio'], ['market', 'Market']] as const).map(([key, label]) => (
-            <button key={key} onClick={() => { setTab(key); setSearch(''); }}
+          {([['portfolio', 'Portfolio'], ['market', 'Market'], ['recommendations', 'What to Buy']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => { setTab(key as Tab); setSearch(''); }}
               className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 tab === key ? 'border-torn-green text-torn-green' : 'border-transparent text-text-secondary hover:text-text-primary'
               }`}>
@@ -160,8 +243,23 @@ export default function StocksPage() {
                 <span className="text-torn-green">{selectedStock.acronym}</span>
                 <span className="text-text-secondary ml-1">{selectedStock.name}</span>
               </h3>
-              <button onClick={() => { setSelectedStock(null); setPriceHistory([]); }}
-                className="text-xs text-text-muted hover:text-text-primary">Close</button>
+              <div className="flex items-center gap-2">
+                {/* Period selector */}
+                <div className="flex gap-1">
+                  {CHART_PERIODS.map(p => (
+                    <button key={p.days} onClick={() => changeChartPeriod(p.days)}
+                      className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                        chartDays === p.days
+                          ? 'bg-torn-green/20 text-torn-green font-semibold'
+                          : 'bg-bg-elevated text-text-muted hover:text-text-secondary'
+                      }`}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { setSelectedStock(null); setPriceHistory([]); }}
+                  className="text-xs text-text-muted hover:text-text-primary ml-2">Close</button>
+              </div>
             </div>
             {chartLoading ? (
               <div className="h-48 bg-bg-elevated rounded-lg animate-pulse" />
@@ -180,7 +278,6 @@ export default function StocksPage() {
           /* ── Portfolio ── */
           portfolio && portfolio.holdings.length > 0 ? (
             <>
-              {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <SummaryCard label="Total Value" value={fmtMoney(portfolio.total_value)} />
                 <SummaryCard label="Total Cost" value={fmtMoney(portfolio.total_cost)} />
@@ -243,6 +340,92 @@ export default function StocksPage() {
               No stock holdings found. Buy stocks on the <a href="https://www.torn.com/stockexchange.php" target="_blank" className="text-torn-green hover:underline">Torn Stock Exchange</a>.
             </div>
           )
+        ) : tab === 'recommendations' ? (
+          /* ── Recommendations ── */
+          <div className="space-y-4">
+            <div className="bg-torn-green/5 border border-torn-green/20 rounded-lg p-3">
+              <p className="text-sm font-medium text-text-primary">Investment advisor</p>
+              <p className="text-xs text-text-secondary mt-1">
+                Sorted by cheapest remaining cost to unlock a benefit. Already-active benefits shown at the bottom.
+                Buy the top stock you don&apos;t have yet for the best bang-for-buck.
+              </p>
+            </div>
+
+            {recommendations.length > 0 ? (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Stock</th>
+                        <th className="py-2 px-3">Benefit</th>
+                        <th className="py-2 px-3 text-right">Required</th>
+                        <th className="py-2 px-3 text-right">You Own</th>
+                        <th className="py-2 px-3 text-right">Need</th>
+                        <th className="py-2 px-3 text-right">Cost to Go</th>
+                        <th className="py-2 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recommendations.map((r, i) => (
+                        <tr key={r.id} onClick={() => selectStock(r.id, r.name, r.acronym)}
+                          className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${
+                            r.benefit_active ? 'opacity-50' : ''
+                          } ${selectedStock?.id === r.id ? 'bg-torn-green/5' : ''}`}>
+                          <td className="py-1.5 px-3 text-text-muted text-xs">
+                            {r.benefit_active ? '—' : i + 1}
+                          </td>
+                          <td className="py-1.5 px-3">
+                            <span className="font-semibold">{r.acronym}</span>
+                            <span className="ml-1.5 text-text-muted text-xs">{r.name}</span>
+                          </td>
+                          <td className="py-1.5 px-3 text-xs text-text-secondary max-w-[200px]">{r.benefit_desc}</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-text-muted text-xs">
+                            {r.benefit_requirement.toLocaleString()}
+                          </td>
+                          <td className="py-1.5 px-3 text-right tabular-nums">
+                            {r.owned_shares > 0 ? (
+                              <span className="text-torn-green">{r.owned_shares.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-text-muted">0</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-3 text-right tabular-nums">
+                            {r.shares_needed > 0 ? r.shares_needed.toLocaleString() : (
+                              <span className="text-torn-green">0</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-3 text-right tabular-nums font-medium">
+                            {r.cost_remaining > 0 ? fmtMoney(r.cost_remaining) : (
+                              <span className="text-torn-green">$0</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-3">
+                            {r.benefit_active ? (
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-green/15 text-torn-green">ACTIVE</span>
+                            ) : r.owned ? (
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-yellow/15 text-torn-yellow">PARTIAL</span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-bg-elevated text-text-muted">NOT OWNED</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
+                No stock data available.
+              </div>
+            )}
+
+            <p className="text-[10px] text-text-muted text-center">
+              Cost calculated at current market price. Actual cost may vary. Lower &ldquo;Cost to Go&rdquo; = better immediate ROI.
+            </p>
+          </div>
         ) : (
           /* ── Market ── */
           <>
@@ -267,7 +450,11 @@ export default function StocksPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMarket.map(s => (
+                      {filteredMarket.map(s => {
+                        const isOwned = ownedIds.has(s.id);
+                        const holding = portfolio?.holdings.find(h => h.stock_id === s.id);
+                        const benefitActive = holding ? holding.total_shares >= s.benefit_requirement && s.benefit_requirement > 0 : false;
+                        return (
                         <tr key={s.id} onClick={() => selectStock(s.id, s.name, s.acronym)}
                           className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${selectedStock?.id === s.id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3">
@@ -276,6 +463,12 @@ export default function StocksPage() {
                               <span className="font-semibold">{s.acronym}</span>
                               <span className="ml-1.5 text-text-muted text-xs">{s.name}</span>
                             </a>
+                            {benefitActive && (
+                              <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded font-bold bg-torn-green/15 text-torn-green">ACTIVE</span>
+                            )}
+                            {isOwned && !benefitActive && (
+                              <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded font-bold bg-torn-yellow/15 text-torn-yellow">OWNED</span>
+                            )}
                           </td>
                           <td className="py-1.5 px-3 text-right tabular-nums">{fmtPrice(s.current_price)}</td>
                           <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">{fmtMoney(s.market_cap)}</td>
@@ -285,7 +478,8 @@ export default function StocksPage() {
                             {s.benefit_requirement > 0 ? s.benefit_requirement.toLocaleString() : '—'}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -297,6 +491,10 @@ export default function StocksPage() {
             )}
           </>
         )}
+
+        <p className="text-[10px] text-text-muted text-center">
+          Data: Torn API v2 stock market + your portfolio · Prices updated every 30min
+        </p>
       </div>
     </div>
   );
