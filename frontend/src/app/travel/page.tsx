@@ -8,10 +8,12 @@ import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface TravelItem {
   name: string;
-  market_value: number;
-  buy_price: number;
-  sell_price: number;
   item_id: number;
+  abroad_cost: number;
+  market_value: number;
+  quantity: number;
+  profit: number;
+  source: string;
 }
 
 interface Country {
@@ -20,15 +22,15 @@ interface Country {
   flag: string;
   travel_min: number;
   items: TravelItem[];
-  best_value: number;
+  best_profit: number;
+  last_update: number;
+  data_source: string;
 }
 
 interface TravelData {
   countries: Country[];
   count: number;
 }
-
-const MARKET_FEE = 0.05; // 5% Item Market fee
 
 const FLAGS: Record<string, string> = {
   MX: '\uD83C\uDDF2\uD83C\uDDFD', KY: '\uD83C\uDDF0\uD83C\uDDFE', CA: '\uD83C\uDDE8\uD83C\uDDE6',
@@ -50,16 +52,13 @@ function fmtTime(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-/** Net profit after 5% market fee */
-function itemProfit(item: TravelItem): number {
-  const sellAfterFee = item.market_value * (1 - MARKET_FEE);
-  return sellAfterFee - item.buy_price;
-}
-
-/** Compute trip profit — fill capacity with copies of the most profitable item */
-function tripProfit(items: TravelItem[], capacity: number): number {
-  const bestProfit = Math.max(0, ...items.map(i => itemProfit(i)));
-  return bestProfit * capacity;
+function timeAgo(ts: number): string {
+  if (!ts) return 'unknown';
+  const diff = Math.floor(Date.now() / 1000) - ts;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 export default function TravelPage() {
@@ -100,16 +99,22 @@ export default function TravelPage() {
   const sortedCountries = useMemo(() => {
     if (!data) return [];
     return [...data.countries].map(c => {
-      const tp = tripProfit(c.items, capacity);
+      const bestProfit = c.best_profit;
+      const tripTotal = bestProfit * capacity;
       const roundTripMin = c.travel_min * 2;
-      const perHour = roundTripMin > 0 ? (tp / (roundTripMin / 60)) : 0;
-      return { ...c, tripProfit: tp, perHour, roundTripMin };
+      const perHour = roundTripMin > 0 ? (tripTotal / (roundTripMin / 60)) : 0;
+      return { ...c, tripTotal, perHour, roundTripMin };
     }).sort((a, b) => {
-      if (sortBy === 'profit') return b.tripProfit - a.tripProfit;
+      if (sortBy === 'profit') return b.tripTotal - a.tripTotal;
       if (sortBy === 'time') return a.travel_min - b.travel_min;
-      return b.perHour - a.perHour; // default: $/hour
+      return b.perHour - a.perHour;
     });
   }, [data, capacity, sortBy]);
+
+  const setCapacityVal = (n: number) => {
+    setCapacity(n);
+    setCapacityInput(String(n));
+  };
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -117,20 +122,19 @@ export default function TravelPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Travel Planner</h1>
-            <p className="text-text-secondary text-sm mt-1">Profit calculator — what to buy and where.</p>
+            <p className="text-text-secondary text-sm mt-1">Profit calculator with live abroad prices from YATA.</p>
           </div>
           <RefreshButton onRefresh={loadData} />
         </div>
 
         <PageExplainer id="travel" title="Travel Planner — How to use this" bullets={[
-          "Each country shows items you can buy abroad and sell on the Torn market. Profit = market sell price minus 5% Item Market fee minus buy price.",
-          "TRIP PROFIT shows how much you'd make filling your inventory with the most profitable items. PROFIT/HR factors in round-trip travel time — higher = better.",
-          "Set your carrying capacity below (default 5). Large Suitcase = 9, Business Class = 10, Private Island Airstrip = 15+.",
-          "Sort by $/hour for the best return on your time. Short trips (Mexico, Cayman) often beat long trips despite lower per-item profit.",
-          "Green profit = worth buying. Red = you'd lose money. Items are sorted by profit per item.",
+          "Abroad prices come from YATA (community-sourced, updated when players travel). Market prices from Torn API. Profit = market price - 5% fee - abroad cost.",
+          "TRIP PROFIT = best item profit x your capacity. PROFIT/HR factors in round-trip time. Higher = better use of your time.",
+          "Stock quantity shows how many are available — 0 means sold out (wait for restock). Prices may change with supply.",
+          "Sort by $/hour for best ROI. Short trips (Mexico 26min) can beat long ones despite lower per-item profit.",
         ]}
-        dataSources={["Torn API v1 item prices, cached 5min", "Static travel times and item lists"]}
-        links={[["Torn Wiki: Travel", "https://wiki.torn.com/wiki/Travel"], ["TornTravel.com", "https://www.torntravel.com"]]}
+        dataSources={["YATA /api/v1/travel/export/ — abroad stock & prices, cached 15min", "Torn API v1 items — market values, cached 5min"]}
+        links={[["Torn Wiki: Travel", "https://wiki.torn.com/wiki/Travel"], ["TornTravel.com", "https://www.torntravel.com"], ["YATA Travel", "https://yata.yt/bazaar/abroad/"]]}
         />
 
         {/* Controls */}
@@ -138,8 +142,8 @@ export default function TravelPage() {
           <div className="flex items-center gap-2">
             <label className="text-xs text-text-secondary">Items per trip:</label>
             <div className="flex gap-1 items-center">
-              {[5, 10, 15, 20].map(n => (
-                <button key={n} onClick={() => { setCapacity(n); setCapacityInput(String(n)); }}
+              {[5, 10, 15, 20, 29].map(n => (
+                <button key={n} onClick={() => setCapacityVal(n)}
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     capacity === n ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-card text-text-secondary hover:bg-bg-elevated'
                   }`}>
@@ -194,14 +198,11 @@ export default function TravelPage() {
           <div className="space-y-2">
             {sortedCountries.map((c, rank) => {
               const isOpen = expandedId === c.id;
-              const profitItems = c.items
-                .map(i => ({ ...i, profit: itemProfit(i) }))
-                .sort((a, b) => b.profit - a.profit);
-              const bestItem = profitItems[0];
+              const bestItem = c.items[0];
 
               return (
                 <div key={c.id} className={`bg-bg-card border rounded-xl overflow-hidden ${
-                  rank === 0 ? 'border-torn-green/30' : 'border-text-secondary/15'
+                  rank === 0 && c.perHour > 0 ? 'border-torn-green/30' : 'border-text-secondary/15'
                 }`}>
                   <button onClick={() => setExpandedId(isOpen ? null : c.id)}
                     className="w-full text-left p-4 hover:bg-bg-elevated/50 transition-colors">
@@ -211,23 +212,22 @@ export default function TravelPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-text-primary">{c.name}</p>
-                            {rank === 0 && (
+                            {rank === 0 && c.perHour > 0 && (
                               <span className="px-1.5 py-0.5 text-[9px] rounded font-bold bg-torn-green/15 text-torn-green">BEST $/HR</span>
                             )}
                           </div>
                           <p className="text-xs text-text-muted">
                             {fmtTime(c.travel_min)} one-way · {fmtTime(c.roundTripMin)} round trip · {c.items.length} items
+                            {c.last_update > 0 && ` · prices ${timeAgo(c.last_update)}`}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 shrink-0">
                         <div className="text-right">
-                          <p className={`text-sm font-bold ${c.tripProfit > 0 ? 'text-torn-green' : 'text-danger'}`}>
-                            {c.tripProfit > 0 ? '+' : ''}{fmtMoney(c.tripProfit)}
+                          <p className={`text-sm font-bold ${c.tripTotal > 0 ? 'text-torn-green' : 'text-danger'}`}>
+                            {c.tripTotal > 0 ? '+' : ''}{fmtMoney(c.tripTotal)}
                           </p>
-                          <p className="text-[10px] text-text-muted">
-                            trip ({capacity} items)
-                          </p>
+                          <p className="text-[10px] text-text-muted">trip ({capacity} items)</p>
                         </div>
                         <div className="text-right hidden sm:block">
                           <p className={`text-sm font-semibold ${c.perHour > 0 ? 'text-torn-green' : 'text-text-muted'}`}>
@@ -242,7 +242,6 @@ export default function TravelPage() {
 
                   {isOpen && (
                     <div className="border-t border-border-light px-4 pb-3">
-                      {/* Recommendation */}
                       {bestItem && bestItem.profit > 0 && (
                         <div className="bg-torn-green/5 border border-torn-green/15 rounded-lg px-3 py-2 mt-2 mb-2">
                           <p className="text-xs text-torn-green font-medium">
@@ -251,49 +250,56 @@ export default function TravelPage() {
                         </div>
                       )}
 
-                      <table className="w-full text-sm mt-2">
-                        <thead>
-                          <tr className="text-left text-text-muted text-xs uppercase tracking-wider">
-                            <th className="py-1.5 pr-3">Item</th>
-                            <th className="py-1.5 pr-3 text-right">Abroad Cost</th>
-                            <th className="py-1.5 pr-3 text-right">Market Price</th>
-                            <th className="py-1.5 pr-3 text-right">After 5% Fee</th>
-                            <th className="py-1.5 text-right">Profit</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {profitItems.map((item, idx) => {
-                            const afterFee = item.market_value * (1 - MARKET_FEE);
-                            const profitable = item.profit > 0;
-                            const isBest = idx === 0 && profitable;
-                            return (
-                              <tr key={item.name} className={`border-t border-border-light/50 ${profitable ? '' : 'opacity-40'}`}>
-                                <td className="py-1.5 pr-3 text-text-primary">
-                                  {item.name}
-                                  {isBest && (
-                                    <span className="ml-1 px-1.5 py-0.5 text-[9px] text-torn-green font-bold bg-torn-green/10 rounded">BEST — fill all {capacity}</span>
-                                  )}
-                                  {!isBest && profitable && (
-                                    <span className="ml-1 text-[9px] text-text-muted">also profitable</span>
-                                  )}
-                                </td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums text-text-secondary">
-                                  {item.buy_price > 0 ? fmtMoney(item.buy_price) : '—'}
-                                </td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums text-text-secondary">
-                                  {item.market_value > 0 ? fmtMoney(item.market_value) : '—'}
-                                </td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums text-text-muted">
-                                  {item.market_value > 0 ? fmtMoney(afterFee) : '—'}
-                                </td>
-                                <td className={`py-1.5 text-right tabular-nums font-medium ${item.profit > 0 ? 'text-torn-green' : item.profit < 0 ? 'text-danger' : 'text-text-muted'}`}>
-                                  {item.profit !== 0 ? `${item.profit > 0 ? '+' : ''}${fmtMoney(item.profit)}` : '—'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                      {c.items.length > 0 ? (
+                        <table className="w-full text-sm mt-2">
+                          <thead>
+                            <tr className="text-left text-text-muted text-xs uppercase tracking-wider">
+                              <th className="py-1.5 pr-3">Item</th>
+                              <th className="py-1.5 pr-3 text-right">Abroad</th>
+                              <th className="py-1.5 pr-3 text-right">Market</th>
+                              <th className="py-1.5 pr-3 text-right">After Fee</th>
+                              <th className="py-1.5 pr-3 text-right">Profit</th>
+                              <th className="py-1.5 text-right">Stock</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {c.items.map((item, idx) => {
+                              const profitable = item.profit > 0;
+                              const isBest = idx === 0 && profitable;
+                              const afterFee = Math.floor(item.market_value * 0.95);
+                              return (
+                                <tr key={item.name} className={`border-t border-border-light/50 ${profitable ? '' : 'opacity-40'}`}>
+                                  <td className="py-1.5 pr-3 text-text-primary">
+                                    {item.name}
+                                    {isBest && (
+                                      <span className="ml-1 px-1.5 py-0.5 text-[9px] text-torn-green font-bold bg-torn-green/10 rounded">BEST</span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 pr-3 text-right tabular-nums text-text-secondary">
+                                    {item.abroad_cost > 0 ? fmtMoney(item.abroad_cost) : '—'}
+                                  </td>
+                                  <td className="py-1.5 pr-3 text-right tabular-nums text-text-secondary">
+                                    {item.market_value > 0 ? fmtMoney(item.market_value) : '—'}
+                                  </td>
+                                  <td className="py-1.5 pr-3 text-right tabular-nums text-text-muted">
+                                    {item.market_value > 0 ? fmtMoney(afterFee) : '—'}
+                                  </td>
+                                  <td className={`py-1.5 pr-3 text-right tabular-nums font-medium ${item.profit > 0 ? 'text-torn-green' : item.profit < 0 ? 'text-danger' : 'text-text-muted'}`}>
+                                    {item.profit !== 0 ? `${item.profit > 0 ? '+' : ''}${fmtMoney(item.profit)}` : '—'}
+                                  </td>
+                                  <td className="py-1.5 text-right tabular-nums text-text-muted text-xs">
+                                    {item.quantity > 0 ? item.quantity.toLocaleString() : (
+                                      <span className="text-danger">SOLD OUT</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-sm text-text-muted mt-2">No price data available — YATA needs players to visit this country.</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -302,9 +308,8 @@ export default function TravelPage() {
           </div>
         ) : null}
 
-        {/* Footer */}
         <p className="text-[10px] text-text-muted text-center">
-          Profit = Market Price - 5% Item Market Fee - Abroad Cost · Prices from Torn API, cached 5min
+          Abroad prices: YATA (community-sourced) · Market prices: Torn API · Profit = Market - 5% fee - Abroad cost
         </p>
       </div>
     </div>

@@ -176,6 +176,26 @@ class TornClient:
             self._set_cached("yata_down", True)
             return None
 
+    async def fetch_yata_travel_stocks(self) -> dict | None:
+        """Fetch current foreign item stocks & prices from YATA travel export."""
+        cached = self._get_cached("yata_travel", ttl=900)  # 15 min cache
+        if cached is not None:
+            return cached if cached != "_yata_down" else None
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{YATA_BASE}/travel/export/",
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            data = await _json(resp)
+            self._log_integration("yata", "/api/v1/travel/export/", True, (time.time() - start) * 1000)
+            self._set_cached("yata_travel", data)
+            return data
+        except Exception as e:
+            self._log_integration("yata", "/api/v1/travel/export/", False, (time.time() - start) * 1000, str(e))
+            return None
+
     async def fetch_enemy_members(self, faction_id: int) -> list[FactionMember]:
         cache_key = f"enemy_{faction_id}"
         cached = self._get_cached(cache_key)
