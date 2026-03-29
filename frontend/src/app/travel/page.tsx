@@ -138,9 +138,9 @@ export default function TravelPage() {
         {/* Controls */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-secondary">Capacity:</label>
-            <div className="flex gap-1">
-              {[5, 9, 10, 15, 20].map(n => (
+            <label className="text-xs text-text-secondary">Items per trip:</label>
+            <div className="flex gap-1 items-center">
+              {[5, 10, 15, 20].map(n => (
                 <button key={n} onClick={() => setCapacity(n)}
                   className={`px-2 py-1 text-xs rounded transition-colors ${
                     capacity === n ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-card text-text-secondary hover:bg-bg-elevated'
@@ -148,6 +148,10 @@ export default function TravelPage() {
                   {n}
                 </button>
               ))}
+              <input type="number" min={1} max={50} value={capacity}
+                onChange={e => setCapacity(Math.max(1, Math.min(50, parseInt(e.target.value) || 5)))}
+                className="w-12 bg-bg-card border border-text-secondary/20 rounded px-1.5 py-1 text-xs text-center text-text-primary tabular-nums focus:outline-none focus:border-torn-green/50"
+              />
             </div>
           </div>
           <div className="flex items-center gap-2 ml-auto">

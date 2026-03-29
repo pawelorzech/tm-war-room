@@ -9,34 +9,33 @@ logger = logging.getLogger("tm-hub.travel")
 router = APIRouter(prefix="/api/travel", tags=["travel"])
 torn_client = None  # Set by main.py
 
-# Static data: countries with travel times and notable items
+# Items per country — verified against TornTravel.com and Torn Wiki (March 2026)
+# Each country has: 1 flower, 1 plushie (except Hawaii), and drugs on black market
 COUNTRIES = [
     {"id": "mexico", "name": "Mexico", "flag": "MX", "travel_min": 26,
-     "items": ["Dahlia", "Crocus", "Orchid", "Heather", "Celosia", "Peony",
-               "Edelweiss", "Cherry Blossom", "African Violet", "Tribulus Omanense", "Banana Orchid"]},
+     "items": ["Dahlia", "Jaguar Plushie"]},
     {"id": "cayman", "name": "Cayman Islands", "flag": "KY", "travel_min": 35,
-     "items": ["Sheep Plushie", "Teddy Bear Plushie", "Kitten Plushie",
-               "Jaguar Plushie", "Chamois Plushie", "Wolverine Plushie",
-               "Nessie Plushie", "Red Fox Plushie", "Monkey Plushie",
-               "Panda Plushie", "Lion Plushie", "Stingray Plushie", "Camel Plushie"]},
+     "items": ["Banana Orchid", "Stingray Plushie"]},
     {"id": "canada", "name": "Canada", "flag": "CA", "travel_min": 41,
-     "items": ["Coat", "Gloves", "Jacket", "Scarf", "Ski Mask"]},
+     "items": ["Crocus", "Wolverine Plushie", "Cannabis", "Ecstasy", "PCP"]},
     {"id": "hawaii", "name": "Hawaii", "flag": "US", "travel_min": 134,
-     "items": ["Coconut", "Hawaiian Shirt", "Surfboard", "Lei"]},
+     "items": ["Orchid"]},
     {"id": "uk", "name": "United Kingdom", "flag": "GB", "travel_min": 159,
-     "items": ["Briefcase", "Bowler Hat", "Umbrella", "Walking Cane", "Tea"]},
+     "items": ["Heather", "Red Fox Plushie", "Nessie Plushie",
+               "Ecstasy", "Shrooms", "Cannabis", "Ketamine", "PCP"]},
     {"id": "argentina", "name": "Argentina", "flag": "AR", "travel_min": 167,
-     "items": ["Poncho", "Yerba Mate", "Gaucho Knife", "Tango Shoes"]},
+     "items": ["Ceibo Flower", "Monkey Plushie", "LSD", "Shrooms", "Ketamine"]},
     {"id": "switzerland", "name": "Switzerland", "flag": "CH", "travel_min": 175,
-     "items": ["Swiss Army Knife", "Chocolate", "Cuckoo Clock", "Swiss Watch"]},
+     "items": ["Edelweiss", "Chamois Plushie",
+               "Cannabis", "Shrooms", "Ketamine", "LSD", "PCP", "Speed"]},
     {"id": "japan", "name": "Japan", "flag": "JP", "travel_min": 225,
-     "items": ["Katana", "Sake", "Sushi", "Bonsai Tree", "Kimono"]},
+     "items": ["Cherry Blossom", "Ecstasy", "Opium", "Shrooms", "Ketamine", "Vicodin", "Speed"]},
     {"id": "china", "name": "China", "flag": "CN", "travel_min": 242,
-     "items": ["Chopsticks", "Fireworks", "Dragon Figurine", "Jade Bracelet", "Silk Robe"]},
+     "items": ["Peony", "Panda Plushie", "Opium", "Ecstasy", "LSD"]},
     {"id": "uae", "name": "UAE", "flag": "AE", "travel_min": 267,
-     "items": ["Gold Ring", "Diamond", "Pearl Necklace", "Gold Necklace"]},
+     "items": ["Tribulus Omanense", "Camel Plushie"]},
     {"id": "south_africa", "name": "South Africa", "flag": "ZA", "travel_min": 340,
-     "items": ["Krugerrand", "Safari Trophy", "Tribal Mask", "Ostrich Feather"]},
+     "items": ["African Violet", "Lion Plushie", "LSD", "Opium", "Shrooms", "PCP"]},
 ]
 
 _price_cache: dict | None = None
