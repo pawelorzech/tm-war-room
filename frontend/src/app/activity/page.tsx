@@ -152,11 +152,11 @@ export default function ActivityPage() {
         </div>
 
         <PageExplainer id="activity" title="Faction Activity — What's here?" bullets={[
-          "See who's online, idle, offline, in hospital, traveling, or in jail.",
-          "Click status filters to narrow down the list.",
-          "Sortable by name, last action, level, days in faction.",
-          "Data refreshed in background every 30 seconds.",
-        ]} />
+          "Activity monitoring shows every faction member's current state: online, idle, offline, in hospital, traveling abroad, or in jail. This is your faction's real-time pulse.",
+          "During wars, activity tracking is essential for coordination — you need to know how many members are available to fight, who's hospitalized and needs reviving, and who's offline.",
+          "'Idle' means a player hasn't performed any action for 5+ minutes — they may be AFK or just reading. 'Offline' means they haven't been active in over 30 minutes.",
+          "Use activity data for chain planning: you need active members online to maintain a chain. If half your faction is offline or traveling, it's not the right time to start a big chain.",
+        ]} dataSources={["Torn API v2 faction members endpoint", "Status updates every 30s via background scheduler", "Activity snapshots stored for historical trends"]} links={[["Torn Wiki: Factions", "https://wiki.torn.com/wiki/Faction"]]} />
 
         {/* Status summary cards */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">

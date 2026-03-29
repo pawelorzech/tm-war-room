@@ -92,11 +92,14 @@ export default function TravelPage() {
         </div>
 
         <PageExplainer id="travel" title="Travel Planner — What's here?" bullets={[
-          "Browse items available in each country with current Torn market prices.",
-          "Travel times shown for each destination.",
-          "Click a country to see all available items with values.",
-          "Prices update every 5 minutes from Torn API.",
-        ]} />
+          "Travel is one of Torn's best money-makers. Each country sells unique items (flowers, plushies, drugs, special items) that can be resold on the Torn market for profit. Buy low abroad, sell high at home.",
+          "WLT (Work Loyalty Trading) items — flowers and plushies — are especially valuable because complete sets sell for far more than individual pieces. Check which items you're missing from a set before traveling.",
+          "Travel time varies by destination (26min to 4+ hours). Reduce travel time with a Private Island (PI) airstrip or faction upgrades. Shorter trips mean more profit per hour — factor this into your destination choice.",
+          "Strategy: compare the 'best item' value against travel time to maximize $/hour. Short trips to Mexico or Cayman Islands can be more profitable than long trips to South Africa or Japan, depending on current market prices.",
+        ]}
+        dataSources={["Torn API v2 user travel status", "Faction members travel status from member data"]}
+        links={[["Torn Wiki: Travel", "https://wiki.torn.com/wiki/Travel"]]}
+        />
 
         {/* Currently traveling members */}
         {travelers.length > 0 && (

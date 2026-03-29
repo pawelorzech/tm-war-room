@@ -100,10 +100,12 @@ export default function WarsPage() {
         </div>
 
         <PageExplainer id="wars" title="War Reports — What's here?" bullets={[
-          "Ranked War: current or most recent ranked war with scores.",
-          "Raids: faction raids with attacker/defender scores.",
-          "Territory: territory war history.",
-        ]} />
+          "Torn has three war types: Ranked Wars (matched competitive wars with ELO-like scoring), Raid Wars (one faction attacks another's territory), and Territory Wars (fight over map territories).",
+          "In ranked wars, each successful attack on an enemy scores points. First faction to reach the target score (or highest score when time runs out) wins. Walls, revives, and chains all play a role.",
+          "The winner of a ranked war gains respect, ranking points, and bragging rights. Losses cost ranking points. Your faction's war record directly affects future matchmaking difficulty.",
+          "Historical war records show patterns: which factions you've beaten, which gave you trouble, how long wars typically last, and what scores look like in wins vs losses.",
+          "Reviewing past wars helps improve strategy — identify what worked (fast scoring, good revive coverage) and what didn't (too many members offline, weak chains).",
+        ]} dataSources={["Torn API v1 ranked wars history", "Torn API v2 current war status"]} links={[["Torn Wiki: War", "https://wiki.torn.com/wiki/War"], ["Torn Wiki: Ranked Wars", "https://wiki.torn.com/wiki/Ranked_War"]]} />
 
         {loading ? (
           <CardSkeleton count={2} />

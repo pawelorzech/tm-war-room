@@ -6,9 +6,13 @@ interface PageExplainerProps {
   id: string;
   title: string;
   bullets: string[];
+  /** Data source attribution line(s) */
+  dataSources?: string[];
+  /** External links: [label, url] */
+  links?: [string, string][];
 }
 
-export function PageExplainer({ id, title, bullets }: PageExplainerProps) {
+export function PageExplainer({ id, title, bullets, dataSources, links }: PageExplainerProps) {
   const storageKey = `explainer_dismissed_${id}`;
   const [dismissed, setDismissed] = useState(true); // default hidden to avoid flash
 
@@ -45,6 +49,24 @@ export function PageExplainer({ id, title, bullets }: PageExplainerProps) {
           </li>
         ))}
       </ul>
+      {dataSources && dataSources.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-torn-green/10">
+          <p className="text-[10px] text-text-muted font-medium uppercase tracking-wider mb-1">Data Sources</p>
+          {dataSources.map((s, i) => (
+            <p key={i} className="text-[10px] text-text-muted">{s}</p>
+          ))}
+        </div>
+      )}
+      {links && links.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {links.map(([label, url], i) => (
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              className="text-[10px] text-torn-green hover:text-torn-green/80 underline underline-offset-2 transition-colors">
+              {label} ↗
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

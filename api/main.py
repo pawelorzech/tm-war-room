@@ -115,6 +115,8 @@ async def lifespan(app: FastAPI):
     stakeout_mod.stakeout_repo = stakeout_repo
     stakeout_mod.key_store = key_store
     bounties_mod.torn_client = torn_client
+    bounties_mod.key_store = key_store
+    bounties_mod.spy_service = spy_mod.spy_service
 
     from api.db.repos.notifications import NotificationRepository
     notification_repo = NotificationRepository(db_path="data/keys.db")

@@ -140,11 +140,13 @@ export default function TrainingPage() {
             )}
 
             <PageExplainer id="training" title="Training Guide — What's here?" bullets={[
-              "Interactive calculator that uses YOUR real stats, gym, merits, steadfast, and education bonuses from the API.",
-              "Navigate sections in the left sidebar: Calculator, Happy Jumping, Gyms, Energy, SE vs Xanax, and more.",
-              "SE vs Xanax comparison now includes rehab costs — see if SEs are actually cheaper for you.",
-              "All recommendations are personalized based on your current training setup.",
-            ]} />
+              "The training guide helps you pick the optimal gym based on your current stats — each gym has a sweet spot where gains are maximized before diminishing returns kick in.",
+              "Energy management is everything: Xanax (+250E), energy refills, and natural energy regeneration. Timing your trains around happy maximizes gains per energy point.",
+              "Happy affects your gym gains directly — higher happy = bigger stat gains. Happy jumping (using drugs at low happy, training at high happy) is the core optimization loop.",
+              "Merits in gym training speed and stat-specific boosts are high-priority investments. The calculator shows exactly how much each merit level adds to your daily gains.",
+              "Stat enhancers (SEs) give direct stat boosts without energy cost — compare SE cost vs Xanax cost to find the most efficient path for your budget.",
+              "Education perks from certain courses give permanent training bonuses. Check which courses you've completed and which ones are worth pursuing.",
+            ]} dataSources={["Your Torn API key (battle stats, bars, gym, merits, education)", "Calculations based on known Torn game mechanics"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Education", "https://wiki.torn.com/wiki/Education"]]} />
 
             {/* Calculator */}
             {activeSection === 'calculator' && (

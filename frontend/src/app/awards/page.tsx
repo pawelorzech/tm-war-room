@@ -147,11 +147,14 @@ export default function AwardsPage() {
         </div>
 
         <PageExplainer id="awards" title="Awards Tracker — What's here?" bullets={[
-          "Track your Torn honors and medals — Completed or Incomplete status.",
-          "Filter by category, search by name or description.",
-          "Click any award name to see details on TornStats.",
-          "Incomplete tab shows all missing awards across honors and medals.",
-        ]} />
+          "Honors and medals are two types of Torn awards. Honors are earned through gameplay achievements (attacks, crimes, travel, etc.) and display on your profile. Medals are rarer, often tied to faction activities or special events.",
+          "Circulation shows how many players have earned each award — lower circulation means rarer and more prestigious. Sort by circulation to find the rarest awards you're missing and prioritize accordingly.",
+          "Use the Incomplete tab to see all awards you haven't earned yet across both honors and medals. Filter by category (Attacks, Travel, Crimes, etc.) to focus your grinding strategy on one area at a time.",
+          "Strategy tip: many honors have hidden progress thresholds. Check the description for clues, and focus on categories where you're close to completion for the most efficient honor grinding.",
+        ]}
+        dataSources={["Torn API v1 user honors/medals", "Torn API v1 honors list for circulation data"]}
+        links={[["Torn Wiki: Awards", "https://wiki.torn.com/wiki/Awards"], ["Torn Wiki: Honors", "https://wiki.torn.com/wiki/Honors"]]}
+        />
 
         {loading ? (
           <p className="text-text-secondary text-sm animate-pulse">Loading awards data from Torn API...</p>

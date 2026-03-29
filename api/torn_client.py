@@ -252,6 +252,37 @@ class TornClient:
         self._set_cached(cache_key, ps)
         return ps
 
+    async def fetch_user_profile_stats(self, player_id: int) -> dict | None:
+        """Fetch a player's personalstats + profile by ID (using faction key)."""
+        cache_key = f"user_profile_{player_id}"
+        cached = self._get_cached(cache_key, ttl=300)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/",
+                params={"selections": "personalstats,profile", "key": self._api_key, "id": player_id},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", f"/v1/user/{player_id}/profile+ps", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", f"/v1/user/{player_id}/profile+ps", False, (time.time() - start) * 1000, str(e))
+            return None
+        status = raw.get("status", {})
+        result = {
+            "personalstats": raw.get("personalstats", {}),
+            "level": raw.get("level", 0),
+            "age": raw.get("age", 0),
+            "name": raw.get("name", ""),
+            "status_state": status.get("state", "") if isinstance(status, dict) else str(status),
+            "status_until": status.get("until", 0) if isinstance(status, dict) else 0,
+            "last_action": raw.get("last_action", {}).get("relative", "") if isinstance(raw.get("last_action"), dict) else "",
+        }
+        self._set_cached(cache_key, result)
+        return result
+
     async def fetch_training_data(self, api_key: str) -> dict | None:
         """Fetch user's training-related data from Torn API."""
         start = time.time()

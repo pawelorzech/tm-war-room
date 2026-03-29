@@ -102,6 +102,12 @@ const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    title: "HELP",
+    items: [
+      { label: "FAQ", href: "/faq", icon: "\u2753" },
+    ],
+  },
 ];
 
 interface SidebarProps {

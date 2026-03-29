@@ -101,12 +101,11 @@ export default function StakeoutPage() {
         </div>
 
         <PageExplainer id="stakeout" title="Stakeout — What's here?" bullets={[
-          "Add player IDs to watch — the system checks their status every 30s (15s during war).",
-          "See real-time status: Okay, Hospital, Jail, Traveling.",
-          "Status changes are tracked — see when they last changed state.",
-          "Useful during wars: know exactly when an enemy leaves hospital.",
-          "Shared across faction — all members see the same stakeout list.",
-        ]} />
+          "Stakeout lets you watch specific players and get alerted when their status changes — like a surveillance camera on your enemies.",
+          "Common use cases: wait for an enemy to leave hospital so you can attack immediately, track high-value war targets, monitor bounty targets before they go offline.",
+          "The system polls each watched player every 30 seconds (15s during war) and records every status change, so you never miss a window of opportunity.",
+          "Status changes are logged with timestamps — see exactly when someone came online, got hospitalized, started traveling, or went to jail.",
+        ]} dataSources={["Torn API v2 user profiles, polled every 30s", "Status change notifications generated automatically"]} links={[["Torn Wiki: Profiles", "https://wiki.torn.com/wiki/Profile"]]} />
 
         <button onClick={() => setShowAdd(!showAdd)}
           className="px-3 py-1.5 text-sm rounded-lg bg-torn-green/20 text-torn-green font-semibold hover:bg-torn-green/30 transition-colors">
