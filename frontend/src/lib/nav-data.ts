@@ -1,0 +1,124 @@
+// frontend/src/lib/nav-data.ts
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: string;
+}
+
+export interface NavGroup {
+  id: string;
+  label: string;
+  icon: string;
+  items: NavItem[];
+}
+
+export const PINNED_ITEMS: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: "🏠" },
+  { label: "Our Team", href: "/team", icon: "👥" },
+  { label: "Chain Tracker", href: "/chain", icon: "🔗" },
+  { label: "Market", href: "/market", icon: "🛒" },
+  { label: "Stocks", href: "/stocks", icon: "📉" },
+  { label: "NPC Loot", href: "/loot", icon: "💰" },
+];
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "faction",
+    label: "Faction",
+    icon: "⚔️",
+    items: [
+      { label: "Dashboard", href: "/dashboard", icon: "🏠" },
+      { label: "Our Team", href: "/team", icon: "👥" },
+      { label: "Enemies", href: "/enemies", icon: "⚔️" },
+      { label: "Activity", href: "/activity", icon: "🟢" },
+      { label: "War Reports", href: "/wars", icon: "📊" },
+      { label: "OC Planner", href: "/oc", icon: "🕴️" },
+      { label: "Analytics", href: "/analytics", icon: "📈" },
+      { label: "Notifications", href: "/notifications", icon: "🔔" },
+    ],
+  },
+  {
+    id: "tools",
+    label: "Tools",
+    icon: "🔧",
+    items: [
+      { label: "Chain Tracker", href: "/chain", icon: "🔗" },
+      { label: "Bounties", href: "/bounties", icon: "💵" },
+      { label: "Targets", href: "/targets", icon: "🎯" },
+      { label: "Stakeout", href: "/stakeout", icon: "👁️" },
+      { label: "Spy Central", href: "/spy", icon: "🔍" },
+      { label: "Compare", href: "/compare", icon: "⚖️" },
+      { label: "NPC Loot", href: "/loot", icon: "💰" },
+      { label: "Revives", href: "/revives", icon: "💚" },
+      { label: "Market", href: "/market", icon: "🛒" },
+      { label: "Stocks", href: "/stocks", icon: "📉" },
+      { label: "Travel", href: "/travel", icon: "✈️" },
+      { label: "Companies", href: "/company", icon: "🏢" },
+    ],
+  },
+  {
+    id: "guides",
+    label: "Guides",
+    icon: "📚",
+    items: [
+      { label: "Training Guide", href: "/training", icon: "💪" },
+      { label: "Stat Growth", href: "/stats", icon: "📈" },
+      { label: "Userscripts", href: "/scripts", icon: "🔧" },
+      { label: "Awards", href: "/awards", icon: "🏆" },
+      { label: "FAQ", href: "/faq", icon: "❓" },
+    ],
+  },
+];
+
+/** All nav items flattened and deduplicated by href — used by search/command palette */
+export const ALL_NAV_ITEMS: NavItem[] = (() => {
+  const seen = new Set<string>();
+  const items: NavItem[] = [];
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (!seen.has(item.href)) {
+        seen.add(item.href);
+        items.push(item);
+      }
+    }
+  }
+  return items;
+})();
+
+/** Find which group a path belongs to */
+export function findGroupForPath(pathname: string): string | null {
+  for (const group of NAV_GROUPS) {
+    if (group.items.some((item) => pathname.startsWith(item.href))) {
+      return group.id;
+    }
+  }
+  return null;
+}
+
+/** Simple fuzzy match — checks if all query chars appear in order in the target */
+export function fuzzyMatch(query: string, target: string): boolean {
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  let qi = 0;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) qi++;
+  }
+  return qi === q.length;
+}
+
+/** Search nav items with fuzzy matching, return with group labels */
+export function searchNavItems(query: string): Array<NavItem & { group: string }> {
+  if (!query.trim()) return [];
+  const results: Array<NavItem & { group: string }> = [];
+  const seen = new Set<string>();
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (!seen.has(item.href) && fuzzyMatch(query, item.label)) {
+        seen.add(item.href);
+        results.push({ ...item, group: group.label });
+      }
+    }
+  }
+  return results;
+}
