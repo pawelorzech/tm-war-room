@@ -413,13 +413,13 @@ export default function StocksPage() {
                           </td>
                           <td className="py-1.5 px-3">
                             {r.is_active ? (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-green/15 text-torn-green">DONE</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold whitespace-nowrap bg-torn-green/15 text-torn-green">DONE</span>
                             ) : r.increment > 1 && r.owned_shares >= r.shares_required - r.shares_this_block ? (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-blue/15 text-torn-blue">BUY MORE</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold whitespace-nowrap bg-torn-blue/15 text-torn-blue">BUY MORE</span>
                             ) : r.owned_shares > 0 ? (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-yellow/15 text-torn-yellow">PARTIAL</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold whitespace-nowrap bg-torn-yellow/15 text-torn-yellow">PARTIAL</span>
                             ) : (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-bg-elevated text-text-muted">BUY</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold whitespace-nowrap bg-bg-elevated text-text-muted">BUY</span>
                             )}
                           </td>
                         </tr>
