@@ -69,11 +69,11 @@ class StatSnapshotRepository(BaseRepository):
                 s2.total - s1.total AS total_growth,
                 s1.total AS start_total,
                 s2.total AS end_total,
-                s2.xanax_taken - s1.xanax_taken AS xanax_delta,
-                s2.refills - s1.refills AS refills_delta,
-                s2.energy_drinks - s1.energy_drinks AS energy_drinks_delta,
-                s2.stat_enhancers_used - s1.stat_enhancers_used AS se_delta,
-                s2.easter_eggs - s1.easter_eggs AS easter_eggs_delta
+                COALESCE(s2.xanax_taken, 0) - COALESCE(s1.xanax_taken, 0) AS xanax_delta,
+                COALESCE(s2.refills, 0) - COALESCE(s1.refills, 0) AS refills_delta,
+                COALESCE(s2.energy_drinks, 0) - COALESCE(s1.energy_drinks, 0) AS energy_drinks_delta,
+                COALESCE(s2.stat_enhancers_used, 0) - COALESCE(s1.stat_enhancers_used, 0) AS se_delta,
+                COALESCE(s2.easter_eggs, 0) - COALESCE(s1.easter_eggs, 0) AS easter_eggs_delta
             FROM (
                 SELECT * FROM stat_snapshots s
                 INNER JOIN (SELECT player_id, MIN(snapshot_date) as min_date FROM stat_snapshots WHERE snapshot_date >= ? GROUP BY player_id) m
