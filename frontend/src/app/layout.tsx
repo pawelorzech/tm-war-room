@@ -23,7 +23,7 @@ export default function RootLayout({
         <AppShell>{children}</AppShell>
         <Script
           src="https://analityka.tri.ovh/script.js"
-          data-website-id=""
+          data-website-id="c2fb3dc3-de09-432a-8332-d9ad51940c55"
           strategy="afterInteractive"
         />
       </body>
