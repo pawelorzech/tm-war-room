@@ -78,6 +78,18 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           >
             Bombel [2362436]
           </a>
+          {role && role !== "member" && (
+            <>
+              {" · "}
+              <a
+                href="https://analityka.tri.ovh"
+                target="_blank"
+                className="text-torn-blue hover:underline"
+              >
+                Analytics
+              </a>
+            </>
+          )}
         </footer>
       </main>
     </div>
