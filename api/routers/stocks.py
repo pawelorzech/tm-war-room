@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import time
 from fastapi import APIRouter, HTTPException, Header, Query
 
 logger = logging.getLogger("tm-hub.stocks")
@@ -8,6 +9,41 @@ router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 torn_client = None  # Set by main.py
 key_store = None  # Set by main.py
 history_repo = None  # Set by main.py
+
+# Cache for item market values (used to price stock benefit items)
+_item_prices_cache: dict[int, float] = {}
+_item_prices_ts: float = 0
+ITEM_CACHE_TTL = 600  # 10 min
+
+
+async def _get_item_prices() -> dict[int, float]:
+    """Fetch item market values from Torn API, cached 10min."""
+    global _item_prices_cache, _item_prices_ts
+    now = time.time()
+    if _item_prices_cache and now - _item_prices_ts < ITEM_CACHE_TTL:
+        return _item_prices_cache
+    if not torn_client:
+        return _item_prices_cache
+    try:
+        from api.torn_client import _json
+        resp = await torn_client._http.get(
+            "https://api.torn.com/torn/",
+            params={"selections": "items", "key": torn_client._api_key},
+        )
+        resp.raise_for_status()
+        raw = await _json(resp)
+        items = raw.get("items", {})
+        prices = {}
+        for iid_str, item in items.items():
+            mv = item.get("market_value", 0) or 0
+            if mv > 0:
+                prices[int(iid_str)] = mv
+        _item_prices_cache = prices
+        _item_prices_ts = now
+        logger.info("Refreshed item prices for stock ROI: %d items", len(prices))
+    except Exception as e:
+        logger.warning("Failed to fetch item prices for stocks: %s", e)
+    return _item_prices_cache
 
 
 @router.get("/market")
@@ -130,45 +166,51 @@ async def stock_portfolio(x_player_id: int = Header()):
     }
 
 
-# Stock benefit payout values — ONLY Active stocks with measurable $ payouts
-# IDs verified against Torn API /stocks/market (March 2026)
-# Payout values from user's spreadsheet
+# Stock benefit definitions — Active stocks with measurable $ payouts
+# "item_id" links to Torn item for live market pricing; "payout" is fallback only
+# "max_inc" caps increments (MCS energy capped at 10 in game)
 # Excluded: Passive perks (education, racing, coding, company boost, etc)
-STOCK_PAYOUTS: dict[int, list[dict]] = {
-    # Cash payouts (direct $)
-    1:  [{"shares": 3_000_000, "payout": 50_000_000, "freq": 31, "desc": "$50M cash"}],       # TSB
-    5:  [{"shares": 3_000_000, "payout": 12_000_000, "freq": 31, "desc": "$12M cash"}],       # IOU
-    6:  [{"shares": 500_000, "payout": 4_000_000, "freq": 31, "desc": "$4M cash"}],           # GRN
-    9:  [{"shares": 100_000, "payout": 1_000_000, "freq": 31, "desc": "$1M cash"}],           # TCT
-    10: [{"shares": 7_500_000, "payout": 80_000_000, "freq": 31, "desc": "$80M cash"}],       # CNC
-    12: [{"shares": 6_000_000, "payout": 25_000_000, "freq": 31, "desc": "$25M cash"}],       # TMI
-    # Item payouts (market value estimated)
-    4:  [{"shares": 750_000, "payout": 1_500_000, "freq": 7, "desc": "Lawyer's Business Card"}], # LAG
-    7:  [{"shares": 150_000, "payout": 272_871, "freq": 7, "desc": "Box of Medical Supplies"}],  # THS
-    15: [{"shares": 2_000_000, "payout": 12_446_756, "freq": 7, "desc": "Feathery Hotel Coupon"}], # FHG
-    16: [{"shares": 500_000, "payout": 4_324_640, "freq": 7, "desc": "Drug Pack"}],           # SYM
-    17: [{"shares": 500_000, "payout": 894_234, "freq": 7, "desc": "Lottery Voucher"}],       # LSC
-    18: [{"shares": 1_000_000, "payout": 4_015_007, "freq": 7, "desc": "Erotic DVD"}],        # PRN
-    19: [{"shares": 1_000_000, "payout": 1_092_430, "freq": 7, "desc": "Box of Grenades"}],   # EWM
-    22: [{"shares": 10_000_000, "payout": 45_456_058, "freq": 31, "desc": "Random Property"}], # HRG
-    24: [{"shares": 5_000_000, "payout": 12_990_513, "freq": 7, "desc": "Six-Pack Energy Drink"}], # MUN
-    27: [{"shares": 3_000_000, "payout": 3_000_000, "freq": 7, "desc": "Ammunition Pack"}],   # BAG
-    # EVL (1000 happiness) excluded — value is subjective, not directly monetizable
-    29: [{"shares": 350_000, "payout": 807_440, "freq": 7, "desc": "100 energy"}],            # MCS
-    31: [{"shares": 7_500_000, "payout": 12_446_756, "freq": 7, "desc": "Clothing Cache"}],   # TCC
-    32: [{"shares": 1_000_000, "payout": 878_841, "freq": 7, "desc": "Six-Pack Alcohol"}],    # ASS
-    33: [{"shares": 350_000, "payout": 272_871, "freq": 7, "desc": "50 nerve"}],              # CBD
-    35: [{"shares": 10_000_000, "payout": 3_365_600, "freq": 7, "desc": "100 points"}],       # PTS
+STOCK_PAYOUTS: dict[int, dict] = {
+    # Cash payouts (direct $) — no item_id needed, payout is exact
+    1:  {"shares": 3_000_000, "payout": 50_000_000, "freq": 31, "desc": "$50M cash"},         # TSB
+    5:  {"shares": 3_000_000, "payout": 12_000_000, "freq": 31, "desc": "$12M cash"},         # IOU
+    6:  {"shares": 500_000, "payout": 4_000_000, "freq": 31, "desc": "$4M cash"},             # GRN
+    9:  {"shares": 100_000, "payout": 1_000_000, "freq": 31, "desc": "$1M cash"},             # TCT
+    10: {"shares": 7_500_000, "payout": 80_000_000, "freq": 31, "desc": "$80M cash"},         # CNC
+    12: {"shares": 6_000_000, "payout": 25_000_000, "freq": 31, "desc": "$25M cash"},         # TMI
+    # Item payouts — item_id enables live market pricing
+    4:  {"shares": 750_000, "payout": 1_500_000, "freq": 7, "desc": "Lawyer Business Card", "item_id": 261},     # LAG
+    7:  {"shares": 150_000, "payout": 272_871, "freq": 7, "desc": "Box of Medical Supplies", "item_id": 364},    # THS
+    15: {"shares": 2_000_000, "payout": 12_446_756, "freq": 7, "desc": "Feathery Hotel Coupon", "item_id": 366}, # FHG
+    16: {"shares": 500_000, "payout": 4_324_640, "freq": 7, "desc": "Drug Pack", "item_id": 370},               # SYM
+    17: {"shares": 500_000, "payout": 894_234, "freq": 7, "desc": "Lottery Voucher", "item_id": 365},           # LSC
+    18: {"shares": 1_000_000, "payout": 4_015_007, "freq": 7, "desc": "Erotic DVD", "item_id": 367},            # PRN
+    19: {"shares": 1_000_000, "payout": 1_092_430, "freq": 7, "desc": "Box of Grenades", "item_id": 368},       # EWM
+    22: {"shares": 10_000_000, "payout": 45_456_058, "freq": 31, "desc": "Random Property", "item_id": 369},    # HRG
+    24: {"shares": 5_000_000, "payout": 12_990_513, "freq": 7, "desc": "Six-Pack Energy Drink", "item_id": 371},# MUN
+    27: {"shares": 3_000_000, "payout": 3_000_000, "freq": 7, "desc": "Ammunition Pack", "item_id": 372},       # BAG
+    29: {"shares": 350_000, "payout": 807_440, "freq": 7, "desc": "100 energy", "max_inc": 10},                 # MCS
+    31: {"shares": 7_500_000, "payout": 12_446_756, "freq": 7, "desc": "Clothing Cache", "item_id": 373},       # TCC  # NOTE: was wrong value
+    32: {"shares": 1_000_000, "payout": 878_841, "freq": 7, "desc": "Six-Pack Alcohol", "item_id": 374},        # ASS
+    33: {"shares": 350_000, "payout": 272_871, "freq": 7, "desc": "50 nerve"},                                  # CBD — no tradeable item
+    35: {"shares": 10_000_000, "payout": 3_365_600, "freq": 7, "desc": "100 points"},                           # PTS — points, not an item
 }
+
+MAX_INCREMENTS = 5  # Generate up to 5 benefit blocks per stock
 
 
 @router.get("/roi")
 async def stock_roi(x_player_id: int | None = Header(default=None)):
-    """Compute ROI for each stock benefit block — days to payback, annual ROI %."""
+    """Compute ROI for each stock benefit block — days to payback, annual ROI %.
+
+    Generates up to MAX_INCREMENTS benefit blocks per stock (each doubles in share cost).
+    Uses live item market prices for item-based benefits when available.
+    """
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
 
     market = await torn_client.fetch_stock_market()
+    item_prices = await _get_item_prices()
 
     # Get player holdings if available
     holdings = {}
@@ -184,7 +226,7 @@ async def stock_roi(x_player_id: int | None = Header(default=None)):
                 pass
 
     recommendations = []
-    for stock_id, increments in STOCK_PAYOUTS.items():
+    for stock_id, info in STOCK_PAYOUTS.items():
         market_info = market.get(str(stock_id), {})
         if not market_info:
             continue
@@ -197,45 +239,61 @@ async def stock_roi(x_player_id: int | None = Header(default=None)):
         benefit = market_info.get("benefit", {})
         benefit_desc = benefit.get("description", "")
         owned_shares = holdings.get(stock_id, 0)
+        base_shares = info["shares"]
+        freq = info["freq"]
+        max_inc = info.get("max_inc", MAX_INCREMENTS)
 
-        for inc_idx, inc in enumerate(increments):
-            shares_needed = inc["shares"] * (2 ** inc_idx)  # Each increment doubles
-            total_shares_for_inc = sum(inc["shares"] * (2 ** i) for i in range(inc_idx + 1))
-            cost = shares_needed * current_price
-            payout_value = inc["payout"]
-            freq = inc["freq"]
+        # Use live item price if available, otherwise fallback to hardcoded
+        item_id = info.get("item_id")
+        payout_value = item_prices.get(item_id, info["payout"]) if item_id else info["payout"]
+        price_is_live = bool(item_id and item_id in item_prices)
 
-            daily_value = payout_value / freq
-            days_to_breakeven = cost / daily_value if daily_value > 0 else 99999
+        for inc_idx in range(min(max_inc, MAX_INCREMENTS)):
+            shares_this_block = base_shares * (2 ** inc_idx)
+            total_shares_for_inc = sum(base_shares * (2 ** i) for i in range(inc_idx + 1))
+            cost = shares_this_block * current_price
+
+            # Payout scales with increment number (each block = +1x payout)
+            inc_payout = payout_value * (inc_idx + 1)
+            daily_value = inc_payout / freq
+            # Cost to get from 0 to this increment level
+            total_cost = total_shares_for_inc * current_price
+            days_to_breakeven = total_cost / daily_value if daily_value > 0 else 99999
             roi_annual = (365 / days_to_breakeven * 100) if days_to_breakeven > 0 else 0
 
-            # How many shares still needed
             shares_still_needed = max(0, total_shares_for_inc - owned_shares)
             cost_remaining = shares_still_needed * current_price
-            days_remaining = cost_remaining / daily_value if daily_value > 0 else 99999
+            # Marginal payback: cost of THIS block / marginal daily gain
+            marginal_daily = payout_value / freq
+            marginal_payback = cost / marginal_daily if marginal_daily > 0 else 99999
+            marginal_roi = (365 / marginal_payback * 100) if marginal_payback > 0 else 0
 
             recommendations.append({
                 "stock_id": stock_id,
                 "acronym": acronym,
                 "name": name,
-                "benefit_desc": inc.get("desc", benefit_desc),
+                "benefit_desc": info.get("desc", benefit_desc),
                 "increment": inc_idx + 1,
                 "shares_required": total_shares_for_inc,
-                "cost_total": round(cost, 0),
-                "payout_value": payout_value,
+                "shares_this_block": shares_this_block,
+                "cost_total": round(total_cost, 0),
+                "cost_this_block": round(cost, 0),
+                "payout_value": round(payout_value, 0),
                 "payout_freq_days": freq,
                 "daily_value": round(daily_value, 0),
                 "days_to_breakeven": round(days_to_breakeven, 0),
                 "roi_annual_pct": round(roi_annual, 2),
+                "marginal_payback_days": round(marginal_payback, 0),
+                "marginal_roi_pct": round(marginal_roi, 2),
                 "owned_shares": owned_shares,
                 "shares_needed": shares_still_needed,
                 "cost_remaining": round(cost_remaining, 0),
-                "days_remaining": round(days_remaining, 0),
                 "is_active": owned_shares >= total_shares_for_inc,
+                "price_is_live": price_is_live,
             })
 
-    # Sort by ROI (highest first), active at bottom
-    recommendations.sort(key=lambda r: (r["is_active"], -r["roi_annual_pct"]))
+    # Sort: active at bottom, then by marginal ROI (first uncompleted block matters most)
+    recommendations.sort(key=lambda r: (r["is_active"], -r["marginal_roi_pct"]))
 
     return {"recommendations": recommendations, "count": len(recommendations)}
 

@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { calculateRehabCostPerXanax } from '@/lib/formulas';
 
 interface TravelItem {
   name: string;
@@ -70,6 +71,14 @@ export default function TravelPage() {
   const [capacityInput, setCapacityInput] = useState('5');
   const [sortBy, setSortBy] = useState<'profit' | 'time' | 'perHour'>('perHour');
 
+  // Rehab calculator state
+  const [rehabOpen, setRehabOpen] = useState(false);
+  const [rehabCount, setRehabCount] = useState('');
+  const [rehabCountInput, setRehabCountInput] = useState('');
+  const [hasToleration, setHasToleration] = useState(false);
+  const [xanaxPerDay, setXanaxPerDay] = useState(2);
+  const [rehabLoaded, setRehabLoaded] = useState(false);
+
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -95,6 +104,35 @@ export default function TravelPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Auto-load rehab count from training stats API
+  useEffect(() => {
+    if (rehabOpen && !rehabLoaded) {
+      api.trainingStats().then(d => {
+        const rehabs = d.personalstats?.rehabs || 0;
+        setRehabCount(String(rehabs));
+        setRehabCountInput(String(rehabs));
+        setRehabLoaded(true);
+      }).catch(() => setRehabLoaded(true));
+    }
+  }, [rehabOpen, rehabLoaded]);
+
+  const rehabCalc = useMemo(() => {
+    const rehabs = parseInt(rehabCount) || 0;
+    const costPerAP = Math.min(2857 + 12.85 * rehabs, 250000);
+    const addictionPerXanax = hasToleration ? 17.5 : 35;
+    const dailyDecay = 20;
+    const netDailyAddiction = Math.max(addictionPerXanax * xanaxPerDay - dailyDecay, 0);
+    const rehabCostPerXanax = calculateRehabCostPerXanax(rehabs, hasToleration);
+    const dailyRehabCost = rehabCostPerXanax * xanaxPerDay;
+    const monthlyRehabCost = dailyRehabCost * 30;
+    // AP removed per $250K session (decays with rehabs done)
+    const apPerSession = Math.max(1, Math.round(90 - (rehabs * 89 / 20000)));
+    // Sessions needed per day to clear net addiction
+    const sessionsPerDay = netDailyAddiction > 0 ? Math.ceil(netDailyAddiction / apPerSession) : 0;
+    const dailySessionCost = sessionsPerDay * 250000;
+    return { rehabs, costPerAP, addictionPerXanax, dailyDecay, netDailyAddiction, rehabCostPerXanax, dailyRehabCost, monthlyRehabCost, apPerSession, sessionsPerDay, dailySessionCost };
+  }, [rehabCount, hasToleration, xanaxPerDay]);
 
   const sortedCountries = useMemo(() => {
     if (!data) return [];
@@ -307,6 +345,122 @@ export default function TravelPage() {
             })}
           </div>
         ) : null}
+
+        {/* Rehab Calculator — Switzerland is a travel destination for rehab */}
+        <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+          <button onClick={() => setRehabOpen(!rehabOpen)}
+            className="w-full text-left p-4 hover:bg-bg-elevated/50 transition-colors flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{'\uD83C\uDDE8\uD83C\uDDED'}</span>
+              <div>
+                <p className="font-semibold text-text-primary">Rehab Calculator</p>
+                <p className="text-xs text-text-muted">Switzerland rehab cost estimator — plan your Xanax expenses</p>
+              </div>
+            </div>
+            <span className="text-text-muted text-xs">{rehabOpen ? '\u25BE' : '\u25B8'}</span>
+          </button>
+
+          {rehabOpen && (
+            <div className="border-t border-border-light px-4 pb-4 space-y-4">
+              {/* Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                <div>
+                  <label className="text-xs text-text-secondary block mb-1">Total rehabs done</label>
+                  <input type="text" inputMode="numeric" value={rehabCountInput}
+                    onChange={e => setRehabCountInput(e.target.value)}
+                    onBlur={() => {
+                      const n = Math.max(0, parseInt(rehabCountInput) || 0);
+                      setRehabCount(String(n));
+                      setRehabCountInput(String(n));
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    placeholder={rehabLoaded ? '0' : 'Loading...'}
+                    className="w-full bg-bg-elevated border border-text-secondary/20 rounded px-2.5 py-1.5 text-sm tabular-nums text-text-primary focus:outline-none focus:border-torn-green/50"
+                  />
+                  <p className="text-[10px] text-text-muted mt-0.5">From your personalstats (auto-loaded)</p>
+                </div>
+                <div>
+                  <label className="text-xs text-text-secondary block mb-1">Xanax per day</label>
+                  <div className="flex gap-1">
+                    {[1, 2].map(n => (
+                      <button key={n} onClick={() => setXanaxPerDay(n)}
+                        className={`flex-1 px-3 py-1.5 text-sm rounded transition-colors ${
+                          xanaxPerDay === n ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-elevated text-text-secondary hover:bg-bg-elevated/80'
+                        }`}>
+                        {n}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-text-secondary block mb-1">Faction Toleration</label>
+                  <button onClick={() => setHasToleration(!hasToleration)}
+                    className={`w-full px-3 py-1.5 text-sm rounded transition-colors ${
+                      hasToleration ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-elevated text-text-secondary hover:bg-bg-elevated/80'
+                    }`}>
+                    {hasToleration ? 'Yes (-50% addiction)' : 'No toleration'}
+                  </button>
+                  <p className="text-[10px] text-text-muted mt-0.5">Faction perk reduces AP per Xanax</p>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-bg-elevated rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Cost per AP</p>
+                  <p className="text-lg font-bold text-text-primary">{fmtMoney(rehabCalc.costPerAP)}</p>
+                  <p className="text-[10px] text-text-muted">{rehabCalc.costPerAP >= 250000 ? 'MAXED' : `${rehabCalc.rehabs} rehabs done`}</p>
+                </div>
+                <div className="bg-bg-elevated rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">AP per Xanax</p>
+                  <p className="text-lg font-bold text-text-primary">{rehabCalc.addictionPerXanax}</p>
+                  <p className="text-[10px] text-text-muted">{hasToleration ? '35 - 50% toleration' : 'No toleration'}</p>
+                </div>
+                <div className="bg-bg-elevated rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Net daily AP</p>
+                  <p className={`text-lg font-bold ${rehabCalc.netDailyAddiction > 0 ? 'text-danger' : 'text-torn-green'}`}>
+                    {rehabCalc.netDailyAddiction > 0 ? `+${rehabCalc.netDailyAddiction.toFixed(1)}` : '0'}
+                  </p>
+                  <p className="text-[10px] text-text-muted">{xanaxPerDay}x xanax - {rehabCalc.dailyDecay} decay</p>
+                </div>
+                <div className="bg-bg-elevated rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Rehab/session</p>
+                  <p className="text-lg font-bold text-text-primary">{rehabCalc.apPerSession} AP</p>
+                  <p className="text-[10px] text-text-muted">per $250K session</p>
+                </div>
+              </div>
+
+              {/* Cost summary */}
+              <div className="bg-torn-green/5 border border-torn-green/15 rounded-lg p-3 space-y-1">
+                <p className="text-sm font-medium text-text-primary">Daily cost breakdown</p>
+                {rehabCalc.netDailyAddiction <= 0 ? (
+                  <p className="text-xs text-torn-green">
+                    With {xanaxPerDay}x Xanax/day{hasToleration ? ' + Toleration' : ''}, natural decay ({rehabCalc.dailyDecay} AP/day) clears all addiction. No rehab needed!
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-text-secondary">
+                      Sessions needed: <span className="font-semibold text-text-primary">{rehabCalc.sessionsPerDay}/day</span> ({rehabCalc.netDailyAddiction.toFixed(1)} net AP / {rehabCalc.apPerSession} AP per session)
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      Daily rehab cost: <span className="font-semibold text-danger">{fmtMoney(rehabCalc.dailySessionCost)}</span>
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      Monthly rehab cost: <span className="font-semibold text-danger">{fmtMoney(rehabCalc.dailySessionCost * 30)}</span>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Educational info */}
+              <div className="text-xs text-text-muted space-y-1">
+                <p><strong>How it works:</strong> Each Xanax adds {hasToleration ? '17.5' : '35'} addiction points (AP). Natural decay removes ~20 AP/day at reset. If your daily AP intake exceeds decay, you accumulate addiction.</p>
+                <p><strong>Rehab cost formula:</strong> Cost per AP = min($2,857 + $12.85 × rehabs_done, $250,000). Each $250K session removes ~{rehabCalc.apPerSession} AP (decreases with more rehabs done).</p>
+                <p><strong>Tip:</strong> With Toleration, 1 Xanax/day = 17.5 AP, well under the 20 AP decay. Even 2x/day (35 AP) needs only minimal rehab. Without Toleration, 2x/day = 70 AP - 20 decay = 50 AP/day building up.</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         <p className="text-[10px] text-text-muted text-center">
           Abroad prices: YATA (community-sourced) · Market prices: Torn API · Profit = Market - 5% fee - Abroad cost

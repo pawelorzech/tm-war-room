@@ -93,17 +93,21 @@ interface StockROI {
   benefit_desc: string;
   increment: number;
   shares_required: number;
+  shares_this_block: number;
   cost_total: number;
+  cost_this_block: number;
   payout_value: number;
   payout_freq_days: number;
   daily_value: number;
   days_to_breakeven: number;
   roi_annual_pct: number;
+  marginal_payback_days: number;
+  marginal_roi_pct: number;
   owned_shares: number;
   shares_needed: number;
   cost_remaining: number;
-  days_remaining: number;
   is_active: boolean;
+  price_is_live: boolean;
 }
 
 /* ── Component ── */
@@ -339,10 +343,10 @@ export default function StocksPage() {
           /* ── ROI Recommendations ── */
           <div className="space-y-4">
             <div className="bg-torn-green/5 border border-torn-green/20 rounded-lg p-3">
-              <p className="text-sm font-medium text-text-primary">Investment advisor — sorted by ROI</p>
+              <p className="text-sm font-medium text-text-primary">Investment advisor — sorted by marginal ROI</p>
               <p className="text-xs text-text-secondary mt-1">
-                Ranked by annual return on investment. &ldquo;Days to payback&rdquo; = how long until the benefit pays for itself.
-                Higher ROI% = better investment. Buy the top non-active stock first.
+                Each stock benefit can be upgraded by buying more shares — each &ldquo;block&rdquo; doubles in cost but adds another payout.
+                Ranked by marginal ROI (return on the <em>next</em> block). Item prices are live from Torn market when available.
               </p>
             </div>
 
@@ -356,14 +360,18 @@ export default function StocksPage() {
                         <th className="py-2 px-3">Stock</th>
                         <th className="py-2 px-3 hidden md:table-cell">Benefit</th>
                         <th className="py-2 px-3 text-right">Payout</th>
-                        <th className="py-2 px-3 text-right">Cost</th>
+                        <th className="py-2 px-3 text-right">Block Cost</th>
+                        <th className="py-2 px-3 text-right">Remaining</th>
                         <th className="py-2 px-3 text-right">Payback</th>
                         <th className="py-2 px-3 text-right">ROI</th>
-                        <th className="py-2 px-3">Status</th>
+                        <th className="py-2 px-3">Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {roiData.map((r, i) => (
+                      {roiData.map((r, i) => {
+                        const paybackDays = r.is_active ? 0 : r.marginal_payback_days;
+                        const roi = r.marginal_roi_pct;
+                        return (
                         <tr key={`${r.stock_id}-${r.increment}`} onClick={() => selectStock(r.stock_id, r.name, r.acronym)}
                           className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${
                             r.is_active ? 'opacity-50' : ''
@@ -373,12 +381,18 @@ export default function StocksPage() {
                           </td>
                           <td className="py-1.5 px-3">
                             <span className="font-semibold">{r.acronym}</span>
-                            {r.increment > 1 && <span className="text-text-muted text-[10px] ml-0.5">x{r.increment}</span>}
+                            <span className="text-text-muted text-[10px] ml-0.5">BB{r.increment}</span>
                             <span className="ml-1.5 text-text-muted text-xs hidden sm:inline">{r.name}</span>
                           </td>
-                          <td className="py-1.5 px-3 text-xs text-text-secondary max-w-[180px] truncate hidden md:table-cell">{r.benefit_desc}</td>
+                          <td className="py-1.5 px-3 text-xs text-text-secondary max-w-[180px] truncate hidden md:table-cell">
+                            {r.benefit_desc}
+                            {r.price_is_live && <span className="ml-1 text-torn-green" title="Live market price">*</span>}
+                          </td>
                           <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary text-xs">
                             {fmtMoney(r.payout_value)}<span className="text-text-muted">/{r.payout_freq_days}d</span>
+                          </td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-xs text-text-muted">
+                            {fmtMoney(r.cost_this_block)}
                           </td>
                           <td className="py-1.5 px-3 text-right tabular-nums text-xs">
                             {r.cost_remaining > 0 ? fmtMoney(r.cost_remaining) : (
@@ -387,19 +401,21 @@ export default function StocksPage() {
                           </td>
                           <td className="py-1.5 px-3 text-right tabular-nums font-medium">
                             {r.is_active ? '—' : (
-                              <span className={r.days_remaining < 365 ? 'text-torn-green' : r.days_remaining < 730 ? 'text-torn-yellow' : 'text-text-secondary'}>
-                                {Math.round(r.days_remaining)}d
+                              <span className={paybackDays < 365 ? 'text-torn-green' : paybackDays < 730 ? 'text-torn-yellow' : 'text-text-secondary'}>
+                                {Math.round(paybackDays)}d
                               </span>
                             )}
                           </td>
                           <td className={`py-1.5 px-3 text-right tabular-nums font-bold ${
-                            r.roi_annual_pct > 30 ? 'text-torn-green' : r.roi_annual_pct > 15 ? 'text-torn-yellow' : 'text-text-secondary'
+                            roi > 30 ? 'text-torn-green' : roi > 15 ? 'text-torn-yellow' : 'text-text-secondary'
                           }`}>
-                            {r.roi_annual_pct.toFixed(1)}%
+                            {roi.toFixed(1)}%
                           </td>
                           <td className="py-1.5 px-3">
                             {r.is_active ? (
-                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-green/15 text-torn-green">ACTIVE</span>
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-green/15 text-torn-green">DONE</span>
+                            ) : r.increment > 1 && r.owned_shares >= r.shares_required - r.shares_this_block ? (
+                              <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-blue/15 text-torn-blue">BUY MORE</span>
                             ) : r.owned_shares > 0 ? (
                               <span className="px-1.5 py-0.5 text-[10px] rounded font-bold bg-torn-yellow/15 text-torn-yellow">PARTIAL</span>
                             ) : (
@@ -407,7 +423,8 @@ export default function StocksPage() {
                             )}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -419,7 +436,8 @@ export default function StocksPage() {
             )}
 
             <p className="text-[10px] text-text-muted text-center">
-              ROI = annual return %. Payback = days until benefit pays for the shares. Payout values estimated from market prices.
+              ROI = marginal annual return on next block. BB = Benefit Block (each doubles in share cost).
+              Payback = days until block pays for itself. * = live market price.
             </p>
           </div>
         ) : (

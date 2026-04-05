@@ -29,6 +29,9 @@ async def _ensure_snapshot(player_id: int) -> bool:
         bs = data["battlestats"]
         ps = data.get("personalstats", {})
         total = bs["strength"] + bs["defense"] + bs["speed"] + bs["dexterity"]
+        # Fetch extended stats
+        from api.scheduler.jobs.collect_stats import _fetch_extended_personalstats
+        ext_ps = await _fetch_extended_personalstats(torn_client, user_key["api_key"])
         stats_repo.insert_snapshot(
             player_id=player_id, snapshot_date=date.today().isoformat(),
             strength=bs["strength"], defense=bs["defense"],
@@ -37,6 +40,9 @@ async def _ensure_snapshot(player_id: int) -> bool:
             xanax_taken=ps.get("xantaken"),
             refills=ps.get("refills"),
             networth=ps.get("networth"),
+            gym_trains=ext_ps.get("gymtrains"),
+            stat_enhancers_used=ext_ps.get("statenhancersused") or ps.get("statenhancersused"),
+            easter_eggs=ext_ps.get("eastereggs"),
         )
         return True
     except Exception:
@@ -92,3 +98,45 @@ async def get_leaderboard():
         if pid and pid in name_lookup:
             entry["player_name"] = name_lookup[pid]
     return {"members": latest, "count": len(latest)}
+
+
+@router.get("/growth-leaderboard")
+async def get_growth_leaderboard(days: int = Query(default=30, ge=1, le=365)):
+    """Stat growth leaderboard — ranked by total growth over period, includes % growth."""
+    if not stats_repo:
+        raise HTTPException(status_code=503, detail="Stats not initialized")
+    rows = stats_repo.get_all_growth(days=days)
+    # Enrich with player names
+    name_lookup: dict[int, str] = {}
+    if torn_client:
+        try:
+            members = await torn_client.fetch_members()
+            name_lookup = {m.id: m.name for m in members}
+        except Exception:
+            pass
+    result = []
+    for r in rows:
+        pid = r["player_id"]
+        start_total = r.get("start_total") or 0
+        total_growth = r.get("total_growth") or 0
+        actual_days = max(1, (date.fromisoformat(r["to_date"]) - date.fromisoformat(r["from_date"])).days)
+        pct_growth = (total_growth / start_total * 100) if start_total > 0 else 0
+        result.append({
+            "player_id": pid,
+            "player_name": name_lookup.get(pid, f"#{pid}"),
+            "from_date": r["from_date"],
+            "to_date": r["to_date"],
+            "days": actual_days,
+            "str_growth": r.get("str_growth", 0),
+            "def_growth": r.get("def_growth", 0),
+            "spd_growth": r.get("spd_growth", 0),
+            "dex_growth": r.get("dex_growth", 0),
+            "total_growth": total_growth,
+            "pct_growth": round(pct_growth, 2),
+            "per_day": round(total_growth / actual_days, 0) if actual_days > 0 else 0,
+            "gym_trains_delta": r.get("gym_trains_delta"),
+            "xanax_delta": r.get("xanax_delta"),
+            "se_delta": r.get("se_delta"),
+            "easter_eggs_delta": r.get("easter_eggs_delta"),
+        })
+    return {"members": result, "days": days, "count": len(result)}
