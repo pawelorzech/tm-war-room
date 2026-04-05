@@ -52,9 +52,11 @@ interface GrowthLeaderEntry {
   total_growth: number;
   pct_growth: number;
   per_day: number;
-  gym_trains_delta: number | null;
   xanax_delta: number | null;
+  refills_delta: number | null;
+  energy_drinks_delta: number | null;
   se_delta: number | null;
+  energy_spent: number;
   easter_eggs_delta: number | null;
 }
 
@@ -183,7 +185,7 @@ export default function StatsPage() {
               {([
                 ['total', 'Total Stats'],
                 ['growth', 'Stat Growth'],
-                ['gym', 'Gym Energy'],
+                ['gym', 'Energy Spent'],
                 ['eggs', 'Easter Eggs'],
               ] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setLbTab(key as LeaderboardTab)}
@@ -282,16 +284,17 @@ export default function StatsPage() {
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
                         <th className="py-2 px-3">#</th>
                         <th className="py-2 px-3">Player</th>
-                        <th className="py-2 px-3 text-right">Gym Trains</th>
+                        <th className="py-2 px-3 text-right">Energy</th>
+                        <th className="py-2 px-3 text-right">Xanax</th>
+                        <th className="py-2 px-3 text-right hidden sm:table-cell">Refills</th>
                         <th className="py-2 px-3 text-right">Stat Growth</th>
-                        <th className="py-2 px-3 text-right">/day</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const gymSorted = [...growthLb].filter(m => m.gym_trains_delta != null && m.gym_trains_delta > 0)
-                          .sort((a, b) => (b.gym_trains_delta || 0) - (a.gym_trains_delta || 0));
-                        return gymSorted.length > 0 ? gymSorted.map((m, i) => (
+                        const energySorted = [...growthLb].filter(m => m.energy_spent > 0)
+                          .sort((a, b) => b.energy_spent - a.energy_spent);
+                        return energySorted.length > 0 ? energySorted.map((m, i) => (
                           <tr key={m.player_id}
                               className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
                               onClick={() => setSelectedPlayer(m.player_id)}>
@@ -300,19 +303,20 @@ export default function StatsPage() {
                               {m.player_name}
                               {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.gym_trains_delta || 0).toLocaleString()}</td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{m.energy_spent.toLocaleString()}E</td>
+                            <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">{m.xanax_delta != null ? `+${m.xanax_delta}` : '—'}</td>
+                            <td className="py-1.5 px-3 text-right tabular-nums text-text-muted hidden sm:table-cell">{m.refills_delta != null ? `+${m.refills_delta}` : '—'}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">+{fmt(m.total_growth)}</td>
-                            <td className="py-1.5 px-3 text-right tabular-nums text-text-muted">{fmt(m.per_day)}</td>
                           </tr>
                         )) : (
-                          <tr><td colSpan={5} className="py-4 text-center text-text-muted text-xs">Gym train tracking starts after the next daily snapshot (4:00 UTC). Check back tomorrow!</td></tr>
+                          <tr><td colSpan={6} className="py-4 text-center text-text-muted text-xs">Energy tracking needs at least 2 daily snapshots. Use Admin → Collect Stats to start.</td></tr>
                         );
                       })()}
                     </tbody>
                   </table>
                 </div>
                 <div className="px-4 py-2 border-t border-border-light">
-                  <p className="text-[10px] text-text-muted">Ranked by total gym sessions in the last {growthDays} days. Use this for training break competitions!</p>
+                  <p className="text-[10px] text-text-muted">Energy = Xanax(250E) + Refills(150E) + E-drinks(25E) + Natural(150E/day). Ranked by total energy in the last {growthDays} days.</p>
                 </div>
               </div>
             )}

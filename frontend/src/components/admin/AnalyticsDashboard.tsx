@@ -117,6 +117,17 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
           </button>
         ))}
         <button
+          onClick={async () => {
+            try {
+              const res = await adminFetch<{ message: string }>("/api/admin/stats/collect-now", { method: "POST" });
+              alert(res.message || "Stats collected!");
+            } catch (e) { alert("Failed: " + (e instanceof Error ? e.message : "unknown error")); }
+          }}
+          className="px-3 py-1 rounded text-sm bg-torn-green/20 border border-torn-green/30 text-torn-green hover:bg-torn-green/30"
+        >
+          Collect Stats Now
+        </button>
+        <button
           onClick={load}
           disabled={loading}
           className="ml-auto px-3 py-1 rounded text-sm bg-bg-surface border border-border text-text-secondary hover:text-text-primary disabled:opacity-50"
