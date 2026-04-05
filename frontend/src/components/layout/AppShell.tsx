@@ -4,15 +4,16 @@ import { useState } from "react";
 import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
-import { MobileDrawer } from "./MobileDrawer";
 import { AnnouncementCarousel } from "./AnnouncementCarousel";
+import { BottomNavBar } from "@/components/nav/BottomNavBar";
+import { MobileSearch } from "@/components/nav/MobileSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 
 function ShellContent({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useAuth();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { isLoggedIn, role } = useAuth();
   const { active, unreadCount, dismiss } = useAnnouncements();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   if (!isLoggedIn) {
     return <>{children}</>;
@@ -27,42 +28,43 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface/80 backdrop-blur-md border-b border-border z-40 flex items-center px-3 gap-3">
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200 active:scale-95"
-          aria-label="Open menu"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
-        </button>
         <span
           className="text-sm font-extrabold tracking-tight text-torn-green"
           style={{ textShadow: "0 0 12px rgba(63, 185, 80, 0.35)" }}
         >
           TM Hub
         </span>
+        <div className="flex-1" />
+        {/* Search */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200"
+          aria-label="Search"
+        >
+          <span className="text-base">🔍</span>
+        </button>
+        {/* Inbox */}
+        <a
+          href="/inbox"
+          className="relative text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200"
+        >
+          <span className="text-base">📨</span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] bg-torn-green/20 text-torn-green px-1 rounded-full font-bold">
+              {unreadCount}
+            </span>
+          )}
+        </a>
       </div>
 
-      {/* Mobile drawer */}
-      <MobileDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        unreadCount={unreadCount}
-      />
+      {/* Mobile search overlay */}
+      <MobileSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Mobile bottom nav */}
+      <BottomNavBar unreadCount={unreadCount} role={role} />
 
       {/* Main content */}
-      <main className="lg:ml-[200px] pt-12 lg:pt-0 min-h-screen flex flex-col">
+      <main className="lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 min-h-screen flex flex-col">
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
         <ErrorBoundary>
           <div className="flex-1">{children}</div>
