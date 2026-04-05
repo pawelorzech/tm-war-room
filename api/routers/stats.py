@@ -105,6 +105,8 @@ async def get_growth_leaderboard(days: int = Query(default=30, ge=1, le=365)):
     if not stats_repo:
         raise HTTPException(status_code=503, detail="Stats not initialized")
     rows = stats_repo.get_all_growth(days=days)
+    # Get latest snapshots for absolute values (easter eggs etc)
+    latest_snaps = {s["player_id"]: s for s in stats_repo.get_all_latest()}
     # Enrich with player names
     name_lookup: dict[int, str] = {}
     if torn_client:
@@ -144,5 +146,6 @@ async def get_growth_leaderboard(days: int = Query(default=30, ge=1, le=365)):
             "se_delta": r.get("se_delta"),
             "energy_spent": energy_spent,
             "easter_eggs_delta": r.get("easter_eggs_delta"),
+            "easter_eggs_total": latest_snaps.get(pid, {}).get("easter_eggs"),
         })
     return {"members": result, "days": days, "count": len(result)}

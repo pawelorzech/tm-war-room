@@ -58,6 +58,7 @@ interface GrowthLeaderEntry {
   se_delta: number | null;
   energy_spent: number;
   easter_eggs_delta: number | null;
+  easter_eggs_total: number | null;
 }
 
 type LeaderboardTab = 'total' | 'growth' | 'gym' | 'eggs';
@@ -329,13 +330,15 @@ export default function StatsPage() {
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
                         <th className="py-2 px-3">#</th>
                         <th className="py-2 px-3">Player</th>
-                        <th className="py-2 px-3 text-right">Eggs Collected</th>
+                        <th className="py-2 px-3 text-right">Total Eggs</th>
+                        <th className="py-2 px-3 text-right">This Period</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const eggSorted = [...growthLb].filter(m => m.easter_eggs_delta != null && m.easter_eggs_delta > 0)
-                          .sort((a, b) => (b.easter_eggs_delta || 0) - (a.easter_eggs_delta || 0));
+                        const eggSorted = [...growthLb]
+                          .filter(m => (m.easter_eggs_total != null && m.easter_eggs_total > 0) || (m.easter_eggs_delta != null && m.easter_eggs_delta > 0))
+                          .sort((a, b) => (b.easter_eggs_total || 0) - (a.easter_eggs_total || 0));
                         return eggSorted.length > 0 ? eggSorted.map((m, i) => (
                           <tr key={m.player_id}
                               className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}>
@@ -344,11 +347,14 @@ export default function StatsPage() {
                               {m.player_name}
                               {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.easter_eggs_delta || 0).toLocaleString()}</td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.easter_eggs_total || 0).toLocaleString()}</td>
+                            <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">
+                              {m.easter_eggs_delta != null && m.easter_eggs_delta > 0 ? `+${m.easter_eggs_delta}` : '—'}
+                            </td>
                           </tr>
                         )) : (
-                          <tr><td colSpan={3} className="py-4 text-center text-text-muted text-xs">
-                            Easter egg tracking starts with the next daily snapshot. If the event hasn&apos;t started or Torn API doesn&apos;t expose egg counts, this tab will remain empty.
+                          <tr><td colSpan={4} className="py-4 text-center text-text-muted text-xs">
+                            No easter egg data yet. Click &quot;Collect Stats Now&quot; in Admin to fetch the latest data.
                           </td></tr>
                         );
                       })()}
@@ -356,7 +362,7 @@ export default function StatsPage() {
                   </table>
                 </div>
                 <div className="px-4 py-2 border-t border-border-light">
-                  <p className="text-[10px] text-text-muted">Eggs collected during the Easter event period. Tracked from Torn personalstats.</p>
+                  <p className="text-[10px] text-text-muted">Total eggs from Torn personalstats. &quot;This Period&quot; shows eggs collected in the last {growthDays} days (needs 2+ snapshots).</p>
                 </div>
               </div>
             )}
