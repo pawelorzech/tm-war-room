@@ -29,8 +29,8 @@ export function getAnnouncementState(a: Announcement): AnnouncementState {
 }
 
 export const ANNOUNCEMENT_TYPE_BADGE_STYLES: Record<AnnouncementType, string> = {
-  alert: "bg-red-700 text-red-100",
-  warning: "bg-yellow-700 text-yellow-100",
-  info: "bg-blue-700 text-blue-100",
-  success: "bg-green-700 text-green-100",
+  alert: "bg-red-600 text-white dark:bg-red-700 dark:text-red-100",
+  warning: "bg-yellow-500 text-white dark:bg-yellow-700 dark:text-yellow-100",
+  info: "bg-blue-600 text-white dark:bg-blue-700 dark:text-blue-100",
+  success: "bg-green-600 text-white dark:bg-green-700 dark:text-green-100",
 };

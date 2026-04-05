@@ -128,11 +128,11 @@ export default function AnalyticsPage() {
             {timeline.length > 0 && (
               <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-text-primary mb-3">Daily Attack Activity</h3>
-                <div className="flex items-end gap-1 h-28">
+                <div className="flex gap-1 h-28">
                   {timeline.map(t => {
                     const pct = (t.hits / maxDayHits) * 100;
                     return (
-                      <div key={t.bucket_start} className="flex-1 flex flex-col items-center group"
+                      <div key={t.bucket_start} className="flex-1 flex flex-col items-center justify-end h-full group"
                         title={`${fmtDate(t.bucket_start)}: ${t.hits} attacks, ${fmtResp(t.respect)} respect, ${t.active_members} members`}>
                         <div className="w-full bg-torn-green/60 hover:bg-torn-green rounded-t transition-colors"
                           style={{ height: `${Math.max(4, pct)}%` }} />

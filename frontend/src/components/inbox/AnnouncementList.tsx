@@ -5,10 +5,10 @@ import { getAnnouncementState, ANNOUNCEMENT_TYPE_BADGE_STYLES } from "@/types/ad
 import { formatDate } from "@/lib/format";
 
 const typeStyles: Record<Announcement["type"], string> = {
-  alert: "bg-red-900/50 border-red-500 text-red-200",
-  warning: "bg-yellow-900/30 border-yellow-600 text-yellow-200",
-  info: "bg-blue-900/30 border-blue-500 text-blue-200",
-  success: "bg-green-900/30 border-green-500 text-green-200",
+  alert: "bg-red-50 border-red-300 text-red-800 dark:bg-red-900/50 dark:border-red-500 dark:text-red-200",
+  warning: "bg-yellow-50 border-yellow-300 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-600 dark:text-yellow-200",
+  info: "bg-blue-50 border-blue-300 text-blue-800 dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-200",
+  success: "bg-green-50 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-500 dark:text-green-200",
 };
 
 interface Props {
@@ -47,7 +47,7 @@ export function AnnouncementList({ announcements }: Props) {
                   "shrink-0 px-1.5 py-0.5 rounded text-xs font-semibold uppercase",
                   state === "active"
                     ? ANNOUNCEMENT_TYPE_BADGE_STYLES[a.type]
-                    : "bg-gray-700 text-gray-300",
+                    : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
                 ].join(" ")}
               >
                 {state === "active" ? a.type : state}
