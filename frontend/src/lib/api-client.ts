@@ -116,6 +116,7 @@ export const api = {
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),
   statLeaderboard: () => apiFetch<{ members: unknown[]; count: number }>("/api/stats/leaderboard"),
+  statGrowthLeaderboard: (days: number = 30) => apiFetch<{ members: unknown[]; count: number; days: number }>(`/api/stats/growth-leaderboard?days=${days}`),
   spySubmit: (data: { player_id: number; strength: number; defense: number; speed: number; dexterity: number }) =>
     fetch(`/api/spy/submit`, {
       method: "POST",

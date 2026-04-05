@@ -39,6 +39,27 @@ interface LeaderboardEntry extends Snapshot {
   networth: number | null;
 }
 
+interface GrowthLeaderEntry {
+  player_id: number;
+  player_name: string;
+  from_date: string;
+  to_date: string;
+  days: number;
+  str_growth: number;
+  def_growth: number;
+  spd_growth: number;
+  dex_growth: number;
+  total_growth: number;
+  pct_growth: number;
+  per_day: number;
+  gym_trains_delta: number | null;
+  xanax_delta: number | null;
+  se_delta: number | null;
+  easter_eggs_delta: number | null;
+}
+
+type LeaderboardTab = 'total' | 'growth' | 'gym' | 'eggs';
+
 function fmt(n: number): string {
   if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -53,6 +74,9 @@ export default function StatsPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
+  const [lbTab, setLbTab] = useState<LeaderboardTab>('total');
+  const [growthLb, setGrowthLb] = useState<GrowthLeaderEntry[]>([]);
+  const [growthDays, setGrowthDays] = useState(30);
 
   const loadStats = useCallback(() => {
     const pid = selectedPlayer || playerId;
@@ -62,12 +86,14 @@ export default function StatsPage() {
       api.statSnapshots(pid).catch(() => ({ snapshots: [] })),
       api.statGrowth(pid, 30).catch(() => null),
       api.statLeaderboard().catch(() => ({ members: [] })),
-    ]).then(([snapsRes, growthRes, lbRes]) => {
+      api.statGrowthLeaderboard(growthDays).catch(() => ({ members: [] })),
+    ]).then(([snapsRes, growthRes, lbRes, glbRes]) => {
       setSnapshots((snapsRes as { snapshots: Snapshot[] }).snapshots || []);
       setGrowth(growthRes as GrowthData | null);
       setLeaderboard((lbRes as { members: LeaderboardEntry[] }).members || []);
+      setGrowthLb((glbRes as { members: GrowthLeaderEntry[] }).members || []);
     }).finally(() => setLoading(false));
-  }, [playerId, selectedPlayer]);
+  }, [playerId, selectedPlayer, growthDays]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -133,50 +159,203 @@ export default function StatsPage() {
           </>
         )}
 
-        {/* Faction leaderboard */}
-        {leaderboard.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide mb-3">
-              Faction Leaderboard ({leaderboard.length})
-            </h3>
-            <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                      <th className="py-2 px-3">#</th>
-                      <th className="py-2 px-3">Player</th>
-                      <th className="py-2 px-3">Total</th>
-                      <th className="py-2 px-3">STR</th>
-                      <th className="py-2 px-3">DEF</th>
-                      <th className="py-2 px-3">SPD</th>
-                      <th className="py-2 px-3">DEX</th>
-                      <th className="py-2 px-3">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((m, i) => (
-                      <tr key={m.player_id}
-                          className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
-                          onClick={() => setSelectedPlayer(m.player_id)}>
-                        <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
-                        <td className="py-1.5 px-3 text-text-primary font-medium">
-                          {m.player_name || `#${m.player_id}`}
-                          <span className="ml-1 text-[10px] text-text-muted">[{m.player_id}]</span>
-                          {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(viewing)</span>}
-                        </td>
-                        <td className="py-1.5 px-3 font-semibold text-torn-green">{fmt(m.total)}</td>
-                        <td className="py-1.5 px-3">{fmt(m.strength)}</td>
-                        <td className="py-1.5 px-3">{fmt(m.defense)}</td>
-                        <td className="py-1.5 px-3">{fmt(m.speed)}</td>
-                        <td className="py-1.5 px-3">{fmt(m.dexterity)}</td>
-                        <td className="py-1.5 px-3 text-text-muted text-xs">{m.snapshot_date}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        {/* Faction leaderboards */}
+        {(leaderboard.length > 0 || growthLb.length > 0) && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">
+                Faction Leaderboards
+              </h3>
+              {(lbTab === 'growth' || lbTab === 'gym' || lbTab === 'eggs') && (
+                <div className="flex gap-1">
+                  {[7, 14, 30, 90].map(d => (
+                    <button key={d} onClick={() => setGrowthDays(d)}
+                      className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                        growthDays === d ? 'bg-torn-green/20 text-torn-green font-semibold' : 'bg-bg-elevated text-text-muted hover:text-text-secondary'
+                      }`}>{d}d</button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Tab bar */}
+            <div className="flex gap-1 border-b border-border">
+              {([
+                ['total', 'Total Stats'],
+                ['growth', 'Stat Growth'],
+                ['gym', 'Gym Energy'],
+                ['eggs', 'Easter Eggs'],
+              ] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setLbTab(key as LeaderboardTab)}
+                  className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
+                    lbTab === key ? 'border-torn-green text-torn-green' : 'border-transparent text-text-secondary hover:text-text-primary'
+                  }`}>{label}</button>
+              ))}
+            </div>
+
+            {lbTab === 'total' && leaderboard.length > 0 && (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Player</th>
+                        <th className="py-2 px-3">Total</th>
+                        <th className="py-2 px-3">STR</th>
+                        <th className="py-2 px-3">DEF</th>
+                        <th className="py-2 px-3">SPD</th>
+                        <th className="py-2 px-3">DEX</th>
+                        <th className="py-2 px-3">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboard.map((m, i) => (
+                        <tr key={m.player_id}
+                            className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
+                            onClick={() => setSelectedPlayer(m.player_id)}>
+                          <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
+                          <td className="py-1.5 px-3 text-text-primary font-medium">
+                            {m.player_name || `#${m.player_id}`}
+                            <span className="ml-1 text-[10px] text-text-muted">[{m.player_id}]</span>
+                            {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(viewing)</span>}
+                          </td>
+                          <td className="py-1.5 px-3 font-semibold text-torn-green">{fmt(m.total)}</td>
+                          <td className="py-1.5 px-3">{fmt(m.strength)}</td>
+                          <td className="py-1.5 px-3">{fmt(m.defense)}</td>
+                          <td className="py-1.5 px-3">{fmt(m.speed)}</td>
+                          <td className="py-1.5 px-3">{fmt(m.dexterity)}</td>
+                          <td className="py-1.5 px-3 text-text-muted text-xs">{m.snapshot_date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {lbTab === 'growth' && (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Player</th>
+                        <th className="py-2 px-3 text-right">Growth</th>
+                        <th className="py-2 px-3 text-right">% Growth</th>
+                        <th className="py-2 px-3 text-right">/day</th>
+                        <th className="py-2 px-3 text-right hidden sm:table-cell">Xanax</th>
+                        <th className="py-2 px-3 text-right hidden sm:table-cell">SEs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {growthLb.length > 0 ? growthLb.map((m, i) => (
+                        <tr key={m.player_id}
+                            className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
+                            onClick={() => setSelectedPlayer(m.player_id)}>
+                          <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
+                          <td className="py-1.5 px-3 text-text-primary font-medium">
+                            {m.player_name}
+                            {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                          </td>
+                          <td className="py-1.5 px-3 text-right font-semibold text-torn-green">+{fmt(m.total_growth)}</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-torn-green">{m.pct_growth.toFixed(2)}%</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">{fmt(m.per_day)}</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-text-muted hidden sm:table-cell">{m.xanax_delta != null ? `+${m.xanax_delta}` : '—'}</td>
+                          <td className="py-1.5 px-3 text-right tabular-nums text-text-muted hidden sm:table-cell">{m.se_delta != null ? `+${m.se_delta}` : '—'}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={7} className="py-4 text-center text-text-muted text-xs">Need at least 2 daily snapshots to show growth data</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {lbTab === 'gym' && (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Player</th>
+                        <th className="py-2 px-3 text-right">Gym Trains</th>
+                        <th className="py-2 px-3 text-right">Stat Growth</th>
+                        <th className="py-2 px-3 text-right">/day</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const gymSorted = [...growthLb].filter(m => m.gym_trains_delta != null && m.gym_trains_delta > 0)
+                          .sort((a, b) => (b.gym_trains_delta || 0) - (a.gym_trains_delta || 0));
+                        return gymSorted.length > 0 ? gymSorted.map((m, i) => (
+                          <tr key={m.player_id}
+                              className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
+                              onClick={() => setSelectedPlayer(m.player_id)}>
+                            <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
+                            <td className="py-1.5 px-3 text-text-primary font-medium">
+                              {m.player_name}
+                              {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            </td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.gym_trains_delta || 0).toLocaleString()}</td>
+                            <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">+{fmt(m.total_growth)}</td>
+                            <td className="py-1.5 px-3 text-right tabular-nums text-text-muted">{fmt(m.per_day)}</td>
+                          </tr>
+                        )) : (
+                          <tr><td colSpan={5} className="py-4 text-center text-text-muted text-xs">Gym train tracking starts after the next daily snapshot (4:00 UTC). Check back tomorrow!</td></tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-4 py-2 border-t border-border-light">
+                  <p className="text-[10px] text-text-muted">Ranked by total gym sessions in the last {growthDays} days. Use this for training break competitions!</p>
+                </div>
+              </div>
+            )}
+
+            {lbTab === 'eggs' && (
+              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                        <th className="py-2 px-3">#</th>
+                        <th className="py-2 px-3">Player</th>
+                        <th className="py-2 px-3 text-right">Eggs Collected</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const eggSorted = [...growthLb].filter(m => m.easter_eggs_delta != null && m.easter_eggs_delta > 0)
+                          .sort((a, b) => (b.easter_eggs_delta || 0) - (a.easter_eggs_delta || 0));
+                        return eggSorted.length > 0 ? eggSorted.map((m, i) => (
+                          <tr key={m.player_id}
+                              className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}>
+                            <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
+                            <td className="py-1.5 px-3 text-text-primary font-medium">
+                              {m.player_name}
+                              {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            </td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.easter_eggs_delta || 0).toLocaleString()}</td>
+                          </tr>
+                        )) : (
+                          <tr><td colSpan={3} className="py-4 text-center text-text-muted text-xs">
+                            Easter egg tracking starts with the next daily snapshot. If the event hasn&apos;t started or Torn API doesn&apos;t expose egg counts, this tab will remain empty.
+                          </td></tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-4 py-2 border-t border-border-light">
+                  <p className="text-[10px] text-text-muted">Eggs collected during the Easter event period. Tracked from Torn personalstats.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

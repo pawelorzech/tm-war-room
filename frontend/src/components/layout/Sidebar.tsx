@@ -50,10 +50,11 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "LEARN",
+    title: "GUIDES",
     items: [
       { label: "Training Guide", href: "/training", icon: "\uD83D\uDCAA" },
       { label: "Stat Growth", href: "/stats", icon: "\uD83D\uDCC8" },
+      { label: "Userscripts", href: "/scripts", icon: "\uD83D\uDD27" },
       { label: "Awards", href: "/awards", icon: "\uD83C\uDFC6" },
       { label: "FAQ", href: "/faq", icon: "\u2753" },
     ],
