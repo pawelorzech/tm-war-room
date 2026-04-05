@@ -167,6 +167,20 @@ async def demote_admin(player_id: int, admin: dict = Depends(require_superadmin)
     return {"status": "ok", "demoted": player_id}
 
 
+@router.post("/stats/collect-now")
+async def collect_stats_now(admin: dict = Depends(require_admin)):
+    """Trigger immediate stat snapshot collection for all registered members."""
+    from api.scheduler.engine import get_state
+    from api.scheduler.jobs.collect_stats import collect_stat_snapshots
+    state = get_state()
+    if not state.get("key_repo") or not state.get("stats_repo") or not state.get("torn_client"):
+        raise HTTPException(status_code=503, detail="Scheduler not initialized yet")
+    await collect_stat_snapshots(state["key_repo"], state["stats_repo"], state["torn_client"])
+    count = len(state["key_repo"].get_all_keys())
+    logger.info("Manual stat collection triggered by admin %d", admin["sub"])
+    return {"status": "ok", "message": f"Collected stats for {count} members"}
+
+
 class AnnouncementCreateBody(PydanticBaseModel):
     type: str
     message: str
