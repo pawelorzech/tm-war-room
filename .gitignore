@@ -12,7 +12,10 @@ frontend/.next/
 frontend/next-env.d.ts
 frontend/tsconfig.tsbuildinfo
 
-# Screenshots and debug files
-*.png
+# Debug screenshots (root-level)
+/*.png
 .playwright-mcp/
 firebase-debug.log
+
+# Keep docs screenshots
+!docs/screenshots/*.png

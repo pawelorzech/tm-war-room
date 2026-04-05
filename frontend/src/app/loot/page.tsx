@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSort } from '@/hooks/useSort';
-import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -125,10 +124,6 @@ export default function LootPage() {
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-danger text-sm">{error}</div>
         ) : data ? (
           <div className="space-y-3">
-            <table className="hidden"><thead><tr>
-              <SortableHeader label="Name" column="name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
-              <SortableHeader label="Level" column="level" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
-            </tr></thead></table>
             <div className="flex items-center gap-3 text-xs text-text-muted">
               <span>Sort by:</span>
               <button onClick={() => toggleSort('name')}
@@ -254,7 +249,7 @@ export default function LootPage() {
               );
             })}
 
-            {data.npcs.length === 0 && (
+            {sortedNpcs.length === 0 && (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
                 No NPC loot data available.
               </div>
