@@ -19,23 +19,31 @@ _cycle: int = 0
 _prev_npc_levels: dict[int, int] = {}
 
 
-def _check_loot_push(npcs: list[dict], push_service) -> None:
+def _check_loot_push(npcs: list[dict], push_service, dispatcher=None) -> None:
     """Check if any NPC crossed from <4 to >=4 and send push notifications."""
     global _prev_npc_levels
-    if not push_service:
-        return
     for npc in npcs:
         npc_id = npc.get("id", 0)
         level = npc.get("level", 0)
         name = npc.get("name", f"NPC #{npc_id}")
         prev = _prev_npc_levels.get(npc_id, 0)
         if prev < 4 and level >= 4:
-            push_service.dispatch(
-                "loot_level4",
-                f"{name} — Loot Level {level}!",
-                f"{name} reached Level {level}. Time to attack for high-value loot!",
-                "/loot",
-            )
+            if dispatcher:
+                dispatcher.send(
+                    title=f"{name} — Loot Level {level}!",
+                    body=f"{name} reached Level {level}. Time to attack for high-value loot!",
+                    url="/loot",
+                    target_type="preference",
+                    target_value="loot_level4",
+                    sent_by="system",
+                )
+            elif push_service:
+                push_service.dispatch(
+                    "loot_level4",
+                    f"{name} — Loot Level {level}!",
+                    f"{name} reached Level {level}. Time to attack for high-value loot!",
+                    "/loot",
+                )
         _prev_npc_levels[npc_id] = level
 
 
@@ -73,8 +81,19 @@ async def run_refresh_data() -> None:
             else:
                 notif_repo.create("war", "War Ended", "The war has ended. Returning to normal polling.", {})
         push_svc = state.get("push_service")
-        if push_svc and war_active:
-            push_svc.dispatch("war_start", "War Started!", "An active war has been detected. Get ready for battle!", "/wars")
+        dispatcher = state.get("notification_dispatcher")
+        if war_active:
+            if dispatcher:
+                dispatcher.send(
+                    title="War Started!",
+                    body="An active war has been detected. Get ready for battle!",
+                    url="/wars",
+                    target_type="preference",
+                    target_value="war_start",
+                    sent_by="system",
+                )
+            elif push_svc:
+                push_svc.dispatch("war_start", "War Started!", "An active war has been detected. Get ready for battle!", "/wars")
     state["_prev_war_active"] = war_active
 
     # Decide what to refresh this cycle
@@ -223,7 +242,8 @@ async def run_refresh_data() -> None:
             if npcs:
                 loot_mod._cache_ts = 0
                 push_svc = state.get("push_service")
-                if push_svc and npcs:
+                dispatcher = state.get("notification_dispatcher")
+                if npcs:
                     npc_parsed = []
                     for key2, val2 in raw.items():
                         if key2 in ("status", "message", "loot") or not isinstance(val2, dict):
@@ -232,7 +252,7 @@ async def run_refresh_data() -> None:
                             npc_parsed.append({"id": int(key2), "name": val2.get("name", ""), "level": val2.get("level", 0)})
                         except ValueError:
                             pass
-                    _check_loot_push(npc_parsed, push_svc)
+                    _check_loot_push(npc_parsed, push_svc, dispatcher=dispatcher)
                 refreshed.append(f"loot:{len(npcs)}")
         except Exception as e:
             logger.error("Background loot refresh failed: %s", e)
@@ -279,9 +299,20 @@ async def run_refresh_data() -> None:
                                             data={"player_id": w["player_id"], "old_status": w.get("last_status"), "new_status": status_desc},
                                         )
                                     push_svc = state.get("push_service")
-                                    if push_svc:
+                                    dispatcher = state.get("notification_dispatcher")
+                                    added_by = w.get("added_by", 0)
+                                    if dispatcher and added_by:
+                                        dispatcher.send(
+                                            title=f"{pname} is now {status_desc}",
+                                            body=f"Stakeout alert: {pname} changed status",
+                                            url="/stakeout",
+                                            target_type="player",
+                                            target_value=str(added_by),
+                                            sent_by="system",
+                                        )
+                                    elif push_svc and added_by:
                                         push_svc.dispatch_to_player(
-                                            w.get("added_by", 0),
+                                            added_by,
                                             "stakeout_change",
                                             f"{pname} is now {status_desc}",
                                             f"Stakeout alert: {pname} changed status",

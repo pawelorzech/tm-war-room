@@ -201,6 +201,7 @@ async def lifespan(app: FastAPI):
         "history_repo": history_repo_inst,
         "notification_repo": notification_repo,
         "push_service": push_service,
+        "notification_dispatcher": notification_dispatcher,
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
