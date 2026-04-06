@@ -75,6 +75,15 @@ class TestFormatMessage:
         msg = _format_message(members, war_active=True)
         assert "Friends & faction" in msg
 
+    def test_message_is_valid_utf8(self):
+        """Ensure no surrogate characters that would break SQLite."""
+        members = [_make_member(id=1, name="P1", revive_setting="Everyone")]
+        for war in (True, False):
+            msg = _format_message(members, war)
+            msg.encode("utf-8")  # raises if surrogates present
+        empty_msg = _format_message([], False)
+        empty_msg.encode("utf-8")
+
     def test_multiple_members(self):
         members = [
             _make_member(id=1, name="P1", revive_setting="Everyone"),
