@@ -10,6 +10,7 @@ interface Props {
   playerId: number;
   isAdmin: boolean;
   onLoadOlder: () => void;
+  onMessageDeleted?: (id: number) => void;
   typingNames: string[];
 }
 
@@ -24,7 +25,7 @@ function formatDateSeparator(ts: number): string {
   return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
-export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder, typingNames }: Props) {
+export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder, onMessageDeleted, typingNames }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasAtBottom = useRef(true);
@@ -86,6 +87,7 @@ export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder,
                 message={msg}
                 isOwn={msg.player_id === playerId}
                 isAdmin={isAdmin}
+                onDeleted={onMessageDeleted}
               />
             </div>
           );

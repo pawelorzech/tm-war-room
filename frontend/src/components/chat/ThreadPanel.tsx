@@ -126,6 +126,7 @@ export function ThreadPanel({ thread, playerId, isAdmin, onBack }: Props) {
         onLoadOlder={() => {
           if (messages.length > 0) loadMessages(messages[0].id);
         }}
+        onMessageDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
         typingNames={[]}
       />
 

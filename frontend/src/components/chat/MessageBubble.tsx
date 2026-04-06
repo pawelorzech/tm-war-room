@@ -48,6 +48,7 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted }: Props) {
   const isBot = message.bot_id !== null;
 
   const handleDelete = async () => {
+    if (!confirm("Delete this message?")) return;
     try {
       await api.chatDeleteMessage(message.id);
       onDeleted?.(message.id);

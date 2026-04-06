@@ -17,7 +17,7 @@ export function ChatLayout() {
   const {
     channels, activeChannelId, messages, loading, loadingMessages,
     unreadCounts, totalUnread, onlinePlayers, typingPlayers,
-    selectChannel, sendMessage, sendTyping, loadOlder, loadChannels,
+    selectChannel, sendMessage, sendTyping, loadOlder, loadChannels, removeMessage,
   } = useChat();
 
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
@@ -157,6 +157,7 @@ export function ChatLayout() {
               playerId={pid}
               isAdmin={isAdmin}
               onLoadOlder={loadOlder}
+              onMessageDeleted={removeMessage}
               typingNames={typingNames}
             />
 

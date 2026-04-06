@@ -230,10 +230,14 @@ export function useChat() {
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
+  const removeMessage = useCallback((id: number) => {
+    setMessages(prev => prev.filter(m => m.id !== id));
+  }, []);
+
   return {
     channels, activeChannelId, messages, loading, loadingMessages,
     unreadCounts, totalUnread, onlinePlayers, typingPlayers,
     selectChannel, sendMessage, sendTyping, loadOlder,
-    loadChannels,
+    loadChannels, removeMessage,
   };
 }
