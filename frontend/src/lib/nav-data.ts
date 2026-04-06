@@ -67,7 +67,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "OC Planner", href: "/oc", icon: "🕴️" },
       { label: "Analytics", href: "/analytics", icon: "📈" },
       { label: "Notifications", href: "/notifications", icon: "🔔" },
-      { label: "Chat", href: "/chat", icon: "💬" },
     ],
   },
   {

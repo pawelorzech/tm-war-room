@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useChatAccess } from "@/hooks/useChatAccess";
 import { useTheme } from "@/hooks/useTheme";
 import { usePinnedNav } from "@/hooks/usePinnedNav";
 import { NAV_GROUPS } from "@/lib/nav-data";
@@ -16,6 +17,7 @@ import { InboxBadge } from "@/components/nav/InboxBadge";
 
 interface SidebarProps {
   unreadCount?: number;
+  chatUnread?: number;
   showVersionBadge?: boolean;
 }
 
@@ -25,9 +27,10 @@ interface MenuState {
   href: string;
 }
 
-export function Sidebar({ unreadCount = 0, showVersionBadge = false }: SidebarProps) {
+export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = false }: SidebarProps) {
   const pathname = usePathname();
   const { playerName, playerId, role, logout } = useAuth();
+  const { canAccess: canAccessChat } = useChatAccess();
   const { theme, toggle } = useTheme();
   const { pinnedItems, pin, unpin, isPinned, isFull } = usePinnedNav();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -114,6 +117,32 @@ export function Sidebar({ unreadCount = 0, showVersionBadge = false }: SidebarPr
               </Link>
             ))}
           </div>
+
+          {/* Chat — prominent, above groups */}
+          {canAccessChat && (
+            <div className="mb-2">
+              <div className="mx-3 border-b border-border-light/50 mb-1" />
+              <Link
+                href="/chat"
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                  isActive("/chat")
+                    ? "border-l-2 border-torn-green bg-torn-green/10 text-torn-green shadow-[inset_3px_0_8px_-4px_rgba(63,185,80,0.25)]"
+                    : "border-l-2 border-torn-green/40 hover:bg-torn-green/5 hover:text-torn-green text-text-primary"
+                }`}
+              >
+                <span className="text-base">💬</span>
+                <span>Faction Chat</span>
+                {chatUnread > 0 && (
+                  <span
+                    className="ml-auto min-w-[20px] h-5 flex items-center justify-center text-[10px] bg-torn-green text-white px-1.5 rounded-full font-bold"
+                    style={{ animation: "tm-badge-pop 2s ease-in-out infinite" }}
+                  >
+                    {chatUnread > 99 ? "99+" : chatUnread}
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
 
           {/* Collapsible groups */}
           {NAV_GROUPS.map((group) => (
