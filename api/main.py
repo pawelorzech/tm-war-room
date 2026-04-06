@@ -191,6 +191,7 @@ async def lifespan(app: FastAPI):
     settings_repo = AppSettingsRepository(db_path="data/keys.db")
     chat_mod.settings_repo = settings_repo
     admin_mod._settings_repo = settings_repo
+    admin_mod.init_bots(chat_repo, chat_mgr)
 
     # Auto-provision Revive Monitor bot and channel
     from api.bots import revive_monitor as revive_bot_mod
