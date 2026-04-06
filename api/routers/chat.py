@@ -87,6 +87,8 @@ class ChannelUpdate(BaseModel):
 async def list_channels(x_player_id: int = Header()):
     _verify_member(x_player_id)
     channels = chat_repo.get_channels()
+    if not _is_admin(x_player_id):
+        channels = [ch for ch in channels if not ch["admin_only"]]
     unread = chat_repo.get_unread_counts(x_player_id)
     for ch in channels:
         ch["unread"] = unread.get(ch["id"], 0)
@@ -408,6 +410,9 @@ async def update_read(body: ReadUpdate, x_player_id: int = Header()):
 async def get_unread(x_player_id: int = Header()):
     _verify_member(x_player_id)
     counts = chat_repo.get_unread_counts(x_player_id)
+    if not _is_admin(x_player_id):
+        admin_only_ids = {ch["id"] for ch in chat_repo.get_channels() if ch["admin_only"]}
+        counts = {k: v for k, v in counts.items() if k not in admin_only_ids}
     total = sum(counts.values())
     return {"channels": counts, "total": total}
 
