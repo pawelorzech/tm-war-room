@@ -16,6 +16,7 @@ import { InboxBadge } from "@/components/nav/InboxBadge";
 
 interface SidebarProps {
   unreadCount?: number;
+  showVersionBadge?: boolean;
 }
 
 interface MenuState {
@@ -24,7 +25,7 @@ interface MenuState {
   href: string;
 }
 
-export function Sidebar({ unreadCount = 0 }: SidebarProps) {
+export function Sidebar({ unreadCount = 0, showVersionBadge = false }: SidebarProps) {
   const pathname = usePathname();
   const { playerName, playerId, role, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -123,6 +124,7 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
               isFull={isFull}
               onPin={pin}
               onUnpin={unpin}
+              showVersionBadge={group.id === "resources" && showVersionBadge}
             />
           ))}
 

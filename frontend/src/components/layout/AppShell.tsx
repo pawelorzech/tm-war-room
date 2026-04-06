@@ -9,10 +9,12 @@ import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
+import { useVersionNotice } from "@/hooks/useVersionNotice";
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
   const { active, unreadCount, dismiss } = useAnnouncements();
+  const { showNotice, currentVersion, latestEntry, dismiss: dismissVersion } = useVersionNotice();
   const [searchOpen, setSearchOpen] = useState(false);
 
   if (!isLoggedIn) {
@@ -23,7 +25,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       {/* Desktop sidebar */}
       <div className="hidden lg:block fixed top-0 left-0 w-[200px] h-full z-40">
-        <Sidebar unreadCount={unreadCount} />
+        <Sidebar unreadCount={unreadCount} showVersionBadge={showNotice} />
       </div>
 
       {/* Mobile header */}
@@ -61,16 +63,40 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <MobileSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Mobile bottom nav */}
-      <BottomNavBar unreadCount={unreadCount} role={role} />
+      <BottomNavBar unreadCount={unreadCount} role={role} showVersionBadge={showNotice} />
 
       {/* Main content */}
       <main className="lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 min-h-screen flex flex-col">
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
+        {showNotice && latestEntry && (
+          <div className="mx-4 mt-2 flex items-center gap-3 bg-torn-green/10 border border-torn-green/30 rounded-lg px-4 py-2.5 text-sm">
+            <span className="text-torn-green font-bold shrink-0">New version v{currentVersion}!</span>
+            <span className="text-text-secondary truncate">{latestEntry.title}</span>
+            <a
+              href="/changelog"
+              onClick={dismissVersion}
+              className="text-torn-green hover:underline font-medium shrink-0 ml-auto"
+            >
+              See what&apos;s new &rarr;
+            </a>
+            <button
+              onClick={dismissVersion}
+              className="text-text-muted hover:text-text-primary transition-colors shrink-0"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <ErrorBoundary>
           <div className="flex-1">{children}</div>
         </ErrorBoundary>
         <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
-          TM Hub v1.0.0 — by{" "}
+          TM Hub{" "}
+          <a href="/changelog" className="text-torn-green hover:underline">
+            v{currentVersion}
+          </a>
+          {" "}— by{" "}
           <a
             href="https://www.torn.com/profiles.php?XID=2362436"
             target="_blank"

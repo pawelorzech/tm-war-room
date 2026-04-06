@@ -9,9 +9,10 @@ import type { NavGroup } from "@/lib/nav-data";
 interface BottomSheetProps {
   group: NavGroup | null;
   onClose: () => void;
+  showVersionBadge?: boolean;
 }
 
-export function BottomSheet({ group, onClose }: BottomSheetProps) {
+export function BottomSheet({ group, onClose, showVersionBadge = false }: BottomSheetProps) {
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -79,6 +80,11 @@ export function BottomSheet({ group, onClose }: BottomSheetProps) {
               >
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
+                {showVersionBadge && item.href === "/changelog" && (
+                  <span className="text-[9px] font-bold uppercase bg-torn-green/20 text-torn-green px-1.5 py-0.5 rounded-full ml-auto">
+                    NEW
+                  </span>
+                )}
               </Link>
             );
           })}

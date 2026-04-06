@@ -13,6 +13,7 @@ interface CollapsibleGroupProps {
   isFull: () => boolean;
   onPin: (href: string) => void;
   onUnpin: (href: string) => void;
+  showVersionBadge?: boolean;
 }
 
 interface MenuState {
@@ -27,6 +28,7 @@ export function CollapsibleGroup({
   isFull,
   onPin,
   onUnpin,
+  showVersionBadge = false,
 }: CollapsibleGroupProps) {
   const pathname = usePathname();
   const hasActivePage = group.items.some((item) => pathname.startsWith(item.href));
@@ -80,6 +82,11 @@ export function CollapsibleGroup({
               >
                 <span>{item.icon}</span>
                 <span className="flex-1">{item.label}</span>
+                {showVersionBadge && item.href === "/changelog" && (
+                  <span className="text-[9px] font-bold uppercase bg-torn-green/20 text-torn-green px-1.5 py-0.5 rounded-full">
+                    NEW
+                  </span>
+                )}
                 <button
                   onClick={(e) => {
                     e.preventDefault();
