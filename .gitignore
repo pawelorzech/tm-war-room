@@ -19,3 +19,6 @@ firebase-debug.log
 
 # Keep docs screenshots
 !docs/screenshots/*.png
+
+# Keep frontend source data (distinct from backend runtime data/)
+!frontend/src/data/
