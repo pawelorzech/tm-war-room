@@ -53,6 +53,21 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Track visual viewport height (handles iOS keyboard — visualViewport shrinks, window.innerHeight doesn't)
+  useEffect(() => {
+    const update = () => {
+      const h = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--vvh", `${h}px`);
+    };
+    update();
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
+  }, []);
+
   usePDAPolling();
 
   if (!isLoggedIn) {
@@ -104,11 +119,14 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <BottomNavBar unreadCount={unreadCount} chatUnread={chatUnread} role={role} showVersionBadge={showNotice} />
 
       {/* Main content */}
-      <main className={`lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 flex flex-col ${
-        onChatPage
-          ? "h-dvh lg:min-h-screen overflow-hidden"
-          : "min-h-screen"
-      }`}>
+      <main
+        className={`lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 flex flex-col ${
+          onChatPage
+            ? "overflow-hidden lg:min-h-screen"
+            : "min-h-screen"
+        }`}
+        style={onChatPage ? { height: "var(--vvh, 100dvh)" } : undefined}
+      >
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
         {showNotice && latestEntry && (
           <div className="mx-4 mt-2 flex items-center gap-3 bg-torn-green/10 border border-torn-green/30 rounded-lg px-4 py-2.5 text-sm">

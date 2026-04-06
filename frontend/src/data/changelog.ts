@@ -22,6 +22,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { type: "fix", text: "Chat no longer goes blank when keyboard opens on mobile" },
       { type: "fix", text: "Footer hidden on chat page — input now sits cleanly above bottom nav" },
+      { type: "fix", text: "iOS: keyboard no longer zooms — inputs now use 16px font size" },
+      { type: "fix", text: "iOS: layout adjusts to visual viewport so content stays visible when keyboard is open" },
     ],
   },
   {
