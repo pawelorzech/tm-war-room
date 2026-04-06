@@ -179,7 +179,7 @@ async def send_message(
 
     all_keys = key_store.get_all_keys() if key_store else []
     sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
-    name = sender["name"] if sender else str(x_player_id)
+    name = sender["player_name"] if sender else str(x_player_id)
 
     msg = chat_repo.create_message(
         channel_id=channel_id, player_id=x_player_id,
@@ -279,7 +279,7 @@ async def create_thread(
 
     all_keys = key_store.get_all_keys() if key_store else []
     sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
-    name = sender["name"] if sender else str(x_player_id)
+    name = sender["player_name"] if sender else str(x_player_id)
 
     thread = chat_repo.create_thread(
         channel_id=channel_id, title=body.title.strip(),
@@ -320,7 +320,7 @@ async def send_thread_message(
 
     all_keys = key_store.get_all_keys() if key_store else []
     sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
-    name = sender["name"] if sender else str(x_player_id)
+    name = sender["player_name"] if sender else str(x_player_id)
 
     msg = chat_repo.create_message(
         channel_id=thread["channel_id"], player_id=x_player_id,
