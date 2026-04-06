@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.5.0";
+export const CURRENT_VERSION = "1.6.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.6.0",
+    date: "2026-04-06",
+    title: "Revive Monitor Bot",
+    changes: [
+      { type: "feat", text: "New chat bot that warns members with revives enabled — crucial during wars" },
+      { type: "feat", text: "Bot posts automatically every 10 min (war) or 60 min (peace) to #revives channel" },
+      { type: "feat", text: "New Bots tab in admin panel with manual trigger button" },
+    ],
+  },
   {
     version: "1.5.0",
     date: "2026-04-06",
