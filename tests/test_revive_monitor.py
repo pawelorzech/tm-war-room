@@ -1,8 +1,10 @@
+import time
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from api.models import FactionMember, LastAction, MemberStatus
 from api.bots.revive_monitor import run, _filter_revive_enabled, _format_message
+import api.bots.revive_monitor as revive_mod
 
 
 def _make_member(
@@ -81,3 +83,139 @@ class TestFormatMessage:
         msg = _format_message(members, war_active=False)
         assert "@P1" in msg
         assert "@P2" in msg
+
+
+@pytest.fixture
+def mock_chat_repo():
+    repo = MagicMock()
+    repo.get_bot_by_name.return_value = {
+        "id": 1, "name": "Revive Monitor", "active": 1,
+        "token": "fake", "allowed_channels": "*",
+    }
+    repo.get_channel_by_name.return_value = {"id": 10, "name": "revives"}
+    repo.create_message.return_value = {
+        "id": 100, "channel_id": 10, "thread_id": None,
+        "player_id": 0, "player_name": "Revive Monitor",
+        "content": "test", "bot_id": 1, "mentions": [],
+        "pinned": 0, "deleted": 0, "created_at": 1000, "edited_at": None,
+    }
+    return repo
+
+
+@pytest.fixture
+def mock_torn_client_for_bot():
+    client = AsyncMock()
+    client.fetch_members = AsyncMock(return_value=[
+        _make_member(id=1, name="Safe", revive_setting="No one"),
+        _make_member(id=2, name="Risky", revive_setting="Everyone"),
+        _make_member(id=3, name="AlsoRisky", revive_setting="Friends & faction"),
+    ])
+    return client
+
+
+@pytest.fixture
+def mock_chat_manager():
+    mgr = AsyncMock()
+    mgr.broadcast = AsyncMock()
+    return mgr
+
+
+class TestRun:
+    @pytest.mark.asyncio
+    async def test_posts_message_with_risky_members(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        revive_mod._last_post_ts = 0.0
+        with patch("api.bots.revive_monitor._notify_mentions_fn", new_callable=AsyncMock) as mock_notify:
+            result = await revive_mod.run(
+                torn_client=mock_torn_client_for_bot,
+                chat_repo=mock_chat_repo,
+                chat_manager=mock_chat_manager,
+                war_active=True,
+                force=True,
+            )
+        assert result["posted"] is True
+        assert result["risky_count"] == 2
+        mock_chat_repo.create_message.assert_called_once()
+        call_kwargs = mock_chat_repo.create_message.call_args
+        assert 2 in call_kwargs.kwargs["mentions"]
+        assert 3 in call_kwargs.kwargs["mentions"]
+
+    @pytest.mark.asyncio
+    async def test_throttled_in_peacetime(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        revive_mod._last_post_ts = time.time()  # just posted
+        result = await revive_mod.run(
+            torn_client=mock_torn_client_for_bot,
+            chat_repo=mock_chat_repo,
+            chat_manager=mock_chat_manager,
+            war_active=False,
+            force=False,
+        )
+        assert result["posted"] is False
+        assert "Throttled" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_not_throttled_during_war(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        revive_mod._last_post_ts = time.time()  # just posted
+        with patch("api.bots.revive_monitor._notify_mentions_fn", new_callable=AsyncMock):
+            result = await revive_mod.run(
+                torn_client=mock_torn_client_for_bot,
+                chat_repo=mock_chat_repo,
+                chat_manager=mock_chat_manager,
+                war_active=True,
+                force=False,
+            )
+        assert result["posted"] is True
+
+    @pytest.mark.asyncio
+    async def test_force_bypasses_throttle(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        revive_mod._last_post_ts = time.time()
+        with patch("api.bots.revive_monitor._notify_mentions_fn", new_callable=AsyncMock):
+            result = await revive_mod.run(
+                torn_client=mock_torn_client_for_bot,
+                chat_repo=mock_chat_repo,
+                chat_manager=mock_chat_manager,
+                war_active=False,
+                force=True,
+            )
+        assert result["posted"] is True
+
+    @pytest.mark.asyncio
+    async def test_inactive_bot_skips(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        mock_chat_repo.get_bot_by_name.return_value = {
+            "id": 1, "name": "Revive Monitor", "active": 0,
+        }
+        revive_mod._last_post_ts = 0.0
+        result = await revive_mod.run(
+            torn_client=mock_torn_client_for_bot,
+            chat_repo=mock_chat_repo,
+            chat_manager=mock_chat_manager,
+            war_active=True,
+            force=True,
+        )
+        assert result["posted"] is False
+        assert "inactive" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_missing_channel_skips(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        mock_chat_repo.get_channel_by_name.return_value = None
+        revive_mod._last_post_ts = 0.0
+        result = await revive_mod.run(
+            torn_client=mock_torn_client_for_bot,
+            chat_repo=mock_chat_repo,
+            chat_manager=mock_chat_manager,
+            war_active=True,
+            force=True,
+        )
+        assert result["posted"] is False
+        assert "Channel not found" in result["message"]
