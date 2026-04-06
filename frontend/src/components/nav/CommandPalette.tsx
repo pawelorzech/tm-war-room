@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { searchNavItems } from "@/lib/nav-data";
+import { api } from "@/lib/api-client";
+import { searchNavItems, fuzzyMatch } from "@/lib/nav-data";
+
+const CHANNEL_ICONS: Record<string, string> = {
+  general: "💬", "war-room": "⚔️", trading: "💰", "off-topic": "🎲",
+  announcements: "📢", "hub-feedback": "💡", traveling: "✈️", leadership: "👑",
+};
 
 interface CommandPaletteProps {
   open: boolean;
@@ -12,10 +18,25 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [channels, setChannels] = useState<{ id: number; name: string; unread: number }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const results = searchNavItems(query);
+  const pageResults = searchNavItems(query);
+
+  const channelResults = channels
+    .filter(ch => !query || fuzzyMatch(query, ch.name))
+    .map(ch => ({
+      label: `#${ch.name}`,
+      href: `/chat?channel=${ch.id}`,
+      icon: CHANNEL_ICONS[ch.name] || "💬",
+      group: "Chat",
+      unread: ch.unread,
+    }));
+
+  const unreadChannels = channelResults.filter(c => c.unread > 0).sort((a, b) => b.unread - a.unread);
+  const otherChannels = channelResults.filter(c => c.unread === 0);
+  const results = [...unreadChannels, ...pageResults.map(r => ({ ...r, unread: 0 })), ...otherChannels];
 
   // Reset on open
   useEffect(() => {
@@ -24,6 +45,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       setSelectedIndex(0);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
+  }, [open]);
+
+  // Fetch channels when palette opens
+  useEffect(() => {
+    if (!open) return;
+    api.chatChannels()
+      .then(data => {
+        setChannels(data.channels.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          unread: ch.unread ?? 0,
+        })));
+      })
+      .catch(() => {});
   }, [open]);
 
   // Global Cmd+K listener
@@ -110,7 +145,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         <div className="max-h-[300px] overflow-y-auto py-2">
           {query && results.length === 0 && (
             <p className="px-4 py-6 text-sm text-text-muted text-center">
-              No pages found
+              No results found
             </p>
           )}
           {results.map((item, i) => (
@@ -125,10 +160,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             >
               <span>{item.icon}</span>
               <span className="flex-1 text-left">{item.label}</span>
+              {item.unread > 0 && (
+                <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-torn-green text-bg-primary rounded-full px-1">
+                  {item.unread}
+                </span>
+              )}
               <span className="text-[10px] text-text-muted">{item.group}</span>
             </button>
           ))}
-          {!query && (
+          {!query && unreadChannels.length === 0 && (
             <p className="px-4 py-6 text-sm text-text-muted text-center">
               Type to search all pages...
             </p>
