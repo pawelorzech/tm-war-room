@@ -186,6 +186,8 @@ async def send_message(
         player_name=name, content=body.content.strip(),
         mentions=body.mentions,
     )
+    # Auto-mark own message as read so it doesn't count as unread for sender
+    chat_repo.update_read_position(x_player_id, channel_id, msg["id"])
     await chat_manager.broadcast({"type": "message", "payload": msg})
     await _notify_mentions(body.mentions, name, body.content, channel_id)
     return msg
@@ -327,6 +329,8 @@ async def send_thread_message(
         player_name=name, content=body.content.strip(),
         thread_id=thread_id, mentions=body.mentions,
     )
+    # Auto-mark own message as read so it doesn't count as unread for sender
+    chat_repo.update_read_position(x_player_id, thread["channel_id"], msg["id"], thread_id=thread_id)
     await chat_manager.broadcast({"type": "thread_message", "payload": msg})
     await _notify_mentions(body.mentions, name, body.content, thread["channel_id"])
     return msg

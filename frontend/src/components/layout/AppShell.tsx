@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
@@ -22,9 +23,17 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const { canAccess: canAccessChat } = useChatAccess();
   const [chatUnread, setChatUnread] = useState(0);
+  const pathname = usePathname();
+  const onChatPage = pathname.startsWith("/chat");
 
+  // Clear badge immediately when navigating to /chat
   useEffect(() => {
-    if (!canAccessChat || !isLoggedIn) return;
+    if (onChatPage) setChatUnread(0);
+  }, [onChatPage]);
+
+  // Poll chat unread (skip while on /chat — the chat hook handles its own state)
+  useEffect(() => {
+    if (!canAccessChat || !isLoggedIn || onChatPage) return;
     let cancelled = false;
     const poll = () => {
       api.chatUnread()
@@ -32,9 +41,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     };
     poll();
-    const interval = setInterval(poll, 30_000);
+    const interval = setInterval(poll, 15_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [canAccessChat, isLoggedIn]);
+  }, [canAccessChat, isLoggedIn, onChatPage]);
 
   // Register service worker for all authenticated users (PWA + push)
   useEffect(() => {
