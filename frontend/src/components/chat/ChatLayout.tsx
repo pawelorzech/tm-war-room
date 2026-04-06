@@ -45,6 +45,7 @@ export function ChatLayout() {
   }, [members]);
 
   const [adminIds, setAdminIds] = useState<Set<number>>(new Set());
+  const [travelers, setTravelers] = useState<{ player_id: number; name: string; status: string }[]>([]);
 
   useEffect(() => {
     api.listKeys().then(res => setMembers(res.keys)).catch(() => {});
@@ -54,6 +55,22 @@ export function ChatLayout() {
   const isAdmin = role === "admin" || role === "superadmin";
   const pid = playerId ? Number(playerId) : 0;
   const activeChannel: Channel | undefined = channels.find(c => c.id === activeChannelId);
+
+  useEffect(() => {
+    if (!activeChannel || activeChannel.name !== "traveling") {
+      setTravelers([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchTravelers = () => {
+      api.chatTraveling()
+        .then(data => { if (!cancelled) setTravelers(data.travelers); })
+        .catch(() => {});
+    };
+    fetchTravelers();
+    const interval = setInterval(fetchTravelers, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [activeChannel]);
 
   const typingNames = useMemo(() => {
     return Object.values(typingPlayers)
@@ -199,19 +216,39 @@ export function ChatLayout() {
           /* Chat view */
           <>
             {/* Channel header */}
-            <div className="p-3 border-b border-border flex items-center gap-2">
-              <button
-                onClick={() => setMobileView("channels")}
-                className="lg:hidden text-text-muted hover:text-text-primary text-sm"
-              >
-                &larr;
-              </button>
-              <div className="flex-1">
-                <h2 className="text-sm font-bold text-text-primary">#{activeChannel.name}</h2>
-                {activeChannel.description && (
-                  <div className="text-[11px] text-text-muted">{activeChannel.description}</div>
-                )}
+            <div className="border-b border-border">
+              <div className="p-3 flex items-center gap-2">
+                <button
+                  onClick={() => setMobileView("channels")}
+                  className="lg:hidden text-text-muted hover:text-text-primary text-sm"
+                >
+                  &larr;
+                </button>
+                <div className="flex-1">
+                  <h2 className="text-sm font-bold text-text-primary">#{activeChannel.name}</h2>
+                  {activeChannel.description && (
+                    <div className="text-[11px] text-text-muted">{activeChannel.description}</div>
+                  )}
+                </div>
               </div>
+              {activeChannel.name === "traveling" && (
+                <div className="px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <span className="text-[11px] text-text-muted shrink-0">✈️ Now traveling:</span>
+                  {travelers.length === 0 ? (
+                    <span className="text-[11px] text-text-muted italic">No members traveling right now</span>
+                  ) : (
+                    travelers.map(t => (
+                      <span
+                        key={t.player_id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-torn-blue/10 text-torn-blue text-[11px] whitespace-nowrap shrink-0"
+                      >
+                        {t.name}
+                        <span className="text-torn-blue/60">{t.status.replace(/^(Traveling|In )/, "→").replace(/Abroad in /, "")}</span>
+                      </span>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Messages */}
