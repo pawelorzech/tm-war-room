@@ -55,6 +55,9 @@ export default function DashboardPage() {
   const [bountyValue, setBountyValue] = useState(0);
   const [ocReady, setOcReady] = useState(0);
   const [ocTotal, setOcTotal] = useState(0);
+  const [chatUnread, setChatUnread] = useState<{ channels: Record<string, number>; total: number } | null>(null);
+  const [chatChannelNames, setChatChannelNames] = useState<Record<number, string>>({});
+  const [chatBannerDismissed, setChatBannerDismissed] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -64,7 +67,9 @@ export default function DashboardPage() {
       api.chainList().catch(() => null),
       api.bounties().catch(() => null),
       api.ocOverview('planning').catch(() => null),
-    ]).then(([overview, lootData, chainData, bountyData, ocData]) => {
+      api.chatUnread().catch(() => null),
+      api.chatChannels().catch(() => null),
+    ]).then(([overview, lootData, chainData, bountyData, ocData, chatUnreadData, chatChannelsData]) => {
       // Status from a simple fetch (no auth needed)
       fetch('/api/status').then(r => r.json()).then(s => setStatus(s)).catch(() => {});
 
@@ -120,6 +125,17 @@ export default function DashboardPage() {
         ).length;
         setOcReady(ready);
       }
+
+      if (chatUnreadData) {
+        setChatUnread(chatUnreadData as { channels: Record<string, number>; total: number });
+      }
+      if (chatChannelsData) {
+        const nameMap: Record<number, string> = {};
+        for (const ch of (chatChannelsData as { channels: { id: number; name: string }[] }).channels) {
+          nameMap[ch.id] = ch.name;
+        }
+        setChatChannelNames(nameMap);
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -139,6 +155,31 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-bg-primary text-text-primary">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <h1 className="text-2xl font-bold">Dashboard</h1>
+
+        {chatUnread && chatUnread.total > 0 && !chatBannerDismissed && (
+          <div className="flex items-center gap-3 bg-torn-blue/10 border border-torn-blue/30 rounded-xl px-4 py-3">
+            <span className="text-lg">💬</span>
+            <Link
+              href={`/chat?channel=${Object.entries(chatUnread.channels).find(([, v]) => v > 0)?.[0] || ""}`}
+              className="flex-1 text-sm"
+            >
+              <span className="font-bold text-text-primary">{chatUnread.total} unread message{chatUnread.total !== 1 ? "s" : ""}</span>
+              <span className="text-text-muted ml-1.5">
+                in {Object.entries(chatUnread.channels)
+                  .filter(([, v]) => v > 0)
+                  .map(([id]) => `#${chatChannelNames[Number(id)] || id}`)
+                  .join(", ")}
+              </span>
+            </Link>
+            <button
+              onClick={() => setChatBannerDismissed(true)}
+              className="text-text-muted hover:text-text-primary transition-colors shrink-0 text-sm"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {status?.war_active && (
           <div className="bg-torn-red/15 border border-torn-red/40 rounded-xl p-4 text-center" style={{ animation: 'tm-countdown-pulse 2s infinite' }}>
