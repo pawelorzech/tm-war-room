@@ -9,7 +9,6 @@ import { AnnouncementCarousel } from "./AnnouncementCarousel";
 import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
 import { InstallPrompt } from "./InstallPrompt";
-import { ChatFAB } from "@/components/chat/ChatFAB";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useVersionNotice } from "@/hooks/useVersionNotice";
@@ -153,7 +152,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           )}
         </footer>
       </main>
-      {canAccessChat && <ChatFAB unread={chatUnread} />}
       <InstallPrompt />
     </div>
   );
