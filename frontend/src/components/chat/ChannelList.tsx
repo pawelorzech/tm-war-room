@@ -17,6 +17,7 @@ const CHANNEL_ICONS: Record<string, string> = {
   announcements: "📢",
   "hub-feedback": "💡",
   traveling: "✈️",
+  leadership: "👑",
 };
 
 export function ChannelList({ channels, activeChannelId, unreadCounts, onSelect }: Props) {
