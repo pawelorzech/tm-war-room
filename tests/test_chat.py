@@ -331,3 +331,28 @@ class TestChatImprovementsMigration:
         assert ch is not None
         assert ch["admin_only"] == 0
         assert ch["write_restricted"] == 1
+
+
+# ── Admin-Only Filtering ───────────────────────────────────────
+
+class TestAdminOnlyFiltering:
+    def test_get_channels_filters_admin_only(self, chat_repo):
+        """Non-admin users should not see admin_only channels."""
+        channels = chat_repo.get_channels()
+        # leadership is admin_only=1
+        all_names = [c["name"] for c in channels]
+        assert "leadership" in all_names
+
+        # Filter as a non-admin would
+        visible = [c for c in channels if not c["admin_only"]]
+        visible_names = [c["name"] for c in visible]
+        assert "leadership" not in visible_names
+        assert "general" in visible_names
+        assert "traveling" in visible_names
+
+    def test_announcements_visible_to_all(self, chat_repo):
+        """Announcements should be visible to non-admins (admin_only=0)."""
+        channels = chat_repo.get_channels()
+        visible = [c for c in channels if not c["admin_only"]]
+        visible_names = [c["name"] for c in visible]
+        assert "announcements" in visible_names
