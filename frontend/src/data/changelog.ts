@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.3.0";
+export const CURRENT_VERSION = "1.3.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.3.1",
+    date: "2026-04-06",
+    title: "Chat Beta Controls",
+    changes: [
+      { type: "feat", text: "Chat is now admin-only until explicitly enabled via admin panel" },
+      { type: "feat", text: "Admin Settings tab with chat toggle for all members" },
+      { type: "feat", text: "Prominent chat access in sidebar and mobile nav with unread badges" },
+      { type: "feat", text: "Floating chat button on all pages showing unread count" },
+    ],
+  },
   {
     version: "1.3.0",
     date: "2026-04-06",
