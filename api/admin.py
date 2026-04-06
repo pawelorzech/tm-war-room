@@ -20,6 +20,8 @@ _analytics_store = None
 _torn_client = None
 _app_start_time: float | None = None
 _settings_repo = None
+_chat_repo = None
+_chat_manager = None
 
 
 def init(key_store, analytics_store, torn_client, app_start_time: float) -> None:
@@ -28,6 +30,12 @@ def init(key_store, analytics_store, torn_client, app_start_time: float) -> None
     _analytics_store = analytics_store
     _torn_client = torn_client
     _app_start_time = app_start_time
+
+
+def init_bots(chat_repo, chat_manager) -> None:
+    global _chat_repo, _chat_manager
+    _chat_repo = chat_repo
+    _chat_manager = chat_manager
 
 
 async def require_admin(request: Request) -> dict:
@@ -236,3 +244,21 @@ async def admin_update_setting(key: str, body: SettingUpdate, admin: dict = Depe
     _settings_repo.set(key, body.value, updated_by=admin["sub"])
     logger.info("Setting '%s' changed to '%s' by admin %d", key, body.value, admin["sub"])
     return {"status": "ok", "key": key, "value": body.value}
+
+
+@router.post("/bots/trigger/revive-monitor")
+async def trigger_revive_monitor(admin: dict = Depends(require_admin)):
+    """Manually trigger the revive monitor bot."""
+    if not _chat_repo:
+        raise HTTPException(status_code=503, detail="Chat not initialized")
+    from api.scheduler.jobs.refresh_data import war_active
+    from api.bots.revive_monitor import run
+    result = await run(
+        torn_client=_torn_client,
+        chat_repo=_chat_repo,
+        chat_manager=_chat_manager,
+        war_active=war_active,
+        force=True,
+    )
+    logger.info("Revive monitor manually triggered by admin %d: %s", admin["sub"], result)
+    return result
