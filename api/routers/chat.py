@@ -22,6 +22,7 @@ key_store = None
 push_service = None
 settings_repo = None
 notification_dispatcher = None  # Set by main.py
+torn_client = None  # Set by main.py
 
 
 def _not_ready():
@@ -571,6 +572,33 @@ async def bot_list_channels(authorization: str = Header()):
 async def get_online(x_player_id: int = Header()):
     _verify_member(x_player_id)
     return {"online": chat_manager.get_online_players()}
+
+
+# ── Traveling members ─────────────────────────────────────────
+
+@router.get("/traveling")
+async def get_traveling(x_player_id: int = Header()):
+    """Return list of faction members currently traveling."""
+    _verify_member(x_player_id)
+    if not torn_client:
+        return {"travelers": []}
+
+    try:
+        members = await torn_client.fetch_members()
+    except Exception:
+        return {"travelers": []}
+
+    travelers = []
+    for m in members:
+        state = m.status.state.lower()
+        desc = m.status.description.lower()
+        if "travel" in state or "abroad" in state or "travel" in desc or "abroad" in desc:
+            travelers.append({
+                "player_id": m.id,
+                "name": m.name,
+                "status": m.status.description,
+            })
+    return {"travelers": travelers}
 
 
 # ── WebSocket ─────────────────────────────────────────────────
