@@ -30,7 +30,7 @@ def _filter_revive_enabled(members: list[FactionMember]) -> list[FactionMember]:
 def _format_message(risky_members: list[FactionMember], war_active: bool) -> str:
     """Format the bot message based on war state and member list."""
     if not risky_members:
-        return "\u2705 Wszystko OK \u2014 nikt nie ma w\u0142\u0105czonych revives."
+        return "\u2705 All clear \u2014 no one has revives enabled."
 
     lines = []
     for m in risky_members:
@@ -39,18 +39,18 @@ def _format_message(risky_members: list[FactionMember], war_active: bool) -> str
 
     if war_active:
         return (
-            "\u26a0\ufe0f **UWAGA! Trwa wojna!**\n\n"
-            "Nast\u0119puj\u0105cy gracze maj\u0105 w\u0142\u0105czone revives \u2014 "
-            "wy\u0142\u0105czcie je natychmiast!\n"
-            "Wr\u00f3g mo\u017ce was wskrzesza\u0107 i zabija\u0107 dla punkt\u00f3w.\n\n"
+            "\u26a0\ufe0f **WARNING! War is active!**\n\n"
+            "The following members have revives enabled \u2014 "
+            "disable them immediately!\n"
+            "The enemy can revive and kill you for points.\n\n"
             f"{member_list}\n\n"
             "\U0001F449 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
         )
     else:
         return (
-            "\U0001F4CB Przypomnienie o revives\n\n"
-            "Poni\u017csi gracze maj\u0105 w\u0142\u0105czone revives. "
-            "Warto wy\u0142\u0105czy\u0107 przed kolejn\u0105 wojn\u0105:\n\n"
+            "\U0001F4CB Revive reminder\n\n"
+            "These members have revives enabled. "
+            "Consider disabling before the next war:\n\n"
             f"{member_list}\n\n"
             "\U0001F449 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
         )
