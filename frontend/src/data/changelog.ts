@@ -12,9 +12,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.3.1";
+export const CURRENT_VERSION = "1.4.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.4.0",
+    date: "2026-04-06",
+    title: "Push Notification System",
+    changes: [
+      { type: "feat", text: "Admin push panel — send notifications with templates, groups, and delivery history" },
+      { type: "feat", text: "Torn PDA native notification support via JS bridge with automatic polling" },
+      { type: "feat", text: "Custom notification groups for targeting specific players" },
+      { type: "fix", text: "Chat mention push notifications now working via unified dispatcher" },
+      { type: "improve", text: "Removed unused OC Ready event type from push preferences" },
+    ],
+  },
   {
     version: "1.3.1",
     date: "2026-04-06",
