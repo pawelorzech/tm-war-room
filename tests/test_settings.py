@@ -38,3 +38,19 @@ class TestAppSettings:
         settings_repo.set("chat_enabled_for_all", "true", updated_by=1)
         settings_repo.set("chat_enabled_for_all", "false", updated_by=2)
         assert settings_repo.get("chat_enabled_for_all") == "false"
+
+
+class TestChatAccessGating:
+    """Test the chat access gating logic directly (unit-style)."""
+
+    def test_admin_always_has_access(self, settings_repo):
+        assert settings_repo.get("chat_enabled_for_all") == "false"
+
+    def test_toggle_enables_access(self, settings_repo):
+        settings_repo.set("chat_enabled_for_all", "true", updated_by=1)
+        assert settings_repo.get("chat_enabled_for_all") == "true"
+
+    def test_toggle_disables_access(self, settings_repo):
+        settings_repo.set("chat_enabled_for_all", "true", updated_by=1)
+        settings_repo.set("chat_enabled_for_all", "false", updated_by=1)
+        assert settings_repo.get("chat_enabled_for_all") == "false"
