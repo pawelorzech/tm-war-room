@@ -10,11 +10,13 @@ interface Props {
 }
 
 const CHANNEL_ICONS: Record<string, string> = {
-  general: "#",
-  "war-room": "!",
-  trading: "$",
-  "off-topic": "~",
-  announcements: "!",
+  general: "💬",
+  "war-room": "⚔️",
+  trading: "💰",
+  "off-topic": "🎲",
+  announcements: "📢",
+  "hub-feedback": "💡",
+  traveling: "✈️",
 };
 
 export function ChannelList({ channels, activeChannelId, unreadCounts, onSelect }: Props) {
@@ -61,7 +63,7 @@ export function ChannelList({ channels, activeChannelId, unreadCounts, onSelect 
 function ChannelItem({ channel, active, unread, onSelect }: {
   channel: Channel; active: boolean; unread: number; onSelect: (id: number) => void;
 }) {
-  const icon = CHANNEL_ICONS[channel.name] || "#";
+  const icon = CHANNEL_ICONS[channel.name] || "💬";
   return (
     <button
       onClick={() => onSelect(channel.id)}
@@ -71,7 +73,7 @@ function ChannelItem({ channel, active, unread, onSelect }: {
           : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
         }`}
     >
-      <span className="text-text-muted font-mono text-xs w-3 text-center">{icon}</span>
+      <span className="text-sm w-5 text-center shrink-0">{icon}</span>
       <span className="truncate flex-1">{channel.name}</span>
       {channel.admin_only === 1 && (
         <span className="text-[10px] text-torn-yellow px-1 rounded bg-torn-yellow/10">admin</span>
