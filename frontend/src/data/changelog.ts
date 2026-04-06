@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.1.0";
+export const CURRENT_VERSION = "1.2.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.2.0",
+    date: "2026-04-06",
+    title: "Aplikacja PWA",
+    changes: [
+      { type: "feat", text: "TM Hub działa teraz jako PWA — dodaj do ekranu głównego jak natywną apkę" },
+      { type: "feat", text: "Nowa ikona neon-glow TM" },
+      { type: "feat", text: "Tryb offline z ładną stroną gdy brak połączenia" },
+      { type: "feat", text: "Inteligentny install prompt — rozpoznaje Android i iOS" },
+    ],
+  },
   {
     version: "1.1.0",
     date: "2026-04-06",
