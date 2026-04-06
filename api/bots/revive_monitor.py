@@ -44,15 +44,15 @@ def _format_message(risky_members: list[FactionMember], war_active: bool) -> str
             "wy\u0142\u0105czcie je natychmiast!\n"
             "Wr\u00f3g mo\u017ce was wskrzesza\u0107 i zabija\u0107 dla punkt\u00f3w.\n\n"
             f"{member_list}\n\n"
-            "\ud83d\udc49 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
+            "\U0001F449 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
         )
     else:
         return (
-            "\ud83d\udccb Przypomnienie o revives\n\n"
+            "\U0001F4CB Przypomnienie o revives\n\n"
             "Poni\u017csi gracze maj\u0105 w\u0142\u0105czone revives. "
             "Warto wy\u0142\u0105czy\u0107 przed kolejn\u0105 wojn\u0105:\n\n"
             f"{member_list}\n\n"
-            "\ud83d\udc49 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
+            "\U0001F449 Torn \u2192 Settings \u2192 Revive \u2192 \"No one\""
         )
 
 

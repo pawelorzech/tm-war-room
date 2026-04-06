@@ -14,6 +14,7 @@ interface TriggerResult {
   posted: boolean;
   risky_count: number;
   message: string;
+  error?: string;
 }
 
 export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: RequestInit) => Promise<T> }) {
@@ -41,8 +42,8 @@ export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: 
     try {
       const data = await adminFetch<TriggerResult>("/api/admin/bots/trigger/revive-monitor", { method: "POST" });
       setLastResult(data);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      setLastResult({ posted: false, risky_count: -1, message: "", error: e instanceof Error ? e.message : "Unknown error" });
     } finally {
       setTriggering(null);
     }
@@ -90,17 +91,21 @@ export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: 
 
               {bot.name === "Revive Monitor" && lastResult && (
                 <div className={`mt-3 p-3 rounded-lg text-sm ${
-                  lastResult.posted
-                    ? lastResult.risky_count > 0
-                      ? "bg-torn-red/10 text-torn-red"
-                      : "bg-torn-green/10 text-torn-green"
-                    : "bg-surface-primary text-text-secondary"
+                  lastResult.error
+                    ? "bg-torn-red/10 text-torn-red"
+                    : lastResult.posted
+                      ? lastResult.risky_count > 0
+                        ? "bg-torn-red/10 text-torn-red"
+                        : "bg-torn-green/10 text-torn-green"
+                      : "bg-surface-primary text-text-secondary"
                 }`}>
-                  {lastResult.posted
-                    ? lastResult.risky_count > 0
-                      ? `Warning posted: ${lastResult.risky_count} member${lastResult.risky_count > 1 ? "s" : ""} with revives enabled`
-                      : "All clear — no one has revives enabled"
-                    : `Not posted: ${lastResult.message}`
+                  {lastResult.error
+                    ? `Error: ${lastResult.error}`
+                    : lastResult.posted
+                      ? lastResult.risky_count > 0
+                        ? `Warning posted: ${lastResult.risky_count} member${lastResult.risky_count > 1 ? "s" : ""} with revives enabled`
+                        : "All clear — no one has revives enabled"
+                      : `Not posted: ${lastResult.message}`
                   }
                 </div>
               )}
