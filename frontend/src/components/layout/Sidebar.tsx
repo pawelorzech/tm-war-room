@@ -1,3 +1,4 @@
+// frontend/src/components/layout/Sidebar.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -5,8 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { PINNED_ITEMS, NAV_GROUPS } from "@/lib/nav-data";
+import { usePinnedNav } from "@/hooks/usePinnedNav";
+import { NAV_GROUPS } from "@/lib/nav-data";
 import { CollapsibleGroup } from "@/components/nav/CollapsibleGroup";
+import { ContextMenu } from "@/components/nav/ContextMenu";
 import { SearchBar } from "@/components/nav/SearchBar";
 import { CommandPalette } from "@/components/nav/CommandPalette";
 import { InboxBadge } from "@/components/nav/InboxBadge";
@@ -15,11 +18,19 @@ interface SidebarProps {
   unreadCount?: number;
 }
 
+interface MenuState {
+  x: number;
+  y: number;
+  href: string;
+}
+
 export function Sidebar({ unreadCount = 0 }: SidebarProps) {
   const pathname = usePathname();
   const { playerName, playerId, role, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const { pinnedItems, pin, unpin, isPinned, isFull } = usePinnedNav();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
   const isActive = (href: string) => pathname.startsWith(href);
 
@@ -43,15 +54,17 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
         {/* Header */}
         <div className="p-4 pb-3 border-b border-border shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
           <div className="flex items-center justify-between mb-2">
-            <div>
+            <Link href="/dashboard">
               <h1
                 className="text-lg font-extrabold tracking-tight text-torn-green"
                 style={{ animation: "tm-glow-pulse 4s ease-in-out infinite" }}
               >
                 TM Hub
               </h1>
-              <p className="text-[10px] text-text-muted tracking-wide">The Masters [TM]</p>
-            </div>
+              <p className="text-[10px] text-text-muted tracking-wide">
+                The Masters [TM]
+              </p>
+            </Link>
             <InboxBadge unreadCount={unreadCount} />
           </div>
           <SearchBar onOpen={() => setPaletteOpen(true)} />
@@ -65,25 +78,52 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
               Pinned
             </p>
             <div className="mx-3 border-b border-border-light/50 mb-1" />
-            {PINNED_ITEMS.map((item) => (
+            {pinnedItems.length === 0 && (
+              <p className="px-4 py-2 text-[11px] text-text-muted italic">
+                Right-click any item to pin it here
+              </p>
+            )}
+            {pinnedItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-4 py-1.5 text-sm transition-all duration-200 ${
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, href: item.href });
+                }}
+                className={`group/pin flex items-center gap-2 px-4 py-1.5 text-sm transition-all duration-200 ${
                   isActive(item.href)
                     ? "border-l-2 border-torn-green bg-torn-green/10 text-text-primary shadow-[inset_3px_0_8px_-4px_rgba(63,185,80,0.25)]"
                     : "border-l-2 border-transparent hover:bg-bg-elevated hover:text-text-primary hover:border-border text-text-secondary"
                 }`}
               >
                 <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    unpin(item.href);
+                  }}
+                  className="text-[10px] opacity-0 group-hover/pin:opacity-40 hover:!opacity-70 transition-opacity duration-150"
+                  title="Unpin"
+                >
+                  📌
+                </button>
               </Link>
             ))}
           </div>
 
           {/* Collapsible groups */}
           {NAV_GROUPS.map((group) => (
-            <CollapsibleGroup key={group.id} group={group} />
+            <CollapsibleGroup
+              key={group.id}
+              group={group}
+              isPinned={isPinned}
+              isFull={isFull}
+              onPin={pin}
+              onUnpin={unpin}
+            />
           ))}
 
           {/* Admin */}
@@ -136,6 +176,19 @@ export function Sidebar({ unreadCount = 0 }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* Context menu for pinned items */}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          isPinned={isPinned(menu.href)}
+          isFull={isFull()}
+          onPin={() => pin(menu.href)}
+          onUnpin={() => unpin(menu.href)}
+          onClose={() => setMenu(null)}
+        />
+      )}
 
       {/* Command palette portal */}
       <CommandPalette open={paletteOpen} onClose={closePalette} />
