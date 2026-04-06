@@ -6,10 +6,24 @@ import { AppShell } from "@/components/layout/AppShell";
 export const metadata: Metadata = {
   title: "TM Hub",
   description: "Torn.com faction toolkit for The Masters",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "TM Hub",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", sizes: "512x512" },
+    ],
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  themeColor: "#0d1117",
 };
 
 export default function RootLayout({
