@@ -5,18 +5,21 @@ import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { NAV_GROUPS } from "@/lib/nav-data";
 import { BottomSheet } from "./BottomSheet";
+import { useChatAccess } from "@/hooks/useChatAccess";
 import type { NavGroup } from "@/lib/nav-data";
 
 interface BottomNavBarProps {
   unreadCount?: number;
+  chatUnread?: number;
   role?: string | null;
   showVersionBadge?: boolean;
 }
 
-export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }: BottomNavBarProps) {
+export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersionBadge = false }: BottomNavBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeSheet, setActiveSheet] = useState<NavGroup | null>(null);
+  const { canAccess: canAccessChat } = useChatAccess();
 
   // Main groups shown as direct tabs
   const mainGroups = NAV_GROUPS.filter((g) =>
@@ -43,6 +46,17 @@ export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }
     items: moreItems,
   };
 
+  const chatTab = canAccessChat
+    ? [
+        {
+          id: "chat",
+          label: "Chat",
+          icon: "💬",
+          action: () => router.push("/chat"),
+        },
+      ]
+    : [];
+
   const tabs = [
     {
       id: "home",
@@ -56,6 +70,7 @@ export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }
       icon: g.icon,
       action: () => setActiveSheet((prev) => (prev?.id === g.id ? null : g)),
     })),
+    ...chatTab,
     {
       id: "more",
       label: "More",
@@ -67,6 +82,7 @@ export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }
 
   function isTabActive(tabId: string): boolean {
     if (tabId === "home") return pathname.startsWith("/dashboard");
+    if (tabId === "chat") return pathname.startsWith("/chat");
     if (tabId === "more") {
       return moreGroup.items.some((item) => pathname.startsWith(item.href));
     }
@@ -96,6 +112,14 @@ export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }
                     style={{ animation: "tm-badge-pop 2s ease-in-out infinite" }}
                   >
                     {unreadCount}
+                  </span>
+                )}
+                {tab.id === "chat" && chatUnread > 0 && (
+                  <span
+                    className="absolute top-1 right-1/4 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] bg-torn-green text-white px-1 rounded-full font-bold"
+                    style={{ animation: "tm-badge-pop 2s ease-in-out infinite" }}
+                  >
+                    {chatUnread > 99 ? "99+" : chatUnread}
                   </span>
                 )}
               </button>
