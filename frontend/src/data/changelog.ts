@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.4.0";
+export const CURRENT_VERSION = "1.4.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.4.1",
+    date: "2026-04-06",
+    title: "Chat Mobile Fix",
+    changes: [
+      { type: "fix", text: "Chat no longer goes blank when keyboard opens on mobile" },
+      { type: "fix", text: "Footer hidden on chat page — input now sits cleanly above bottom nav" },
+    ],
+  },
   {
     version: "1.4.0",
     date: "2026-04-06",
