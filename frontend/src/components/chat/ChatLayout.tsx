@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
 import { ChannelList } from "./ChannelList";
@@ -21,10 +22,21 @@ export function ChatLayout() {
     selectChannel, sendMessage, sendTyping, loadOlder, loadChannels, removeMessage,
   } = useChat();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [showCreateThread, setShowCreateThread] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [mobileView, setMobileView] = useState<"channels" | "chat">("channels");
+
+  // Update URL when channel/thread changes (without full navigation)
+  const updateUrl = useCallback((channelId: number | null, threadId: number | null) => {
+    const params = new URLSearchParams();
+    if (channelId) params.set("channel", String(channelId));
+    if (threadId) params.set("thread", String(threadId));
+    const qs = params.toString();
+    window.history.replaceState(null, "", `/chat${qs ? `?${qs}` : ""}`);
+  }, []);
   const [members, setMembers] = useState<{ player_id: number; name: string }[]>([]);
   const memberMap = useMemo<Record<number, string>>(() => {
     const m: Record<number, string> = {};
@@ -46,11 +58,44 @@ export function ChatLayout() {
       .map(t => t.player_name);
   }, [typingPlayers]);
 
+  // Restore channel/thread from URL on first load
+  const restoredRef = useMemo(() => ({ done: false }), []);
+  useEffect(() => {
+    if (restoredRef.done || channels.length === 0) return;
+    restoredRef.done = true;
+    const chParam = searchParams.get("channel");
+    if (chParam) {
+      const chId = Number(chParam);
+      if (channels.some(c => c.id === chId)) {
+        selectChannel(chId);
+        setMobileView("chat");
+        // Thread restore happens after channel is loaded — handled by threadParam below
+        const thParam = searchParams.get("thread");
+        if (thParam) {
+          const thId = Number(thParam);
+          const ch = channels.find(c => c.id === chId);
+          if (ch?.type === "forum") {
+            // Fetch thread info and select it
+            api.chatThreadMessages(thId).then(data => {
+              if (data.thread) setSelectedThread(data.thread);
+            }).catch(() => {});
+          }
+        }
+      }
+    }
+  }, [channels, searchParams, selectChannel, restoredRef]);
+
+  const selectThread = useCallback((thread: Thread | null) => {
+    setSelectedThread(thread);
+    updateUrl(activeChannelId, thread?.id ?? null);
+  }, [activeChannelId, updateUrl]);
+
   const handleSelectChannel = (id: number) => {
     setSelectedThread(null);
     setShowAdmin(false);
     selectChannel(id);
     setMobileView("chat");
+    updateUrl(id, null);
   };
 
   if (loading) {
@@ -106,8 +151,8 @@ export function ChatLayout() {
               thread={selectedThread}
               playerId={pid}
               isAdmin={isAdmin}
-              onBack={() => setSelectedThread(null)}
-              onThreadDeleted={() => setSelectedThread(null)}
+              onBack={() => selectThread(null)}
+              onThreadDeleted={() => selectThread(null)}
               memberMap={memberMap}
               members={members}
             />
@@ -130,7 +175,7 @@ export function ChatLayout() {
               <ThreadList
                 channelId={activeChannel.id}
                 isAdmin={isAdmin}
-                onSelectThread={setSelectedThread}
+                onSelectThread={selectThread}
                 onCreateThread={() => setShowCreateThread(true)}
               />
               {showCreateThread && (
@@ -138,7 +183,7 @@ export function ChatLayout() {
                   channelId={activeChannel.id}
                   onCreated={(thread) => {
                     setShowCreateThread(false);
-                    setSelectedThread(thread);
+                    selectThread(thread);
                   }}
                   onCancel={() => setShowCreateThread(false)}
                 />
