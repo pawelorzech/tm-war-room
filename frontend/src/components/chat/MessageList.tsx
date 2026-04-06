@@ -1,0 +1,104 @@
+"use client";
+
+import { useRef, useEffect } from "react";
+import type { Message } from "@/types/chat";
+import { MessageBubble } from "./MessageBubble";
+
+interface Props {
+  messages: Message[];
+  loading: boolean;
+  playerId: number;
+  isAdmin: boolean;
+  onLoadOlder: () => void;
+  typingNames: string[];
+}
+
+function formatDateSeparator(ts: number): string {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = (today.getTime() - msgDay.getTime()) / 86400000;
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+}
+
+export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder, typingNames }: Props) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wasAtBottom = useRef(true);
+
+  // Auto-scroll to bottom on new messages (if already at bottom)
+  useEffect(() => {
+    if (wasAtBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    wasAtBottom.current = atBottom;
+    // Load older when scrolled to top
+    if (el.scrollTop < 50 && messages.length > 0) {
+      onLoadOlder();
+    }
+  };
+
+  // Group messages by date
+  let lastDate = "";
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto"
+    >
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-text-muted text-sm">Loading messages...</div>
+        </div>
+      )}
+
+      {!loading && messages.length === 0 && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-text-muted text-sm">No messages yet. Start the conversation!</div>
+        </div>
+      )}
+
+      <div className="py-2">
+        {messages.map(msg => {
+          const msgDate = formatDateSeparator(msg.created_at);
+          const showSeparator = msgDate !== lastDate;
+          lastDate = msgDate;
+          return (
+            <div key={msg.id}>
+              {showSeparator && (
+                <div className="flex items-center gap-3 px-3 py-2 my-1">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[11px] text-text-muted font-medium">{msgDate}</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+              )}
+              <MessageBubble
+                message={msg}
+                isOwn={msg.player_id === playerId}
+                isAdmin={isAdmin}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {typingNames.length > 0 && (
+        <div className="px-3 py-1 text-xs text-text-muted italic">
+          {typingNames.join(", ")} {typingNames.length === 1 ? "is" : "are"} typing...
+        </div>
+      )}
+
+      <div ref={bottomRef} />
+    </div>
+  );
+}
