@@ -96,6 +96,7 @@ export function ChatLayout() {
               playerId={pid}
               isAdmin={isAdmin}
               onBack={() => setSelectedThread(null)}
+              onThreadDeleted={() => setSelectedThread(null)}
             />
           ) : (
             <>

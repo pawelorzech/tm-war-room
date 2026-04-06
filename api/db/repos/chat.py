@@ -239,6 +239,11 @@ class ChatRepository(BaseRepository):
             (int(pinned), thread_id),
         )
 
+    def delete_thread(self, thread_id: int) -> None:
+        self.mutate("DELETE FROM chat_messages WHERE thread_id = ?", (thread_id,))
+        self.mutate("DELETE FROM chat_read_positions WHERE thread_id = ?", (thread_id,))
+        self.mutate("DELETE FROM chat_threads WHERE id = ?", (thread_id,))
+
     # ── Read tracking ─────────────────────────────────────────
 
     def update_read_position(

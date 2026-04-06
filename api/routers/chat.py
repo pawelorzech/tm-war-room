@@ -215,6 +215,14 @@ async def delete_message(message_id: int, x_player_id: int = Header()):
         "type": "delete",
         "payload": {"message_id": message_id, "channel_id": deleted["channel_id"]},
     })
+    # Auto-delete thread if this was the last visible message
+    if deleted.get("thread_id"):
+        remaining = chat_repo.execute(
+            "SELECT COUNT(*) as cnt FROM chat_messages WHERE thread_id = ? AND deleted = 0",
+            (deleted["thread_id"],),
+        )
+        if remaining and remaining[0]["cnt"] == 0:
+            chat_repo.delete_thread(deleted["thread_id"])
     return {"status": "ok"}
 
 
@@ -360,6 +368,18 @@ async def toggle_thread_pin(thread_id: int, x_player_id: int = Header()):
     new_pinned = not bool(thread["pinned"])
     chat_repo.pin_thread(thread_id, new_pinned)
     return {"status": "ok", "pinned": new_pinned}
+
+
+@router.delete("/threads/{thread_id}")
+async def delete_thread(thread_id: int, x_player_id: int = Header()):
+    _verify_member(x_player_id)
+    thread = chat_repo.get_thread(thread_id)
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    if thread["player_id"] != x_player_id and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Only the thread author or an admin can delete this thread")
+    chat_repo.delete_thread(thread_id)
+    return {"status": "ok"}
 
 
 # ── Read tracking ─────────────────────────────────────────────
