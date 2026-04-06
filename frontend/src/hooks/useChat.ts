@@ -17,9 +17,19 @@ export function useChat() {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempt = useRef(0);
   const activeChannelRef = useRef<number | null>(null);
+  const myPlayerIdRef = useRef<number>(0);
+  const myPlayerNameRef = useRef<string>("");
 
   // Keep ref in sync
   activeChannelRef.current = activeChannelId;
+
+  // Update refs from localStorage on mount
+  useEffect(() => {
+    const pid = localStorage.getItem("myKeyPlayer");
+    const name = localStorage.getItem("myKeyName");
+    if (pid) myPlayerIdRef.current = Number(pid);
+    if (name) myPlayerNameRef.current = name;
+  }, []);
 
   // ── Load channels ──────────────────────────────────────
   const loadChannels = useCallback(async () => {
@@ -67,6 +77,26 @@ export function useChat() {
   // ── Send message ───────────────────────────────────────
   const sendMessage = useCallback(async (content: string, mentions: number[] = []) => {
     if (!activeChannelRef.current) return;
+
+    // Optimistic rendering — show message immediately
+    const tempId = -Date.now();
+    const tempMsg: Message = {
+      id: tempId,
+      channel_id: activeChannelRef.current,
+      thread_id: null,
+      player_id: myPlayerIdRef.current,
+      player_name: myPlayerNameRef.current,
+      content,
+      bot_id: null,
+      mentions,
+      pinned: 0,
+      deleted: 0,
+      created_at: Math.floor(Date.now() / 1000),
+      edited_at: null,
+      _optimistic: true,
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
     // Try WebSocket first
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -74,9 +104,16 @@ export function useChat() {
         payload: { channel_id: activeChannelRef.current, content, mentions },
       }));
     } else {
-      // REST fallback
-      const msg = await api.chatSendMessage(activeChannelRef.current, content, mentions);
-      setMessages(prev => [...prev, msg]);
+      // REST fallback — replace optimistic with server response
+      try {
+        const msg = await api.chatSendMessage(activeChannelRef.current, content, mentions);
+        setMessages(prev => prev.map(m => m.id === tempId ? msg : m));
+      } catch {
+        // Mark as failed
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, _optimistic: false, deleted: 1 } : m
+        ));
+      }
     }
   }, []);
 
@@ -141,7 +178,21 @@ export function useChat() {
       case "message": {
         const m = p as unknown as Message;
         if (m.channel_id === activeChannelRef.current) {
-          setMessages(prev => [...prev, m]);
+          // Deduplicate: if this is the echo of our own optimistic message, replace it
+          setMessages(prev => {
+            const optimisticIdx = prev.findIndex(
+              msg => msg._optimistic &&
+              msg.player_id === m.player_id &&
+              msg.content === m.content
+            );
+            if (optimisticIdx !== -1) {
+              // Replace optimistic with server-confirmed message
+              const next = [...prev];
+              next[optimisticIdx] = m;
+              return next;
+            }
+            return [...prev, m];
+          });
           // Mark as read
           api.chatUpdateRead(m.channel_id, m.id).catch(() => {});
         } else {

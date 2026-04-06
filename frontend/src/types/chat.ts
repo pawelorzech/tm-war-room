@@ -24,6 +24,7 @@ export interface Message {
   deleted: number;
   created_at: number;
   edited_at: number | null;
+  _optimistic?: boolean;
 }
 
 export interface Thread {
