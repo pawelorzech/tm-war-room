@@ -27,11 +27,23 @@ export function SendNotification({ adminFetch }: SendNotificationProps) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
+  const [members, setMembers] = useState<{ player_id: number; name: string }[]>([]);
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [showPlayerDropdown, setShowPlayerDropdown] = useState(false);
 
   useEffect(() => {
     adminFetch<{ templates: Template[] }>('/api/admin/push/templates').then(d => setTemplates(d.templates)).catch(() => {});
     adminFetch<{ groups: { id: number; name: string }[] }>('/api/admin/push/groups').then(d => setGroups(d.groups)).catch(() => {});
+    adminFetch<{ keys: { player_id: number; name: string }[] }>('/api/keys').then(d => setMembers(d.keys)).catch(() => {});
   }, [adminFetch]);
+
+  useEffect(() => {
+    const handleClick = () => setShowPlayerDropdown(false);
+    if (showPlayerDropdown) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [showPlayerDropdown]);
 
   const handleTemplateChange = (id: string) => {
     const tid = id === '' ? null : Number(id);
@@ -154,7 +166,7 @@ export function SendNotification({ adminFetch }: SendNotificationProps) {
           ].map(({ value, label }) => (
             <label key={value} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="target" value={value} checked={targetType === value}
-                onChange={e => { setTargetType(e.target.value); setTargetValue(''); }}
+                onChange={e => { setTargetType(e.target.value); setTargetValue(''); setPlayerSearch(''); setShowPlayerDropdown(false); }}
                 className="text-torn-green focus:ring-torn-green/50" />
               <span className="text-sm text-text-primary">{label}</span>
             </label>
@@ -162,9 +174,58 @@ export function SendNotification({ adminFetch }: SendNotificationProps) {
         </div>
 
         {targetType === 'player' && (
-          <input value={targetValue} onChange={e => setTargetValue(e.target.value)}
-            className="mt-2 w-full px-3 py-2 text-sm bg-bg-elevated border border-border rounded-lg text-text-primary"
-            placeholder="Player ID" />
+          <div className="mt-2 relative">
+            <input
+              value={playerSearch}
+              onChange={e => {
+                setPlayerSearch(e.target.value);
+                setShowPlayerDropdown(true);
+                // If it's a pure number, set as target directly
+                if (/^\d+$/.test(e.target.value.trim())) {
+                  setTargetValue(e.target.value.trim());
+                }
+              }}
+              onFocus={() => setShowPlayerDropdown(true)}
+              className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border rounded-lg text-text-primary"
+              placeholder="Search by name or enter Player ID..."
+            />
+            {targetValue && (
+              <div className="text-[10px] text-torn-green mt-1">
+                Selected: {members.find(m => String(m.player_id) === targetValue)?.name || 'Player'} [{targetValue}]
+              </div>
+            )}
+            {showPlayerDropdown && playerSearch && (
+              <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-bg-surface border border-border rounded-lg shadow-lg">
+                {members
+                  .filter(m => {
+                    const q = playerSearch.toLowerCase();
+                    return m.name.toLowerCase().includes(q) || String(m.player_id).startsWith(q);
+                  })
+                  .slice(0, 20)
+                  .map(m => (
+                    <button
+                      key={m.player_id}
+                      type="button"
+                      onClick={() => {
+                        setTargetValue(String(m.player_id));
+                        setPlayerSearch(m.name);
+                        setShowPlayerDropdown(false);
+                      }}
+                      className="w-full px-3 py-2 text-sm text-left hover:bg-bg-elevated text-text-primary flex justify-between"
+                    >
+                      <span>{m.name}</span>
+                      <span className="text-text-muted text-xs">[{m.player_id}]</span>
+                    </button>
+                  ))}
+                {members.filter(m => {
+                  const q = playerSearch.toLowerCase();
+                  return m.name.toLowerCase().includes(q) || String(m.player_id).startsWith(q);
+                }).length === 0 && (
+                  <div className="px-3 py-2 text-xs text-text-muted">No members found. Type a raw ID to send to anyone.</div>
+                )}
+              </div>
+            )}
+          </div>
         )}
         {targetType === 'role' && (
           <select value={targetValue} onChange={e => setTargetValue(e.target.value)}
