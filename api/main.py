@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import os
 import time
@@ -191,6 +192,32 @@ async def lifespan(app: FastAPI):
     chat_mod.settings_repo = settings_repo
     admin_mod._settings_repo = settings_repo
 
+    # Auto-provision Revive Monitor bot and channel
+    from api.bots import revive_monitor as revive_bot_mod
+    _revive_channel = chat_repo.get_channel_by_name("revives")
+    if not _revive_channel:
+        _revive_ch_id = chat_repo.create_channel(
+            name="revives", description="Revive status warnings from the bot",
+            ch_type="chat", position=99, admin_only=False, created_by=SUPERADMIN_ID,
+        )
+        logger.info("Auto-created 'revives' chat channel (id=%d)", _revive_ch_id)
+        _revive_channel = chat_repo.get_channel(_revive_ch_id)
+
+    _revive_bot = chat_repo.get_bot_by_name("Revive Monitor")
+    if not _revive_bot:
+        import uuid as _uuid
+        _bot_token = str(_uuid.uuid4())
+        _bot_id = chat_repo.create_bot(
+            name="Revive Monitor", token=_bot_token,
+            allowed_channels=json.dumps([_revive_channel["id"]]),
+            created_by=SUPERADMIN_ID,
+        )
+        logger.info("Auto-created 'Revive Monitor' bot (id=%d)", _bot_id)
+
+    # Wire up revive_monitor notify function
+    from api.routers.chat import _notify_mentions
+    revive_bot_mod._notify_mentions_fn = _notify_mentions
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -203,6 +230,8 @@ async def lifespan(app: FastAPI):
         "notification_repo": notification_repo,
         "push_service": push_service,
         "notification_dispatcher": notification_dispatcher,
+        "chat_repo": chat_repo,
+        "chat_manager": chat_mgr,
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
