@@ -33,12 +33,23 @@ def _verify_member(player_id: int):
     all_keys = key_store.get_all_keys() if key_store else []
     if not any(k["player_id"] == player_id for k in all_keys):
         raise HTTPException(status_code=403, detail="Not a faction member")
+    _check_chat_access(player_id)
 
 
 def _is_admin(player_id: int) -> bool:
     if player_id == SUPERADMIN_ID:
         return True
     return key_store.is_admin(player_id) if key_store else False
+
+
+def _check_chat_access(player_id: int):
+    """Block non-admins when chat is in beta (admin-only) mode."""
+    if _is_admin(player_id):
+        return
+    if settings_repo:
+        enabled = settings_repo.get("chat_enabled_for_all")
+        if enabled != "true":
+            raise HTTPException(status_code=403, detail="Chat is currently in beta — admin only")
 
 
 def _auth_bot(authorization: str) -> dict:
@@ -527,6 +538,14 @@ async def chat_websocket(ws: WebSocket, player_id: int):
     if not any(k["player_id"] == player_id for k in all_keys):
         await ws.close(code=4003, reason="not_authorized")
         return
+
+    # Check chat access (beta gate)
+    if not _is_admin(player_id):
+        if settings_repo:
+            enabled = settings_repo.get("chat_enabled_for_all")
+            if enabled != "true":
+                await ws.close(code=4003, reason="Chat is in beta — admin only")
+                return
 
     await chat_manager.connect(player_id, ws)
     try:
