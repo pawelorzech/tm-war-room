@@ -38,6 +38,10 @@ class PushRepository(BaseRepository):
                 result.append(d)
         return result
 
+    def get_all_subscribers(self) -> list[dict]:
+        rows = self.execute("SELECT * FROM push_subscriptions")
+        return [dict(r) for r in rows]
+
     def get_by_player_and_preference(self, player_id: int, event_type: str) -> list[dict]:
         """Get subscriptions for a specific player where the event preference is true."""
         rows = self.execute(
