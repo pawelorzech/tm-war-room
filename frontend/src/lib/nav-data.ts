@@ -13,59 +13,78 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const PINNED_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: "🏠" },
-  { label: "Our Team", href: "/team", icon: "👥" },
-  { label: "Chain Tracker", href: "/chain", icon: "🔗" },
-  { label: "Market", href: "/market", icon: "🛒" },
-  { label: "Stocks", href: "/stocks", icon: "📉" },
-  { label: "NPC Loot", href: "/loot", icon: "💰" },
+/** Default pinned hrefs for new users */
+export const DEFAULT_PINNED_HREFS: string[] = [
+  "/dashboard",
+  "/team",
+  "/chain",
 ];
+
+export const MAX_PINNED = 8;
+
+export const DASHBOARD_ITEM: NavItem = {
+  label: "Dashboard",
+  href: "/dashboard",
+  icon: "🏠",
+};
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    id: "faction",
-    label: "Faction",
+    id: "warfare",
+    label: "Warfare",
     icon: "⚔️",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: "🏠" },
-      { label: "Our Team", href: "/team", icon: "👥" },
       { label: "Enemies", href: "/enemies", icon: "⚔️" },
-      { label: "Activity", href: "/activity", icon: "🟢" },
+      { label: "Targets", href: "/targets", icon: "🎯" },
+      { label: "Stakeout", href: "/stakeout", icon: "👁️" },
+      { label: "Spy Central", href: "/spy", icon: "🔍" },
+      { label: "Compare", href: "/compare", icon: "⚖️" },
+      { label: "Bounties", href: "/bounties", icon: "💵" },
       { label: "War Reports", href: "/wars", icon: "📊" },
+      { label: "Chain Tracker", href: "/chain", icon: "🔗" },
+    ],
+  },
+  {
+    id: "economy",
+    label: "Economy",
+    icon: "💰",
+    items: [
+      { label: "Market", href: "/market", icon: "🛒" },
+      { label: "Stocks", href: "/stocks", icon: "📉" },
+      { label: "NPC Loot", href: "/loot", icon: "💰" },
+      { label: "Revives", href: "/revives", icon: "💚" },
+      { label: "Travel", href: "/travel", icon: "✈️" },
+      { label: "Companies", href: "/company", icon: "🏢" },
+    ],
+  },
+  {
+    id: "faction",
+    label: "Faction",
+    icon: "👥",
+    items: [
+      { label: "Our Team", href: "/team", icon: "👥" },
+      { label: "Activity", href: "/activity", icon: "🟢" },
       { label: "OC Planner", href: "/oc", icon: "🕴️" },
       { label: "Analytics", href: "/analytics", icon: "📈" },
       { label: "Notifications", href: "/notifications", icon: "🔔" },
     ],
   },
   {
-    id: "tools",
-    label: "Tools",
-    icon: "🔧",
-    items: [
-      { label: "Chain Tracker", href: "/chain", icon: "🔗" },
-      { label: "Bounties", href: "/bounties", icon: "💵" },
-      { label: "Targets", href: "/targets", icon: "🎯" },
-      { label: "Stakeout", href: "/stakeout", icon: "👁️" },
-      { label: "Spy Central", href: "/spy", icon: "🔍" },
-      { label: "Compare", href: "/compare", icon: "⚖️" },
-      { label: "NPC Loot", href: "/loot", icon: "💰" },
-      { label: "Revives", href: "/revives", icon: "💚" },
-      { label: "Market", href: "/market", icon: "🛒" },
-      { label: "Stocks", href: "/stocks", icon: "📉" },
-      { label: "Travel", href: "/travel", icon: "✈️" },
-      { label: "Companies", href: "/company", icon: "🏢" },
-    ],
-  },
-  {
-    id: "guides",
-    label: "Guides",
-    icon: "📚",
+    id: "training",
+    label: "Training",
+    icon: "💪",
     items: [
       { label: "Training Guide", href: "/training", icon: "💪" },
       { label: "Stat Growth", href: "/stats", icon: "📈" },
-      { label: "Userscripts", href: "/scripts", icon: "🔧" },
       { label: "Awards", href: "/awards", icon: "🏆" },
+    ],
+  },
+  {
+    id: "resources",
+    label: "Resources",
+    icon: "📚",
+    items: [
+      { label: "Userscripts", href: "/scripts", icon: "🔧" },
       { label: "FAQ", href: "/faq", icon: "❓" },
     ],
   },
@@ -74,7 +93,8 @@ export const NAV_GROUPS: NavGroup[] = [
 /** All nav items flattened and deduplicated by href — used by search/command palette */
 export const ALL_NAV_ITEMS: NavItem[] = (() => {
   const seen = new Set<string>();
-  const items: NavItem[] = [];
+  const items: NavItem[] = [DASHBOARD_ITEM];
+  seen.add(DASHBOARD_ITEM.href);
   for (const group of NAV_GROUPS) {
     for (const item of group.items) {
       if (!seen.has(item.href)) {
@@ -108,10 +128,17 @@ export function fuzzyMatch(query: string, target: string): boolean {
 }
 
 /** Search nav items with fuzzy matching, return with group labels */
-export function searchNavItems(query: string): Array<NavItem & { group: string }> {
+export function searchNavItems(
+  query: string,
+): Array<NavItem & { group: string }> {
   if (!query.trim()) return [];
   const results: Array<NavItem & { group: string }> = [];
   const seen = new Set<string>();
+  // Include dashboard
+  if (fuzzyMatch(query, DASHBOARD_ITEM.label)) {
+    results.push({ ...DASHBOARD_ITEM, group: "Home" });
+    seen.add(DASHBOARD_ITEM.href);
+  }
   for (const group of NAV_GROUPS) {
     for (const item of group.items) {
       if (!seen.has(item.href) && fuzzyMatch(query, item.label)) {
