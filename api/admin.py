@@ -246,6 +246,14 @@ async def admin_update_setting(key: str, body: SettingUpdate, admin: dict = Depe
     return {"status": "ok", "key": key, "value": body.value}
 
 
+@router.get("/bots")
+async def admin_list_bots(admin: dict = Depends(require_admin)):
+    """List all chat bots for admin panel."""
+    if not _chat_repo:
+        raise HTTPException(status_code=503, detail="Chat not initialized")
+    return {"bots": _chat_repo.get_bots()}
+
+
 @router.post("/bots/trigger/revive-monitor")
 async def trigger_revive_monitor(admin: dict = Depends(require_admin)):
     """Manually trigger the revive monitor bot."""
