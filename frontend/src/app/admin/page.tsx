@@ -8,8 +8,9 @@ import { ManageAdmins } from "@/components/admin/ManageAdmins";
 import { SpyAdmin } from "@/components/admin/SpyAdmin";
 import { FeatureFlags } from "@/components/admin/FeatureFlags";
 import { PushAdmin } from "@/components/admin/PushAdmin";
+import { BotsAdmin } from "@/components/admin/BotsAdmin";
 
-type Tab = "analytics" | "announcements" | "spy" | "admins" | "settings" | "push";
+type Tab = "analytics" | "announcements" | "spy" | "admins" | "settings" | "push" | "bots";
 
 export default function AdminPage() {
   const { role } = useAuth();
@@ -25,6 +26,7 @@ export default function AdminPage() {
     { id: "spy", label: "Spy Data", show: true },
     { id: "settings", label: "Settings", show: true },
     { id: "admins", label: "Manage Admins", show: role === "superadmin" },
+    { id: "bots", label: "Bots", show: true },
     { id: "push", label: "Push Notifications", show: true },
   ];
 
@@ -51,6 +53,7 @@ export default function AdminPage() {
         {tab === "spy" && <SpyAdmin adminFetch={adminFetch} />}
         {tab === "settings" && <FeatureFlags adminFetch={adminFetch} />}
         {tab === "admins" && role === "superadmin" && <ManageAdmins adminFetch={adminFetch} />}
+        {tab === "bots" && <BotsAdmin adminFetch={adminFetch} />}
         {tab === "push" && <PushAdmin adminFetch={adminFetch} />}
       </div>
     </div>
