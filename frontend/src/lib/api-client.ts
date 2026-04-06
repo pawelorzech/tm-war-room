@@ -130,6 +130,13 @@ export const api = {
     apiFetch<unknown>('/api/push/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferences: prefs }) }),
   pushUnsubscribe: (endpoint: string) =>
     apiFetch<unknown>(`/api/push/unsubscribe?endpoint=${encodeURIComponent(endpoint)}`, { method: 'DELETE' }),
+  // ── PDA Push ─────────────────────────────────────────────
+  pdaRegister: () =>
+    apiFetch<{ status: string }>('/api/push/pda/register', { method: 'POST' }),
+  pdaPoll: () =>
+    apiFetch<{ events: { event_id: number; title: string; body: string; url: string | null; icon: string | null; created_at: string }[] }>('/api/push/pda/poll'),
+  pdaUnregister: () =>
+    apiFetch<{ status: string }>('/api/push/pda/unregister', { method: 'DELETE' }),
   versionStatus: (v: string) => apiFetch<{ dismissed: boolean }>(`/api/version/status?v=${encodeURIComponent(v)}`),
   versionDismiss: (version: string) =>
     apiFetch<{ ok: boolean }>('/api/version/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) }),

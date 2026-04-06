@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 
-export type PushEvent = 'loot_level4' | 'war_start' | 'stakeout_change' | 'oc_ready';
+export type PushEvent = 'loot_level4' | 'war_start' | 'stakeout_change';
 
 export interface PushPreferences {
   loot_level4: boolean;
   war_start: boolean;
   stakeout_change: boolean;
-  oc_ready: boolean;
   [key: string]: boolean;
 }
 
@@ -17,7 +16,6 @@ const DEFAULT_PREFERENCES: PushPreferences = {
   loot_level4: true,
   war_start: true,
   stakeout_change: true,
-  oc_ready: true,
 };
 
 export function usePushNotifications() {
