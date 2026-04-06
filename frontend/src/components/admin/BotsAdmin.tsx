@@ -16,7 +16,7 @@ interface TriggerResult {
   message: string;
 }
 
-export function BotsAdmin({ adminFetch }: { adminFetch: (url: string, init?: RequestInit) => Promise<Response> }) {
+export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: RequestInit) => Promise<T> }) {
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState<number | null>(null);
@@ -24,11 +24,8 @@ export function BotsAdmin({ adminFetch }: { adminFetch: (url: string, init?: Req
 
   const loadBots = useCallback(async () => {
     try {
-      const res = await adminFetch("/api/admin/bots");
-      if (res.ok) {
-        const data = await res.json();
-        setBots(data.bots || []);
-      }
+      const data = await adminFetch<{ bots: Bot[] }>("/api/admin/bots");
+      setBots(data.bots || []);
     } catch {
       /* ignore */
     } finally {
@@ -42,11 +39,8 @@ export function BotsAdmin({ adminFetch }: { adminFetch: (url: string, init?: Req
     setTriggering(1);
     setLastResult(null);
     try {
-      const res = await adminFetch("/api/admin/bots/trigger/revive-monitor", { method: "POST" });
-      if (res.ok) {
-        const data: TriggerResult = await res.json();
-        setLastResult(data);
-      }
+      const data = await adminFetch<TriggerResult>("/api/admin/bots/trigger/revive-monitor", { method: "POST" });
+      setLastResult(data);
     } catch {
       /* ignore */
     } finally {

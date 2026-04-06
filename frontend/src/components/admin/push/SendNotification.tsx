@@ -34,7 +34,7 @@ export function SendNotification({ adminFetch }: SendNotificationProps) {
   useEffect(() => {
     adminFetch<{ templates: Template[] }>('/api/admin/push/templates').then(d => setTemplates(d.templates)).catch(() => {});
     adminFetch<{ groups: { id: number; name: string }[] }>('/api/admin/push/groups').then(d => setGroups(d.groups)).catch(() => {});
-    adminFetch<{ keys: { player_id: number; name: string }[] }>('/api/keys').then(d => setMembers(d.keys)).catch(() => {});
+    adminFetch<{ keys: { player_id: number; player_name: string }[] }>('/api/admin/keys').then(d => setMembers(d.keys.map(k => ({ player_id: k.player_id, name: k.player_name })))).catch(() => {});
   }, [adminFetch]);
 
   useEffect(() => {
