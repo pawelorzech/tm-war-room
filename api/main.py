@@ -160,6 +160,10 @@ async def lifespan(app: FastAPI):
     chat_mod.chat_manager = chat_mgr
     chat_mod.key_store = key_store
     chat_mod.push_service = push_service
+    from api.db.repos.settings import AppSettingsRepository
+    settings_repo = AppSettingsRepository(db_path="data/keys.db")
+    chat_mod.settings_repo = settings_repo
+    admin_mod._settings_repo = settings_repo
 
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
@@ -202,6 +206,13 @@ app.include_router(company_router)
 app.include_router(push_router)
 app.include_router(version_router)
 app.include_router(chat_router)
+
+@app.get("/api/settings/public")
+async def public_settings():
+    from api.db.repos.settings import AppSettingsRepository
+    repo = AppSettingsRepository(db_path="data/keys.db")
+    return repo.get_public()
+
 
 @app.get("/api/status")
 async def app_status():

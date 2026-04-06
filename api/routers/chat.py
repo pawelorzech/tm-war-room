@@ -20,6 +20,7 @@ chat_repo: ChatRepository | None = None
 chat_manager: ChatManager | None = None
 key_store = None
 push_service = None
+settings_repo = None
 
 
 def _not_ready():
