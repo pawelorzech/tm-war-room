@@ -9,7 +9,7 @@ TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (Fast
 ## Commands
 
 ```bash
-# Backend tests (79 tests, async)
+# Backend tests (235 tests, async)
 uv run pytest tests/ -v
 uv run pytest tests/test_threat.py -v          # single file
 uv run pytest tests/test_routes.py -k "enemy"  # by keyword
@@ -33,10 +33,10 @@ FastAPI app in `api/main.py` with module-level globals (`torn_client`, `key_stor
 
 - **`api/torn_client.py`** — async Torn API v1/v2 + YATA client with in-memory TTL cache
 - **`api/db/`** — SQLite via `BaseRepository` pattern (`repos/base.py`): each repo gets a fresh `sqlite3.connect()` per call, WAL mode. `KeyStore` in `db/__init__.py` is a facade over `KeyRepository` + `AnnouncementRepository`
-- **`api/db/migrations/`** — numbered SQL files (`001_*.sql`..`011_*.sql`) applied automatically by `runner.py` on startup against `data/keys.db`
-- **`api/routers/`** — feature routers: spy, stats, market, chain, awards, targets, loot, revives
+- **`api/db/migrations/`** — numbered SQL files (`001_*.sql`..`020_*.sql`) applied automatically by `runner.py` on startup against `data/keys.db`
+- **`api/routers/`** — 18 feature routers: spy, stats, market, chain, awards, targets, loot, revives, bounties, stocks, travel, oc, wars, stakeout, notifications, company, push, version
 - **`api/admin.py`** — admin panel router (JWT-based admin auth, separate from member auth)
-- **`api/scheduler/`** — APScheduler 4.x background jobs (stat collection daily 4:00 UTC, spy refresh every 30min)
+- **`api/scheduler/`** — APScheduler 4.x background jobs (data refresh every 30s, stat collection every 15min, spy refresh every 30min, circulation every 15min)
 - **`api/threat.py`** — threat scoring: relative (stat-based via spy estimates) or absolute (personalstats ratios)
 
 All data lives in `data/keys.db` (created at runtime, gitignored).
@@ -47,7 +47,9 @@ Next.js 15 with `output: "export"` (static HTML). Built output goes to `frontend
 
 - **`src/lib/api-client.ts`** — centralized `apiFetch` wrapper; adds `X-Player-Id` header from localStorage, handles 401 auto-logout
 - **`src/hooks/`** — data-fetching hooks per domain (`useWarData`, `useEnemyData`, `useTeamData`, `useAuth`, etc.)
-- **`src/components/layout/`** — `AppShell` (sidebar + content), `AuthGate` (login wall), `Sidebar`, `MobileDrawer`
+- **`src/components/layout/`** — `AppShell` (sidebar + banner + footer), `AuthGate` (login wall), `Sidebar` (desktop, collapsible groups with pin/unpin)
+- **`src/components/nav/`** — `BottomNavBar` + `BottomSheet` (mobile), `CollapsibleGroup`, `SearchBar`, `CommandPalette` (Cmd+K)
+- **`src/data/changelog.ts`** — `CURRENT_VERSION` + `CHANGELOG` entries (source of truth for versioning)
 - **`src/types/`** — TypeScript interfaces matching API responses
 
 ### Auth flow
