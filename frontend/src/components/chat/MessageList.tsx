@@ -30,9 +30,22 @@ export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder,
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasAtBottom = useRef(true);
+  const prevLenRef = useRef(0);
 
   // Auto-scroll to bottom on new messages (if already at bottom)
   useEffect(() => {
+    if (messages.length === 0) {
+      prevLenRef.current = 0;
+      return;
+    }
+    const wasEmpty = prevLenRef.current === 0;
+    prevLenRef.current = messages.length;
+
+    if (wasEmpty) {
+      // Fresh channel load — jump to bottom instantly
+      bottomRef.current?.scrollIntoView();
+      return;
+    }
     if (wasAtBottom.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
