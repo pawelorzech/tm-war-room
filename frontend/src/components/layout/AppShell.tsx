@@ -14,6 +14,8 @@ import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useVersionNotice } from "@/hooks/useVersionNotice";
 import { useChatAccess } from "@/hooks/useChatAccess";
 import { api } from "@/lib/api-client";
+import { PDAProvider } from '@/contexts/PDAContext';
+import { usePDAPolling } from '@/hooks/usePDAPolling';
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
@@ -50,6 +52,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       navigator.serviceWorker.register("/sw.js");
     }
   }, []);
+
+  usePDAPolling();
 
   if (!isLoggedIn) {
     return <>{children}</>;
@@ -159,8 +163,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGate>
-      <ShellContent>{children}</ShellContent>
-    </AuthGate>
+    <PDAProvider>
+      <AuthGate>
+        <ShellContent>{children}</ShellContent>
+      </AuthGate>
+    </PDAProvider>
   );
 }

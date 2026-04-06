@@ -7,8 +7,9 @@ import { AnnouncementEditor } from "@/components/admin/AnnouncementEditor";
 import { ManageAdmins } from "@/components/admin/ManageAdmins";
 import { SpyAdmin } from "@/components/admin/SpyAdmin";
 import { FeatureFlags } from "@/components/admin/FeatureFlags";
+import { PushAdmin } from "@/components/admin/PushAdmin";
 
-type Tab = "analytics" | "announcements" | "spy" | "admins" | "settings";
+type Tab = "analytics" | "announcements" | "spy" | "admins" | "settings" | "push";
 
 export default function AdminPage() {
   const { role } = useAuth();
@@ -24,6 +25,7 @@ export default function AdminPage() {
     { id: "spy", label: "Spy Data", show: true },
     { id: "settings", label: "Settings", show: true },
     { id: "admins", label: "Manage Admins", show: role === "superadmin" },
+    { id: "push", label: "Push Notifications", show: true },
   ];
 
   return (
@@ -49,6 +51,7 @@ export default function AdminPage() {
         {tab === "spy" && <SpyAdmin adminFetch={adminFetch} />}
         {tab === "settings" && <FeatureFlags adminFetch={adminFetch} />}
         {tab === "admins" && role === "superadmin" && <ManageAdmins adminFetch={adminFetch} />}
+        {tab === "push" && <PushAdmin adminFetch={adminFetch} />}
       </div>
     </div>
   );
