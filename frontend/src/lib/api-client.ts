@@ -133,6 +133,9 @@ export const api = {
   versionStatus: (v: string) => apiFetch<{ dismissed: boolean }>(`/api/version/status?v=${encodeURIComponent(v)}`),
   versionDismiss: (version: string) =>
     apiFetch<{ ok: boolean }>('/api/version/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) }),
+  // ── Settings ──────────────────────────────────────────────
+  publicSettings: () => apiFetch<Record<string, string>>("/api/settings/public"),
+
   // ── Chat ──────────────────────────────────────────────────
   chatChannels: () => apiFetch<{ channels: import("@/types/chat").Channel[] }>("/api/chat/channels"),
   chatMessages: (channelId: number, before?: number, limit = 50) =>
