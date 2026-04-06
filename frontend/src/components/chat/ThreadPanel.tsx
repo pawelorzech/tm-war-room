@@ -76,15 +76,41 @@ export function ThreadPanel({ thread, playerId, isAdmin, onBack }: Props) {
             <div className="flex gap-1">
               <button
                 onClick={handleTogglePin}
-                className="text-[11px] px-2 py-1 rounded bg-bg-elevated text-text-muted hover:text-torn-yellow"
+                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
+                  thread.pinned
+                    ? "bg-torn-yellow/15 border-torn-yellow/30 text-torn-yellow hover:bg-torn-yellow/25"
+                    : "bg-bg-elevated border-border text-text-muted hover:text-torn-yellow hover:border-torn-yellow/30"
+                }`}
+                title={thread.pinned ? "Unpin thread" : "Pin thread"}
               >
-                {thread.pinned ? "unpin" : "pin"}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={thread.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/>
+                </svg>
+                {thread.pinned ? "Unpin" : "Pin"}
               </button>
               <button
                 onClick={handleToggleLock}
-                className="text-[11px] px-2 py-1 rounded bg-bg-elevated text-text-muted hover:text-torn-red"
+                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
+                  thread.locked
+                    ? "bg-torn-red/15 border-torn-red/30 text-torn-red hover:bg-torn-red/25"
+                    : "bg-bg-elevated border-border text-text-muted hover:text-torn-red hover:border-torn-red/30"
+                }`}
+                title={thread.locked ? "Unlock thread" : "Lock thread"}
               >
-                {thread.locked ? "unlock" : "lock"}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {thread.locked ? (
+                    <>
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </>
+                  ) : (
+                    <>
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 019.9-1"/>
+                    </>
+                  )}
+                </svg>
+                {thread.locked ? "Unlock" : "Lock"}
               </button>
             </div>
           )}

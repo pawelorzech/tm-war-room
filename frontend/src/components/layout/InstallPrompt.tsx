@@ -97,11 +97,11 @@ export function InstallPrompt() {
         {/* Content */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-text-primary">
-            Zainstaluj TM Hub
+            Install TM Hub
           </p>
           {showIOS ? (
             <p className="text-xs text-text-secondary mt-1">
-              Kliknij{" "}
+              Tap{" "}
               <span className="inline-flex items-center align-middle">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-torn-blue">
                   <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
@@ -109,11 +109,11 @@ export function InstallPrompt() {
                   <line x1="12" y1="2" x2="12" y2="15"/>
                 </svg>
               </span>{" "}
-              Udostępnij → <strong>Dodaj do ekranu głównego</strong>
+              Share → <strong>Add to Home Screen</strong>
             </p>
           ) : (
             <p className="text-xs text-text-secondary mt-1">
-              Dodaj do ekranu głównego — szybki dostęp jak natywna apka
+              Add to your home screen — quick access like a native app
             </p>
           )}
 
@@ -124,14 +124,14 @@ export function InstallPrompt() {
                 onClick={install}
                 className="px-3 py-1.5 text-xs font-semibold rounded-md bg-torn-green/15 text-torn-green border border-torn-green/30 hover:bg-torn-green/25 transition-colors"
               >
-                Zainstaluj
+                Install
               </button>
             )}
             <button
               onClick={dismiss}
               className="px-3 py-1.5 text-xs font-medium rounded-md text-text-muted hover:text-text-secondary transition-colors"
             >
-              Może później
+              Maybe later
             </button>
           </div>
         </div>
@@ -140,7 +140,7 @@ export function InstallPrompt() {
         <button
           onClick={dismiss}
           className="shrink-0 text-text-muted hover:text-text-primary transition-colors p-1"
-          aria-label="Zamknij"
+          aria-label="Close"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/>

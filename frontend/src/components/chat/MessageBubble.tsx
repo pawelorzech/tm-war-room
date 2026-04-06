@@ -137,32 +137,40 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted }: Props) {
 
       {/* Actions */}
       {showActions && !editing && (isOwn || isAdmin) && (
-        <div className="flex items-start gap-1 shrink-0 mt-0.5">
+        <div className="flex items-start gap-0.5 shrink-0 mt-1 bg-bg-surface border border-border rounded-md shadow-sm px-1 py-0.5">
           {isOwn && !isBot && (
             <button
               onClick={() => { setEditContent(message.content); setEditing(true); }}
-              className="text-[11px] text-text-muted hover:text-text-primary px-1"
+              className="p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors"
               title="Edit"
             >
-              edit
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
             </button>
           )}
           {isAdmin && (
             <button
               onClick={handlePin}
-              className="text-[11px] text-text-muted hover:text-torn-yellow px-1"
-              title={message.pinned ? "Unpin" : "Pin"}
+              className={`p-1 rounded hover:bg-bg-elevated transition-colors ${message.pinned ? "text-torn-yellow" : "text-text-muted hover:text-torn-yellow"}`}
+              title={message.pinned ? "Unpin message" : "Pin message"}
             >
-              {message.pinned ? "unpin" : "pin"}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={message.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/>
+              </svg>
             </button>
           )}
           {(isOwn || isAdmin) && (
             <button
               onClick={handleDelete}
-              className="text-[11px] text-text-muted hover:text-torn-red px-1"
-              title="Delete"
+              className="p-1 rounded hover:bg-torn-red/10 text-text-muted hover:text-torn-red transition-colors"
+              title="Delete message"
             >
-              del
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              </svg>
             </button>
           )}
         </div>
