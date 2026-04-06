@@ -217,6 +217,8 @@ export const api = {
   chatDeleteBot: (botId: number) =>
     apiFetch<{ status: string }>(`/api/chat/bots/${botId}`, { method: "DELETE" }),
 
+  listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
+
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
