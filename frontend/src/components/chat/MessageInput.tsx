@@ -178,7 +178,7 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
           disabled={disabled}
           placeholder={disabled ? "You are muted" : placeholder || "Type a message... (Enter to send, Shift+Enter for newline)"}
           rows={1}
-          className="flex-1 resize-none bg-bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 resize-none bg-bg-surface border border-border rounded-lg px-3 py-2 text-base sm:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
           onClick={handleSubmit}

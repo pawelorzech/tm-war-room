@@ -41,7 +41,7 @@ export function CreateThreadDialog({ channelId, onCreated, onCancel }: Props) {
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="Topic title"
-          className="w-full bg-bg-surface border border-border rounded px-3 py-2 text-sm text-text-primary placeholder:text-text-muted mb-2 focus:outline-none focus:border-torn-green/50"
+          className="w-full bg-bg-surface border border-border rounded px-3 py-2 text-base sm:text-sm text-text-primary placeholder:text-text-muted mb-2 focus:outline-none focus:border-torn-green/50"
           autoFocus
         />
         <textarea
@@ -49,7 +49,7 @@ export function CreateThreadDialog({ channelId, onCreated, onCancel }: Props) {
           onChange={e => setContent(e.target.value)}
           placeholder="What do you want to discuss?"
           rows={4}
-          className="w-full bg-bg-surface border border-border rounded px-3 py-2 text-sm text-text-primary placeholder:text-text-muted mb-2 resize-none focus:outline-none focus:border-torn-green/50"
+          className="w-full bg-bg-surface border border-border rounded px-3 py-2 text-base sm:text-sm text-text-primary placeholder:text-text-muted mb-2 resize-none focus:outline-none focus:border-torn-green/50"
         />
         {error && <div className="text-torn-red text-xs mb-2">{error}</div>}
         <div className="flex justify-end gap-2">
