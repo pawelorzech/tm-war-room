@@ -4,16 +4,34 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ContextMenu } from "./ContextMenu";
 import type { NavGroup } from "@/lib/nav-data";
 
 interface CollapsibleGroupProps {
   group: NavGroup;
+  isPinned: (href: string) => boolean;
+  isFull: () => boolean;
+  onPin: (href: string) => void;
+  onUnpin: (href: string) => void;
 }
 
-export function CollapsibleGroup({ group }: CollapsibleGroupProps) {
+interface MenuState {
+  x: number;
+  y: number;
+  href: string;
+}
+
+export function CollapsibleGroup({
+  group,
+  isPinned,
+  isFull,
+  onPin,
+  onUnpin,
+}: CollapsibleGroupProps) {
   const pathname = usePathname();
   const hasActivePage = group.items.some((item) => pathname.startsWith(item.href));
   const [open, setOpen] = useState(hasActivePage);
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
   // Auto-expand when navigating to a page in this group
   useEffect(() => {
@@ -26,7 +44,10 @@ export function CollapsibleGroup({ group }: CollapsibleGroupProps) {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-1.5 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted hover:text-text-secondary transition-colors duration-200"
       >
-        <span className="text-[9px] transition-transform duration-200" style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>
+        <span
+          className="text-[9px] transition-transform duration-200"
+          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+        >
           ▶
         </span>
         <span>{group.label}</span>
@@ -42,22 +63,54 @@ export function CollapsibleGroup({ group }: CollapsibleGroupProps) {
         >
           {group.items.map((item) => {
             const active = pathname.startsWith(item.href);
+            const pinned = isPinned(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-4 py-1.5 text-sm transition-all duration-200 ${
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, href: item.href });
+                }}
+                className={`group/item flex items-center gap-2 px-4 py-1.5 text-sm transition-all duration-200 ${
                   active
                     ? "border-l-2 border-torn-green bg-torn-green/10 text-text-primary shadow-[inset_3px_0_8px_-4px_rgba(63,185,80,0.25)]"
                     : "border-l-2 border-transparent hover:bg-bg-elevated hover:text-text-primary hover:border-border text-text-secondary"
                 }`}
               >
                 <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    pinned ? onUnpin(item.href) : onPin(item.href);
+                  }}
+                  className={`text-[10px] transition-opacity duration-150 ${
+                    pinned
+                      ? "opacity-40 hover:opacity-70"
+                      : "opacity-0 group-hover/item:opacity-30 hover:!opacity-70"
+                  }`}
+                  title={pinned ? "Unpin" : "Pin to top"}
+                >
+                  📌
+                </button>
               </Link>
             );
           })}
         </div>
+      )}
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          isPinned={isPinned(menu.href)}
+          isFull={isFull()}
+          onPin={() => onPin(menu.href)}
+          onUnpin={() => onUnpin(menu.href)}
+          onClose={() => setMenu(null)}
+        />
       )}
     </div>
   );
