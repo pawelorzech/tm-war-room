@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
@@ -78,24 +78,23 @@ export function ChatLayout() {
       .map(t => t.player_name);
   }, [typingPlayers]);
 
-  // Restore channel/thread from URL on first load
-  const restoredRef = useMemo(() => ({ done: false }), []);
+  // Select channel from URL (?channel=X) — handles initial load AND Cmd+K navigation
+  const lastProcessedChannel = useRef<string | null>(null);
   useEffect(() => {
-    if (restoredRef.done || channels.length === 0) return;
-    restoredRef.done = true;
+    if (channels.length === 0) return;
     const chParam = searchParams.get("channel");
+    if (chParam === lastProcessedChannel.current) return;
+    lastProcessedChannel.current = chParam;
     if (chParam) {
       const chId = Number(chParam);
       if (channels.some(c => c.id === chId)) {
         selectChannel(chId);
         setMobileView("chat");
-        // Thread restore happens after channel is loaded — handled by threadParam below
         const thParam = searchParams.get("thread");
         if (thParam) {
           const thId = Number(thParam);
           const ch = channels.find(c => c.id === chId);
           if (ch?.type === "forum") {
-            // Fetch thread info and select it
             api.chatThreadMessages(thId).then(data => {
               if (data.thread) setSelectedThread(data.thread);
             }).catch(() => {});
@@ -103,7 +102,7 @@ export function ChatLayout() {
         }
       }
     }
-  }, [channels, searchParams, selectChannel, restoredRef]);
+  }, [channels, searchParams, selectChannel]);
 
   const selectThread = useCallback((thread: Thread | null) => {
     setSelectedThread(thread);
