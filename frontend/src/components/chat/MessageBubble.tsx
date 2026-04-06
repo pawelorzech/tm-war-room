@@ -9,6 +9,7 @@ interface Props {
   isOwn: boolean;
   isAdmin: boolean;
   onDeleted?: (id: number) => void;
+  memberMap?: Record<number, string>;
 }
 
 function formatTime(ts: number): string {
@@ -24,12 +25,37 @@ function formatTime(ts: number): string {
     " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function renderContent(content: string, mentions: number[]): React.ReactNode {
-  if (mentions.length === 0) return content;
-  // Highlight @mentions in the text
-  const parts = content.split(/(@\w+)/g);
+function renderContent(
+  content: string,
+  mentions: number[],
+  memberMap: Record<number, string> = {}
+): React.ReactNode {
+  // Build a name→id lookup from mentions + memberMap
+  const nameToId: Record<string, number> = {};
+  for (const pid of mentions) {
+    const name = memberMap[pid];
+    if (name) nameToId[name.toLowerCase()] = pid;
+  }
+
+  const parts = content.split(/(@[\w[\]]+)/g);
   return parts.map((part, i) => {
     if (part.startsWith("@")) {
+      const name = part.slice(1);
+      const pid = nameToId[name.toLowerCase()];
+      if (pid) {
+        return (
+          <a
+            key={i}
+            href={`https://www.torn.com/profiles.php?XID=${pid}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded hover:underline cursor-pointer"
+          >
+            {part}
+          </a>
+        );
+      }
+      // @mention found in text but not in mentions list — still style it
       return (
         <span key={i} className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded">
           {part}
@@ -40,7 +66,7 @@ function renderContent(content: string, mentions: number[]): React.ReactNode {
   });
 }
 
-export function MessageBubble({ message, isOwn, isAdmin, onDeleted }: Props) {
+export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {} }: Props) {
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -131,7 +157,7 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted }: Props) {
           </div>
         ) : (
           <div className="text-sm text-text-primary whitespace-pre-wrap break-words">
-            {renderContent(message.content, message.mentions)}
+            {renderContent(message.content, message.mentions, memberMap)}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
 import { ChannelList } from "./ChannelList";
@@ -10,6 +10,7 @@ import { ThreadList } from "./ThreadList";
 import { ThreadPanel } from "./ThreadPanel";
 import { CreateThreadDialog } from "./CreateThreadDialog";
 import { ChatAdmin } from "./ChatAdmin";
+import { api } from "@/lib/api-client";
 import type { Thread, Channel } from "@/types/chat";
 
 export function ChatLayout() {
@@ -24,6 +25,16 @@ export function ChatLayout() {
   const [showCreateThread, setShowCreateThread] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [mobileView, setMobileView] = useState<"channels" | "chat">("channels");
+  const [members, setMembers] = useState<{ player_id: number; name: string }[]>([]);
+  const memberMap = useMemo<Record<number, string>>(() => {
+    const m: Record<number, string> = {};
+    for (const mem of members) m[mem.player_id] = mem.name;
+    return m;
+  }, [members]);
+
+  useEffect(() => {
+    api.listKeys().then(res => setMembers(res.keys)).catch(() => {});
+  }, []);
 
   const isAdmin = role === "admin" || role === "superadmin";
   const pid = playerId ? Number(playerId) : 0;
@@ -97,6 +108,8 @@ export function ChatLayout() {
               isAdmin={isAdmin}
               onBack={() => setSelectedThread(null)}
               onThreadDeleted={() => setSelectedThread(null)}
+              memberMap={memberMap}
+              members={members}
             />
           ) : (
             <>
@@ -160,6 +173,7 @@ export function ChatLayout() {
               onLoadOlder={loadOlder}
               onMessageDeleted={removeMessage}
               typingNames={typingNames}
+              memberMap={memberMap}
             />
 
             {/* Input */}
@@ -172,6 +186,7 @@ export function ChatLayout() {
                   ? "Only admins can post in this channel"
                   : `Message #${activeChannel.name}`
               }
+              members={members}
             />
           </>
         )}
