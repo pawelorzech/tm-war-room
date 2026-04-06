@@ -309,3 +309,25 @@ class TestBots:
         bot = chat_repo.get_bot_by_token("upd-token")
         assert bot["name"] == "NewName"
         assert bot["allowed_channels"] == "[1]"
+
+
+# ── Migration 028 ─────────────────────────────────────────────
+
+class TestChatImprovementsMigration:
+    def test_traveling_channel_seeded(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("traveling")
+        assert ch is not None
+        assert ch["type"] == "chat"
+        assert ch["admin_only"] == 0
+
+    def test_leadership_channel_seeded(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("leadership")
+        assert ch is not None
+        assert ch["type"] == "chat"
+        assert ch["admin_only"] == 1
+
+    def test_announcements_fixed(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("announcements")
+        assert ch is not None
+        assert ch["admin_only"] == 0
+        assert ch["write_restricted"] == 1
