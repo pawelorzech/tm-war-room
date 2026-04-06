@@ -8,15 +8,33 @@ import { AnnouncementCarousel } from "./AnnouncementCarousel";
 import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
 import { InstallPrompt } from "./InstallPrompt";
+import { ChatFAB } from "@/components/chat/ChatFAB";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useVersionNotice } from "@/hooks/useVersionNotice";
+import { useChatAccess } from "@/hooks/useChatAccess";
+import { api } from "@/lib/api-client";
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
   const { active, unreadCount, dismiss } = useAnnouncements();
   const { showNotice, currentVersion, latestEntry, dismiss: dismissVersion } = useVersionNotice();
   const [searchOpen, setSearchOpen] = useState(false);
+  const { canAccess: canAccessChat } = useChatAccess();
+  const [chatUnread, setChatUnread] = useState(0);
+
+  useEffect(() => {
+    if (!canAccessChat || !isLoggedIn) return;
+    let cancelled = false;
+    const poll = () => {
+      api.chatUnread()
+        .then((data) => { if (!cancelled) setChatUnread(data.total); })
+        .catch(() => {});
+    };
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [canAccessChat, isLoggedIn]);
 
   // Register service worker for all authenticated users (PWA + push)
   useEffect(() => {
@@ -33,7 +51,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       {/* Desktop sidebar */}
       <div className="hidden lg:block fixed top-0 left-0 w-[200px] h-full z-40">
-        <Sidebar unreadCount={unreadCount} showVersionBadge={showNotice} />
+        <Sidebar unreadCount={unreadCount} chatUnread={chatUnread} showVersionBadge={showNotice} />
       </div>
 
       {/* Mobile header */}
@@ -71,7 +89,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <MobileSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Mobile bottom nav */}
-      <BottomNavBar unreadCount={unreadCount} role={role} showVersionBadge={showNotice} />
+      <BottomNavBar unreadCount={unreadCount} chatUnread={chatUnread} role={role} showVersionBadge={showNotice} />
 
       {/* Main content */}
       <main className="lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 min-h-screen flex flex-col">
@@ -126,6 +144,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           )}
         </footer>
       </main>
+      {canAccessChat && <ChatFAB unread={chatUnread} />}
       <InstallPrompt />
     </div>
   );
