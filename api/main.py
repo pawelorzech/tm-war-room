@@ -173,6 +173,7 @@ async def lifespan(app: FastAPI):
     admin_push_mod.group_repo = group_repo
     admin_push_mod.dispatcher = notification_dispatcher
     chat_mod.notification_dispatcher = notification_dispatcher
+    chat_mod.torn_client = torn_client
 
     from api.db.repos.version_dismissals import VersionDismissalRepository
     version_mod.dismissal_repo = VersionDismissalRepository(db_path="data/keys.db")
