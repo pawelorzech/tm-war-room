@@ -589,7 +589,7 @@ async def chat_websocket(ws: WebSocket, player_id: int):
                 ch_id = payload.get("channel_id")
                 if ch_id:
                     sender = next((k for k in all_keys if k["player_id"] == player_id), None)
-                    name = sender["name"] if sender else str(player_id)
+                    name = sender["player_name"] if sender else str(player_id)
                     await chat_manager.broadcast(
                         {"type": "typing", "payload": {"channel_id": ch_id, "player_id": player_id, "player_name": name}},
                         exclude=player_id,
@@ -634,13 +634,15 @@ async def _handle_ws_message(player_id: int, payload: dict) -> None:
 
     all_keys = key_store.get_all_keys() if key_store else []
     sender = next((k for k in all_keys if k["player_id"] == player_id), None)
-    name = sender["name"] if sender else str(player_id)
+    name = sender["player_name"] if sender else str(player_id)
 
     msg = chat_repo.create_message(
         channel_id=channel_id, player_id=player_id,
         player_name=name, content=content,
         thread_id=thread_id, mentions=mentions,
     )
+    # Auto-mark own message as read
+    chat_repo.update_read_position(player_id, channel_id, msg["id"], thread_id=thread_id or 0)
     msg_type = "thread_message" if thread_id else "message"
     await chat_manager.broadcast({"type": msg_type, "payload": msg})
     await _notify_mentions(mentions, name, content, channel_id)
