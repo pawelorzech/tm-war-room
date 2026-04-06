@@ -32,6 +32,7 @@ async def _ensure_snapshot(player_id: int) -> bool:
         # Fetch extended stats
         from api.scheduler.jobs.collect_stats import _fetch_extended_personalstats
         ext_ps = await _fetch_extended_personalstats(torn_client, user_key["api_key"])
+        gym_energy = sum(ps.get(k, 0) or 0 for k in ("gymstrength", "gymdefense", "gymspeed", "gymdexterity"))
         stats_repo.insert_snapshot(
             player_id=player_id, snapshot_date=date.today().isoformat(),
             strength=bs["strength"], defense=bs["defense"],
@@ -42,6 +43,7 @@ async def _ensure_snapshot(player_id: int) -> bool:
             networth=ps.get("networth"),
             stat_enhancers_used=ext_ps.get("statenhancersused") or ps.get("statenhancersused"),
             easter_eggs=ext_ps.get("eastereggs"),
+            gym_energy=gym_energy or None,
         )
         return True
     except Exception:
@@ -125,8 +127,13 @@ async def get_growth_leaderboard(days: int = Query(default=30, ge=1, le=365)):
         xanax_d = r.get("xanax_delta") or 0
         refills_d = r.get("refills_delta") or 0
         edrinks_d = r.get("energy_drinks_delta") or 0
-        # Estimate total energy spent training: xanax=250E, refill=150E, energy drink=25E, natural=150E/day
-        energy_spent = (xanax_d * 250) + (refills_d * 150) + (edrinks_d * 25) + (actual_days * 150)
+        # Use real gym energy from Torn personalstats when available
+        end_gym = r.get("end_gym_energy")
+        start_gym = r.get("start_gym_energy")
+        if end_gym is not None and start_gym is not None:
+            energy_spent = end_gym - start_gym
+        else:
+            energy_spent = None
         result.append({
             "player_id": pid,
             "player_name": name_lookup.get(pid, f"#{pid}"),
