@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useChatAccess } from "@/hooks/useChatAccess";
 import { ChatLayout } from "@/components/chat/ChatLayout";
 
-export default function ChatPage() {
+function ChatContent() {
   const router = useRouter();
   const { canAccess, loading } = useChatAccess();
 
@@ -26,4 +27,12 @@ export default function ChatPage() {
   if (!canAccess) return null;
 
   return <ChatLayout />;
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-[60vh] text-text-secondary">Loading...</div>}>
+      <ChatContent />
+    </Suspense>
+  );
 }
