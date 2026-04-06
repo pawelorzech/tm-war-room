@@ -12,33 +12,44 @@ interface BottomNavBarProps {
   role?: string | null;
 }
 
-const MORE_GROUP: NavGroup = {
-  id: "more",
-  label: "More",
-  icon: "•••",
-  items: [
-    { label: "Inbox", href: "/inbox", icon: "📨" },
-    { label: "Admin", href: "/admin", icon: "⚙️" },
-  ],
-};
-
 export function BottomNavBar({ unreadCount = 0, role }: BottomNavBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeSheet, setActiveSheet] = useState<NavGroup | null>(null);
 
-  // Filter "More" items based on role
+  // Main groups shown as direct tabs
+  const mainGroups = NAV_GROUPS.filter((g) =>
+    ["warfare", "economy", "faction"].includes(g.id),
+  );
+
+  // Smaller groups folded into "More"
+  const foldedGroups = NAV_GROUPS.filter((g) =>
+    ["training", "resources"].includes(g.id),
+  );
+
+  const moreItems = [
+    ...foldedGroups.flatMap((g) => g.items),
+    { label: "Inbox", href: "/inbox", icon: "📨" },
+    ...(role && role !== "member"
+      ? [{ label: "Admin", href: "/admin", icon: "⚙️" }]
+      : []),
+  ];
+
   const moreGroup: NavGroup = {
-    ...MORE_GROUP,
-    items: MORE_GROUP.items.filter((item) => {
-      if (item.href === "/admin") return role && role !== "member";
-      return true;
-    }),
+    id: "more",
+    label: "More",
+    icon: "•••",
+    items: moreItems,
   };
 
   const tabs = [
-    { id: "home", label: "Home", icon: "🏠", action: () => router.push("/dashboard") },
-    ...NAV_GROUPS.map((g) => ({
+    {
+      id: "home",
+      label: "Home",
+      icon: "🏠",
+      action: () => router.push("/dashboard"),
+    },
+    ...mainGroups.map((g) => ({
       id: g.id,
       label: g.label,
       icon: g.icon,
@@ -48,13 +59,16 @@ export function BottomNavBar({ unreadCount = 0, role }: BottomNavBarProps) {
       id: "more",
       label: "More",
       icon: "•••",
-      action: () => setActiveSheet((prev) => (prev?.id === "more" ? null : moreGroup)),
+      action: () =>
+        setActiveSheet((prev) => (prev?.id === "more" ? null : moreGroup)),
     },
   ];
 
   function isTabActive(tabId: string): boolean {
     if (tabId === "home") return pathname.startsWith("/dashboard");
-    if (tabId === "more") return ["/inbox", "/admin"].some((p) => pathname.startsWith(p));
+    if (tabId === "more") {
+      return moreGroup.items.some((item) => pathname.startsWith(item.href));
+    }
     const group = NAV_GROUPS.find((g) => g.id === tabId);
     return group?.items.some((item) => pathname.startsWith(item.href)) ?? false;
   }
