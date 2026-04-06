@@ -189,6 +189,7 @@ export const api = {
     }),
   chatUnread: () => apiFetch<import("@/types/chat").UnreadCounts>("/api/chat/unread"),
   chatOnline: () => apiFetch<{ online: number[] }>("/api/chat/online"),
+  chatAdminIds: () => apiFetch<{ admin_ids: number[] }>("/api/chat/admin-ids"),
   chatCreateChannel: (data: { name: string; description?: string; type?: string; position?: number; admin_only?: boolean }) =>
     apiFetch<{ status: string; channel_id: number }>("/api/chat/channels", {
       method: "POST", headers: { "Content-Type": "application/json" },

@@ -7,6 +7,7 @@ import { api } from "@/lib/api-client";
 interface Props {
   channelId: number;
   isAdmin: boolean;
+  canWrite?: boolean;
   onSelectThread: (thread: Thread) => void;
   onCreateThread: () => void;
 }
@@ -19,7 +20,7 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export function ThreadList({ channelId, isAdmin, onSelectThread, onCreateThread }: Props) {
+export function ThreadList({ channelId, isAdmin, canWrite = true, onSelectThread, onCreateThread }: Props) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,12 +41,14 @@ export function ThreadList({ channelId, isAdmin, onSelectThread, onCreateThread 
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex items-center justify-between">
         <h3 className="text-sm font-bold text-text-primary">Topics</h3>
-        <button
-          onClick={onCreateThread}
-          className="text-xs px-2 py-1 bg-torn-green text-bg-primary rounded hover:bg-torn-green/90 transition-colors"
-        >
-          New Topic
-        </button>
+        {canWrite && (
+          <button
+            onClick={onCreateThread}
+            className="text-xs px-2 py-1 bg-torn-green text-bg-primary rounded hover:bg-torn-green/90 transition-colors"
+          >
+            New Topic
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">

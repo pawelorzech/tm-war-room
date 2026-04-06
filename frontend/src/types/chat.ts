@@ -5,6 +5,7 @@ export interface Channel {
   type: "chat" | "forum";
   position: number;
   admin_only: number;
+  write_restricted: number;
   created_at: number;
   created_by: number;
   unread?: number;

@@ -10,6 +10,7 @@ interface Props {
   isAdmin: boolean;
   onDeleted?: (id: number) => void;
   memberMap?: Record<number, string>;
+  adminIds?: Set<number>;
 }
 
 function formatTime(ts: number): string {
@@ -66,7 +67,7 @@ function renderContent(
   });
 }
 
-export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {} }: Props) {
+export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds }: Props) {
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -124,6 +125,11 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
           {isBot && (
             <span className="text-[10px] px-1 py-px rounded bg-torn-blue/20 text-torn-blue font-bold uppercase">
               bot
+            </span>
+          )}
+          {!isBot && adminIds?.has(message.player_id) && (
+            <span className="text-[10px] px-1 py-px rounded bg-torn-green/20 text-torn-green font-bold uppercase">
+              admin
             </span>
           )}
           {message.pinned === 1 && (

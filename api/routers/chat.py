@@ -172,6 +172,8 @@ async def send_message(
         raise HTTPException(status_code=404, detail="Channel not found")
     if ch["admin_only"] and not _is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin-only channel")
+    if ch.get("write_restricted") and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Only admins can post in this channel")
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     if len(body.content) > 4000:
@@ -284,6 +286,8 @@ async def create_thread(
         raise HTTPException(status_code=404, detail="Channel not found")
     if ch["admin_only"] and not _is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin-only channel")
+    if ch.get("write_restricted") and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Only admins can post in this channel")
     if not body.title.strip() or not body.content.strip():
         raise HTTPException(status_code=400, detail="Title and content required")
 
@@ -405,6 +409,17 @@ async def get_unread(x_player_id: int = Header()):
     counts = chat_repo.get_unread_counts(x_player_id)
     total = sum(counts.values())
     return {"channels": counts, "total": total}
+
+
+@router.get("/admin-ids")
+async def get_admin_ids(x_player_id: int = Header()):
+    """Return list of admin player IDs for badge display."""
+    _verify_member(x_player_id)
+    admins = key_store.get_admins() if key_store else []
+    admin_ids = [a["player_id"] for a in admins]
+    if SUPERADMIN_ID not in admin_ids:
+        admin_ids.append(SUPERADMIN_ID)
+    return {"admin_ids": admin_ids}
 
 
 # ── Mutes ─────────────────────────────────────────────────────
@@ -626,6 +641,8 @@ async def _handle_ws_message(player_id: int, payload: dict) -> None:
     if not ch:
         return
     if ch["admin_only"] and not _is_admin(player_id):
+        return
+    if ch.get("write_restricted") and not _is_admin(player_id):
         return
     if thread_id:
         thread = chat_repo.get_thread(thread_id)
