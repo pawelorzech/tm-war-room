@@ -9,6 +9,7 @@ router = APIRouter(prefix="/api/push", tags=["push"])
 push_repo = None       # Set by main.py
 push_service = None    # Set by main.py
 vapid_public_key = None  # Set by main.py
+event_repo = None      # Set by main.py — NotificationEventRepository
 
 
 class SubscribeRequest(BaseModel):
@@ -58,3 +59,54 @@ async def unsubscribe(endpoint: str, x_player_id: int = Header()):
         raise HTTPException(status_code=403, detail="Not your subscription")
     push_repo.delete_by_endpoint(endpoint)
     return {"status": "unsubscribed"}
+
+
+# ── PDA Channel ─────────────────────────────────────────────
+
+@router.post("/pda/register")
+async def pda_register(x_player_id: int = Header()):
+    """Register PDA as notification channel for this player."""
+    sentinel_endpoint = f"pda:{x_player_id}"
+    push_repo.save(
+        player_id=x_player_id,
+        endpoint=sentinel_endpoint,
+        p256dh="",
+        auth="",
+        preferences={"loot_level4": True, "war_start": True, "stakeout_change": True},
+    )
+    # Set channel to pda (save() defaults to webpush)
+    push_repo.mutate(
+        "UPDATE push_subscriptions SET channel = 'pda' WHERE endpoint = ?",
+        (sentinel_endpoint,),
+    )
+    return {"status": "ok"}
+
+
+@router.get("/pda/poll")
+async def pda_poll(x_player_id: int = Header()):
+    """Get pending notifications for this PDA player. Marks them as delivered."""
+    if not event_repo:
+        return {"events": []}
+    pending = event_repo.get_pending_pda(x_player_id)
+    for p in pending:
+        event_repo.mark_delivered(p["delivery_id"])
+    return {
+        "events": [
+            {
+                "event_id": p["event_id"],
+                "title": p["title"],
+                "body": p["body"],
+                "url": p["url"],
+                "icon": p["icon"],
+                "created_at": p["created_at"],
+            }
+            for p in pending
+        ]
+    }
+
+
+@router.delete("/pda/unregister")
+async def pda_unregister(x_player_id: int = Header()):
+    """Unregister PDA channel for this player."""
+    push_repo.delete_by_endpoint(f"pda:{x_player_id}")
+    return {"status": "ok"}
