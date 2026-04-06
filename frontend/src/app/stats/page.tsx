@@ -56,7 +56,7 @@ interface GrowthLeaderEntry {
   refills_delta: number | null;
   energy_drinks_delta: number | null;
   se_delta: number | null;
-  energy_spent: number;
+  energy_spent: number | null;
   easter_eggs_delta: number | null;
   easter_eggs_total: number | null;
 }
@@ -293,8 +293,8 @@ export default function StatsPage() {
                     </thead>
                     <tbody>
                       {(() => {
-                        const energySorted = [...growthLb].filter(m => m.energy_spent > 0)
-                          .sort((a, b) => b.energy_spent - a.energy_spent);
+                        const energySorted = [...growthLb].filter(m => m.energy_spent != null && m.energy_spent > 0)
+                          .sort((a, b) => (b.energy_spent ?? 0) - (a.energy_spent ?? 0));
                         return energySorted.length > 0 ? energySorted.map((m, i) => (
                           <tr key={m.player_id}
                               className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${m.player_id === currentPid ? 'bg-torn-green/10' : ''}`}
@@ -304,7 +304,7 @@ export default function StatsPage() {
                               {m.player_name}
                               {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{m.energy_spent.toLocaleString()}E</td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{m.energy_spent != null ? `${m.energy_spent.toLocaleString()}E` : '—'}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">{m.xanax_delta != null ? `+${m.xanax_delta}` : '—'}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-muted hidden sm:table-cell">{m.refills_delta != null ? `+${m.refills_delta}` : '—'}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">+{fmt(m.total_growth)}</td>
@@ -317,7 +317,7 @@ export default function StatsPage() {
                   </table>
                 </div>
                 <div className="px-4 py-2 border-t border-border-light">
-                  <p className="text-[10px] text-text-muted">Energy = Xanax(250E) + Refills(150E) + E-drinks(25E) + Natural(150E/day). Ranked by total energy in the last {growthDays} days.</p>
+                  <p className="text-[10px] text-text-muted">Real gym energy from Torn personalstats (gymstrength + gymdefense + gymspeed + gymdexterity). Needs 2+ snapshots with gym data.</p>
                 </div>
               </div>
             )}

@@ -23,6 +23,9 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
             # Fetch extended personalstats for leaderboard tracking
             ext_ps = await _fetch_extended_personalstats(torn_client, entry["api_key"])
 
+            # Real gym energy from Torn personalstats (sum of energy spent on each stat)
+            gym_energy = sum(ps.get(k, 0) or 0 for k in ("gymstrength", "gymdefense", "gymspeed", "gymdexterity"))
+
             stats_repo.insert_snapshot(
                 player_id=entry["player_id"], snapshot_date=today,
                 strength=bs["strength"], defense=bs["defense"],
@@ -34,6 +37,7 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
                 networth=ps.get("networth"),
                 stat_enhancers_used=ext_ps.get("statenhancersused") or ps.get("statenhancersused"),
                 easter_eggs=ext_ps.get("eastereggs"),
+                gym_energy=gym_energy or None,
             )
             collected += 1
         except Exception as e:

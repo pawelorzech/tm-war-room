@@ -8,22 +8,24 @@ class StatSnapshotRepository(BaseRepository):
                         refills: int | None = None, energy_drinks: int | None = None,
                         networth: float | None = None, gym_trains: int | None = None,
                         stat_enhancers_used: int | None = None,
-                        easter_eggs: int | None = None) -> None:
+                        easter_eggs: int | None = None,
+                        gym_energy: int | None = None) -> None:
         conn = self._conn()
         conn.execute("""
             INSERT INTO stat_snapshots (player_id, snapshot_date, strength, defense, speed, dexterity, total,
                                         level, xanax_taken, refills, energy_drinks, networth,
-                                        gym_trains, stat_enhancers_used, easter_eggs)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        gym_trains, stat_enhancers_used, easter_eggs, gym_energy)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(player_id, snapshot_date) DO UPDATE SET
                 strength=excluded.strength, defense=excluded.defense, speed=excluded.speed,
                 dexterity=excluded.dexterity, total=excluded.total, level=excluded.level,
                 xanax_taken=excluded.xanax_taken, refills=excluded.refills,
                 energy_drinks=excluded.energy_drinks, networth=excluded.networth,
                 gym_trains=excluded.gym_trains, stat_enhancers_used=excluded.stat_enhancers_used,
-                easter_eggs=excluded.easter_eggs
+                easter_eggs=excluded.easter_eggs, gym_energy=excluded.gym_energy
         """, (player_id, snapshot_date, strength, defense, speed, dexterity, total, level,
-              xanax_taken, refills, energy_drinks, networth, gym_trains, stat_enhancers_used, easter_eggs))
+              xanax_taken, refills, energy_drinks, networth, gym_trains, stat_enhancers_used, easter_eggs,
+              gym_energy))
         conn.commit()
         conn.close()
 
@@ -73,7 +75,9 @@ class StatSnapshotRepository(BaseRepository):
                 COALESCE(s2.refills, 0) - COALESCE(s1.refills, 0) AS refills_delta,
                 COALESCE(s2.energy_drinks, 0) - COALESCE(s1.energy_drinks, 0) AS energy_drinks_delta,
                 COALESCE(s2.stat_enhancers_used, 0) - COALESCE(s1.stat_enhancers_used, 0) AS se_delta,
-                COALESCE(s2.easter_eggs, 0) - COALESCE(s1.easter_eggs, 0) AS easter_eggs_delta
+                COALESCE(s2.easter_eggs, 0) - COALESCE(s1.easter_eggs, 0) AS easter_eggs_delta,
+                s2.gym_energy AS end_gym_energy,
+                s1.gym_energy AS start_gym_energy
             FROM (
                 SELECT * FROM stat_snapshots s
                 INNER JOIN (SELECT player_id, MIN(snapshot_date) as min_date FROM stat_snapshots WHERE snapshot_date >= ? GROUP BY player_id) m
