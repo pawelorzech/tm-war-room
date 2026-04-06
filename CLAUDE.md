@@ -75,6 +75,16 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | `CACHE_TTL` | no | 60 |
 | `JWT_SECRET` | no (ephemeral if missing) | — |
 
+## Versioning
+
+TM Hub uses semantic versioning. The source of truth is `frontend/src/data/changelog.ts`.
+
+On each deploy with user-facing changes:
+1. Bump `CURRENT_VERSION` in `frontend/src/data/changelog.ts`
+2. Add a new entry at the **top** of the `CHANGELOG` array with version, date, title, and changes
+3. Version rules: patch (1.0.X) = bugfix, minor (1.X.0) = new feature, major (X.0.0) = breaking change
+4. Change types: `feat` = new feature, `fix` = bugfix, `improve` = enhancement to existing feature
+
 ## Workflow
 
 After each commit:
