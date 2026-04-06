@@ -180,6 +180,8 @@ export const api = {
     apiFetch<{ status: string; locked: boolean }>(`/api/chat/threads/${threadId}/lock`, { method: "POST" }),
   chatToggleThreadPin: (threadId: number) =>
     apiFetch<{ status: string; pinned: boolean }>(`/api/chat/threads/${threadId}/pin`, { method: "POST" }),
+  chatDeleteThread: (threadId: number) =>
+    apiFetch<{ status: string }>(`/api/chat/threads/${threadId}`, { method: "DELETE" }),
   chatUpdateRead: (channelId: number, messageId: number, threadId = 0) =>
     apiFetch<{ status: string }>("/api/chat/read", {
       method: "POST", headers: { "Content-Type": "application/json" },
