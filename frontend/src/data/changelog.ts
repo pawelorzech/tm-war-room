@@ -12,9 +12,24 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.2.0";
+export const CURRENT_VERSION = "1.3.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.3.0",
+    date: "2026-04-06",
+    title: "Faction Chat & Forum",
+    changes: [
+      { type: "feat", text: "Built-in faction chat with real-time messaging via WebSocket" },
+      { type: "feat", text: "Multiple channels: #general, #war-room, #trading, #off-topic, #announcements" },
+      { type: "feat", text: "Forum-style threaded discussions in announcement channels" },
+      { type: "feat", text: "Unread message tracking with badge counts per channel" },
+      { type: "feat", text: "@mention system with push notifications for mentioned players" },
+      { type: "feat", text: "Bot API infrastructure — bots can post messages and mention players via REST API" },
+      { type: "feat", text: "Admin tools: create/delete channels, manage bots, mute/unmute players, pin messages" },
+      { type: "feat", text: "Typing indicators and online player count" },
+    ],
+  },
   {
     version: "1.2.0",
     date: "2026-04-06",
