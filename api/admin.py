@@ -19,6 +19,7 @@ _key_store = None
 _analytics_store = None
 _torn_client = None
 _app_start_time: float | None = None
+_settings_repo = None
 
 
 def init(key_store, analytics_store, torn_client, app_start_time: float) -> None:
@@ -212,3 +213,26 @@ async def revoke_announcement(ann_id: int, body: RevokeBody, admin: dict = Depen
         raise HTTPException(status_code=404, detail="Announcement not found or already revoked")
     logger.info("Announcement revoked: id=%d by admin %d reason=%s", ann_id, admin["sub"], body.reason)
     return {"status": "ok"}
+
+
+class SettingUpdate(PydanticBaseModel):
+    value: str
+
+
+@router.get("/settings")
+async def admin_get_settings(admin: dict = Depends(require_admin)):
+    if not _settings_repo:
+        raise HTTPException(status_code=503, detail="Settings not initialized")
+    return _settings_repo.get_all()
+
+
+@router.put("/settings/{key}")
+async def admin_update_setting(key: str, body: SettingUpdate, admin: dict = Depends(require_admin)):
+    if not _settings_repo:
+        raise HTTPException(status_code=503, detail="Settings not initialized")
+    current = _settings_repo.get(key)
+    if current is None:
+        raise HTTPException(status_code=404, detail=f"Setting '{key}' not found")
+    _settings_repo.set(key, body.value, updated_by=admin["sub"])
+    logger.info("Setting '%s' changed to '%s' by admin %d", key, body.value, admin["sub"])
+    return {"status": "ok", "key": key, "value": body.value}
