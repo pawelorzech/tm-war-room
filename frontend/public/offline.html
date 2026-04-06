@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>TM Hub — Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 24px;
+      text-align: center;
+    }
+    .logo {
+      margin-bottom: 32px;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #e6edf3;
+    }
+    p {
+      color: #8b949e;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      max-width: 320px;
+      margin-bottom: 32px;
+    }
+    button {
+      background: rgba(63, 185, 80, 0.15);
+      color: #3fb950;
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: rgba(63, 185, 80, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <svg width="80" height="80" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="8" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <rect width="512" height="512" rx="96" fill="#0d1117"/>
+      <text x="256" y="310" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="180" fill="#3fb950" filter="url(#glow)" letter-spacing="-8">TM</text>
+      <circle cx="256" cy="256" r="210" fill="none" stroke="#3fb950" stroke-width="2" opacity="0.2"/>
+    </svg>
+  </div>
+  <h1>Jesteś offline</h1>
+  <p>Połącz się z internetem, żeby zobaczyć aktualne dane z TM Hub.</p>
+  <button onclick="location.reload()">Spróbuj ponownie</button>
+</body>
+</html>
