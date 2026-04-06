@@ -57,8 +57,7 @@ export function usePushNotifications() {
     setPermission(perm);
     if (perm !== 'granted') return;
 
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.ready;
 
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
@@ -101,7 +100,7 @@ export function usePushNotifications() {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification('TM Hub Test', {
       body: 'Push notifications are working!',
-      icon: '/favicon.ico',
+      icon: '/icons/icon-192.png',
     });
   }, []);
 
