@@ -57,6 +57,8 @@ from api.routers.company import router as company_router
 import api.routers.company as company_mod
 from api.routers.push import router as push_router
 import api.routers.push as push_mod
+from api.routers.version import router as version_router
+import api.routers.version as version_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -145,6 +147,9 @@ async def lifespan(app: FastAPI):
     )
     push_mod.push_service = push_service
 
+    from api.db.repos.version_dismissals import VersionDismissalRepository
+    version_mod.dismissal_repo = VersionDismissalRepository(db_path="data/keys.db")
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -183,6 +188,7 @@ app.include_router(bounties_router)
 app.include_router(notifications_router)
 app.include_router(company_router)
 app.include_router(push_router)
+app.include_router(version_router)
 
 @app.get("/api/status")
 async def app_status():
