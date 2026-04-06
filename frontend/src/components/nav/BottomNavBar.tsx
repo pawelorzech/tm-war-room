@@ -10,9 +10,10 @@ import type { NavGroup } from "@/lib/nav-data";
 interface BottomNavBarProps {
   unreadCount?: number;
   role?: string | null;
+  showVersionBadge?: boolean;
 }
 
-export function BottomNavBar({ unreadCount = 0, role }: BottomNavBarProps) {
+export function BottomNavBar({ unreadCount = 0, role, showVersionBadge = false }: BottomNavBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeSheet, setActiveSheet] = useState<NavGroup | null>(null);
@@ -105,7 +106,7 @@ export function BottomNavBar({ unreadCount = 0, role }: BottomNavBarProps) {
         <div className="h-[env(safe-area-inset-bottom)]" />
       </div>
 
-      <BottomSheet group={activeSheet} onClose={() => setActiveSheet(null)} />
+      <BottomSheet group={activeSheet} onClose={() => setActiveSheet(null)} showVersionBadge={showVersionBadge} />
     </>
   );
 }

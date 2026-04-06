@@ -130,6 +130,9 @@ export const api = {
     apiFetch<unknown>('/api/push/preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preferences: prefs }) }),
   pushUnsubscribe: (endpoint: string) =>
     apiFetch<unknown>(`/api/push/unsubscribe?endpoint=${encodeURIComponent(endpoint)}`, { method: 'DELETE' }),
+  versionStatus: (v: string) => apiFetch<{ dismissed: boolean }>(`/api/version/status?v=${encodeURIComponent(v)}`),
+  versionDismiss: (version: string) =>
+    apiFetch<{ ok: boolean }>('/api/version/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) }),
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
