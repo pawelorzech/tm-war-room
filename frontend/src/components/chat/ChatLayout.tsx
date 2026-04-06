@@ -44,8 +44,11 @@ export function ChatLayout() {
     return m;
   }, [members]);
 
+  const [adminIds, setAdminIds] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     api.listKeys().then(res => setMembers(res.keys)).catch(() => {});
+    api.chatAdminIds().then(res => setAdminIds(new Set(res.admin_ids))).catch(() => {});
   }, []);
 
   const isAdmin = role === "admin" || role === "superadmin";
@@ -154,6 +157,7 @@ export function ChatLayout() {
               onBack={() => selectThread(null)}
               onThreadDeleted={() => selectThread(null)}
               memberMap={memberMap}
+              adminIds={adminIds}
               members={members}
             />
           ) : (
@@ -175,6 +179,7 @@ export function ChatLayout() {
               <ThreadList
                 channelId={activeChannel.id}
                 isAdmin={isAdmin}
+                canWrite={!activeChannel.write_restricted || isAdmin}
                 onSelectThread={selectThread}
                 onCreateThread={() => setShowCreateThread(true)}
               />
@@ -219,15 +224,16 @@ export function ChatLayout() {
               onMessageDeleted={removeMessage}
               typingNames={typingNames}
               memberMap={memberMap}
+              adminIds={adminIds}
             />
 
             {/* Input */}
             <MessageInput
               onSend={sendMessage}
               onTyping={sendTyping}
-              disabled={activeChannel.admin_only === 1 && !isAdmin}
+              disabled={(activeChannel.admin_only === 1 || activeChannel.write_restricted === 1) && !isAdmin}
               placeholder={
-                activeChannel.admin_only === 1 && !isAdmin
+                (activeChannel.admin_only === 1 || activeChannel.write_restricted === 1) && !isAdmin
                   ? "Only admins can post in this channel"
                   : `Message #${activeChannel.name}`
               }

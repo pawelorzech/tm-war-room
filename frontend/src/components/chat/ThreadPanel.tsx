@@ -14,9 +14,10 @@ interface Props {
   onThreadDeleted?: () => void;
   memberMap?: Record<number, string>;
   members?: { player_id: number; name: string }[];
+  adminIds?: Set<number>;
 }
 
-export function ThreadPanel({ thread, playerId, isAdmin, onBack, onThreadDeleted, memberMap = {}, members = [] }: Props) {
+export function ThreadPanel({ thread, playerId, isAdmin, onBack, onThreadDeleted, memberMap = {}, members = [], adminIds }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -159,6 +160,7 @@ export function ThreadPanel({ thread, playerId, isAdmin, onBack, onThreadDeleted
         onMessageDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
         typingNames={[]}
         memberMap={memberMap}
+        adminIds={adminIds}
       />
 
       {/* Input */}
