@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { AnnouncementCarousel } from "./AnnouncementCarousel";
 import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
+import { InstallPrompt } from "./InstallPrompt";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useVersionNotice } from "@/hooks/useVersionNotice";
@@ -16,6 +17,13 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const { active, unreadCount, dismiss } = useAnnouncements();
   const { showNotice, currentVersion, latestEntry, dismiss: dismissVersion } = useVersionNotice();
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Register service worker for all authenticated users (PWA + push)
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js");
+    }
+  }, []);
 
   if (!isLoggedIn) {
     return <>{children}</>;
@@ -118,6 +126,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           )}
         </footer>
       </main>
+      <InstallPrompt />
     </div>
   );
 }
