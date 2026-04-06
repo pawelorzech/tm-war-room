@@ -321,6 +321,12 @@ class ChatRepository(BaseRepository):
         )
         return dict(row) if row else None
 
+    def get_bot_by_name(self, name: str) -> dict | None:
+        row = self.execute_one(
+            "SELECT * FROM chat_bots WHERE name = ?", (name,)
+        )
+        return dict(row) if row else None
+
     def get_bots(self) -> list[dict]:
         rows = self.execute("SELECT id, name, avatar, allowed_channels, created_by, active, created_at FROM chat_bots ORDER BY id")
         return [dict(r) for r in rows]
