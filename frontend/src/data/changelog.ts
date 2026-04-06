@@ -18,12 +18,12 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: "1.2.0",
     date: "2026-04-06",
-    title: "Aplikacja PWA",
+    title: "Progressive Web App",
     changes: [
-      { type: "feat", text: "TM Hub działa teraz jako PWA — dodaj do ekranu głównego jak natywną apkę" },
-      { type: "feat", text: "Nowa ikona neon-glow TM" },
-      { type: "feat", text: "Tryb offline z ładną stroną gdy brak połączenia" },
-      { type: "feat", text: "Inteligentny install prompt — rozpoznaje Android i iOS" },
+      { type: "feat", text: "TM Hub is now a PWA — add it to your home screen like a native app" },
+      { type: "feat", text: "New neon-glow TM icon" },
+      { type: "feat", text: "Offline mode with a clean fallback page when you lose connection" },
+      { type: "feat", text: "Smart install prompt — detects Android and iOS with platform-specific instructions" },
     ],
   },
   {
