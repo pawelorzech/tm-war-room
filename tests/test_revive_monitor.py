@@ -53,22 +53,22 @@ class TestFormatMessage:
     def test_war_mode_urgent(self):
         members = [_make_member(id=1, name="Risky", revive_setting="Everyone")]
         msg = _format_message(members, war_active=True)
-        assert "UWAGA" in msg
+        assert "WARNING" in msg
         assert "@Risky" in msg
 
     def test_peace_mode_gentle(self):
         members = [_make_member(id=1, name="Risky", revive_setting="Everyone")]
         msg = _format_message(members, war_active=False)
-        assert "Przypomnienie" in msg
+        assert "Revive reminder" in msg
         assert "@Risky" in msg
 
     def test_empty_list_all_clear(self):
         msg = _format_message([], war_active=False)
-        assert "Wszystko OK" in msg
+        assert "All clear" in msg
 
     def test_empty_list_war_all_clear(self):
         msg = _format_message([], war_active=True)
-        assert "Wszystko OK" in msg
+        assert "All clear" in msg
 
     def test_shows_revive_setting(self):
         members = [_make_member(id=1, name="P1", revive_setting="Friends & faction")]
