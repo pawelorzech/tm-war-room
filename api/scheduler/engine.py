@@ -19,6 +19,7 @@ async def create_and_start_scheduler(app_state: dict):
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
     from api.scheduler.jobs.refresh_data import run_refresh_data
     from api.scheduler.jobs.collect_circulation import run_collect_circulation
+    from api.scheduler.jobs.revive_check import run_revive_check
 
     global _state
     _state = app_state
@@ -52,7 +53,15 @@ async def create_and_start_scheduler(app_state: dict):
         IntervalTrigger(minutes=15),
         id="collect_circulation_schedule",
     )
+
+    await scheduler.configure_task("revive_check", func=run_revive_check)
+    await scheduler.add_schedule(
+        "revive_check",
+        IntervalTrigger(minutes=10),
+        id="revive_check_schedule",
+    )
+
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s)")
+    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s), revive_check (10min)")
     return scheduler
