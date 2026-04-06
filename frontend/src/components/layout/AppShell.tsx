@@ -104,7 +104,11 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <BottomNavBar unreadCount={unreadCount} chatUnread={chatUnread} role={role} showVersionBadge={showNotice} />
 
       {/* Main content */}
-      <main className="lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 min-h-screen flex flex-col">
+      <main className={`lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 flex flex-col ${
+        onChatPage
+          ? "h-dvh lg:min-h-screen overflow-hidden"
+          : "min-h-screen"
+      }`}>
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
         {showNotice && latestEntry && (
           <div className="mx-4 mt-2 flex items-center gap-3 bg-torn-green/10 border border-torn-green/30 rounded-lg px-4 py-2.5 text-sm">
@@ -127,34 +131,38 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <ErrorBoundary>
-          <div className="flex-1">{children}</div>
+          <div className={onChatPage ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "flex-1"}>
+            {children}
+          </div>
         </ErrorBoundary>
-        <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
-          TM Hub{" "}
-          <a href="/changelog" className="text-torn-green hover:underline">
-            v{currentVersion}
-          </a>
-          {" "}— by{" "}
-          <a
-            href="https://www.torn.com/profiles.php?XID=2362436"
-            target="_blank"
-            className="text-torn-green hover:underline"
-          >
-            Bombel [2362436]
-          </a>
-          {role && role !== "member" && (
-            <>
-              {" · "}
-              <a
-                href="https://analityka.tri.ovh"
-                target="_blank"
-                className="text-torn-blue hover:underline"
-              >
-                Analytics
-              </a>
-            </>
-          )}
-        </footer>
+        {!onChatPage && (
+          <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
+            TM Hub{" "}
+            <a href="/changelog" className="text-torn-green hover:underline">
+              v{currentVersion}
+            </a>
+            {" "}— by{" "}
+            <a
+              href="https://www.torn.com/profiles.php?XID=2362436"
+              target="_blank"
+              className="text-torn-green hover:underline"
+            >
+              Bombel [2362436]
+            </a>
+            {role && role !== "member" && (
+              <>
+                {" · "}
+                <a
+                  href="https://analityka.tri.ovh"
+                  target="_blank"
+                  className="text-torn-blue hover:underline"
+                >
+                  Analytics
+                </a>
+              </>
+            )}
+          </footer>
+        )}
       </main>
       <InstallPrompt />
     </div>

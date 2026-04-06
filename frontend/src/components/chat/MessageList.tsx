@@ -70,7 +70,7 @@ export function MessageList({ messages, loading, playerId, isAdmin, onLoadOlder,
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto"
+      className="flex-1 overflow-y-auto min-h-0"
     >
       {loading && (
         <div className="flex items-center justify-center py-8">
