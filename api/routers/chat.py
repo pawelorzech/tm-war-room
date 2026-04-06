@@ -21,6 +21,7 @@ chat_manager: ChatManager | None = None
 key_store = None
 push_service = None
 settings_repo = None
+notification_dispatcher = None  # Set by main.py
 
 
 def _not_ready():
@@ -669,14 +670,25 @@ async def _notify_mentions(
     mentions: list[int], sender_name: str, content: str, channel_id: int,
 ) -> None:
     """Send push notifications to mentioned players."""
-    if not mentions or not push_service:
+    if not mentions:
         return
     preview = content[:100] + ("..." if len(content) > 100 else "")
     for pid in mentions:
         try:
-            push_service.send_to_player(
-                pid, title=f"@{sender_name} mentioned you",
-                body=preview, url=f"/chat?channel={channel_id}",
-            )
+            if notification_dispatcher:
+                notification_dispatcher.send(
+                    title=f"@{sender_name} mentioned you",
+                    body=preview,
+                    url=f"/chat?channel={channel_id}",
+                    target_type="player",
+                    target_value=str(pid),
+                    sent_by="system",
+                )
+            elif push_service:
+                push_service.dispatch_to_player(
+                    pid, "chat_mention",
+                    f"@{sender_name} mentioned you",
+                    preview, f"/chat?channel={channel_id}",
+                )
         except Exception as e:
             logger.debug("Push notify mention failed for %d: %s", pid, e)

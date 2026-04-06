@@ -149,6 +149,31 @@ async def lifespan(app: FastAPI):
     )
     push_mod.push_service = push_service
 
+    from api.db.repos.notification_templates import NotificationTemplateRepository
+    from api.db.repos.notification_events import NotificationEventRepository
+    from api.db.repos.custom_groups import CustomGroupRepository
+    from api.notification_dispatcher import NotificationDispatcher
+
+    template_repo = NotificationTemplateRepository(db_path="data/keys.db")
+    event_repo = NotificationEventRepository(db_path="data/keys.db")
+    group_repo = CustomGroupRepository(db_path="data/keys.db")
+    push_mod.event_repo = event_repo
+
+    notification_dispatcher = NotificationDispatcher(
+        push_service=push_service,
+        push_repo=push_repo,
+        event_repo=event_repo,
+        group_repo=group_repo,
+        key_store=key_store,
+    )
+
+    from api.routers import admin_push as admin_push_mod
+    admin_push_mod.template_repo = template_repo
+    admin_push_mod.event_repo = event_repo
+    admin_push_mod.group_repo = group_repo
+    admin_push_mod.dispatcher = notification_dispatcher
+    chat_mod.notification_dispatcher = notification_dispatcher
+
     from api.db.repos.version_dismissals import VersionDismissalRepository
     version_mod.dismissal_repo = VersionDismissalRepository(db_path="data/keys.db")
 
@@ -187,6 +212,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TM Hub", lifespan=lifespan)
 app.include_router(admin_router)
+from api.routers.admin_push import router as admin_push_router
+app.include_router(admin_push_router)
 app.include_router(spy_router)
 app.include_router(stats_router)
 app.include_router(market_router)
