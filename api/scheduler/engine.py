@@ -15,7 +15,6 @@ async def create_and_start_scheduler(app_state: dict):
     """Create, configure, and start the background scheduler. Returns the scheduler."""
     from apscheduler import AsyncScheduler
     from apscheduler.triggers.interval import IntervalTrigger
-    from apscheduler.triggers.cron import CronTrigger
     from api.scheduler.jobs.collect_stats import run_collect_stats
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
     from api.scheduler.jobs.refresh_data import run_refresh_data
@@ -35,7 +34,7 @@ async def create_and_start_scheduler(app_state: dict):
 
     await scheduler.add_schedule(
         "collect_stats",
-        CronTrigger(hour=4, minute=0),
+        IntervalTrigger(minutes=15),
         id="collect_stats_schedule",
     )
     await scheduler.add_schedule(
@@ -50,10 +49,10 @@ async def create_and_start_scheduler(app_state: dict):
     )
     await scheduler.add_schedule(
         "collect_circulation",
-        CronTrigger(hour=5, minute=0),
+        IntervalTrigger(minutes=15),
         id="collect_circulation_schedule",
     )
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (4:00), circulation (5:00), refresh_spies (30min), refresh_data (30s)")
+    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s)")
     return scheduler
