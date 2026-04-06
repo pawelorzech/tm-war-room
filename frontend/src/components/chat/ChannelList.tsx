@@ -29,7 +29,7 @@ export function ChannelList({ channels, activeChannelId, unreadCounts, onSelect 
       <div className="p-3 border-b border-border">
         <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">Channels</h2>
       </div>
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto overscroll-contain py-1">
         {chatChannels.length > 0 && (
           <div className="mb-2">
             <div className="px-3 py-1 text-xs text-text-muted uppercase tracking-wider">Chat</div>

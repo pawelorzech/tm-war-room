@@ -27,6 +27,8 @@ export function ChatLayout() {
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [showCreateThread, setShowCreateThread] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showOnlineList, setShowOnlineList] = useState(false);
+  const onlinePopoverRef = useRef<HTMLDivElement>(null);
   const [mobileView, setMobileView] = useState<"channels" | "chat">("channels");
 
   // Update URL when channel/thread changes (without full navigation)
@@ -71,6 +73,18 @@ export function ChatLayout() {
     const interval = setInterval(fetchTravelers, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [activeChannel]);
+
+  // Close online popover on outside click
+  useEffect(() => {
+    if (!showOnlineList) return;
+    const handler = (e: MouseEvent) => {
+      if (onlinePopoverRef.current && !onlinePopoverRef.current.contains(e.target as Node)) {
+        setShowOnlineList(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showOnlineList]);
 
   const typingNames = useMemo(() => {
     return Object.values(typingPlayers)
@@ -138,10 +152,28 @@ export function ChatLayout() {
           onSelect={handleSelectChannel}
         />
         {/* Online count + admin */}
-        <div className="p-3 border-t border-border flex items-center justify-between">
-          <div className="text-[11px] text-text-muted">
+        <div className="p-3 border-t border-border flex items-center justify-between relative" ref={onlinePopoverRef}>
+          <button
+            onClick={() => setShowOnlineList(v => !v)}
+            className="text-[11px] text-text-muted hover:text-torn-green transition-colors flex items-center gap-1"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-torn-green inline-block" />
             {onlinePlayers.length} online
-          </div>
+          </button>
+          {/* Online players popover */}
+          {showOnlineList && onlinePlayers.length > 0 && (
+            <div className="absolute bottom-full left-2 mb-1 w-48 max-h-64 overflow-y-auto bg-bg-surface border border-border rounded-lg shadow-lg z-50">
+              <div className="px-3 py-2 border-b border-border text-[11px] font-medium text-text-muted">
+                Online in chat
+              </div>
+              {onlinePlayers.map(pid => (
+                <div key={pid} className="px-3 py-1.5 text-sm text-text-primary flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-torn-green shrink-0" />
+                  {memberMap[pid] || `Player ${pid}`}
+                </div>
+              ))}
+            </div>
+          )}
           {isAdmin && (
             <button
               onClick={() => { setShowAdmin(!showAdmin); setMobileView("chat"); }}

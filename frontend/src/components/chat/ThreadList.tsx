@@ -51,7 +51,7 @@ export function ThreadList({ channelId, isAdmin, canWrite = true, onSelectThread
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overscroll-contain">
         {loading && (
           <div className="p-4 text-sm text-text-muted text-center">Loading...</div>
         )}

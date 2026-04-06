@@ -54,10 +54,16 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Track visual viewport height (handles iOS keyboard — visualViewport shrinks, window.innerHeight doesn't)
+  // Debounced to avoid layout thrashing during keyboard animation (especially in PDA webview)
   useEffect(() => {
+    let rafId: number | null = null;
     const update = () => {
-      const h = window.visualViewport?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty("--vvh", `${h}px`);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        const h = window.visualViewport?.height ?? window.innerHeight;
+        document.documentElement.style.setProperty("--vvh", `${h}px`);
+        rafId = null;
+      });
     };
     update();
     window.visualViewport?.addEventListener("resize", update);
@@ -65,6 +71,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     return () => {
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -149,7 +156,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <ErrorBoundary>
-          <div className={onChatPage ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "flex-1"}>
+          <div className={onChatPage ? "flex-1 min-h-0 flex flex-col overflow-hidden overscroll-contain" : "flex-1"}>
             {children}
           </div>
         </ErrorBoundary>

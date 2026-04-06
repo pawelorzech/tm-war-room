@@ -1,0 +1,74 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link "TM Hub The Masters [TM]" [ref=e8] [cursor=pointer]:
+            - /url: /dashboard
+          - link "📨 1" [ref=e79] [cursor=pointer]:
+            - /url: /inbox
+        - button "🔍 Search... ⌘K" [ref=e13]:
+          - generic [ref=e14]: 🔍
+          - generic [ref=e15]: Search...
+          - generic [ref=e16]: ⌘K
+      - navigation [ref=e17]:
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Pinned
+          - link "🏠 Dashboard 📌" [ref=e21] [cursor=pointer]:
+            - /url: /dashboard
+          - link "👥 Our Team 📌" [ref=e25] [cursor=pointer]:
+            - /url: /team
+          - link "🔗 Chain Tracker 📌" [ref=e29] [cursor=pointer]:
+            - /url: /chain
+        - link "💬 Faction Chat" [ref=e35] [cursor=pointer]:
+          - /url: /chat
+          - generic [ref=e36]: 💬
+          - generic [ref=e37]: Faction Chat
+        - button "▶ Warfare 8" [ref=e39]:
+          - generic [ref=e40]: ▶
+          - generic [ref=e41]: Warfare
+          - generic [ref=e42]: "8"
+        - button "▶ Economy 6" [ref=e44]:
+          - generic [ref=e45]: ▶
+          - generic [ref=e46]: Economy
+          - generic [ref=e47]: "6"
+        - button "▶ Faction 5" [ref=e49]:
+          - generic [ref=e50]: ▶
+          - generic [ref=e51]: Faction
+          - generic [ref=e52]: "5"
+        - button "▶ Training 3" [ref=e54]:
+          - generic [ref=e55]: ▶
+          - generic [ref=e56]: Training
+          - generic [ref=e57]: "3"
+        - button "▶ Resources 3" [ref=e59]:
+          - generic [ref=e60]: ▶
+          - generic [ref=e61]: Resources
+          - generic [ref=e62]: "3"
+        - link "⚙️ Admin" [ref=e64] [cursor=pointer]:
+          - /url: /admin
+          - generic [ref=e65]: ⚙️
+          - generic [ref=e66]: Admin
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: B
+          - generic [ref=e70]
+        - generic [ref=e73]:
+          - button "☀️ Light" [ref=e74]
+          - button "Logout" [ref=e75]
+    - main [ref=e76]:
+      - generic [ref=e83]:
+        - generic [ref=e84]: ℹ️
+        - generic [ref=e85]: Hi! Thanks for being here. If you can - please send feedback to me if anything breaks or doesn't work as expected. My username is bombel (you can click a link on the bottom of the page).
+        - button "Dismiss announcement" [ref=e86]: ×
+      - generic [ref=e87]:
+        - generic [ref=e88]: New version v1.5.0!
+        - generic [ref=e89]: Chat Improvements
+        - link "See what's new →" [ref=e90] [cursor=pointer]:
+          - /url: /changelog
+        - button "Dismiss" [ref=e91]: ✕
+      - generic [ref=e92]:
+        - generic [ref=e93]:
+          - generic [ref=e94]
+          - generic [ref=e127]
+        - generic [ref=e131]: Select a channel to start chatting
