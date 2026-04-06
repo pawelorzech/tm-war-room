@@ -160,6 +160,8 @@ async def get_messages(
     ch = chat_repo.get_channel(channel_id)
     if not ch:
         raise HTTPException(status_code=404, detail="Channel not found")
+    if ch["admin_only"] and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin-only channel")
     messages = chat_repo.get_messages(channel_id, before_id=before, limit=min(limit, 100))
     return {"messages": messages}
 
@@ -255,6 +257,9 @@ async def toggle_pin(message_id: int, x_player_id: int = Header()):
 @router.get("/channels/{channel_id}/pinned")
 async def get_pinned(channel_id: int, x_player_id: int = Header()):
     _verify_member(x_player_id)
+    ch = chat_repo.get_channel(channel_id)
+    if ch and ch["admin_only"] and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin-only channel")
     return {"messages": chat_repo.get_pinned_messages(channel_id)}
 
 
@@ -274,6 +279,8 @@ async def list_threads(
     ch = chat_repo.get_channel(channel_id)
     if not ch:
         raise HTTPException(status_code=404, detail="Channel not found")
+    if ch["admin_only"] and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin-only channel")
     threads = chat_repo.get_threads(channel_id, before_id=before, limit=min(limit, 50))
     return {"threads": threads}
 

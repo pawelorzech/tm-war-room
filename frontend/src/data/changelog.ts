@@ -12,9 +12,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.4.1";
+export const CURRENT_VERSION = "1.5.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.5.0",
+    date: "2026-04-06",
+    title: "Chat Improvements",
+    changes: [
+      { type: "feat", text: "Traveling members shown in #traveling channel header" },
+      { type: "feat", text: "Unread chat messages banner on dashboard" },
+      { type: "feat", text: "Chat channels searchable in Cmd+K command palette" },
+      { type: "feat", text: "People picker for push notifications (search by name)" },
+      { type: "feat", text: "Leadership channel visible only to admins" },
+      { type: "improve", text: "Messages appear instantly when you send them" },
+    ],
+  },
   {
     version: "1.4.1",
     date: "2026-04-06",
