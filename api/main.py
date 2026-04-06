@@ -59,6 +59,8 @@ from api.routers.push import router as push_router
 import api.routers.push as push_mod
 from api.routers.version import router as version_router
 import api.routers.version as version_mod
+from api.routers.chat import router as chat_router
+import api.routers.chat as chat_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -150,6 +152,15 @@ async def lifespan(app: FastAPI):
     from api.db.repos.version_dismissals import VersionDismissalRepository
     version_mod.dismissal_repo = VersionDismissalRepository(db_path="data/keys.db")
 
+    from api.db.repos.chat import ChatRepository
+    from api.chat_manager import ChatManager
+    chat_repo = ChatRepository(db_path="data/keys.db")
+    chat_mgr = ChatManager()
+    chat_mod.chat_repo = chat_repo
+    chat_mod.chat_manager = chat_mgr
+    chat_mod.key_store = key_store
+    chat_mod.push_service = push_service
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -164,6 +175,7 @@ async def lifespan(app: FastAPI):
     })
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
+    await chat_mgr.close_all()
     await app_scheduler.__aexit__(None, None, None)
     await torn_client.close()
     logger.info("TM Hub shutting down")
@@ -189,6 +201,7 @@ app.include_router(notifications_router)
 app.include_router(company_router)
 app.include_router(push_router)
 app.include_router(version_router)
+app.include_router(chat_router)
 
 @app.get("/api/status")
 async def app_status():

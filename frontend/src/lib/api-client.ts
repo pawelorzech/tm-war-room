@@ -133,6 +133,85 @@ export const api = {
   versionStatus: (v: string) => apiFetch<{ dismissed: boolean }>(`/api/version/status?v=${encodeURIComponent(v)}`),
   versionDismiss: (version: string) =>
     apiFetch<{ ok: boolean }>('/api/version/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) }),
+  // ── Chat ──────────────────────────────────────────────────
+  chatChannels: () => apiFetch<{ channels: import("@/types/chat").Channel[] }>("/api/chat/channels"),
+  chatMessages: (channelId: number, before?: number, limit = 50) =>
+    apiFetch<{ messages: import("@/types/chat").Message[] }>(
+      `/api/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
+    ),
+  chatSendMessage: (channelId: number, content: string, mentions: number[] = []) =>
+    apiFetch<import("@/types/chat").Message>(`/api/chat/channels/${channelId}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, mentions }),
+    }),
+  chatEditMessage: (messageId: number, content: string) =>
+    apiFetch<{ status: string }>(`/api/chat/messages/${messageId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    }),
+  chatDeleteMessage: (messageId: number) =>
+    apiFetch<{ status: string }>(`/api/chat/messages/${messageId}`, { method: "DELETE" }),
+  chatTogglePin: (messageId: number) =>
+    apiFetch<{ status: string; pinned: boolean }>(`/api/chat/messages/${messageId}/pin`, { method: "POST" }),
+  chatPinnedMessages: (channelId: number) =>
+    apiFetch<{ messages: import("@/types/chat").Message[] }>(`/api/chat/channels/${channelId}/pinned`),
+  chatThreads: (channelId: number, before?: number) =>
+    apiFetch<{ threads: import("@/types/chat").Thread[] }>(
+      `/api/chat/channels/${channelId}/threads${before ? `?before=${before}` : ""}`
+    ),
+  chatCreateThread: (channelId: number, title: string, content: string) =>
+    apiFetch<import("@/types/chat").Thread>(`/api/chat/channels/${channelId}/threads`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content }),
+    }),
+  chatThreadMessages: (threadId: number, before?: number, limit = 50) =>
+    apiFetch<{ thread: import("@/types/chat").Thread; messages: import("@/types/chat").Message[] }>(
+      `/api/chat/threads/${threadId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
+    ),
+  chatSendThreadMessage: (threadId: number, content: string, mentions: number[] = []) =>
+    apiFetch<import("@/types/chat").Message>(`/api/chat/threads/${threadId}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, mentions }),
+    }),
+  chatToggleThreadLock: (threadId: number) =>
+    apiFetch<{ status: string; locked: boolean }>(`/api/chat/threads/${threadId}/lock`, { method: "POST" }),
+  chatToggleThreadPin: (threadId: number) =>
+    apiFetch<{ status: string; pinned: boolean }>(`/api/chat/threads/${threadId}/pin`, { method: "POST" }),
+  chatUpdateRead: (channelId: number, messageId: number, threadId = 0) =>
+    apiFetch<{ status: string }>("/api/chat/read", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: channelId, message_id: messageId, thread_id: threadId }),
+    }),
+  chatUnread: () => apiFetch<import("@/types/chat").UnreadCounts>("/api/chat/unread"),
+  chatOnline: () => apiFetch<{ online: number[] }>("/api/chat/online"),
+  chatCreateChannel: (data: { name: string; description?: string; type?: string; position?: number; admin_only?: boolean }) =>
+    apiFetch<{ status: string; channel_id: number }>("/api/chat/channels", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  chatUpdateChannel: (channelId: number, data: Record<string, unknown>) =>
+    apiFetch<{ status: string }>(`/api/chat/channels/${channelId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+  chatDeleteChannel: (channelId: number) =>
+    apiFetch<{ status: string }>(`/api/chat/channels/${channelId}`, { method: "DELETE" }),
+  chatMutePlayer: (playerId: number, reason = "", durationHours?: number) =>
+    apiFetch<{ status: string }>(`/api/chat/mute/${playerId}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason, duration_hours: durationHours }),
+    }),
+  chatUnmutePlayer: (playerId: number) =>
+    apiFetch<{ status: string }>(`/api/chat/mute/${playerId}`, { method: "DELETE" }),
+  chatBotsList: () => apiFetch<{ bots: import("@/types/chat").Bot[] }>("/api/chat/bots"),
+  chatCreateBot: (name: string, allowedChannels = "*") =>
+    apiFetch<{ bot_id: number; token: string }>("/api/chat/bots", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, allowed_channels: allowedChannels }),
+    }),
+  chatDeleteBot: (botId: number) =>
+    apiFetch<{ status: string }>(`/api/chat/bots/${botId}`, { method: "DELETE" }),
+
   registerKey: (apiKey: string) =>
     fetch("/api/keys", {
       method: "POST",
