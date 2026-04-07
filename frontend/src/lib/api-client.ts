@@ -226,6 +226,23 @@ export const api = {
   chatDeleteBot: (botId: number) =>
     apiFetch<{ status: string }>(`/api/chat/bots/${botId}`, { method: "DELETE" }),
 
+  // ── Avatars & Presence ──────────────────────────────
+  heartbeat: () =>
+    apiFetch<{ ok: boolean }>('/api/heartbeat', { method: 'POST' }),
+  memberAvatars: () =>
+    apiFetch<{ avatars: Record<string, string> }>('/api/members/avatars'),
+  profileMe: () =>
+    apiFetch<{
+      player_id: number;
+      name: string;
+      level: number;
+      faction: { position: string; faction_id?: number; faction_name?: string } | null;
+      profile_image: string | null;
+      life: { current: number; maximum: number } | null;
+      last_action: { status: string; timestamp: number } | null;
+      status: { description: string } | null;
+    }>('/api/profile/me'),
+
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
   registerKey: (apiKey: string) =>
