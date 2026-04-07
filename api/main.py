@@ -291,19 +291,37 @@ async def public_settings():
 
 @app.post("/api/admin/refresh-avatars")
 async def admin_refresh_avatars(request: Request):
-    """Manually trigger avatar refresh (superadmin only)."""
+    """Manually trigger avatar refresh (superadmin only) with diagnostics."""
     pid = request.headers.get("x-player-id")
     if str(pid) != str(SUPERADMIN_ID):
         raise HTTPException(status_code=403, detail="Forbidden")
     from api import b2_client
-    from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
+    from api.scheduler.engine import get_state
+    diag = {
+        "b2_configured": b2_client.is_configured(),
+        "b2_key_id": bool(b2_client._KEY_ID),
+        "b2_key": bool(b2_client._KEY),
+        "b2_url": b2_client._PUBLIC_URL or "(empty)",
+    }
     if not b2_client.is_configured():
-        return {"error": "B2 not configured", "key_id": bool(b2_client._KEY_ID), "key": bool(b2_client._KEY), "url": bool(b2_client._PUBLIC_URL)}
+        return {"error": "B2 not configured", **diag}
+    state = get_state()
+    diag["has_key_repo"] = "key_repo" in state
+    diag["has_torn_client"] = "torn_client" in state
+    key_repo = state.get("key_repo")
+    if key_repo:
+        fk = key_repo.get_faction_key()
+        diag["has_faction_key"] = fk is not None
+        diag["member_count"] = len(key_repo.get_all_keys())
     try:
+        from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
         await run_refresh_avatars()
-        return {"ok": True}
+        if key_repo:
+            diag["avatars_after"] = len(key_repo.get_avatar_map())
+        return {"ok": True, **diag}
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc(), **diag}
 
 
 @app.get("/api/status")
