@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { fmtCD } from "@/lib/format";
+import { Avatar } from "@/components/ui/Avatar";
 import { MemberCard, getReadiness } from "./MemberCard";
 import type { Readiness } from "./MemberCard";
 import type { FactionMember, DetailResponse } from "@/types/war";
@@ -414,19 +415,22 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                     />
                   </td>
                   <td className="py-2 px-2">
-                    <a
-                      href={`https://www.torn.com/profiles.php?XID=${m.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-text-primary hover:text-torn-green transition-colors"
-                    >
-                      {m.name}
-                    </a>
-                    {isNew && (
-                      <span className="ml-1.5 text-[10px] bg-torn-green/20 text-torn-green px-1 py-0.5 rounded font-medium">
-                        new
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Avatar playerId={m.id} name={m.name} size="sm" />
+                      <a
+                        href={`https://www.torn.com/profiles.php?XID=${m.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-text-primary hover:text-torn-green transition-colors"
+                      >
+                        {m.name}
+                      </a>
+                      {isNew && (
+                        <span className="ml-1.5 text-[10px] bg-torn-green/20 text-torn-green px-1 py-0.5 rounded font-medium">
+                          new
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-2 px-2">
                     {needsBounty && (

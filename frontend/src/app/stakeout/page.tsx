@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface Stakeout {
   player_id: number;
@@ -138,6 +139,7 @@ export default function StakeoutPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Avatar playerId={s.player_id} name={s.player_name ?? undefined} size="sm" />
                       <a href={`https://www.torn.com/profiles.php?XID=${s.player_id}`} target="_blank"
                         className="font-semibold text-text-primary hover:text-torn-green transition-colors">
                         {s.player_name || `#${s.player_id}`}
