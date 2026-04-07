@@ -20,6 +20,7 @@ async def create_and_start_scheduler(app_state: dict):
     from api.scheduler.jobs.refresh_data import run_refresh_data
     from api.scheduler.jobs.collect_circulation import run_collect_circulation
     from api.scheduler.jobs.revive_check import run_revive_check
+    from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
 
     global _state
     _state = app_state
@@ -61,7 +62,14 @@ async def create_and_start_scheduler(app_state: dict):
         id="revive_check_schedule",
     )
 
+    await scheduler.configure_task("refresh_avatars", func=run_refresh_avatars)
+    await scheduler.add_schedule(
+        "refresh_avatars",
+        IntervalTrigger(hours=12),
+        id="refresh_avatars_schedule",
+    )
+
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s), revive_check (10min)")
+    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s), revive_check (10min), refresh_avatars (12h)")
     return scheduler

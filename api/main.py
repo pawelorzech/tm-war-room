@@ -239,6 +239,17 @@ async def lifespan(app: FastAPI):
         "chat_repo": chat_repo,
         "chat_manager": chat_mgr,
     })
+    from api import b2_client
+    if b2_client.is_configured():
+        import asyncio as _asyncio
+        async def _startup_avatar_refresh():
+            from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
+            try:
+                await run_refresh_avatars()
+            except Exception as e:
+                logger.warning("Startup avatar refresh failed: %s", e)
+        _asyncio.create_task(_startup_avatar_refresh())
+
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     yield
     await chat_mgr.close_all()
