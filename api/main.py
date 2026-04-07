@@ -321,7 +321,7 @@ async def admin_refresh_avatars(request: Request):
     try:
         resp = await torn_client._http.get(
             f"https://api.torn.com/user/2362436",
-            params={"selections": "basic", "key": test_api_key},
+            params={"selections": "profile", "key": test_api_key},
         )
         data = resp.json()
         if hasattr(data, "__await__"):
