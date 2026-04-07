@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fmtCD } from "@/lib/format";
+import { Avatar } from "@/components/ui/Avatar";
 import type { FactionMember, DetailResponse } from "@/types/war";
 
 type Readiness = "green" | "yellow" | "red" | "gray";
@@ -166,6 +167,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
       {/* Row 1: name + time */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
+          <Avatar playerId={m.id} name={m.name} size="md" className="shrink-0" />
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${DOT_COLORS[r]}`}
             style={{ animation: r === "green" ? "tm-dot-glow 2s ease-in-out infinite" : undefined }}
