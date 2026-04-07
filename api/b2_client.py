@@ -25,5 +25,9 @@ def _get_api():
 def upload_bytes(remote_path: str, data: bytes, content_type: str) -> str:
     api = _get_api()
     bucket = api.get_bucket_by_name(_BUCKET_NAME)
-    bucket.upload_bytes(data, remote_path, content_type=content_type)
+    bucket.upload_bytes(
+        data, remote_path,
+        content_type=content_type,
+        cache_control="public, max-age=86400",
+    )
     return f"{_PUBLIC_URL}/{remote_path}"
