@@ -63,6 +63,23 @@ class KeyRepository(BaseRepository):
             for r in rows
         ]
 
+    def set_avatar(self, player_id: int, url: str, fetched_at: int) -> None:
+        conn = sqlite3.connect(self._db_path)
+        conn.execute(
+            "UPDATE member_keys SET avatar_url = ?, avatar_fetched_at = ? WHERE player_id = ?",
+            (url, fetched_at, player_id),
+        )
+        conn.commit()
+        conn.close()
+
+    def get_avatar_map(self) -> dict[int, str]:
+        conn = sqlite3.connect(self._db_path)
+        rows = conn.execute(
+            "SELECT player_id, avatar_url FROM member_keys WHERE avatar_url IS NOT NULL"
+        ).fetchall()
+        conn.close()
+        return {r[0]: r[1] for r in rows}
+
     def get_admins(self) -> list[dict]:
         conn = sqlite3.connect(self._db_path)
         rows = conn.execute(

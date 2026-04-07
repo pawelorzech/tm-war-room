@@ -3,6 +3,8 @@ import pytest
 from cryptography.fernet import Fernet
 
 from api.db import KeyStore
+from api.db.repos.keys import KeyRepository
+from api.db.migrations.runner import run_migrations
 
 
 @pytest.fixture
@@ -58,3 +60,37 @@ def test_get_keys_metadata(store):
     assert "api_key" not in p1  # no decrypted key
     p2 = next(m for m in meta if m["player_id"] == 456)
     assert p2["is_faction_key"] is True
+
+
+@pytest.fixture
+def key_repo(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    migrations_dir = os.path.join(os.path.dirname(__file__), "..", "api", "db", "migrations")
+    run_migrations(db_path, migrations_dir)
+    key = Fernet.generate_key().decode()
+    repo = KeyRepository(db_path, key)
+    repo.save_key(101, "Alpha", "torn_key_1")
+    repo.save_key(102, "Bravo", "torn_key_2")
+    return repo
+
+
+class TestAvatarMethods:
+    def test_get_avatar_map_empty_initially(self, key_repo):
+        result = key_repo.get_avatar_map()
+        assert result == {}
+
+    def test_set_and_get_avatar(self, key_repo):
+        key_repo.set_avatar(101, "https://cdn.example.com/avatars/101.jpg", 1700000000)
+        result = key_repo.get_avatar_map()
+        assert result == {101: "https://cdn.example.com/avatars/101.jpg"}
+
+    def test_set_avatar_overwrites(self, key_repo):
+        key_repo.set_avatar(101, "https://cdn.example.com/avatars/101.jpg", 1700000000)
+        key_repo.set_avatar(101, "https://cdn.example.com/avatars/101_new.jpg", 1700000001)
+        result = key_repo.get_avatar_map()
+        assert result[101] == "https://cdn.example.com/avatars/101_new.jpg"
+
+    def test_get_avatar_map_excludes_null(self, key_repo):
+        key_repo.set_avatar(101, "https://cdn.example.com/avatars/101.jpg", 1700000000)
+        result = key_repo.get_avatar_map()
+        assert 102 not in result
