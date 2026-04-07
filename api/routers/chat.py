@@ -23,6 +23,7 @@ push_service = None
 settings_repo = None
 notification_dispatcher = None  # Set by main.py
 torn_client = None  # Set by main.py
+presence_repo = None  # Set by main.py
 
 
 def _not_ready():
@@ -578,6 +579,8 @@ async def bot_list_channels(authorization: str = Header()):
 @router.get("/online")
 async def get_online(x_player_id: int = Header()):
     _verify_member(x_player_id)
+    if presence_repo:
+        return {"online": presence_repo.get_online(ttl_seconds=120)}
     return {"online": chat_manager.get_online_players()}
 
 
