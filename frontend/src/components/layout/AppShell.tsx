@@ -16,6 +16,7 @@ import { useChatAccess } from "@/hooks/useChatAccess";
 import { api } from "@/lib/api-client";
 import { PDAProvider } from '@/contexts/PDAContext';
 import { usePDAPolling } from '@/hooks/usePDAPolling';
+import { AvatarProvider } from '@/contexts/AvatarContext';
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
@@ -76,6 +77,15 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   usePDAPolling();
+
+  // Heartbeat — keep hub presence alive
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const beat = () => api.heartbeat().catch(() => {});
+    beat();
+    const interval = setInterval(beat, 30_000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   if (!isLoggedIn) {
     return <>{children}</>;
@@ -198,7 +208,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <PDAProvider>
       <AuthGate>
-        <ShellContent>{children}</ShellContent>
+        <AvatarProvider>
+          <ShellContent>{children}</ShellContent>
+        </AvatarProvider>
       </AuthGate>
     </PDAProvider>
   );
