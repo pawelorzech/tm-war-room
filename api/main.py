@@ -66,11 +66,12 @@ import api.routers.chat as chat_mod
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
 analytics_store = None
+presence_repo = None  # PresenceRepository, set in lifespan
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global torn_client, key_store, analytics_store
+    global torn_client, key_store, analytics_store, presence_repo
     os.makedirs("data", exist_ok=True)
     analytics_store = AnalyticsStore(db_path="data/analytics.db")
     analytics_store.cleanup(days=30)
@@ -150,6 +151,9 @@ async def lifespan(app: FastAPI):
     )
     push_mod.push_service = push_service
 
+    from api.db.repos.presence_repository import PresenceRepository
+    presence_repo = PresenceRepository(db_path="data/keys.db")
+
     from api.db.repos.notification_templates import NotificationTemplateRepository
     from api.db.repos.notification_events import NotificationEventRepository
     from api.db.repos.custom_groups import CustomGroupRepository
@@ -187,6 +191,7 @@ async def lifespan(app: FastAPI):
     chat_mod.chat_manager = chat_mgr
     chat_mod.key_store = key_store
     chat_mod.push_service = push_service
+    chat_mod.presence_repo = presence_repo
     from api.db.repos.settings import AppSettingsRepository
     settings_repo = AppSettingsRepository(db_path="data/keys.db")
     chat_mod.settings_repo = settings_repo
@@ -649,6 +654,46 @@ async def get_announcements(_=Depends(verify_member)):
 @app.get("/api/announcements/all")
 async def get_all_announcements(_=Depends(verify_member)):
     return {"announcements": key_store.get_all_announcements()}
+
+@app.post("/api/heartbeat")
+async def heartbeat(x_player_id: int = Header()):
+    if presence_repo:
+        presence_repo.heartbeat(x_player_id)
+    return {"ok": True}
+
+
+@app.get("/api/members/avatars")
+async def members_avatars(_=Depends(verify_member)):
+    return {"avatars": key_store._keys.get_avatar_map()}
+
+
+@app.get("/api/profile/me")
+async def profile_me(x_player_id: int = Header()):
+    all_keys = key_store.get_all_keys()
+    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    if not user_key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    resp = await torn_client._http.get(
+        "https://api.torn.com/user/",
+        params={"selections": "profile,bars", "key": user_key["api_key"]},
+    )
+    resp.raise_for_status()
+    raw = resp.json()
+    if inspect.isawaitable(raw):
+        raw = await raw
+    if "error" in raw:
+        raise HTTPException(status_code=502, detail="Torn API error")
+    return {
+        "player_id": raw.get("player_id"),
+        "name": raw.get("name"),
+        "level": raw.get("level"),
+        "faction": raw.get("faction"),
+        "profile_image": raw.get("profile_image"),
+        "life": raw.get("life"),
+        "last_action": raw.get("last_action"),
+        "status": raw.get("status"),
+    }
+
 
 @app.get("/api/keys")
 async def list_keys(_=Depends(verify_member)):
