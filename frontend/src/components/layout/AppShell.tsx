@@ -54,24 +54,41 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Track visual viewport height (handles iOS keyboard — visualViewport shrinks, window.innerHeight doesn't)
-  // Debounced to avoid layout thrashing during keyboard animation (especially in PDA webview)
+  // Track visual viewport height + detect keyboard open
+  // Keyboard detection: if viewport shrinks >150px from initial height, keyboard is open.
+  // Exposed as CSS class "keyboard-open" on <html> for child components.
+  // ONLY listen to "resize" — the "scroll" event fires during inner-container scroll on PDA
+  // and causes a feedback loop (scroll → --vvh change → flex reflow → scroll jump).
   useEffect(() => {
     let rafId: number | null = null;
+    let lastH = 0;
+    let initialH = Math.round(window.visualViewport?.height ?? window.innerHeight);
+    const KEYBOARD_THRESHOLD = 150;
+
     const update = () => {
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
-        const h = window.visualViewport?.height ?? window.innerHeight;
-        document.documentElement.style.setProperty("--vvh", `${h}px`);
+        const h = Math.round(window.visualViewport?.height ?? window.innerHeight);
+        if (h !== lastH) {
+          lastH = h;
+          document.documentElement.style.setProperty("--vvh", `${h}px`);
+          // Update keyboard-open class
+          if (initialH - h > KEYBOARD_THRESHOLD) {
+            document.documentElement.classList.add("keyboard-open");
+          } else {
+            document.documentElement.classList.remove("keyboard-open");
+            // Update initial height when keyboard closes (handles orientation changes)
+            initialH = h;
+          }
+        }
         rafId = null;
       });
     };
     update();
     window.visualViewport?.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("scroll", update);
     return () => {
       window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
+      document.documentElement.classList.remove("keyboard-open");
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
@@ -92,7 +109,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" data-chat-page={onChatPage || undefined}>
       {/* Desktop sidebar */}
       <div className="hidden lg:block fixed top-0 left-0 w-[200px] h-full z-40">
         <Sidebar unreadCount={unreadCount} chatUnread={chatUnread} showVersionBadge={showNotice} />
@@ -137,10 +154,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className={`lg:ml-[200px] pt-12 lg:pt-0 pb-20 lg:pb-0 flex flex-col ${
+        className={`lg:ml-[200px] pt-12 lg:pt-0 flex flex-col ${
           onChatPage
-            ? "overflow-hidden lg:min-h-screen"
-            : "min-h-screen"
+            ? "overflow-hidden lg:min-h-screen pb-0"
+            : "min-h-screen pb-20 lg:pb-0"
         }`}
         style={onChatPage ? { height: "var(--vvh, 100dvh)" } : undefined}
       >

@@ -92,7 +92,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-border bg-bg-surface/95 backdrop-blur-md">
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-border bg-bg-surface/95 backdrop-blur-md keyboard-open-chat-hide">
         <div className="flex">
           {tabs.map((tab) => {
             const active = isTabActive(tab.id);
