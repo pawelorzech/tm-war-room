@@ -125,6 +125,10 @@ export function ChatLayout() {
   }, [activeChannelId, updateUrl]);
 
   const handleSelectChannel = (id: number) => {
+    // Dismiss keyboard on mobile before switching — prevents blank page
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     setSelectedThread(null);
     setShowAdmin(false);
     selectChannel(id);

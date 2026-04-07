@@ -128,6 +128,11 @@
   50% { box-shadow: 0 0 8px currentColor, 0 0 12px currentColor; }
 }
 
+/* Hide bottom nav when keyboard is open on chat page */
+html.keyboard-open [data-chat-page] .keyboard-open-chat-hide {
+  display: none;
+}
+
 /* ── Bottom nav safe area (iPhone home indicator) ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .pb-safe {
