@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.6.0";
+export const CURRENT_VERSION = "1.7.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.7.0",
+    date: "2026-04-07",
+    title: "Profiles, Avatars & Presence",
+    changes: [
+      { type: "feat", text: "Player avatars — Torn profile images cached on Backblaze B2, shown throughout the app" },
+      { type: "feat", text: "Settings page — unified profile view with Torn stats, push notification preferences, and theme toggle" },
+      { type: "feat", text: "Hub presence — online counter now shows everyone active in the hub, not just chat users" },
+      { type: "improve", text: "Notifications page simplified to inbox only; push settings moved to /settings" },
+    ],
+  },
   {
     version: "1.6.0",
     date: "2026-04-06",
