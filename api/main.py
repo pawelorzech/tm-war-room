@@ -289,6 +289,23 @@ async def public_settings():
     return repo.get_public()
 
 
+@app.post("/api/admin/refresh-avatars")
+async def admin_refresh_avatars(request: Request):
+    """Manually trigger avatar refresh (superadmin only)."""
+    pid = request.headers.get("x-player-id")
+    if str(pid) != str(SUPERADMIN_ID):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from api import b2_client
+    from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
+    if not b2_client.is_configured():
+        return {"error": "B2 not configured", "key_id": bool(b2_client._KEY_ID), "key": bool(b2_client._KEY), "url": bool(b2_client._PUBLIC_URL)}
+    try:
+        await run_refresh_avatars()
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/status")
 async def app_status():
     """System status including war detection for adaptive polling."""
