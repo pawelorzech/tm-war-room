@@ -26,11 +26,14 @@ async def run_refresh_avatars() -> None:
         return
 
     faction_key_info = key_repo.get_faction_key()
-    if not faction_key_info:
-        logger.warning("Avatar refresh: no faction key found")
-        return
-
-    api_key = faction_key_info["api_key"]
+    if faction_key_info:
+        api_key = faction_key_info["api_key"]
+    else:
+        import os
+        api_key = os.getenv("TORN_API_KEY", "")
+        if not api_key:
+            logger.warning("Avatar refresh: no faction key and no TORN_API_KEY")
+            return
     all_keys = key_repo.get_all_keys()
     now = int(time.time())
 
