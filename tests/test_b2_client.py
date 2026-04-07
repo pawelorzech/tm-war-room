@@ -43,6 +43,8 @@ class TestUploadBytes:
             result = b2.upload_bytes("avatars/123.jpg", b"img_data", "image/jpeg")
 
         mock_bucket.upload_bytes.assert_called_once_with(
-            b"img_data", "avatars/123.jpg", content_type="image/jpeg"
+            b"img_data", "avatars/123.jpg",
+            content_type="image/jpeg",
+            cache_control="public, max-age=86400",
         )
         assert result == "https://cdn.example.com/avatars/123.jpg"
