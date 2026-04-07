@@ -166,10 +166,27 @@ class TestRun:
         assert "Throttled" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_not_throttled_during_war(
+    async def test_throttled_during_war(
         self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
     ):
+        """War mode throttles to 1 hour (3600s) by default."""
         revive_mod._last_post_ts = time.time()  # just posted
+        result = await revive_mod.run(
+            torn_client=mock_torn_client_for_bot,
+            chat_repo=mock_chat_repo,
+            chat_manager=mock_chat_manager,
+            war_active=True,
+            force=False,
+        )
+        assert result["posted"] is False
+        assert "Throttled" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_posts_during_war_after_interval(
+        self, mock_torn_client_for_bot, mock_chat_repo, mock_chat_manager,
+    ):
+        """War mode posts after 1 hour has passed."""
+        revive_mod._last_post_ts = time.time() - 3601  # over 1 hour ago
         with patch("api.bots.revive_monitor._notify_mentions_fn", new_callable=AsyncMock):
             result = await revive_mod.run(
                 torn_client=mock_torn_client_for_bot,

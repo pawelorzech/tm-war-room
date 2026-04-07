@@ -12,8 +12,8 @@ CHANNEL_NAME = "revives"
 
 # Throttle state
 _last_post_ts: float = 0.0
-DEFAULT_PEACE_INTERVAL = 3600  # 60 minutes
-DEFAULT_WAR_INTERVAL = 0      # no throttle during war by default
+DEFAULT_PEACE_INTERVAL = 86400  # 24 hours
+DEFAULT_WAR_INTERVAL = 3600    # 60 minutes
 
 # Injected by main.py during startup
 _notify_mentions_fn = None
