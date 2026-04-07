@@ -14,6 +14,7 @@ import { ContextMenu } from "@/components/nav/ContextMenu";
 import { SearchBar } from "@/components/nav/SearchBar";
 import { CommandPalette } from "@/components/nav/CommandPalette";
 import { InboxBadge } from "@/components/nav/InboxBadge";
+import { Avatar } from "@/components/ui/Avatar";
 
 interface SidebarProps {
   unreadCount?: number;
@@ -177,19 +178,18 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
 
         {/* User panel */}
         <div className="border-t border-border p-3">
-          <div className="flex items-center gap-2 mb-2 group">
-            <div className="w-7 h-7 rounded-full bg-torn-green-dim text-white text-xs font-bold flex items-center justify-center ring-2 ring-transparent group-hover:ring-torn-green/40 transition-all duration-200">
-              {playerName?.charAt(0)?.toUpperCase() || "?"}
-            </div>
+          <Link href="/settings" className="flex items-center gap-2 mb-2 group cursor-pointer">
+            <Avatar playerId={playerId ?? 0} name={playerName ?? undefined} size="sm"
+              className="ring-2 ring-transparent group-hover:ring-torn-green/40 transition-all duration-200" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate">
+              <p className="text-sm font-medium text-text-primary truncate group-hover:text-torn-green transition-colors">
                 {playerName || "Unknown"}
               </p>
               <p className="text-[10px] text-text-muted">
                 [{playerId || "..."}]
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
             <button
               onClick={toggle}
