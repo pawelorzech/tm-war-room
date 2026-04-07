@@ -270,3 +270,34 @@ async def trigger_revive_monitor(admin: dict = Depends(require_admin)):
     )
     logger.info("Revive monitor manually triggered by admin %d: %s", admin["sub"], result)
     return result
+
+
+@router.get("/bots/revive-monitor/settings")
+async def get_revive_monitor_settings(admin: dict = Depends(require_admin)):
+    """Get revive monitor interval settings."""
+    from api.db.repos.settings import AppSettingsRepository
+    from api.bots.revive_monitor import DEFAULT_PEACE_INTERVAL, DEFAULT_WAR_INTERVAL
+    settings = AppSettingsRepository(db_path="data/keys.db")
+    return {
+        "peace_interval": int(settings.get("revive_monitor_peace_interval") or DEFAULT_PEACE_INTERVAL),
+        "war_interval": int(settings.get("revive_monitor_war_interval") or DEFAULT_WAR_INTERVAL),
+    }
+
+
+@router.put("/bots/revive-monitor/settings")
+async def update_revive_monitor_settings(request: Request, admin: dict = Depends(require_admin)):
+    """Update revive monitor interval settings."""
+    from api.db.repos.settings import AppSettingsRepository
+    body = await request.json()
+    settings = AppSettingsRepository(db_path="data/keys.db")
+    updated = {}
+    if "peace_interval" in body:
+        val = max(60, min(86400, int(body["peace_interval"])))  # 1min–24h
+        settings.set("revive_monitor_peace_interval", str(val), updated_by=admin["sub"])
+        updated["peace_interval"] = val
+    if "war_interval" in body:
+        val = max(0, min(3600, int(body["war_interval"])))  # 0 (no throttle)–1h
+        settings.set("revive_monitor_war_interval", str(val), updated_by=admin["sub"])
+        updated["war_interval"] = val
+    logger.info("Revive monitor settings updated by admin %d: %s", admin["sub"], updated)
+    return {"ok": True, **updated}

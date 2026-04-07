@@ -17,11 +17,50 @@ interface TriggerResult {
   error?: string;
 }
 
+interface ReviveSettings {
+  peace_interval: number;
+  war_interval: number;
+}
+
+function IntervalInput({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const minutes = Math.round(value / 60);
+  return (
+    <div>
+      <label className="text-xs text-text-secondary">{label}</label>
+      <div className="flex items-center gap-2 mt-1">
+        <input
+          type="number"
+          min={1}
+          max={1440}
+          value={minutes}
+          onChange={(e) => onChange(Math.max(1, parseInt(e.target.value) || 1) * 60)}
+          className="w-20 px-2 py-1.5 text-sm bg-surface-primary border border-border rounded-lg text-text-primary"
+        />
+        <span className="text-xs text-text-secondary">min</span>
+      </div>
+      <p className="text-xs text-text-secondary/60 mt-0.5">{hint}</p>
+    </div>
+  );
+}
+
 export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: RequestInit) => Promise<T> }) {
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<TriggerResult | null>(null);
+  const [settings, setSettings] = useState<ReviveSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
 
   const loadBots = useCallback(async () => {
     try {
@@ -34,7 +73,16 @@ export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: 
     }
   }, [adminFetch]);
 
-  useEffect(() => { loadBots(); }, [loadBots]);
+  const loadSettings = useCallback(async () => {
+    try {
+      const data = await adminFetch<ReviveSettings>("/api/admin/bots/revive-monitor/settings");
+      setSettings(data);
+    } catch {
+      /* ignore */
+    }
+  }, [adminFetch]);
+
+  useEffect(() => { loadBots(); loadSettings(); }, [loadBots, loadSettings]);
 
   const triggerReviveMonitor = async () => {
     setTriggering(1);
@@ -46,6 +94,25 @@ export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: 
       setLastResult({ posted: false, risky_count: -1, message: "", error: e instanceof Error ? e.message : "Unknown error" });
     } finally {
       setTriggering(null);
+    }
+  };
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      await adminFetch("/api/admin/bots/revive-monitor/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      setSaveMsg("Saved");
+      setTimeout(() => setSaveMsg(""), 2000);
+    } catch {
+      setSaveMsg("Error saving");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,6 +174,40 @@ export function BotsAdmin({ adminFetch }: { adminFetch: <T>(url: string, init?: 
                         : "All clear — no one has revives enabled"
                       : `Not posted: ${lastResult.message}`
                   }
+                </div>
+              )}
+
+              {bot.name === "Revive Monitor" && settings && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <h3 className="text-sm font-medium text-text-primary mb-3">Message Intervals</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <IntervalInput
+                      label="Peace mode"
+                      hint="How often to post reminders"
+                      value={settings.peace_interval}
+                      onChange={(v) => setSettings({ ...settings, peace_interval: v })}
+                    />
+                    <IntervalInput
+                      label="War mode"
+                      hint="How often to post warnings"
+                      value={settings.war_interval}
+                      onChange={(v) => setSettings({ ...settings, war_interval: v })}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      onClick={saveSettings}
+                      disabled={saving}
+                      className="px-3 py-1.5 text-sm bg-torn-green text-white rounded-lg hover:bg-torn-green/90 transition-colors disabled:opacity-50"
+                    >
+                      {saving ? "Saving..." : "Save Intervals"}
+                    </button>
+                    {saveMsg && (
+                      <span className={`text-xs ${saveMsg === "Saved" ? "text-torn-green" : "text-torn-red"}`}>
+                        {saveMsg}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

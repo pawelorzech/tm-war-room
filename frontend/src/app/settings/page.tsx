@@ -83,7 +83,7 @@ export default function SettingsPage() {
                   rel="noopener noreferrer"
                   className="text-xs text-torn-green hover:underline mt-1 inline-block"
                 >
-                  View on Torn &nearr;
+                  View on Torn ↗
                 </a>
               </div>
             </div>
