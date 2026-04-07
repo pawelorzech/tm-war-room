@@ -12,7 +12,8 @@ CHANNEL_NAME = "revives"
 
 # Throttle state
 _last_post_ts: float = 0.0
-PEACE_INTERVAL = 3600  # 60 minutes
+DEFAULT_PEACE_INTERVAL = 3600  # 60 minutes
+DEFAULT_WAR_INTERVAL = 0      # no throttle during war by default
 
 # Injected by main.py during startup
 _notify_mentions_fn = None
@@ -66,9 +67,22 @@ async def run(
     global _last_post_ts
 
     now = time.time()
-    if not force and not war_active:
-        if now - _last_post_ts < PEACE_INTERVAL:
-            return {"posted": False, "risky_count": -1, "message": "Throttled (peacetime)"}
+
+    # Load configurable intervals
+    peace_interval = DEFAULT_PEACE_INTERVAL
+    war_interval = DEFAULT_WAR_INTERVAL
+    try:
+        from api.db.repos.settings import AppSettingsRepository
+        settings = AppSettingsRepository(db_path="data/keys.db")
+        peace_interval = int(settings.get("revive_monitor_peace_interval") or DEFAULT_PEACE_INTERVAL)
+        war_interval = int(settings.get("revive_monitor_war_interval") or DEFAULT_WAR_INTERVAL)
+    except Exception:
+        pass  # Fall back to defaults if DB unavailable (e.g. tests)
+
+    throttle_interval = war_interval if war_active else peace_interval
+    if not force and now - _last_post_ts < throttle_interval:
+        mode = "war" if war_active else "peace"
+        return {"posted": False, "risky_count": -1, "message": f"Throttled ({mode}, interval={throttle_interval}s)"}
 
     bot = chat_repo.get_bot_by_name(BOT_NAME)
     if not bot or not bot.get("active", 1):

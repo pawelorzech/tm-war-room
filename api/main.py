@@ -313,40 +313,15 @@ async def admin_refresh_avatars(request: Request):
         fk = key_repo.get_faction_key()
         diag["has_faction_key"] = fk is not None
         diag["member_count"] = len(key_repo.get_all_keys())
-    # Test single avatar upload for player 2362436
-    import os, asyncio
-    test_api_key = os.getenv("TORN_API_KEY", "")
-    diag["torn_api_key_set"] = bool(test_api_key)
-    torn_client = state.get("torn_client")
     try:
-        resp = await torn_client._http.get(
-            f"https://api.torn.com/user/2362436",
-            params={"selections": "profile", "key": test_api_key},
-        )
-        data = resp.json()
-        if hasattr(data, "__await__"):
-            data = await data
-        diag["torn_profile_image"] = data.get("profile_image", "(none)")
-        diag["torn_resp_keys"] = list(data.keys())[:10]
-        if data.get("profile_image"):
-            img_resp = await torn_client._http.get(data["profile_image"])
-            diag["img_status"] = img_resp.status_code
-            diag["img_size"] = len(img_resp.content)
-            loop = asyncio.get_event_loop()
-            b2_url = await loop.run_in_executor(
-                None,
-                lambda: b2_client.upload_bytes("avatars/2362436.jpg", img_resp.content, "image/jpeg"),
-            )
-            diag["b2_url"] = b2_url
-            key_repo.set_avatar(2362436, b2_url, int(__import__("time").time()))
-            diag["avatar_saved"] = True
+        from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
+        await run_refresh_avatars()
+        if key_repo:
+            diag["avatars_after"] = len(key_repo.get_avatar_map())
+        return {"ok": True, **diag}
     except Exception as e:
         import traceback
-        diag["test_error"] = str(e)
-        diag["test_trace"] = traceback.format_exc()
-    if key_repo:
-        diag["avatars_after"] = len(key_repo.get_avatar_map())
-    return {"ok": True, **diag}
+        return {"error": str(e), "trace": traceback.format_exc(), **diag}
 
 
 @app.get("/api/status")
