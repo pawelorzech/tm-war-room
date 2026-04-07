@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
+import { Avatar } from "@/components/ui/Avatar";
 
 interface Props {
   message: Message;
@@ -103,13 +104,13 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
       onMouseLeave={() => setShowActions(false)}
     >
       {/* Avatar area */}
-      <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-xs font-bold text-text-muted shrink-0 mt-0.5">
-        {isBot ? (
-          <span className="text-torn-blue">B</span>
-        ) : (
-          message.player_name.charAt(0).toUpperCase()
-        )}
-      </div>
+      {isBot ? (
+        <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-xs font-bold text-torn-blue shrink-0 mt-0.5">
+          B
+        </div>
+      ) : (
+        <Avatar playerId={message.player_id} name={message.player_name} size="md" className="mt-0.5" />
+      )}
 
       <div className="flex-1 min-w-0">
         {/* Header */}

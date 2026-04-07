@@ -12,6 +12,7 @@ import { ThreadPanel } from "./ThreadPanel";
 import { CreateThreadDialog } from "./CreateThreadDialog";
 import { ChatAdmin } from "./ChatAdmin";
 import { api } from "@/lib/api-client";
+import { Avatar } from "@/components/ui/Avatar";
 import type { Thread, Channel } from "@/types/chat";
 
 export function ChatLayout() {
@@ -168,7 +169,7 @@ export function ChatLayout() {
               </div>
               {onlinePlayers.map(pid => (
                 <div key={pid} className="px-3 py-1.5 text-sm text-text-primary flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-torn-green shrink-0" />
+                  <Avatar playerId={pid} name={memberMap[pid]} size="sm" />
                   {memberMap[pid] || `Player ${pid}`}
                 </div>
               ))}
