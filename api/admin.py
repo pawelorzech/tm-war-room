@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import inspect
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, Header, Depends, Request, Query
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel as PydanticBaseModel
 
 from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
@@ -46,6 +45,8 @@ async def require_admin(request: Request) -> dict:
     payload = decode_jwt(token, JWT_SECRET)
     if payload is None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if payload.get("token_type") != "admin":
+        raise HTTPException(status_code=401, detail="Admin token required")
     pid = payload["sub"]
     if pid != SUPERADMIN_ID and not _key_store.is_admin(pid):
         raise HTTPException(status_code=403, detail="Not an admin")
@@ -63,29 +64,26 @@ async def require_superadmin(request: Request) -> dict:
 
 
 @router.post("/session")
-async def create_session(request: Request, x_player_id: int = Header()):
+async def create_session(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.check(f"session:{client_ip}", max_requests=5):
         raise HTTPException(status_code=429, detail="Too many attempts, try again later")
-    if x_player_id != SUPERADMIN_ID and not _key_store.is_admin(x_player_id):
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    payload = decode_jwt(auth_header[7:], JWT_SECRET)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if payload.get("token_type") != "session":
+        raise HTTPException(status_code=401, detail="Session token required")
+    player_id = payload["sub"]
+    if player_id != SUPERADMIN_ID and not _key_store.is_admin(player_id):
         raise HTTPException(status_code=403, detail="Not an admin")
-    all_keys = _key_store.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    user_key = _key_store.get_key(player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="No API key registered")
-    # Verify identity via Torn API
-    resp = await _torn_client._http.get(
-        "https://api.torn.com/user/",
-        params={"selections": "profile", "key": user_key["api_key"]},
-    )
-    resp.raise_for_status()
-    raw = resp.json()
-    if inspect.isawaitable(raw):
-        raw = await raw
-    if "error" in raw or raw.get("player_id") != x_player_id:
-        raise HTTPException(status_code=401, detail="API key verification failed")
-    token = create_jwt(x_player_id, user_key["player_name"], JWT_SECRET)
-    logger.info("Admin session created: %s [%d]", user_key["player_name"], x_player_id)
+    token = create_jwt(player_id, user_key["player_name"], JWT_SECRET, token_type="admin")
+    logger.info("Admin session created: %s [%d]", user_key["player_name"], player_id)
     return {"token": token}
 
 
@@ -159,8 +157,7 @@ async def list_admins(admin: dict = Depends(require_admin)):
 
 @router.post("/admins/{player_id}")
 async def promote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
-    all_keys = _key_store.get_all_keys()
-    if not any(k["player_id"] == player_id for k in all_keys):
+    if not _key_store.has_key(player_id):
         raise HTTPException(status_code=404, detail="Player not registered")
     if player_id == SUPERADMIN_ID:
         raise HTTPException(status_code=400, detail="Superadmin cannot be promoted")

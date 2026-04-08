@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { api } from "@/lib/api-client";
+import { useAuth } from "@/hooks/useAuth";
+import { api, getSessionToken } from "@/lib/api-client";
 import type { Channel, Message, ChatWSMessage } from "@/types/chat";
 
 export function useChat() {
+  const { playerId, playerName } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -13,23 +15,25 @@ export function useChat() {
   const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
   const [onlinePlayers, setOnlinePlayers] = useState<number[]>([]);
   const [typingPlayers, setTypingPlayers] = useState<Record<number, { player_name: string; ts: number }>>({});
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempt = useRef(0);
   const activeChannelRef = useRef<number | null>(null);
+  const isLoadingOlderRef = useRef(false);
+  const hasMoreOlderRef = useRef(true);
+  const lastOlderCursorRef = useRef<number | null>(null);
   const myPlayerIdRef = useRef<number>(0);
   const myPlayerNameRef = useRef<string>("");
 
   // Keep ref in sync
   activeChannelRef.current = activeChannelId;
 
-  // Update refs from localStorage on mount
   useEffect(() => {
-    const pid = localStorage.getItem("myKeyPlayer");
-    const name = localStorage.getItem("myKeyName");
-    if (pid) myPlayerIdRef.current = Number(pid);
-    if (name) myPlayerNameRef.current = name;
-  }, []);
+    myPlayerIdRef.current = playerId ?? 0;
+    myPlayerNameRef.current = playerName ?? "";
+  }, [playerId, playerName]);
 
   // ── Load channels ──────────────────────────────────────
   const loadChannels = useCallback(async () => {
@@ -46,11 +50,31 @@ export function useChat() {
 
   // ── Load messages for active channel ───────────────────
   const loadMessages = useCallback(async (channelId: number, before?: number) => {
-    if (!before) setLoadingMessages(true);
+    if (before) {
+      if (isLoadingOlderRef.current || !hasMoreOlderRef.current || lastOlderCursorRef.current === before) {
+        return;
+      }
+      isLoadingOlderRef.current = true;
+      lastOlderCursorRef.current = before;
+      setIsLoadingOlder(true);
+    } else {
+      lastOlderCursorRef.current = null;
+      hasMoreOlderRef.current = true;
+      setHasMoreOlder(true);
+      setLoadingMessages(true);
+    }
+
+    let olderRequestSucceeded = false;
     try {
       const data = await api.chatMessages(channelId, before);
       if (before) {
-        setMessages(prev => [...data.messages, ...prev]);
+        olderRequestSucceeded = true;
+        if (data.messages.length === 0) {
+          hasMoreOlderRef.current = false;
+          setHasMoreOlder(false);
+          return;
+        }
+        setMessages((prev) => [...data.messages, ...prev]);
       } else {
         setMessages(data.messages);
       }
@@ -61,14 +85,30 @@ export function useChat() {
         setUnreadCounts(prev => ({ ...prev, [channelId]: 0 }));
       }
     } catch {
+      if (before) {
+        lastOlderCursorRef.current = null;
+      }
       /* ignore */
     } finally {
-      setLoadingMessages(false);
+      if (before) {
+        if (!olderRequestSucceeded) {
+          lastOlderCursorRef.current = null;
+        }
+        isLoadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      } else {
+        setLoadingMessages(false);
+      }
     }
   }, []);
 
   // ── Select channel ─────────────────────────────────────
   const selectChannel = useCallback((channelId: number) => {
+    hasMoreOlderRef.current = true;
+    isLoadingOlderRef.current = false;
+    lastOlderCursorRef.current = null;
+    setHasMoreOlder(true);
+    setIsLoadingOlder(false);
     setActiveChannelId(channelId);
     setMessages([]);
     loadMessages(channelId);
@@ -132,45 +172,9 @@ export function useChat() {
 
   // ── Load older messages (infinite scroll) ──────────────
   const loadOlder = useCallback(() => {
-    if (!activeChannelRef.current || messages.length === 0) return;
+    if (!activeChannelRef.current || messages.length === 0 || isLoadingOlder || !hasMoreOlder) return;
     loadMessages(activeChannelRef.current, messages[0].id);
-  }, [messages, loadMessages]);
-
-  // ── WebSocket connection ───────────────────────────────
-  const connectWS = useCallback(() => {
-    const pid = typeof window !== "undefined" ? localStorage.getItem("myKeyPlayer") : null;
-    if (!pid) return;
-
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${window.location.host}/api/chat/ws?player_id=${pid}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      reconnectAttempt.current = 0;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg: ChatWSMessage = JSON.parse(event.data);
-        handleWSMessage(msg);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    ws.onclose = (event) => {
-      wsRef.current = null;
-      if (event.code === 4001) return; // Replaced by new connection
-      // Reconnect with exponential backoff
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 30000);
-      reconnectAttempt.current++;
-      reconnectTimer.current = setTimeout(connectWS, delay);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
-  }, []);
+  }, [hasMoreOlder, isLoadingOlder, messages, loadMessages]);
 
   const handleWSMessage = useCallback((msg: ChatWSMessage) => {
     const p = msg.payload;
@@ -239,6 +243,42 @@ export function useChat() {
     }
   }, []);
 
+  // ── WebSocket connection ───────────────────────────────
+  const connectWS = useCallback(() => {
+    const token = getSessionToken();
+    if (!token) return;
+
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${proto}//${window.location.host}/api/chat/ws?token=${encodeURIComponent(token)}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      reconnectAttempt.current = 0;
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg: ChatWSMessage = JSON.parse(event.data);
+        handleWSMessage(msg);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    ws.onclose = (event) => {
+      wsRef.current = null;
+      if (event.code === 4001 || event.code === 4003) return;
+      // Reconnect with exponential backoff
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 30000);
+      reconnectAttempt.current++;
+      reconnectTimer.current = setTimeout(connectWS, delay);
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+  }, [handleWSMessage]);
+
   // Clean up stale typing indicators
   useEffect(() => {
     const interval = setInterval(() => {
@@ -287,7 +327,7 @@ export function useChat() {
 
   return {
     channels, activeChannelId, messages, loading, loadingMessages,
-    unreadCounts, totalUnread, onlinePlayers, typingPlayers,
+    unreadCounts, totalUnread, onlinePlayers, typingPlayers, isLoadingOlder, hasMoreOlder,
     selectChannel, sendMessage, sendTyping, loadOlder,
     loadChannels, removeMessage,
   };

@@ -35,6 +35,9 @@ async def company_faction(x_player_id: int = Header()):
     if not torn_client or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
 
+    if not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+
     all_keys = key_store.get_all_keys()
     members_by_company: dict[int, dict] = {}
 

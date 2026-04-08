@@ -1,7 +1,7 @@
 // frontend/src/components/nav/MobileSearch.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { searchNavItems } from "@/lib/nav-data";
 
@@ -13,22 +13,64 @@ interface MobileSearchProps {
 export function MobileSearch({ open, onClose }: MobileSearchProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
   const router = useRouter();
 
   const results = searchNavItems(query);
 
   useEffect(() => {
     if (open) {
+      previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setQuery("");
       requestAnimationFrame(() => inputRef.current?.focus());
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      return;
     }
+
+    document.body.style.overflow = "";
+    previouslyFocusedRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const container = dialogRef.current;
+      if (!container) return;
+      const focusable = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [open]);
+  }, [open, onClose]);
 
   function navigate(href: string) {
     onClose();
@@ -39,9 +81,20 @@ export function MobileSearch({ open, onClose }: MobileSearchProps) {
 
   return (
     <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       className="fixed inset-0 z-[100] bg-bg-primary lg:hidden"
       style={{ animation: "tm-fade-in 150ms ease-out" }}
     >
+      <h2 id={titleId} className="sr-only">
+        Mobile search
+      </h2>
+      <p id={descriptionId} className="sr-only">
+        Search for pages and select a result to navigate.
+      </p>
       {/* Search header */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-border">
         <span className="text-text-muted">🔍</span>
@@ -56,6 +109,7 @@ export function MobileSearch({ open, onClose }: MobileSearchProps) {
         <button
           onClick={onClose}
           className="text-sm text-text-secondary hover:text-text-primary px-2 py-1"
+          aria-label="Close search"
         >
           Cancel
         </button>

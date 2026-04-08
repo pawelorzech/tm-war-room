@@ -13,9 +13,20 @@ export interface SpyEstimate {
   level?: number;
 }
 
+export interface SpyFactionInfo {
+  id?: number;
+  name: string;
+  tag: string;
+}
+
 export interface SpyFactionResponse {
-  faction: { id: number; name: string; tag: string } | null;
+  faction: SpyFactionInfo | null;
   members: SpyEstimate[];
   known_count: number;
   total_count: number;
+}
+
+export interface SpySubmitResponse {
+  status: string;
+  estimate: SpyEstimate;
 }

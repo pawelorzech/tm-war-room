@@ -34,6 +34,28 @@ class KeyRepository(BaseRepository):
         conn.commit()
         conn.close()
 
+    def has_key(self, player_id: int) -> bool:
+        conn = sqlite3.connect(self._db_path)
+        row = conn.execute("SELECT 1 FROM member_keys WHERE player_id = ?", (player_id,)).fetchone()
+        conn.close()
+        return row is not None
+
+    def get_key(self, player_id: int) -> dict | None:
+        conn = sqlite3.connect(self._db_path)
+        row = conn.execute(
+            "SELECT player_id, player_name, api_key_encrypted, is_faction_key FROM member_keys WHERE player_id = ?",
+            (player_id,),
+        ).fetchone()
+        conn.close()
+        if not row:
+            return None
+        return {
+            "player_id": row[0],
+            "player_name": row[1],
+            "api_key": self._fernet.decrypt(row[2]).decode(),
+            "is_faction_key": bool(row[3]),
+        }
+
     def get_all_keys(self) -> list[dict]:
         conn = sqlite3.connect(self._db_path)
         rows = conn.execute("SELECT player_id, player_name, api_key_encrypted, is_faction_key FROM member_keys").fetchall()

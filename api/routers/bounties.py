@@ -54,8 +54,7 @@ async def list_bounties(
     baseline_spy = None
     threat_mode = "none"
     if x_player_id and key_store:
-        all_keys = key_store.get_all_keys()
-        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        user_key = key_store.get_key(x_player_id)
         if user_key:
             try:
                 baseline = await torn_client.fetch_personalstats(user_key["api_key"])

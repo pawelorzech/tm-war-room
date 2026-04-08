@@ -1,10 +1,16 @@
 import pytest
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 from httpx import AsyncClient, ASGITransport
 
+from api.auth import create_jwt
 from api.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
 
 AUTH_HEADERS = {"X-Player-Id": "123"}
+TEST_JWT_SECRET = "test-secret-for-route-tests"
 
 
 def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online", position: str = "Team 1") -> FactionMember:
@@ -41,10 +47,31 @@ def mock_client():
 @pytest.fixture
 def mock_store():
     store = MagicMock()
-    store.get_all_keys.return_value = [{"player_id": 123, "player_name": "Test", "api_key": "fake_key", "is_faction_key": False}]
+    registered_keys = {
+        123: {"player_id": 123, "player_name": "Test", "api_key": "fake_key", "is_faction_key": False},
+        999: {"player_id": 999, "player_name": "EnemyBaseline", "api_key": "baseline_key", "is_faction_key": False},
+    }
+    store.get_all_keys.return_value = list(registered_keys.values())
+    store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
+    store.get_faction_key.return_value = None
+    store.has_key.side_effect = lambda player_id: player_id in registered_keys
     store.save_key = MagicMock()
     store.delete_key = MagicMock()
+    store.is_admin = MagicMock(return_value=False)
     return store
+
+
+class StubChatManager:
+    def __init__(self):
+        self.connected: list[int] = []
+        self.disconnected: list[int] = []
+
+    async def connect(self, player_id: int, ws) -> None:
+        self.connected.append(player_id)
+        await ws.accept()
+
+    def disconnect(self, player_id: int) -> None:
+        self.disconnected.append(player_id)
 
 
 @pytest.mark.asyncio
@@ -59,6 +86,27 @@ async def test_overview(mock_client, mock_store):
     assert len(data["members"]) == 1
     assert data["members"][0]["name"] == "Test"
     assert data["war"]["war_id"] == 100
+
+
+@pytest.mark.asyncio
+async def test_serve_frontend_blocks_path_traversal():
+    import os
+
+    with tempfile.TemporaryDirectory() as static_root, tempfile.TemporaryDirectory() as outside_root:
+        with open(os.path.join(static_root, "index.html"), "w", encoding="utf-8") as fh:
+            fh.write("index")
+        secret_path = os.path.join(outside_root, "secret.txt")
+        with open(secret_path, "w", encoding="utf-8") as fh:
+            fh.write("secret")
+        traversal = os.path.relpath(secret_path, static_root)
+
+        with patch("api.main.static_dir", static_root):
+            from api.main import serve_frontend
+
+            with pytest.raises(HTTPException) as excinfo:
+                await serve_frontend(traversal)
+
+    assert excinfo.value.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -119,7 +167,55 @@ async def test_register_key_wrong_faction(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_delete_key_requires_admin_token(mock_client, mock_store):
+    session_token = create_jwt(123, "Test", TEST_JWT_SECRET, token_type="session")
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.admin._key_store", mock_store), \
+         patch("api.admin.JWT_SECRET", TEST_JWT_SECRET), \
+         patch("api.admin.SUPERADMIN_ID", 999999):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete(
+                "/api/keys/999",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+
+    assert resp.status_code == 401
+    mock_store.delete_key.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_key_with_admin_token_succeeds(mock_client, mock_store):
+    admin_token = create_jwt(123, "Test", TEST_JWT_SECRET, token_type="admin")
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.admin._key_store", mock_store), \
+         patch("api.admin.JWT_SECRET", TEST_JWT_SECRET), \
+         patch("api.admin.SUPERADMIN_ID", 123):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete(
+                "/api/keys/999",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "status": "ok",
+        "deleted_player_id": 999,
+        "deleted_by": 123,
+    }
+    mock_store.delete_key.assert_called_once_with(player_id=999)
+
+
+@pytest.mark.asyncio
 async def test_enemy_with_rw(mock_client, mock_store):
+    mock_client.fetch_war = AsyncMock(return_value=_make_war())
     mock_client.fetch_enemy_members = AsyncMock(return_value=[_make_member(id=999, name="Enemy1")])
     mock_client.fetch_faction_info = AsyncMock(return_value=FactionInfo(
         id=9420, name="The Pusheen Army", tag="TPA", respect=4000000,
@@ -132,8 +228,13 @@ async def test_enemy_with_rw(mock_client, mock_store):
         xanax_taken=3000, refills=1500, attacks_won=8000, defends_won=500,
         networth=11_000_000_000, highest_beaten=100, best_damage=7000,
         best_kill_streak=100, damage_done=20_000_000))
-    mock_store.get_all_keys = MagicMock(return_value=[
-        {"player_id": 123, "player_name": "bombel", "api_key": "fk", "is_faction_key": False}])
+    registered_keys = {
+        123: {"player_id": 123, "player_name": "bombel", "api_key": "fk", "is_faction_key": False},
+        999: {"player_id": 999, "player_name": "EnemyBaseline", "api_key": "baseline_key", "is_faction_key": False},
+    }
+    mock_store.get_all_keys = MagicMock(return_value=list(registered_keys.values()))
+    mock_store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
+    mock_store.has_key.side_effect = lambda player_id: player_id in registered_keys
 
     with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
          patch("api.main.TORNSTATS_API_KEY", "fake_ts_key"):
@@ -190,10 +291,13 @@ def mock_client_yata():
 @pytest.fixture
 def mock_store_leader():
     store = MagicMock()
-    store.get_all_keys.return_value = [
-        {"player_id": 123, "player_name": "Leader", "api_key": "leader_key", "is_faction_key": True},
-    ]
+    registered_keys = {
+        123: {"player_id": 123, "player_name": "Leader", "api_key": "leader_key", "is_faction_key": True},
+    }
+    store.get_all_keys.return_value = list(registered_keys.values())
+    store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
     store.get_faction_key.return_value = {"player_id": 123, "player_name": "Leader", "api_key": "leader_key"}
+    store.has_key.side_effect = lambda player_id: player_id in registered_keys
     return store
 
 
@@ -220,10 +324,13 @@ async def test_detail_full_access_sees_all(mock_client_yata, mock_store_leader):
 @pytest.fixture
 def mock_store_member():
     store = MagicMock()
-    store.get_all_keys.return_value = [
-        {"player_id": 456, "player_name": "Member1", "api_key": "member_key", "is_faction_key": False},
-    ]
+    registered_keys = {
+        456: {"player_id": 456, "player_name": "Member1", "api_key": "member_key", "is_faction_key": False},
+    }
+    store.get_all_keys.return_value = list(registered_keys.values())
+    store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
     store.get_faction_key.return_value = None
+    store.has_key.side_effect = lambda player_id: player_id in registered_keys
     return store
 
 
@@ -316,6 +423,65 @@ async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
     assert data["members"]["789"]["source"] == "not_on_yata"
 
 
+
+
+@pytest.mark.asyncio
+async def test_stakeout_delete_requires_registered_member(mock_client, mock_store):
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.stakeout as stakeout_mod
+        original_has_key = stakeout_mod.key_store.has_key if stakeout_mod.key_store else None
+        stakeout_mod.stakeout_repo = MagicMock()
+        stakeout_mod.key_store = mock_store
+        mock_store.has_key.side_effect = lambda player_id: False if player_id == 123 else True
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete("/api/stakeout/555", headers=AUTH_HEADERS)
+    assert resp.status_code == 401
+    stakeout_mod.stakeout_repo.remove.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_notifications_are_scoped_to_requesting_player(mock_client, mock_store):
+    notification_repo = MagicMock()
+    notification_repo.get_recent.return_value = [{"id": 1, "player_id": 123, "title": "Mine"}]
+    notification_repo.get_unread_count.return_value = 2
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.notifications as notifications_mod
+        notifications_mod.notification_repo = notification_repo
+        notifications_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/notifications", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    assert resp.json()["notifications"] == [{"id": 1, "player_id": 123, "title": "Mine"}]
+    notification_repo.get_recent.assert_called_once_with(123, 50)
+    notification_repo.get_unread_count.assert_called_with(123)
+
+
+@pytest.mark.asyncio
+async def test_notifications_read_operations_are_scoped_to_requesting_player(mock_client, mock_store):
+    notification_repo = MagicMock()
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.notifications as notifications_mod
+        notifications_mod.notification_repo = notification_repo
+        notifications_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            mark_one = await ac.post("/api/notifications/read/77", headers=AUTH_HEADERS)
+            mark_all = await ac.post("/api/notifications/read-all", headers=AUTH_HEADERS)
+
+    assert mark_one.status_code == 200
+    assert mark_all.status_code == 200
+    notification_repo.mark_read.assert_called_once_with(123, 77)
+    notification_repo.mark_all_read.assert_called_once_with(123)
+
+
 @pytest.mark.asyncio
 async def test_company_catalog(mock_client, mock_store):
     mock_client.fetch_company_catalog = AsyncMock(return_value={
@@ -399,3 +565,65 @@ async def test_push_subscribe(mock_client, mock_store):
         auth="auth123",
         preferences={"loot_level4": True, "war_start": True},
     )
+
+
+def test_chat_websocket_requires_valid_token(mock_store):
+    manager = StubChatManager()
+    with patch("api.routers.chat.chat_repo", object()), \
+         patch("api.routers.chat.chat_manager", manager), \
+         patch("api.routers.chat.key_store", mock_store), \
+         patch("api.routers.chat.settings_repo", None), \
+         patch("api.routers.chat.JWT_SECRET", TEST_JWT_SECRET):
+        from api.routers.chat import router as chat_router
+
+        app = FastAPI()
+        app.include_router(chat_router)
+
+        with TestClient(app) as client:
+            with pytest.raises(WebSocketDisconnect) as excinfo:
+                with client.websocket_connect("/api/chat/ws"):
+                    pass
+    assert excinfo.value.code == 4003
+    assert manager.connected == []
+
+
+def test_chat_websocket_accepts_session_token_and_maps_player_from_token(mock_store):
+    manager = StubChatManager()
+    session_token = create_jwt(123, "Test", TEST_JWT_SECRET, token_type="session")
+    with patch("api.routers.chat.chat_repo", object()), \
+         patch("api.routers.chat.chat_manager", manager), \
+         patch("api.routers.chat.key_store", mock_store), \
+         patch("api.routers.chat.settings_repo", None), \
+         patch("api.routers.chat.JWT_SECRET", TEST_JWT_SECRET):
+        from api.routers.chat import router as chat_router
+
+        app = FastAPI()
+        app.include_router(chat_router)
+
+        with TestClient(app) as client:
+            with client.websocket_connect(f"/api/chat/ws?token={session_token}&player_id=999") as websocket:
+                assert manager.connected == [123]
+                websocket.close()
+    assert manager.disconnected == [123]
+
+
+@pytest.mark.asyncio
+async def test_middleware_logs_requests(mock_client, mock_store):
+    from api.analytics import AnalyticsStore
+    import os
+
+    with tempfile.TemporaryDirectory() as tmp:
+        real_analytics = AnalyticsStore(db_path=os.path.join(tmp, "test.db"))
+        with patch("api.main.torn_client", mock_client), \
+             patch("api.main.key_store", mock_store), \
+             patch("api.main.analytics_store", real_analytics):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                await ac.get("/api/overview", headers={"X-Player-Id": "123"})
+        stats = real_analytics.get_request_stats(days=1)
+        assert stats["total_requests"] >= 1
+        users = real_analytics.get_user_stats(days=1)
+        pids = {u["player_id"] for u in users}
+        assert 123 in pids
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { searchNavItems, fuzzyMatch } from "@/lib/nav-data";
@@ -20,6 +20,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [channels, setChannels] = useState<{ id: number; name: string; unread: number }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
   const router = useRouter();
 
   const pageResults = searchNavItems(query);
@@ -41,11 +45,23 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   // Reset on open
   useEffect(() => {
     if (open) {
+      previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setQuery("");
       setSelectedIndex(0);
       requestAnimationFrame(() => inputRef.current?.focus());
+      document.body.style.overflow = "hidden";
+      return;
     }
+
+    document.body.style.overflow = "";
+    previouslyFocusedRef.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   // Fetch channels when palette opens
   useEffect(() => {
@@ -61,20 +77,42 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       .catch(() => {});
   }, [open]);
 
-  // Global Cmd+K listener
   useEffect(() => {
+    if (!open) return;
+
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        if (open) {
-          onClose();
-        }
+        onClose();
+        return;
       }
-      if (open && e.key === "Escape") {
+      if (e.key === "Escape") {
         e.preventDefault();
         onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const container = dialogRef.current;
+      if (!container) return;
+      const focusable = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     }
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
@@ -121,9 +159,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
       {/* Modal */}
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         className="relative w-full max-w-md bg-bg-surface border border-border rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden"
         style={{ animation: "tm-fade-in 150ms ease-out" }}
       >
+        <h2 id={titleId} className="sr-only">
+          Command palette
+        </h2>
+        <p id={descriptionId} className="sr-only">
+          Search pages and chat channels, then use arrow keys and enter to navigate.
+        </p>
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <span className="text-text-muted">🔍</span>

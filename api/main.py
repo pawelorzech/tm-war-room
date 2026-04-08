@@ -18,8 +18,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("tm-hub")
 
 from api.analytics import AnalyticsStore
-from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID
+from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, JWT_SECRET
 from api.torn_client import TornClient
+from api.auth import create_jwt
 from api.db import KeyStore
 from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
@@ -133,6 +134,7 @@ async def lifespan(app: FastAPI):
     from api.db.repos.notifications import NotificationRepository
     notification_repo = NotificationRepository(db_path="data/keys.db")
     notifications_mod.notification_repo = notification_repo
+    notifications_mod.key_store = key_store
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
 
@@ -390,8 +392,7 @@ def get_role(player_id: int) -> str:
 
 @app.get("/api/me")
 async def me(x_player_id: int = Header()):
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == x_player_id for k in all_keys):
+    if not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
     role = get_role(x_player_id)
     return {
@@ -404,8 +405,7 @@ async def me(x_player_id: int = Header()):
 
 async def verify_member(x_player_id: int = Header()):
     """Check that the requesting player has a registered key."""
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == x_player_id for k in all_keys):
+    if not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
 
@@ -436,11 +436,9 @@ def _get_active_api_key() -> str:
 @app.get("/api/overview")
 async def overview(_=Depends(verify_member)):
     active_key = _get_active_api_key()
-    if active_key != torn_client._api_key:
-        torn_client._api_key = active_key
-    members = await torn_client.fetch_members()
-    war = await torn_client.fetch_war()
-    chain = await torn_client.fetch_chain()
+    members = await torn_client.fetch_members(api_key=active_key)
+    war = await torn_client.fetch_war(api_key=active_key)
+    chain = await torn_client.fetch_chain(api_key=active_key)
     return {
         "members": [m.model_dump() for m in members],
         "war": war.model_dump() if war else None,
@@ -456,14 +454,12 @@ SELF_ONLY_POSITIONS = {"Team 1", "Team 2", "Team 3", "Team 4", "Member", "Contac
 
 @app.get("/api/members/detail")
 async def members_detail(x_player_id: int = Header()):
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == x_player_id for k in all_keys):
+    if not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
+    all_keys = key_store.get_all_keys()
     active_key = _get_active_api_key()
-    if active_key != torn_client._api_key:
-        torn_client._api_key = active_key
-    members = await torn_client.fetch_members()
+    members = await torn_client.fetch_members(api_key=active_key)
     member_map = {m.id: m for m in members}
 
     requesting_member = member_map.get(x_player_id)
@@ -478,9 +474,9 @@ async def members_detail(x_player_id: int = Header()):
         return {"yata_down": False, "members": {}, "cached_at": int(time.time())}
 
     # Fetch YATA data (single attempt with one fallback key, no loop)
-    yata_data = await torn_client.fetch_yata_members()
+    yata_data = await torn_client.fetch_yata_members(api_key=active_key)
     if yata_data is None and all_keys:
-        fallback_key = next((k["api_key"] for k in all_keys if k["api_key"] != torn_client._api_key), None)
+        fallback_key = next((k["api_key"] for k in all_keys if k["api_key"] != active_key), None)
         if fallback_key:
             yata_data = await torn_client.fetch_yata_members(api_key=fallback_key)
     yata_down = yata_data is None
@@ -579,8 +575,7 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
     baseline = None
     baseline_name = None
     if baseline_pid:
-        all_keys = key_store.get_all_keys()
-        user_key = next((k for k in all_keys if k["player_id"] == baseline_pid), None)
+        user_key = key_store.get_key(baseline_pid)
         if user_key:
             try:
                 baseline = await torn_client.fetch_personalstats(user_key["api_key"])
@@ -625,8 +620,7 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
 
 @app.get("/api/training/stats")
 async def training_stats(x_player_id: int = Header()):
-    all_keys = key_store.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    user_key = key_store.get_key(x_player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="Register your API key first")
     try:
@@ -668,6 +662,7 @@ async def register_key(body: KeyRegister):
         raise HTTPException(status_code=403, detail="You must be a member of The Masters to use this tool")
     key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
     role = get_role(raw["player_id"])
+    token = create_jwt(raw["player_id"], raw["name"], JWT_SECRET)
     logger.info("Key registered: %s [%d] role=%s", raw["name"], raw["player_id"], role)
 
     # Test key access level — check if stocks/battlestats work
@@ -689,7 +684,7 @@ async def register_key(body: KeyRegister):
 
     return {
         "status": "ok", "player_id": raw["player_id"], "name": raw["name"], "role": role,
-        "access_level": access_level, "limited_features": limited_features,
+        "access_level": access_level, "limited_features": limited_features, "token": token,
     }
 
 
@@ -715,8 +710,7 @@ async def members_avatars(_=Depends(verify_member)):
 
 @app.get("/api/profile/me")
 async def profile_me(x_player_id: int = Header()):
-    all_keys = key_store.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    user_key = key_store.get_key(x_player_id)
     if not user_key:
         raise HTTPException(status_code=404, detail="Key not found")
     resp = await torn_client._http.get(
@@ -748,12 +742,24 @@ async def list_keys(_=Depends(verify_member)):
 
 
 @app.delete("/api/keys/{player_id}")
-async def delete_key(player_id: int):
+async def delete_key(player_id: int, admin: dict = Depends(admin_mod.require_admin)):
+    if player_id == admin["sub"]:
+        raise HTTPException(status_code=403, detail="Cannot delete your own key via admin panel")
     key_store.delete_key(player_id=player_id)
-    return {"status": "ok"}
+    return {"status": "ok", "deleted_player_id": player_id, "deleted_by": admin["sub"]}
 
 
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+
+
+def _resolve_static_path(static_root: str, *parts: str) -> str | None:
+    candidate = os.path.realpath(os.path.join(static_root, *parts))
+    try:
+        if os.path.commonpath([static_root, candidate]) != static_root:
+            return None
+    except ValueError:
+        return None
+    return candidate
 
 # Mount _next/static for efficient Next.js asset serving
 _next_static = os.path.join(static_dir, "_next", "static")
@@ -768,20 +774,21 @@ async def serve_frontend(path: str):
     if not os.path.isdir(static_dir):
         raise HTTPException(status_code=404, detail="Frontend not built")
 
-    file_path = os.path.join(static_dir, path)
-    # Try exact file
-    if os.path.isfile(file_path):
-        return FileResponse(file_path)
-    # Try with .html extension (Next.js static export pattern)
-    html_path = file_path + ".html"
-    if os.path.isfile(html_path):
-        return FileResponse(html_path)
-    # Try index.html in directory
-    index_path = os.path.join(file_path, "index.html")
-    if os.path.isfile(index_path):
-        return FileResponse(index_path)
-    # SPA fallback — serve root index.html
-    fallback = os.path.join(static_dir, "index.html")
-    if os.path.isfile(fallback):
+    static_root = os.path.realpath(static_dir)
+    requested = _resolve_static_path(static_root, path)
+    if path and requested is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    candidates = [
+        requested,
+        _resolve_static_path(static_root, f"{path}.html"),
+        _resolve_static_path(static_root, path, "index.html"),
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            return FileResponse(candidate)
+
+    fallback = _resolve_static_path(static_root, "index.html")
+    if fallback and os.path.isfile(fallback):
         return FileResponse(fallback)
     raise HTTPException(status_code=404, detail="Not found")

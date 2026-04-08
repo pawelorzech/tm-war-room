@@ -20,6 +20,8 @@ class KeyStore:
     def save_key(self, *a, **kw): return self._keys.save_key(*a, **kw)
     def delete_key(self, *a, **kw): return self._keys.delete_key(*a, **kw)
     def get_all_keys(self): return self._keys.get_all_keys()
+    def has_key(self, player_id): return self._keys.has_key(player_id)
+    def get_key(self, player_id): return self._keys.get_key(player_id)
     def get_faction_key(self): return self._keys.get_faction_key()
     def get_keys_metadata(self): return self._keys.get_keys_metadata()
     def get_admins(self): return self._keys.get_admins()

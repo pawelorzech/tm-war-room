@@ -19,7 +19,7 @@ export function ChatLayout() {
   const { playerId, role } = useAuth();
   const {
     channels, activeChannelId, messages, loading, loadingMessages,
-    unreadCounts, totalUnread, onlinePlayers, typingPlayers,
+    unreadCounts, totalUnread, onlinePlayers, typingPlayers, isLoadingOlder, hasMoreOlder,
     selectChannel, sendMessage, sendTyping, loadOlder, loadChannels, removeMessage,
   } = useChat();
 
@@ -291,6 +291,8 @@ export function ChatLayout() {
             <MessageList
               messages={messages}
               loading={loadingMessages}
+              loadingOlder={isLoadingOlder}
+              hasMoreOlder={hasMoreOlder}
               playerId={pid}
               isAdmin={isAdmin}
               onLoadOlder={loadOlder}

@@ -7,9 +7,9 @@ import uuid
 from fastapi import APIRouter, HTTPException, Header, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from api.db.repos.chat import ChatRepository
+from api.auth import decode_jwt
 from api.chat_manager import ChatManager
-from api.config import SUPERADMIN_ID
+from api.config import SUPERADMIN_ID, JWT_SECRET
 
 logger = logging.getLogger("tm-hub.chat")
 
@@ -33,8 +33,7 @@ def _not_ready():
 
 def _verify_member(player_id: int):
     _not_ready()
-    all_keys = key_store.get_all_keys() if key_store else []
-    if not any(k["player_id"] == player_id for k in all_keys):
+    if not key_store or not key_store.has_key(player_id):
         raise HTTPException(status_code=403, detail="Not a faction member")
     _check_chat_access(player_id)
 
@@ -186,8 +185,7 @@ async def send_message(
     if len(body.content) > 4000:
         raise HTTPException(status_code=400, detail="Message too long (max 4000 chars)")
 
-    all_keys = key_store.get_all_keys() if key_store else []
-    sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    sender = key_store.get_key(x_player_id) if key_store else None
     name = sender["player_name"] if sender else str(x_player_id)
 
     msg = chat_repo.create_message(
@@ -303,8 +301,7 @@ async def create_thread(
     if not body.title.strip() or not body.content.strip():
         raise HTTPException(status_code=400, detail="Title and content required")
 
-    all_keys = key_store.get_all_keys() if key_store else []
-    sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    sender = key_store.get_key(x_player_id) if key_store else None
     name = sender["player_name"] if sender else str(x_player_id)
 
     thread = chat_repo.create_thread(
@@ -344,8 +341,7 @@ async def send_thread_message(
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    all_keys = key_store.get_all_keys() if key_store else []
-    sender = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    sender = key_store.get_key(x_player_id) if key_store else None
     name = sender["player_name"] if sender else str(x_player_id)
 
     msg = chat_repo.create_message(
@@ -614,21 +610,28 @@ async def get_traveling(x_player_id: int = Header()):
 # ── WebSocket ─────────────────────────────────────────────────
 
 @router.websocket("/ws")
-async def chat_websocket(ws: WebSocket, player_id: int):
+async def chat_websocket(ws: WebSocket):
     _not_ready()
-    # Validate the player
-    all_keys = key_store.get_all_keys() if key_store else []
-    if not any(k["player_id"] == player_id for k in all_keys):
+    token = ws.query_params.get("token")
+    if not token:
+        await ws.close(code=4003, reason="missing_token")
+        return
+
+    payload = decode_jwt(token, JWT_SECRET)
+    if payload is None or payload.get("token_type") not in {"session", "admin"}:
+        await ws.close(code=4003, reason="invalid_token")
+        return
+
+    player_id = payload["sub"]
+    if not key_store or not key_store.has_key(player_id):
         await ws.close(code=4003, reason="not_authorized")
         return
 
-    # Check chat access (beta gate)
-    if not _is_admin(player_id):
-        if settings_repo:
-            enabled = settings_repo.get("chat_enabled_for_all")
-            if enabled != "true":
-                await ws.close(code=4003, reason="Chat is in beta — admin only")
-                return
+    try:
+        _check_chat_access(player_id)
+    except HTTPException as exc:
+        await ws.close(code=4003, reason=str(exc.detail))
+        return
 
     await chat_manager.connect(player_id, ws)
     try:
@@ -647,7 +650,7 @@ async def chat_websocket(ws: WebSocket, player_id: int):
             elif msg_type == "typing":
                 ch_id = payload.get("channel_id")
                 if ch_id:
-                    sender = next((k for k in all_keys if k["player_id"] == player_id), None)
+                    sender = key_store.get_key(player_id) if key_store else None
                     name = sender["player_name"] if sender else str(player_id)
                     await chat_manager.broadcast(
                         {"type": "typing", "payload": {"channel_id": ch_id, "player_id": player_id, "player_name": name}},

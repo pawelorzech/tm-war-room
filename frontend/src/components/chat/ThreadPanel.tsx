@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Thread, Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
 import { MessageList } from "./MessageList";
@@ -20,21 +20,66 @@ interface Props {
 export function ThreadPanel({ thread, playerId, isAdmin, onBack, onThreadDeleted, memberMap = {}, members = [], adminIds }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const isLoadingOlderRef = useRef(false);
+  const hasMoreOlderRef = useRef(true);
+  const lastOlderCursorRef = useRef<number | null>(null);
 
   const loadMessages = useCallback(async (before?: number) => {
+    if (before) {
+      if (isLoadingOlderRef.current || !hasMoreOlderRef.current || lastOlderCursorRef.current === before) {
+        return;
+      }
+      isLoadingOlderRef.current = true;
+      lastOlderCursorRef.current = before;
+      setIsLoadingOlder(true);
+    } else {
+      lastOlderCursorRef.current = null;
+      hasMoreOlderRef.current = true;
+      setHasMoreOlder(true);
+      setLoading(true);
+    }
+
+    let olderRequestSucceeded = false;
     try {
       const data = await api.chatThreadMessages(thread.id, before);
       if (before) {
-        setMessages(prev => [...data.messages, ...prev]);
+        olderRequestSucceeded = true;
+        if (data.messages.length === 0) {
+          hasMoreOlderRef.current = false;
+          setHasMoreOlder(false);
+          return;
+        }
+        setMessages((prev) => [...data.messages, ...prev]);
       } else {
         setMessages(data.messages);
       }
-    } catch { /* ignore */ }
-    setLoading(false);
+    } catch {
+      if (before) {
+        lastOlderCursorRef.current = null;
+      }
+      /* ignore */
+    } finally {
+      if (before) {
+        if (!olderRequestSucceeded) {
+          lastOlderCursorRef.current = null;
+        }
+        isLoadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      } else {
+        setLoading(false);
+      }
+    }
   }, [thread.id]);
 
   useEffect(() => {
     setLoading(true);
+    setIsLoadingOlder(false);
+    setHasMoreOlder(true);
+    isLoadingOlderRef.current = false;
+    hasMoreOlderRef.current = true;
+    lastOlderCursorRef.current = null;
     loadMessages();
   }, [loadMessages]);
 
@@ -152,6 +197,8 @@ export function ThreadPanel({ thread, playerId, isAdmin, onBack, onThreadDeleted
       <MessageList
         messages={messages}
         loading={loading}
+        loadingOlder={isLoadingOlder}
+        hasMoreOlder={hasMoreOlder}
         playerId={playerId}
         isAdmin={isAdmin}
         onLoadOlder={() => {

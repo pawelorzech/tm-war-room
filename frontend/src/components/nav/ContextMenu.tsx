@@ -23,6 +23,11 @@ export function ContextMenu({
   onClose,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    primaryActionRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -30,6 +35,10 @@ export function ContextMenu({
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
+      if (e.key === "Tab") {
+        e.preventDefault();
+        primaryActionRef.current?.focus();
+      }
     }
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
@@ -51,10 +60,14 @@ export function ContextMenu({
     <div
       ref={ref}
       style={style}
+      role="menu"
+      aria-label="Pin navigation item"
       className="min-w-[160px] bg-bg-surface border border-border rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1 overflow-hidden"
     >
       {isPinned ? (
         <button
+          ref={primaryActionRef}
+          role="menuitem"
           onClick={() => {
             onUnpin();
             onClose();
@@ -66,6 +79,8 @@ export function ContextMenu({
         </button>
       ) : (
         <button
+          ref={primaryActionRef}
+          role="menuitem"
           onClick={() => {
             onPin();
             onClose();

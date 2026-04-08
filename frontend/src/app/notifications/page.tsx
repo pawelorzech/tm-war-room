@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { RefreshButton } from '@/components/layout/RefreshButton';
@@ -69,7 +70,7 @@ export default function NotificationsPage() {
             <p className="text-text-secondary text-sm mt-1">
               {unread > 0 ? `${unread} unread` : 'All caught up'}
             </p>
-            <p className="text-xs text-text-muted">Manage notification preferences in <a href="/settings" className="text-torn-green hover:underline">Settings</a>.</p>
+            <p className="text-xs text-text-muted">Manage notification preferences in <Link href="/settings" className="text-torn-green hover:underline">Settings</Link>.</p>
           </div>
           <div className="flex gap-2">
             {unread > 0 && (

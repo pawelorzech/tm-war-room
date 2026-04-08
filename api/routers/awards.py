@@ -55,8 +55,7 @@ async def award_detail(kind: str, award_id: int, x_player_id: int = Header(defau
 
     # Check if player has earned it
     if x_player_id and key_store:
-        all_keys = key_store.get_all_keys()
-        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        user_key = key_store.get_key(x_player_id)
         if user_key:
             try:
                 user_data = await torn_client.fetch_user_honors(user_key["api_key"])
@@ -81,8 +80,7 @@ async def my_awards(x_player_id: int = Header()):
     if not torn_client or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
 
-    all_keys = key_store.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    user_key = key_store.get_key(x_player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="Register your API key first")
     api_key = user_key["api_key"]
