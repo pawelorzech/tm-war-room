@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -9,7 +10,7 @@ import { AnnouncementCarousel } from "./AnnouncementCarousel";
 import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
 import { InstallPrompt } from "./InstallPrompt";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
 import { useVersionNotice } from "@/hooks/useVersionNotice";
 import { useChatAccess } from "@/hooks/useChatAccess";
@@ -133,9 +134,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           <span className="text-base">🔍</span>
         </button>
         {/* Inbox */}
-        <a
+        <Link
           href="/inbox"
           className="relative text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200"
+          aria-label="Open inbox"
         >
           <span className="text-base">📨</span>
           {unreadCount > 0 && (
@@ -143,7 +145,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
               {unreadCount}
             </span>
           )}
-        </a>
+        </Link>
       </div>
 
       {/* Mobile search overlay */}
@@ -166,13 +168,13 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           <div className="mx-4 mt-2 flex items-center gap-3 bg-torn-green/10 border border-torn-green/30 rounded-lg px-4 py-2.5 text-sm">
             <span className="text-torn-green font-bold shrink-0">New version v{currentVersion}!</span>
             <span className="text-text-secondary truncate">{latestEntry.title}</span>
-            <a
+            <Link
               href="/changelog"
               onClick={dismissVersion}
               className="text-torn-green hover:underline font-medium shrink-0 ml-auto"
             >
               See what&apos;s new &rarr;
-            </a>
+            </Link>
             <button
               onClick={dismissVersion}
               className="text-text-muted hover:text-text-primary transition-colors shrink-0"
@@ -190,9 +192,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         {!onChatPage && (
           <footer className="px-4 py-3 text-text-muted text-[10px] text-center border-t border-border">
             TM Hub{" "}
-            <a href="/changelog" className="text-torn-green hover:underline">
+            <Link href="/changelog" className="text-torn-green hover:underline">
               v{currentVersion}
-            </a>
+            </Link>
             {" "}— by{" "}
             <a
               href="https://www.torn.com/profiles.php?XID=2362436"
@@ -224,11 +226,13 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <PDAProvider>
-      <AuthGate>
-        <AvatarProvider>
-          <ShellContent>{children}</ShellContent>
-        </AvatarProvider>
-      </AuthGate>
+      <AuthProvider>
+        <AuthGate>
+          <AvatarProvider>
+            <ShellContent>{children}</ShellContent>
+          </AvatarProvider>
+        </AuthGate>
+      </AuthProvider>
     </PDAProvider>
   );
 }

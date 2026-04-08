@@ -4,6 +4,7 @@ from cryptography.fernet import Fernet
 
 from api.db import KeyStore
 from api.db.repos.keys import KeyRepository
+from api.db.repos.notifications import NotificationRepository
 from api.db.migrations.runner import run_migrations
 
 
@@ -72,6 +73,47 @@ def key_repo(tmp_path):
     repo.save_key(101, "Alpha", "torn_key_1")
     repo.save_key(102, "Bravo", "torn_key_2")
     return repo
+
+
+def test_key_repository_has_key_and_get_key(key_repo):
+    assert key_repo.has_key(101) is True
+    assert key_repo.has_key(999) is False
+
+    key = key_repo.get_key(101)
+    assert key == {
+        "player_id": 101,
+        "player_name": "Alpha",
+        "api_key": "torn_key_1",
+        "is_faction_key": False,
+    }
+
+
+def test_notification_repository_scopes_by_player(tmp_path):
+    db_path = str(tmp_path / "notifications.db")
+    migrations_dir = os.path.join(os.path.dirname(__file__), "..", "api", "db", "migrations")
+    run_migrations(db_path, migrations_dir)
+    repo = NotificationRepository(db_path)
+
+    first_id = repo.create(player_id=101, type="system", title="Alpha", message="A1", data={"foo": "bar"})
+    second_id = repo.create(player_id=202, type="system", title="Bravo", message="B1", data={})
+
+    recent_101 = repo.get_recent(101)
+    assert [row["id"] for row in recent_101] == [first_id]
+    assert recent_101[0]["data"] == {"foo": "bar"}
+    assert repo.get_unread_count(101) == 1
+    assert repo.get_unread_count(202) == 1
+
+    repo.mark_read(101, second_id)
+    assert repo.get_unread_count(101) == 1
+    assert repo.get_unread_count(202) == 1
+
+    repo.mark_read(101, first_id)
+    assert repo.get_unread_count(101) == 0
+    assert repo.get_unread_count(202) == 1
+
+    repo.mark_all_read(101)
+    assert repo.get_unread_count(101) == 0
+    assert repo.get_unread_count(202) == 1
 
 
 class TestAvatarMethods:

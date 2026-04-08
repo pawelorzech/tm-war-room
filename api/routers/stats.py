@@ -18,8 +18,7 @@ async def _ensure_snapshot(player_id: int) -> bool:
     if existing:
         return True
     # Try to fetch live data
-    all_keys = key_repo.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == player_id), None)
+    user_key = key_repo.get_key(player_id)
     if not user_key:
         return False
     try:

@@ -1,8 +1,9 @@
 // frontend/src/components/nav/BottomNavBar.tsx
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { NAV_GROUPS } from "@/lib/nav-data";
 import { BottomSheet } from "./BottomSheet";
 import { useChatAccess } from "@/hooks/useChatAccess";
@@ -15,8 +16,15 @@ interface BottomNavBarProps {
   showVersionBadge?: boolean;
 }
 
+type NavTab = {
+  id: string;
+  label: string;
+  icon: string;
+  href?: string;
+  action?: () => void;
+};
+
 export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersionBadge = false }: BottomNavBarProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const [activeSheet, setActiveSheet] = useState<NavGroup | null>(null);
   const { canAccess: canAccessChat } = useChatAccess();
@@ -46,23 +54,23 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
     items: moreItems,
   };
 
-  const chatTab = canAccessChat
+  const chatTab: NavTab[] = canAccessChat
     ? [
         {
           id: "chat",
           label: "Chat",
           icon: "💬",
-          action: () => router.push("/chat"),
+          href: "/chat",
         },
       ]
     : [];
 
-  const tabs = [
+  const tabs: NavTab[] = [
     {
       id: "home",
       label: "Home",
       icon: "🏠",
-      action: () => router.push("/dashboard"),
+      href: "/dashboard",
     },
     ...mainGroups.map((g) => ({
       id: g.id,
@@ -96,14 +104,8 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
         <div className="flex">
           {tabs.map((tab) => {
             const active = isTabActive(tab.id);
-            return (
-              <button
-                key={tab.id}
-                onClick={tab.action}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 pt-2.5 transition-colors duration-200 relative ${
-                  active ? "text-torn-green" : "text-text-muted"
-                }`}
-              >
+            const content = (
+              <>
                 <span className="text-lg leading-none">{tab.icon}</span>
                 <span className="text-[10px] font-medium">{tab.label}</span>
                 {tab.id === "more" && unreadCount > 0 && (
@@ -122,6 +124,28 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
                     {chatUnread > 99 ? "99+" : chatUnread}
                   </span>
                 )}
+              </>
+            );
+            const className = `flex-1 flex flex-col items-center gap-0.5 py-2 pt-2.5 transition-colors duration-200 relative ${
+              active ? "text-torn-green" : "text-text-muted"
+            }`;
+
+            if (tab.href) {
+              return (
+                <Link key={tab.id} href={tab.href} className={className}>
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <button
+                key={tab.id}
+                onClick={tab.action}
+                className={className}
+                type="button"
+              >
+                {content}
               </button>
             );
           })}

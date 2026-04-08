@@ -28,8 +28,7 @@ class UpdateTargetRequest(BaseModel):
 def _verify_member(player_id: int):
     if not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == player_id for k in all_keys):
+    if not key_store.has_key(player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
 
@@ -48,8 +47,7 @@ async def add_target(body: AddTargetRequest, x_player_id: int = Header()):
     if not target_repo or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
     _verify_member(x_player_id)
-    all_keys = key_store.get_all_keys()
-    adder = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    adder = key_store.get_key(x_player_id)
     adder_name = adder["player_name"] if adder else None
     target_repo.add_target(
         player_id=body.player_id,

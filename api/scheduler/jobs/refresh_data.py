@@ -74,12 +74,6 @@ async def run_refresh_data() -> None:
     # Notify on war state change
     prev_war = state.get("_prev_war_active", None)
     if prev_war is not None and prev_war != war_active:
-        notif_repo = state.get("notification_repo")
-        if notif_repo:
-            if war_active:
-                notif_repo.create("war", "War Started!", "An active war has been detected. Polling increased to every 30s.", {})
-            else:
-                notif_repo.create("war", "War Ended", "The war has ended. Returning to normal polling.", {})
         push_svc = state.get("push_service")
         dispatcher = state.get("notification_dispatcher")
         if war_active:
@@ -289,15 +283,6 @@ async def run_refresh_data() -> None:
                                 if changed:
                                     changes += 1
                                     pname = name or w.get("player_name") or f"#{w['player_id']}"
-                                    # Create notification for stakeout status change
-                                    notif_repo = state.get("notification_repo")
-                                    if notif_repo:
-                                        notif_repo.create(
-                                            type="stakeout",
-                                            title=f"{pname} is now {status_desc}",
-                                            message=f"Stakeout alert: {pname} changed from {w.get('last_status', '?')} to {status_desc}",
-                                            data={"player_id": w["player_id"], "old_status": w.get("last_status"), "new_status": status_desc},
-                                        )
                                     push_svc = state.get("push_service")
                                     dispatcher = state.get("notification_dispatcher")
                                     added_by = w.get("added_by", 0)

@@ -13,37 +13,40 @@ class PushService:
         self._vapid_key = vapid_private_key
         self._vapid_claims = vapid_claims
 
-    @property
-    def enabled(self) -> bool:
-        return self._vapid_key is not None
-
-    def dispatch(self, event_type: str, title: str, body: str, url: str) -> int:
-        """Send push to ALL subscribers with this event preference. Returns count sent."""
-        type_map = {"loot_level4": "loot", "war_start": "war", "stakeout_change": "stakeout", "oc_ready": "system"}
-        if self._notif_repo:
+    def _store_notification_for_players(self, player_ids: list[int], event_type: str, title: str, body: str, url: str) -> None:
+        if not self._notif_repo:
+            return
+        type_map = {"loot_level4": "loot", "war_start": "war", "stakeout_change": "stakeout", "oc_ready": "system", "chat_mention": "system"}
+        seen: set[int] = set()
+        for player_id in player_ids:
+            if player_id in seen:
+                continue
+            seen.add(player_id)
             self._notif_repo.create(
+                player_id=player_id,
                 type=type_map.get(event_type, "system"),
                 title=title,
                 message=body,
                 data={"event_type": event_type, "url": url},
             )
 
+    @property
+    def enabled(self) -> bool:
+        return self._vapid_key is not None
+
+    def dispatch(self, event_type: str, title: str, body: str, url: str) -> int:
+        """Send push to ALL subscribers with this event preference. Returns count sent."""
+        subs = self._push_repo.get_by_preference(event_type)
+        self._store_notification_for_players([sub["player_id"] for sub in subs], event_type, title, body, url)
+
         if not self.enabled:
             return 0
 
-        subs = self._push_repo.get_by_preference(event_type)
         return self._send_to_subs(subs, title, body, url)
 
     def dispatch_to_player(self, player_id: int, event_type: str, title: str, body: str, url: str) -> int:
         """Send push to a specific player's subscriptions matching this event. Returns count sent."""
-        if self._notif_repo:
-            type_map = {"loot_level4": "loot", "war_start": "war", "stakeout_change": "stakeout", "oc_ready": "system"}
-            self._notif_repo.create(
-                type=type_map.get(event_type, "system"),
-                title=title,
-                message=body,
-                data={"event_type": event_type, "url": url, "player_id": player_id},
-            )
+        self._store_notification_for_players([player_id], event_type, title, body, url)
 
         if not self.enabled:
             return 0

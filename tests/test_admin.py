@@ -20,23 +20,29 @@ def mock_client():
     client._http = AsyncMock()
     client._http.get = AsyncMock(return_value=validate_resp)
     client._cache = {"members": (1000000000, []), "war": (1000000000, None)}
+    client.fetch_members = AsyncMock(return_value=[])
+    client.fetch_war = AsyncMock(return_value=None)
+    client.fetch_chain = AsyncMock(return_value={})
     return client
 
 
 @pytest.fixture
 def mock_store():
     store = MagicMock()
-    store.get_all_keys.return_value = [
-        {"player_id": ADMIN_ID, "player_name": "Bombla", "api_key": "admin_key", "is_faction_key": True},
-        {"player_id": NON_ADMIN_ID, "player_name": "Member1", "api_key": "member_key", "is_faction_key": False},
-    ]
+    registered_keys = {
+        ADMIN_ID: {"player_id": ADMIN_ID, "player_name": "Bombla", "api_key": "admin_key", "is_faction_key": True},
+        NON_ADMIN_ID: {"player_id": NON_ADMIN_ID, "player_name": "Member1", "api_key": "member_key", "is_faction_key": False},
+    }
+    store.get_all_keys.return_value = list(registered_keys.values())
+    store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
+    store.has_key.side_effect = lambda player_id: player_id in registered_keys
     store.get_keys_metadata.return_value = [
         {"player_id": ADMIN_ID, "player_name": "Bombla", "is_faction_key": True, "created_at": "2026-03-27 12:00:00"},
         {"player_id": NON_ADMIN_ID, "player_name": "Member1", "is_faction_key": False, "created_at": "2026-03-27 13:00:00"},
     ]
     store.delete_key = MagicMock()
     store.get_faction_key.return_value = {"player_id": ADMIN_ID, "player_name": "Bombla", "api_key": "admin_key"}
-    store.is_admin = MagicMock(return_value=False)
+    store.is_admin = MagicMock(side_effect=lambda pid: pid == ADMIN_ID)
     store.get_admins = MagicMock(return_value=[])
     store.promote_admin = MagicMock()
     store.demote_admin = MagicMock()
@@ -67,10 +73,14 @@ def _setup_app(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_create_session_success(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
+        session_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="session")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.post("/api/admin/session", headers={"X-Player-Id": str(ADMIN_ID)})
+            resp = await ac.post(
+                "/api/admin/session",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
     assert resp.status_code == 200
     assert "token" in resp.json()
 
@@ -78,16 +88,31 @@ async def test_create_session_success(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_create_session_non_admin(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
+        session_token = create_jwt(NON_ADMIN_ID, "Member1", TEST_JWT_SECRET, token_type="session")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.post("/api/admin/session", headers={"X-Player-Id": str(NON_ADMIN_ID)})
+            resp = await ac.post(
+                "/api/admin/session",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_create_session_requires_authorization(mock_client, mock_store, mock_analytics):
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/admin/session")
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
     from api.models import FactionMember, LastAction, MemberStatus
+
     mock_members = [
         FactionMember(
             id=ADMIN_ID, name="Bombla", level=50, days_in_faction=100,
@@ -105,7 +130,7 @@ async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
     mock_client.fetch_members = AsyncMock(return_value=mock_members)
 
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -123,7 +148,7 @@ async def test_admin_keys_list(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_admin_delete_key(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -142,7 +167,7 @@ async def test_admin_delete_key(mock_client, mock_store, mock_analytics):
 @pytest.mark.asyncio
 async def test_admin_cannot_delete_own_key(mock_client, mock_store, mock_analytics):
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -171,7 +196,7 @@ async def test_admin_request_stats(mock_client, mock_store, mock_analytics):
         "total_requests": 100,
     }
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -187,7 +212,7 @@ async def test_admin_user_stats(mock_client, mock_store, mock_analytics):
         {"player_id": ADMIN_ID, "last_seen": "2026-03-27T15:30:00", "request_count": 50},
     ]
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -204,7 +229,7 @@ async def test_admin_error_stats(mock_client, mock_store, mock_analytics):
         {"endpoint": "/api/enemy", "status_code": 502, "count": 3, "last_occurred": "2026-03-27T14:00:00", "last_error_message": "timeout"},
     ]
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -221,7 +246,7 @@ async def test_admin_system(mock_client, mock_store, mock_analytics):
         "torn_api": {"status": "ok", "last_success": "2026-03-27T15:00:00", "last_error": None, "last_error_at": None},
     }
     with _setup_app(mock_client, mock_store, mock_analytics):
-        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET)
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -239,10 +264,58 @@ async def test_admin_system(mock_client, mock_store, mock_analytics):
 
 
 @pytest.mark.asyncio
+async def test_delete_key_endpoint_requires_admin_token(mock_client, mock_store, mock_analytics):
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        session_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="session")
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete(
+                f"/api/keys/{NON_ADMIN_ID}",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+    assert resp.status_code == 401
+    mock_store.delete_key.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_key_endpoint_rejects_non_admin_admin_token(mock_client, mock_store, mock_analytics):
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        forged_admin_token = create_jwt(NON_ADMIN_ID, "Member1", TEST_JWT_SECRET, token_type="admin")
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete(
+                f"/api/keys/{ADMIN_ID}",
+                headers={"Authorization": f"Bearer {forged_admin_token}"},
+            )
+    assert resp.status_code == 403
+    mock_store.delete_key.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_key_endpoint_allows_admin_token(mock_client, mock_store, mock_analytics):
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        admin_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.delete(
+                f"/api/keys/{NON_ADMIN_ID}",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+    assert resp.status_code == 200
+    assert resp.json()["deleted_player_id"] == NON_ADMIN_ID
+    mock_store.delete_key.assert_called_once_with(player_id=NON_ADMIN_ID)
+
+
+@pytest.mark.asyncio
 async def test_middleware_logs_requests(mock_client, mock_store):
     """Verify the analytics middleware logs requests when analytics_store is set."""
     from api.analytics import AnalyticsStore
-    import tempfile, os
+    import os
+    import tempfile
+
     with tempfile.TemporaryDirectory() as tmp:
         real_analytics = AnalyticsStore(db_path=os.path.join(tmp, "test.db"))
         with patch("api.main.torn_client", mock_client), \

@@ -1,5 +1,6 @@
-'use client';
+"use client";
 
+import Link from "next/link";
 import { useState } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
@@ -197,12 +198,12 @@ export default function ComparePage() {
         {/* Single player loaded */}
         {playerA && !playerB && (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4 text-center text-text-secondary">
-            No spy data for Player B. Try looking them up on <a href="/spy" className="text-torn-green underline">Spy Central</a> first.
+            No spy data for Player B. Try looking them up on <Link href="/spy" className="text-torn-green underline">Spy Central</Link> first.
           </div>
         )}
         {!playerA && playerB && (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4 text-center text-text-secondary">
-            No spy data for Player A. Try looking them up on <a href="/spy" className="text-torn-green underline">Spy Central</a> first.
+            No spy data for Player A. Try looking them up on <Link href="/spy" className="text-torn-green underline">Spy Central</Link> first.
           </div>
         )}
       </div>

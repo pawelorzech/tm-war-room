@@ -76,8 +76,7 @@ async def stock_portfolio(x_player_id: int = Header()):
     """Get player's stock portfolio with P/L calculations."""
     if not torn_client or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
-    all_keys = key_store.get_all_keys()
-    user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+    user_key = key_store.get_key(x_player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="Register your API key first")
 
@@ -215,8 +214,7 @@ async def stock_roi(x_player_id: int | None = Header(default=None)):
     # Get player holdings if available
     holdings = {}
     if x_player_id and key_store:
-        all_keys = key_store.get_all_keys()
-        user_key = next((k for k in all_keys if k["player_id"] == x_player_id), None)
+        user_key = key_store.get_key(x_player_id)
         if user_key:
             try:
                 portfolio = await torn_client.fetch_user_stocks(user_key["api_key"])

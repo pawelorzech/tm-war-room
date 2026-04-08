@@ -51,16 +51,25 @@ class TornClient:
             except Exception:
                 pass
 
-    async def fetch_members(self) -> list[FactionMember]:
-        cached = self._get_cached("members")
+    def _resolve_api_key(self, api_key: str | None = None) -> str:
+        return api_key or self._api_key
+
+    def _cache_scope(self, api_key: str | None = None) -> str:
+        resolved = self._resolve_api_key(api_key)
+        return "default" if resolved == self._api_key else resolved[:8]
+
+    async def fetch_members(self, api_key: str | None = None) -> list[FactionMember]:
+        cache_key = f"members:{self._cache_scope(api_key)}"
+        cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
         start = time.time()
+        api_key_value = self._resolve_api_key(api_key)
         try:
             resp = await self._http.get(
                 f"{V2_BASE}/faction/members",
-                params={"key": self._api_key},
+                params={"key": api_key_value},
             )
             resp.raise_for_status()
             raw = await _json(resp)
@@ -69,19 +78,21 @@ class TornClient:
             self._log_integration("torn_api", "/v2/faction/members", False, (time.time() - start) * 1000, str(e))
             raise
         members = [FactionMember(**m) for m in raw["members"]]
-        self._set_cached("members", members)
+        self._set_cached(cache_key, members)
         return members
 
-    async def fetch_war(self) -> WarStatus | None:
-        cached = self._get_cached("war")
+    async def fetch_war(self, api_key: str | None = None) -> WarStatus | None:
+        cache_key = f"war:{self._cache_scope(api_key)}"
+        cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
         start = time.time()
+        api_key_value = self._resolve_api_key(api_key)
         try:
             resp = await self._http.get(
                 f"{V2_BASE}/faction/",
-                params={"selections": "wars", "key": self._api_key},
+                params={"selections": "wars", "key": api_key_value},
             )
             resp.raise_for_status()
             raw = await _json(resp)
@@ -91,28 +102,30 @@ class TornClient:
             raise
         ranked = raw.get("wars", {}).get("ranked")
         if not ranked:
-            self._set_cached("war", None)
+            self._set_cached(cache_key, None)
             return None
 
         war = WarStatus(**ranked)
         # War is over if there's a winner or end time has passed
         if war.winner or (war.end and war.end <= int(time.time())):
-            self._set_cached("war", None)
+            self._set_cached(cache_key, None)
             return None
 
-        self._set_cached("war", war)
+        self._set_cached(cache_key, war)
         return war
 
-    async def fetch_chain(self) -> dict:
-        cached = self._get_cached("chain")
+    async def fetch_chain(self, api_key: str | None = None) -> dict:
+        cache_key = f"chain:{self._cache_scope(api_key)}"
+        cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
         start = time.time()
+        api_key_value = self._resolve_api_key(api_key)
         try:
             resp = await self._http.get(
                 f"{V2_BASE}/faction/",
-                params={"selections": "chain", "key": self._api_key},
+                params={"selections": "chain", "key": api_key_value},
             )
             resp.raise_for_status()
             raw = await _json(resp)
@@ -121,7 +134,7 @@ class TornClient:
             self._log_integration("torn_api", "/v2/faction/chain", False, (time.time() - start) * 1000, str(e))
             raise
         chain = raw.get("chain", {})
-        self._set_cached("chain", chain)
+        self._set_cached(cache_key, chain)
         return chain
 
     async def fetch_member_bars(self, member_key: str) -> MemberBars:

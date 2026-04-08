@@ -5,11 +5,18 @@ import time
 import jwt
 
 
-def create_jwt(player_id: int, player_name: str, secret: str, expires_hours: int = 24) -> str:
+def create_jwt(
+    player_id: int,
+    player_name: str,
+    secret: str,
+    expires_hours: int = 24,
+    token_type: str = "session",
+) -> str:
     now = int(time.time())
     payload = {
         "sub": str(player_id),
         "name": player_name,
+        "token_type": token_type,
         "iat": now,
         "exp": now + expires_hours * 3600,
     }

@@ -17,31 +17,29 @@ class AddStakeoutRequest(BaseModel):
     notes: str = ''
 
 
-@router.get("")
-async def list_stakeouts(x_player_id: int = Header()):
+def _verify_member(player_id: int):
     if not stakeout_repo or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == x_player_id for k in all_keys):
+    if not key_store.has_key(player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
+
+
+@router.get("")
+async def list_stakeouts(x_player_id: int = Header()):
+    _verify_member(x_player_id)
     stakeouts = stakeout_repo.get_all()
     return {"stakeouts": stakeouts, "count": len(stakeouts)}
 
 
 @router.post("")
 async def add_stakeout(body: AddStakeoutRequest, x_player_id: int = Header()):
-    if not stakeout_repo or not key_store:
-        raise HTTPException(status_code=503, detail="Not initialized")
-    all_keys = key_store.get_all_keys()
-    if not any(k["player_id"] == x_player_id for k in all_keys):
-        raise HTTPException(status_code=401, detail="Register your API key first")
+    _verify_member(x_player_id)
     stakeout_repo.add(body.player_id, body.player_name, x_player_id, body.notes)
     return {"status": "ok"}
 
 
 @router.delete("/{player_id}")
 async def remove_stakeout(player_id: int, x_player_id: int = Header()):
-    if not stakeout_repo:
-        raise HTTPException(status_code=503, detail="Not initialized")
+    _verify_member(x_player_id)
     stakeout_repo.remove(player_id)
     return {"status": "ok"}

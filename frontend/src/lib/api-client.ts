@@ -1,27 +1,105 @@
+import type { Announcement } from "@/types/admin";
+import type { SpyEstimate, SpySubmitResponse } from "@/types/spy";
+import type { Bot, Channel, Message, Thread, UnreadCounts } from "@/types/chat";
+
+export const AUTH_EVENT_NAME = "tmhub:auth-changed";
+
 function getPlayerId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("myKeyPlayer");
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export function getSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("sessionToken");
+}
+
+export function storeSessionToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (token) {
+    localStorage.setItem("sessionToken", token);
+    return;
+  }
+  localStorage.removeItem("sessionToken");
+}
+
+export function clearStoredAuth(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("myKeyPlayer");
+  localStorage.removeItem("myKeyName");
+  localStorage.removeItem("myKeyRole");
+  localStorage.removeItem("myKeyAccess");
+  localStorage.removeItem("myKeyLimited");
+  localStorage.removeItem("sessionToken");
+  localStorage.removeItem("adminToken");
+}
+
+export function notifyAuthStateChanged(authenticated: boolean): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(AUTH_EVENT_NAME, {
+      detail: { authenticated },
+    }),
+  );
+}
+
+interface ApiFetchOptions extends RequestInit {
+  includeAuth?: boolean;
+}
+
+function apiPostJson<T>(path: string, body: unknown, init?: Omit<ApiFetchOptions, "body" | "method">): Promise<T> {
+  return apiFetch<T>(path, {
+    ...init,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...((init?.headers as Record<string, string>) || {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function buildAuthHeaders(
+  headers: Record<string, string>,
+  includeAuth: boolean,
+): Record<string, string> {
+  if (!includeAuth) return headers;
+
   const pid = getPlayerId();
-  const headers: Record<string, string> = {
-    ...((init?.headers as Record<string, string>) || {}),
-  };
-  if (pid) headers["X-Player-Id"] = pid;
+  const token = getSessionToken();
+  if (pid) {
+    headers["X-Player-Id"] = pid;
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function readResponseBody(res: Response): Promise<unknown> {
+  return res.json().catch(() => ({}));
+}
+
+async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+  const headers = buildAuthHeaders(
+    {
+      ...((init?.headers as Record<string, string>) || {}),
+    },
+    init?.includeAuth !== false,
+  );
 
   const res = await fetch(path, { ...init, headers });
   if (res.status === 401) {
-    localStorage.removeItem("myKeyPlayer");
-    localStorage.removeItem("myKeyName");
-    window.location.reload();
+    clearStoredAuth();
+    notifyAuthStateChanged(false);
     throw new Error("Unauthorized");
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `HTTP ${res.status}`);
+    const body = await readResponseBody(res);
+    const detail = typeof body === "object" && body && "detail" in body ? body.detail : null;
+    throw new Error(typeof detail === "string" ? detail : `HTTP ${res.status}`);
   }
-  return res.json();
+  return (await readResponseBody(res)) as T;
 }
 
 export const api = {
@@ -34,8 +112,8 @@ export const api = {
     return apiFetch<import("@/types/war").EnemyResponse>(url);
   },
   me: () => apiFetch<import("@/types/admin").MeResponse>("/api/me"),
-  announcements: () => apiFetch<{ announcements: import("@/types/admin").Announcement[] }>("/api/announcements"),
-  announcementsAll: () => apiFetch<{ announcements: import("@/types/admin").Announcement[] }>("/api/announcements/all"),
+  announcements: () => apiFetch<{ announcements: Announcement[] }>("/api/announcements"),
+  announcementsAll: () => apiFetch<{ announcements: Announcement[] }>("/api/announcements/all"),
   trainingStats: () => apiFetch<{
     profile: { player_id: number; name: string; level: number };
     battlestats: { strength: number; defense: number; speed: number; dexterity: number };
@@ -53,7 +131,7 @@ export const api = {
   }>("/api/training/stats"),
   spyEstimate: (playerId: number) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/${playerId}`),
   spySearch: (name: string) => apiFetch<import("@/types/spy").SpyEstimate>(`/api/spy/search?q=${encodeURIComponent(name)}`),
-  spyKnown: () => apiFetch<{ estimates: import("@/types/spy").SpyEstimate[]; count: number }>("/api/spy/known"),
+  spyKnown: () => apiFetch<{ estimates: SpyEstimate[]; count: number }>("/api/spy/known"),
   spyFaction: (factionId: number) => apiFetch<import("@/types/spy").SpyFactionResponse>(`/api/spy/faction/${factionId}`),
   chainList: (force?: boolean) => apiFetch<unknown>(`/api/chain/chains${force ? '?force=true' : ''}`),
   chainDetail: (start: number, end: number) => apiFetch<unknown>(`/api/chain/chains/detail?start=${start}&end=${end}`),
@@ -118,11 +196,7 @@ export const api = {
   statLeaderboard: () => apiFetch<{ members: unknown[]; count: number }>("/api/stats/leaderboard"),
   statGrowthLeaderboard: (days: number = 30) => apiFetch<{ members: unknown[]; count: number; days: number }>(`/api/stats/growth-leaderboard?days=${days}`),
   spySubmit: (data: { player_id: number; strength: number; defense: number; speed: number; dexterity: number }) =>
-    fetch(`/api/spy/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Player-Id": (typeof window !== "undefined" && localStorage.getItem("myKeyPlayer")) || "" },
-      body: JSON.stringify(data),
-    }).then(r => r.json()),
+    apiPostJson<SpySubmitResponse>("/api/spy/submit", data),
   pushVapidKey: () => apiFetch<{ vapid_public_key: string | null; enabled: boolean }>('/api/push/vapid-key'),
   pushSubscribe: (data: { endpoint: string; keys: { p256dh: string; auth: string }; preferences: Record<string, boolean> }) =>
     apiFetch<unknown>('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
@@ -144,9 +218,9 @@ export const api = {
   publicSettings: () => apiFetch<Record<string, string>>("/api/settings/public"),
 
   // ── Chat ──────────────────────────────────────────────────
-  chatChannels: () => apiFetch<{ channels: import("@/types/chat").Channel[] }>("/api/chat/channels"),
+  chatChannels: () => apiFetch<{ channels: Channel[] }>("/api/chat/channels"),
   chatMessages: (channelId: number, before?: number, limit = 50) =>
-    apiFetch<{ messages: import("@/types/chat").Message[] }>(
+    apiFetch<{ messages: Message[] }>(
       `/api/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
     ),
   chatSendMessage: (channelId: number, content: string, mentions: number[] = []) =>
@@ -164,9 +238,9 @@ export const api = {
   chatTogglePin: (messageId: number) =>
     apiFetch<{ status: string; pinned: boolean }>(`/api/chat/messages/${messageId}/pin`, { method: "POST" }),
   chatPinnedMessages: (channelId: number) =>
-    apiFetch<{ messages: import("@/types/chat").Message[] }>(`/api/chat/channels/${channelId}/pinned`),
+    apiFetch<{ messages: Message[] }>(`/api/chat/channels/${channelId}/pinned`),
   chatThreads: (channelId: number, before?: number) =>
-    apiFetch<{ threads: import("@/types/chat").Thread[] }>(
+    apiFetch<{ threads: Thread[] }>(
       `/api/chat/channels/${channelId}/threads${before ? `?before=${before}` : ""}`
     ),
   chatCreateThread: (channelId: number, title: string, content: string) =>
@@ -175,7 +249,7 @@ export const api = {
       body: JSON.stringify({ title, content }),
     }),
   chatThreadMessages: (threadId: number, before?: number, limit = 50) =>
-    apiFetch<{ thread: import("@/types/chat").Thread; messages: import("@/types/chat").Message[] }>(
+    apiFetch<{ thread: Thread; messages: Message[] }>(
       `/api/chat/threads/${threadId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
     ),
   chatSendThreadMessage: (threadId: number, content: string, mentions: number[] = []) =>
@@ -194,7 +268,7 @@ export const api = {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channel_id: channelId, message_id: messageId, thread_id: threadId }),
     }),
-  chatUnread: () => apiFetch<import("@/types/chat").UnreadCounts>("/api/chat/unread"),
+  chatUnread: () => apiFetch<UnreadCounts>("/api/chat/unread"),
   chatOnline: () => apiFetch<{ online: number[] }>("/api/chat/online"),
   chatTraveling: () => apiFetch<{ travelers: { player_id: number; name: string; status: string }[] }>("/api/chat/traveling"),
   chatAdminIds: () => apiFetch<{ admin_ids: number[] }>("/api/chat/admin-ids"),
@@ -217,7 +291,7 @@ export const api = {
     }),
   chatUnmutePlayer: (playerId: number) =>
     apiFetch<{ status: string }>(`/api/chat/mute/${playerId}`, { method: "DELETE" }),
-  chatBotsList: () => apiFetch<{ bots: import("@/types/chat").Bot[] }>("/api/chat/bots"),
+  chatBotsList: () => apiFetch<{ bots: Bot[] }>("/api/chat/bots"),
   chatCreateBot: (name: string, allowedChannels = "*") =>
     apiFetch<{ bot_id: number; token: string }>("/api/chat/bots", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -246,13 +320,16 @@ export const api = {
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
   registerKey: (apiKey: string) =>
-    fetch("/api/keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: apiKey }),
-    }).then(async (r) => {
-      const body = await r.json();
-      if (!r.ok) throw new Error(body.detail || "Failed");
-      return body as { player_id: number; name: string; role: import("@/types/admin").Role; access_level?: string; limited_features?: string[] };
-    }),
+    apiPostJson<{
+      player_id: number;
+      name: string;
+      role: import("@/types/admin").Role;
+      access_level?: string;
+      limited_features?: string[];
+      token?: string;
+    }>(
+      "/api/keys",
+      { api_key: apiKey },
+      { includeAuth: false },
+    ),
 };
