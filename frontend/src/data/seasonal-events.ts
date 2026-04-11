@@ -37,9 +37,9 @@ export const SEASONAL_EVENTS: SeasonalEvent[] = [
     name: "Easter Egg Hunt",
     icon: "\uD83E\uDD5A", // 🥚
     startMonth: 4,
-    startDay: 10,
+    startDay: 1,
     endMonth: 4,
-    endDay: 22,
+    endDay: 10,
     color: "border-l-green-400",
     tips: [
       "Easter Egg Hunt is active! Eggs spawn on every page in Torn \u2014 visit all pages to collect them",
