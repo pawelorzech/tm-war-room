@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import logging
 import os
 import secrets as _secrets
 from cryptography.fernet import Fernet
 
+logger = logging.getLogger("tm-hub.config")
 
 TORN_API_KEY: str = os.environ.get("TORN_API_KEY", "")
 FACTION_ID: int = int(os.environ.get("FACTION_ID", "11559"))
 CACHE_TTL: int = int(os.environ.get("CACHE_TTL", "60"))
 TORNSTATS_API_KEY: str = os.environ.get("TORNSTATS_API_KEY", "")
 
+_is_production = os.environ.get("APP_VERSION", "dev") != "dev"
+
 _enc_key = os.environ.get("ENCRYPTION_KEY")
 if not _enc_key:
+    if _is_production:
+        raise RuntimeError("ENCRYPTION_KEY must be set in production")
     _enc_key = Fernet.generate_key().decode()
-    print("WARNING: No ENCRYPTION_KEY set. Generated ephemeral key. Keys will be lost on restart.")
+    logger.warning("No ENCRYPTION_KEY set — using ephemeral key (dev mode only)")
 
 ENCRYPTION_KEY: str = _enc_key
 
@@ -21,8 +27,10 @@ SUPERADMIN_ID: int = 2362436  # Bombel
 
 _jwt_secret = os.environ.get("JWT_SECRET", "")
 if not _jwt_secret:
+    if _is_production:
+        raise RuntimeError("JWT_SECRET must be set in production")
     _jwt_secret = _secrets.token_urlsafe(32)
-    print("WARNING: No JWT_SECRET set. Generated ephemeral secret. Admin sessions will be lost on restart.")
+    logger.warning("No JWT_SECRET set — using ephemeral secret (dev mode only)")
 
 JWT_SECRET: str = _jwt_secret
 APP_VERSION: str = os.environ.get("APP_VERSION", "dev")
