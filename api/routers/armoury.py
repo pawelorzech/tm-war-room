@@ -20,7 +20,7 @@ class CreateCompetition(BaseModel):
     categories: list[str] = []
     items: list[str] = []
     start_ts: int
-    end_ts: int
+    end_ts: int | None = None
     prize_text: str | None = None
 
 
@@ -70,7 +70,7 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
     for cat in body.categories:
         if cat not in VALID_CATEGORIES:
             raise HTTPException(status_code=400, detail=f"Invalid category '{cat}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
-    if body.end_ts <= body.start_ts:
+    if body.end_ts is not None and body.end_ts <= body.start_ts:
         raise HTTPException(status_code=400, detail="end_ts must be after start_ts")
     category_str = ",".join(sorted(set(body.categories))) if body.categories else ""
     items_str = ",".join(body.items) if body.items else None
@@ -78,7 +78,7 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
         name=body.name,
         category=category_str,
         start_ts=body.start_ts,
-        end_ts=body.end_ts,
+        end_ts=body.end_ts or 0,
         created_by=x_player_id,
         prize_text=body.prize_text,
         items=items_str,
