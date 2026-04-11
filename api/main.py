@@ -417,7 +417,7 @@ async def enforce_api_auth(request: Request, call_next):
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; "
-        "script-src 'self' https://analityka.tri.ovh; "
+        "script-src 'self' 'unsafe-inline' https://analityka.tri.ovh; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https://www.torn.com https://*.backblazeb2.com; "
         "connect-src 'self' wss://hub.tri.ovh https://analityka.tri.ovh; "
