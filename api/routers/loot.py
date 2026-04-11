@@ -45,7 +45,7 @@ async def loot_timers():
         raise HTTPException(status_code=502, detail="Failed to fetch loot data")
 
     if not raw.get("status"):
-        raise HTTPException(status_code=502, detail=f"TornStats error: {raw.get('message', 'unknown')}")
+        raise HTTPException(status_code=502, detail="TornStats data temporarily unavailable")
 
     # NPC data is at top level, keyed by NPC ID (not under a "loot" key)
     npcs = []
