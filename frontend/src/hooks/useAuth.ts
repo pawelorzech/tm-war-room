@@ -116,9 +116,15 @@ function useProvideAuth(): AuthContextValue {
           role: me.role,
           loading: false,
         });
-      } catch {
-        clearStoredAuth();
-        setLoggedOut();
+      } catch (err) {
+        // Only clear auth on actual 401 (already handled by apiFetch).
+        // Transient errors (502, network) should keep current session.
+        if (err instanceof Error && err.message === "Unauthorized") {
+          clearStoredAuth();
+          setLoggedOut();
+        } else {
+          setState((prev) => ({ ...prev, loading: false }));
+        }
       }
     };
 
