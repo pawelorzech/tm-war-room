@@ -280,7 +280,7 @@ async def lifespan(app: FastAPI):
         _asyncio.create_task(_startup_avatar_refresh())
 
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
-    async with mcp_server._lifespan_manager():
+    async with _mcp_app.lifespan(_mcp_app):
         yield
     await chat_mgr.close_all()
     await app_scheduler.__aexit__(None, None, None)
@@ -314,7 +314,8 @@ app.include_router(chat_router)
 app.include_router(armoury_router)
 
 # MCP server (Streamable HTTP transport)
-app.mount("/mcp", mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware()))
+_mcp_app = mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware())
+app.mount("/mcp", _mcp_app)
 
 @app.get("/api/settings/public")
 async def public_settings():
