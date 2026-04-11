@@ -119,6 +119,7 @@ export default function ArmouryPage() {
   const [formEnd, setFormEnd] = useState('');
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmEndId, setConfirmEndId] = useState<number | null>(null);
   const [, setTick] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -211,9 +212,9 @@ export default function ArmouryPage() {
 
   /* Admin: end competition */
   const handleEnd = async (id: number) => {
-    if (!confirm('End this competition? This cannot be undone.')) return;
     try {
       await api.armouryEndCompetition(id);
+      setConfirmEndId(null);
       await loadData();
     } catch {
       /* swallow */
@@ -300,10 +301,24 @@ export default function ArmouryPage() {
                   </div>
 
                   {isAdmin && (
-                    <button onClick={() => handleEnd(comp.id)}
-                      className="px-3 py-1.5 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 transition-colors font-medium">
-                      End Competition
-                    </button>
+                    confirmEndId === comp.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-danger font-medium">End this competition?</span>
+                        <button onClick={() => handleEnd(comp.id)}
+                          className="px-3 py-1.5 text-xs rounded-lg bg-danger text-white hover:bg-danger/80 transition-colors font-bold">
+                          Yes, end it
+                        </button>
+                        <button onClick={() => setConfirmEndId(null)}
+                          className="px-3 py-1.5 text-xs rounded-lg bg-bg-elevated text-text-secondary hover:text-text-primary transition-colors font-medium">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmEndId(comp.id)}
+                        className="px-3 py-1.5 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 transition-colors font-medium">
+                        End Competition
+                      </button>
+                    )
                   )}
                 </div>
 
