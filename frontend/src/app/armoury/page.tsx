@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ItemMultiSelect } from '@/components/ui/ItemMultiSelect';
 
 /* ── Types ──────────────────────────────────────────── */
 
@@ -12,6 +13,7 @@ interface Competition {
   id: number;
   name: string;
   category: string;
+  items: string | null;
   status: string;
   start_ts: number;
   end_ts: number;
@@ -56,13 +58,37 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
 };
 
 function categoryDisplay(cat: string) {
-  const cats = cat.split(',').map(c => c.trim());
+  const cats = cat.split(',').map(c => c.trim()).filter(Boolean);
+  if (cats.length === 0) return { label: '', icon: '' };
   if (cats.length === 1) {
     return CATEGORY_META[cats[0]] || { label: cat, icon: '\u{1F6E1}\uFE0F' };
   }
   const labels = cats.map(c => CATEGORY_META[c]?.label || c);
   const icons = cats.map(c => CATEGORY_META[c]?.icon || '');
   return { label: labels.join(' + '), icon: icons.filter(Boolean).join('') };
+}
+
+function competitionScope(comp: Competition): { label: string; icon: string } {
+  const parts: string[] = [];
+  const icons: string[] = [];
+  if (comp.category) {
+    const cats = comp.category.split(',').map(c => c.trim()).filter(Boolean);
+    parts.push(...cats.map(c => CATEGORY_META[c]?.label || c));
+    icons.push(...cats.map(c => CATEGORY_META[c]?.icon || '').filter(Boolean));
+  }
+  if (comp.items) {
+    const items = comp.items.split(',').map(i => i.trim()).filter(Boolean);
+    if (items.length <= 3) {
+      parts.push(...items);
+    } else {
+      parts.push(`${items.slice(0, 2).join(', ')} +${items.length - 2} more`);
+    }
+    icons.push('\u{1F4E6}');
+  }
+  return {
+    label: parts.join(' + ') || 'All items',
+    icon: icons.length > 0 ? icons[0] : '\u{1F6E1}\uFE0F',
+  };
 }
 
 function relativeTime(ts: number): string {
@@ -114,12 +140,14 @@ export default function ArmouryPage() {
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCategories, setFormCategories] = useState<string[]>(['blood_bags']);
+  const [formItems, setFormItems] = useState<string[]>([]);
   const [formPrizeText, setFormPrizeText] = useState('');
   const [formStart, setFormStart] = useState('');
   const [formEnd, setFormEnd] = useState('');
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmEndId, setConfirmEndId] = useState<number | null>(null);
+  const [categoryItemsMap, setCategoryItemsMap] = useState<Record<string, string[]>>({});
   const [, setTick] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,6 +177,11 @@ export default function ArmouryPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  /* Fetch category item lists for tooltips */
+  useEffect(() => {
+    api.armouryCategories().then(res => setCategoryItemsMap(res.categories)).catch(() => {});
+  }, []);
 
   /* Auto-refresh every 60s */
   useEffect(() => {
@@ -188,17 +221,25 @@ export default function ArmouryPage() {
   const handleCreate = async () => {
     setFormError('');
     if (!formName.trim()) { setFormError('Name is required'); return; }
-    if (formCategories.length === 0) { setFormError('Select at least one category'); return; }
+    if (formCategories.length === 0 && formItems.length === 0) { setFormError('Select at least one category or item'); return; }
     if (!formStart || !formEnd) { setFormError('Start and end dates are required'); return; }
     const startTs = Math.floor(new Date(formStart).getTime() / 1000);
     const endTs = Math.floor(new Date(formEnd).getTime() / 1000);
     if (endTs <= startTs) { setFormError('End must be after start'); return; }
     setSubmitting(true);
     try {
-      await api.armouryCreateCompetition({ name: formName.trim(), categories: formCategories, start_ts: startTs, end_ts: endTs, prize_text: formPrizeText || undefined });
+      await api.armouryCreateCompetition({
+        name: formName.trim(),
+        categories: formCategories,
+        items: formItems.length > 0 ? formItems : undefined,
+        start_ts: startTs,
+        end_ts: endTs,
+        prize_text: formPrizeText || undefined,
+      });
       setShowForm(false);
       setFormName('');
       setFormCategories(['blood_bags']);
+      setFormItems([]);
       setFormPrizeText('');
       setFormStart('');
       setFormEnd('');
@@ -257,11 +298,11 @@ export default function ArmouryPage() {
                 <div className="bg-bg-card border border-torn-green/20 rounded-xl p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{categoryDisplay(comp.category).icon}</span>
+                      <span className="text-xl">{competitionScope(comp).icon}</span>
                       <div>
                         <h2 className="text-lg font-bold">{comp.name}</h2>
                         <p className="text-xs text-text-muted">
-                          {categoryDisplay(comp.category).label} &middot; {formatDate(comp.start_ts)} &ndash; {formatDate(comp.end_ts)}
+                          {competitionScope(comp).label} &middot; {formatDate(comp.start_ts)} &ndash; {formatDate(comp.end_ts)}
                         </p>
                       </div>
                     </div>
@@ -403,7 +444,7 @@ export default function ArmouryPage() {
               <div className="mt-3 space-y-4">
                 {pastCompetitions.map(comp => {
                   const board = pastBoards.get(comp.id);
-                  const { label, icon } = categoryDisplay(comp.category);
+                  const { label, icon } = competitionScope(comp);
                   return (
                     <div key={comp.id} className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
                       <div className="p-3 border-b border-border flex items-center justify-between">
@@ -493,17 +534,23 @@ export default function ArmouryPage() {
                   <label className="block text-xs text-text-muted mb-1">Categories</label>
                   <div className="flex flex-wrap gap-3">
                     {Object.entries(CATEGORY_META).map(([key, { label, icon }]) => (
-                      <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer group relative">
                         <input type="checkbox"
                           checked={formCategories.includes(key)}
                           onChange={() => setFormCategories(prev =>
                             prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
                           )}
                           className="rounded border-text-secondary/40 text-torn-green focus:ring-torn-green/50" />
-                        <span>{icon} {label}</span>
+                        <span title={categoryItemsMap[key]?.join(', ') || ''}>{icon} {label}</span>
                       </label>
                     ))}
                   </div>
+                  <p className="text-[10px] text-text-muted mt-1">Hover a category to see its items</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">Specific Items (optional)</label>
+                  <ItemMultiSelect selected={formItems} onChange={setFormItems} placeholder="Type to search items..." />
+                  <p className="text-[10px] text-text-muted mt-1">Add specific items in addition to or instead of categories</p>
                 </div>
                 <div>
                   <label className="block text-xs text-text-muted mb-1">Prizes (optional)</label>

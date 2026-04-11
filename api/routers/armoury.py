@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
 from api.config import SUPERADMIN_ID
-from api.armoury import VALID_CATEGORIES
+from api.armoury import VALID_CATEGORIES, CATEGORY_TO_ITEMS
 
 logger = logging.getLogger("tm-hub.armoury")
 
@@ -17,7 +17,8 @@ repo = None
 
 class CreateCompetition(BaseModel):
     name: str
-    categories: list[str]
+    categories: list[str] = []
+    items: list[str] = []
     start_ts: int
     end_ts: int
     prize_text: str | None = None
@@ -64,14 +65,15 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
         raise HTTPException(status_code=401, detail="Register your API key first")
     if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
-    if not body.categories:
-        raise HTTPException(status_code=400, detail="At least one category is required")
+    if not body.categories and not body.items:
+        raise HTTPException(status_code=400, detail="At least one category or item is required")
     for cat in body.categories:
         if cat not in VALID_CATEGORIES:
             raise HTTPException(status_code=400, detail=f"Invalid category '{cat}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
     if body.end_ts <= body.start_ts:
         raise HTTPException(status_code=400, detail="end_ts must be after start_ts")
-    category_str = ",".join(sorted(set(body.categories)))
+    category_str = ",".join(sorted(set(body.categories))) if body.categories else ""
+    items_str = ",".join(body.items) if body.items else None
     comp_id = repo.create_competition(
         name=body.name,
         category=category_str,
@@ -79,6 +81,7 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
         end_ts=body.end_ts,
         created_by=x_player_id,
         prize_text=body.prize_text,
+        items=items_str,
     )
     return {"id": comp_id, "status": "created"}
 
@@ -99,6 +102,7 @@ async def end_competition(comp_id: int, x_player_id: int = Header()):
 class UpdateCompetition(BaseModel):
     name: str | None = None
     categories: list[str] | None = None
+    items: list[str] | None = None
     start_ts: int | None = None
     end_ts: int | None = None
     prize_text: str | None = None
@@ -120,8 +124,10 @@ async def update_competition(comp_id: int, body: UpdateCompetition, x_player_id:
         for cat in body.categories:
             if cat not in VALID_CATEGORIES:
                 raise HTTPException(status_code=400, detail=f"Invalid category '{cat}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
-        updates["category"] = ",".join(sorted(set(body.categories)))
+        updates["category"] = ",".join(sorted(set(body.categories))) if body.categories else ""
         del updates["categories"]
+    if body.items is not None:
+        updates["items"] = ",".join(body.items) if body.items else None
     repo.update_competition(comp_id, **updates)
     return {"status": "updated", "updated_fields": list(updates.keys())}
 
@@ -135,3 +141,33 @@ async def trigger_poll(x_player_id: int = Header()):
     from api.scheduler.jobs.armoury_poll import run_armoury_poll
     await run_armoury_poll()
     return {"status": "polled"}
+
+
+@router.get("/items/search")
+async def search_items(q: str = "", x_player_id: int = Header()):
+    if not key_store or not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    if len(q) < 2:
+        return {"items": []}
+    from api.routers.market import ensure_items_cache
+    cache = await ensure_items_cache(torn_client)
+    if not cache:
+        return {"items": []}
+    q_lower = q.lower()
+    matches = [
+        {"id": item["id"], "name": item["name"], "type": item["type"]}
+        for item in cache
+        if q_lower in item["name"].lower()
+    ][:20]
+    return {"items": matches}
+
+
+@router.get("/categories")
+async def list_categories(x_player_id: int = Header()):
+    if not key_store or not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    return {
+        "categories": {
+            cat: items for cat, items in sorted(CATEGORY_TO_ITEMS.items())
+        }
+    }

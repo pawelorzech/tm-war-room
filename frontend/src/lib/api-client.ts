@@ -320,7 +320,7 @@ export const api = {
   // ── Armoury Competitions ────────────────────────────
   armouryCompetitions: () => apiFetch<{
     competitions: {
-      id: number; name: string; category: string; status: string;
+      id: number; name: string; category: string; items: string | null; status: string;
       start_ts: number; end_ts: number; created_by: number | null;
       prize_text: string | null;
     }[];
@@ -328,7 +328,7 @@ export const api = {
   }>('/api/armoury/competitions'),
   armouryLeaderboard: (id: number) => apiFetch<{
     competition: {
-      id: number; name: string; category: string; status: string;
+      id: number; name: string; category: string; items: string | null; status: string;
       start_ts: number; end_ts: number;
       prize_text: string | null;
     };
@@ -339,10 +339,16 @@ export const api = {
     total_deposited: number;
     participants: number;
   }>(`/api/armoury/competitions/${id}/leaderboard`),
-  armouryCreateCompetition: (data: { name: string; categories: string[]; start_ts: number; end_ts: number; prize_text?: string }) =>
+  armouryCreateCompetition: (data: { name: string; categories: string[]; items?: string[]; start_ts: number; end_ts: number; prize_text?: string }) =>
     apiPostJson<{ id: number; status: string }>('/api/armoury/competitions', data),
   armouryEndCompetition: (id: number) =>
     apiPostJson<{ status: string }>(`/api/armoury/competitions/${id}/end`, {}),
+  armourySearchItems: (q: string) =>
+    apiFetch<{ items: { id: number; name: string; type: string }[] }>(
+      `/api/armoury/items/search?q=${encodeURIComponent(q)}`
+    ),
+  armouryCategories: () =>
+    apiFetch<{ categories: Record<string, string[]> }>('/api/armoury/categories'),
 
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 

@@ -9,7 +9,7 @@ TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (Fast
 ## Commands
 
 ```bash
-# Backend tests (235 tests, async)
+# Backend tests (426 tests, async)
 uv run pytest tests/ -v
 uv run pytest tests/test_threat.py -v          # single file
 uv run pytest tests/test_routes.py -k "enemy"  # by keyword
@@ -33,8 +33,10 @@ FastAPI app in `api/main.py` with module-level globals (`torn_client`, `key_stor
 
 - **`api/torn_client.py`** — async Torn API v1/v2 + YATA client with in-memory TTL cache
 - **`api/db/`** — SQLite via `BaseRepository` pattern (`repos/base.py`): each repo gets a fresh `sqlite3.connect()` per call, WAL mode. `KeyStore` in `db/__init__.py` is a facade over `KeyRepository` + `AnnouncementRepository`
-- **`api/db/migrations/`** — numbered SQL files (`001_*.sql`..`020_*.sql`) applied automatically by `runner.py` on startup against `data/keys.db`
-- **`api/routers/`** — 18 feature routers: spy, stats, market, chain, awards, targets, loot, revives, bounties, stocks, travel, oc, wars, stakeout, notifications, company, push, version
+- **`api/db/migrations/`** — numbered SQL files (`001_*.sql`..`035_*.sql`) applied automatically by `runner.py` on startup against `data/keys.db`
+- **`api/routers/`** — 22 feature routers: spy, stats, market, chain, awards, targets, loot, revives, bounties, stocks, travel, oc, wars, stakeout, notifications, company, push, version, armoury, chat, profile
+- **`api/armoury.py`** — armoury competition logic: item category sets, `matches_competition()` for deposit filtering, `parse_deposit_news()` for Torn news parsing
+- **`api/routers/market.py`** has `ensure_items_cache()` — shared async function that populates/returns the Torn items cache (all ~1600 items). Reusable from other routers (e.g. armoury item search).
 - **`api/admin.py`** — admin panel router (JWT-based admin auth, separate from member auth)
 - **`api/scheduler/`** — APScheduler 4.x background jobs (data refresh every 30s, stat collection every 15min, spy refresh every 30min, circulation every 15min)
 - **`api/threat.py`** — threat scoring: relative (stat-based via spy estimates) or absolute (personalstats ratios)
