@@ -2,17 +2,7 @@ import os
 import pytest
 from unittest.mock import MagicMock, patch
 from httpx import AsyncClient, ASGITransport
-from api.auth import create_jwt
-
-TEST_JWT_SECRET = "test-secret-for-spy-route-tests"
-
-
-def auth_headers(player_id: int = 123, name: str = "Test") -> dict[str, str]:
-    return {
-        "X-Player-Id": str(player_id),
-        "Authorization": f"Bearer {create_jwt(player_id, name, TEST_JWT_SECRET, token_type='session')}",
-    }
-
+from tests.helpers import TEST_JWT_SECRET, auth_headers
 
 AUTH_HEADERS = auth_headers()
 
