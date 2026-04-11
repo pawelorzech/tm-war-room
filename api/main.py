@@ -399,6 +399,27 @@ async def dashboard_aggregate(x_player_id: int = Header()):
 
     member_dicts = [m.model_dump() for m in members]
 
+    # Pre-computed counts for dashboard (avoids sending full member list to frontend)
+    _online_count = 0
+    _hospital_count = 0
+    _traveling_count = 0
+    _wall_count = 0
+    for md in member_dicts:
+        status_val = md.get("status") or {}
+        last_action_val = md.get("last_action") or {}
+        status_str = (status_val.get("description") or status_val.get("state") or "") if isinstance(status_val, dict) else str(status_val)
+        la_str = (last_action_val.get("relative") or last_action_val.get("status") or "") if isinstance(last_action_val, dict) else str(last_action_val)
+        status_lower = status_str.lower()
+        if "hospital" in status_lower:
+            _hospital_count += 1
+        elif "travel" in status_lower or "abroad" in status_lower:
+            _traveling_count += 1
+        if md.get("is_on_wall"):
+            _wall_count += 1
+        la_lower = la_str.lower()
+        if "online" in la_lower or la_lower.startswith(("0 ", "1 ", "2 ", "3 ", "4 ", "5 ")):
+            _online_count += 1
+
     # Loot data (from cache, refreshed by scheduler/endpoint)
     loot_data = None
     try:
@@ -447,6 +468,13 @@ async def dashboard_aggregate(x_player_id: int = Header()):
 
     return {
         "members": member_dicts,
+        "member_counts": {
+            "total": len(member_dicts),
+            "online": _online_count,
+            "hospital": _hospital_count,
+            "traveling": _traveling_count,
+            "on_wall": _wall_count,
+        },
         "war": war.model_dump() if war else None,
         "war_progress": _build_war_progress(war),
         "chain": chain,
@@ -738,15 +766,51 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
     if not enemy_id:
         return {"faction": None, "members": [], "cached_at": int(time.time())}
 
-    members = await torn_client.fetch_enemy_members(enemy_id)
-    info = await torn_client.fetch_faction_info(enemy_id)
+    # Build parallel tasks for all independent fetches
+    tasks = {
+        "members": torn_client.fetch_enemy_members(enemy_id),
+        "info": torn_client.fetch_faction_info(enemy_id),
+    }
+    if TORNSTATS_API_KEY:
+        tasks["spy"] = torn_client.fetch_tornstats_spy(enemy_id, TORNSTATS_API_KEY)
+
+    baseline_name = None
+    user_key = None
+    if baseline_pid:
+        user_key = key_store.get_key(baseline_pid)
+        if user_key:
+            tasks["baseline"] = torn_client.fetch_personalstats(user_key["api_key"])
+            baseline_name = user_key["player_name"]
+
+    # Run all fetches in parallel
+    task_keys = list(tasks.keys())
+    results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+    result_map = dict(zip(task_keys, results))
+
+    # Extract results, handling failures gracefully
+    members = result_map["members"]
+    if isinstance(members, BaseException):
+        logger.error("Failed to fetch enemy members for faction %d: %s", enemy_id, members)
+        return {"faction": None, "members": [], "cached_at": int(time.time())}
+
+    info = result_map["info"]
+    if isinstance(info, BaseException):
+        logger.error("Failed to fetch faction info for %d: %s", enemy_id, info)
+        info = None
 
     spy_data = {}
-    if TORNSTATS_API_KEY:
-        try:
-            spy_data = await torn_client.fetch_tornstats_spy(enemy_id, TORNSTATS_API_KEY)
-        except Exception:
-            pass
+    if "spy" in result_map:
+        spy_result = result_map["spy"]
+        if not isinstance(spy_result, BaseException):
+            spy_data = spy_result
+
+    baseline = None
+    if "baseline" in result_map:
+        baseline_result = result_map["baseline"]
+        if isinstance(baseline_result, BaseException):
+            baseline_name = None
+        else:
+            baseline = baseline_result
 
     # Look up spy estimates for better threat scoring
     spy_estimates = {}
@@ -755,18 +819,6 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
             est = spy_mod.spy_service.repo.get_estimate(m.id)
             if est:
                 spy_estimates[m.id] = est
-
-    # Get baseline stats from the requesting user's key for relative threat scoring
-    baseline = None
-    baseline_name = None
-    if baseline_pid:
-        user_key = key_store.get_key(baseline_pid)
-        if user_key:
-            try:
-                baseline = await torn_client.fetch_personalstats(user_key["api_key"])
-                baseline_name = user_key["player_name"]
-            except Exception:
-                pass
 
     enemy_list = []
     for m in members:
@@ -796,7 +848,7 @@ async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int 
     ))
 
     return {
-        "faction": info.model_dump(), "members": enemy_list,
+        "faction": info.model_dump() if info else None, "members": enemy_list,
         "threat_mode": "relative" if baseline else "absolute",
         "threat_baseline": baseline_name if baseline else None,
         "cached_at": int(time.time()),

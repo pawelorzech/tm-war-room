@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import { usePageVisible } from '@/hooks/usePageVisible';
 import Link from 'next/link';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
@@ -64,20 +65,25 @@ export default function DashboardPage() {
     api.dashboard().then((data) => {
       setStatus(data.status);
 
-      // Members
-      const members = (data.members || []) as Record<string, unknown>[];
-      const total = members.length;
-      const online = members.filter(m => {
-        const la = getLastActionStr(m).toLowerCase();
-        return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
-      }).length;
-      const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
-      const traveling = members.filter(m => {
-        const s = getStatusStr(m).toLowerCase();
-        return s.includes('travel') || s.includes('abroad');
-      }).length;
-      const onWall = members.filter(m => !!m.is_on_wall).length;
-      setMemberCounts({ total, online, hospital, traveling, onWall });
+      // Members — use server-computed counts if available, fallback to client-side
+      const mc = (data as Record<string, unknown>).member_counts as { total: number; online: number; hospital: number; traveling: number; on_wall: number } | undefined;
+      if (mc) {
+        setMemberCounts({ total: mc.total, online: mc.online, hospital: mc.hospital, traveling: mc.traveling, onWall: mc.on_wall });
+      } else {
+        const members = (data.members || []) as Record<string, unknown>[];
+        const total = members.length;
+        const online = members.filter(m => {
+          const la = getLastActionStr(m).toLowerCase();
+          return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
+        }).length;
+        const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
+        const traveling = members.filter(m => {
+          const s = getStatusStr(m).toLowerCase();
+          return s.includes('travel') || s.includes('abroad');
+        }).length;
+        const onWall = members.filter(m => !!m.is_on_wall).length;
+        setMemberCounts({ total, online, hospital, traveling, onWall });
+      }
 
       // Loot
       if (data.loot) {
@@ -119,11 +125,14 @@ export default function DashboardPage() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const visible = usePageVisible();
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    if (!visible) return;
     const timer = setInterval(load, 30000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, visible]);
 
   if (loading) return (
     <div className="min-h-screen bg-bg-primary text-text-primary">

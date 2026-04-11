@@ -6,13 +6,25 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# Stage 2: Backend + serve frontend
+# Stage 2: Backend + nginx reverse proxy
 FROM python:3.12-slim
 WORKDIR /app
+
+# Install nginx
+RUN apt-get update && apt-get install -y --no-install-recommends nginx && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -f /etc/nginx/sites-enabled/default
+
 COPY pyproject.toml .
 RUN pip install --no-cache-dir . && pip install --no-cache-dir --pre "apscheduler>=4.0.0a5"
 COPY api/ api/
 COPY --from=frontend /frontend/out/ static/
+COPY nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p data
+
+# Start script: nginx + uvicorn
+COPY start.sh .
+RUN chmod +x start.sh
+
 EXPOSE 8000
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]

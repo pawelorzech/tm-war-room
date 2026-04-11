@@ -5,6 +5,7 @@ members, revives). During peacetime: skips expensive operations on some cycles
 to save API rate limits. War detection stored globally for /api/status endpoint.
 """
 from __future__ import annotations
+import asyncio
 import logging
 import time
 
@@ -14,6 +15,9 @@ logger = logging.getLogger("tm-hub.jobs.refresh_data")
 war_active: bool = False
 last_full_refresh: float = 0
 _cycle: int = 0
+
+# Limit concurrent Torn API calls for bars fan-out (10 at a time, not 70+)
+_BARS_SEM = asyncio.Semaphore(10)
 
 # Track NPC levels between cycles for push notification triggers
 _prev_npc_levels: dict[int, int] = {}
@@ -256,22 +260,22 @@ async def run_refresh_data() -> None:
         try:
             key_repo = state.get("key_repo")
             if key_repo and torn_client:
-                import asyncio as _aio
                 pairs = key_repo.get_all_player_ids_with_keys()
 
                 async def _bg_bars(pid: int, enc_key) -> tuple[int, dict | None]:
-                    try:
-                        api_key = key_repo.decrypt_key(enc_key)
-                        bars = await torn_client.fetch_member_bars(api_key)
-                        return pid, {
-                            "energy": bars.energy.current,
-                            "max_energy": bars.energy.maximum,
-                            "drug_cd": bars.cooldowns.drug,
-                        }
-                    except Exception:
-                        return pid, None
+                    async with _BARS_SEM:
+                        try:
+                            api_key = key_repo.decrypt_key(enc_key)
+                            bars = await torn_client.fetch_member_bars(api_key)
+                            return pid, {
+                                "energy": bars.energy.current,
+                                "max_energy": bars.energy.maximum,
+                                "drug_cd": bars.cooldowns.drug,
+                            }
+                        except Exception:
+                            return pid, None
 
-                results = await _aio.gather(*[_bg_bars(pid, enc) for pid, enc in pairs])
+                results = await asyncio.gather(*[_bg_bars(pid, enc) for pid, enc in pairs])
                 from api.main import _bars_cache
                 import time as _t
                 from api import main as _main_mod
