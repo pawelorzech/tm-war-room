@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 
 from fastapi import APIRouter, HTTPException, Header, WebSocket, WebSocketDisconnect
@@ -24,6 +25,25 @@ settings_repo = None
 notification_dispatcher = None  # Set by main.py
 torn_client = None  # Set by main.py
 presence_repo = None  # Set by main.py
+
+
+# Per-player WebSocket message rate limiter: max 2 messages/second, burst 5
+_ws_msg_times: dict[int, list[float]] = {}
+_WS_MSG_RATE = 2  # messages per second
+_WS_MSG_WINDOW = 5  # rolling window in seconds
+_WS_MSG_MAX = _WS_MSG_RATE * _WS_MSG_WINDOW  # 10 messages in 5s
+
+
+def _ws_rate_ok(player_id: int) -> bool:
+    now = time.time()
+    cutoff = now - _WS_MSG_WINDOW
+    times = [t for t in _ws_msg_times.get(player_id, []) if t > cutoff]
+    if len(times) >= _WS_MSG_MAX:
+        _ws_msg_times[player_id] = times
+        return False
+    times.append(now)
+    _ws_msg_times[player_id] = times
+    return True
 
 
 def _not_ready():
@@ -171,6 +191,8 @@ async def send_message(
     channel_id: int, body: MessageCreate, x_player_id: int = Header(),
 ):
     _verify_member(x_player_id)
+    if not _ws_rate_ok(x_player_id):
+        raise HTTPException(status_code=429, detail="Too many messages, slow down")
     if chat_repo.is_muted(x_player_id):
         raise HTTPException(status_code=403, detail="You are muted")
     ch = chat_repo.get_channel(channel_id)
@@ -646,6 +668,8 @@ async def chat_websocket(ws: WebSocket):
             payload = msg.get("payload", {})
 
             if msg_type == "message":
+                if not _ws_rate_ok(player_id):
+                    continue  # silently drop — client won't notice lag
                 await _handle_ws_message(player_id, payload)
             elif msg_type == "typing":
                 ch_id = payload.get("channel_id")
