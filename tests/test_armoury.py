@@ -258,6 +258,18 @@ class TestArmouryRepository:
         comp_id = repo.create_competition("Comp", "blood_bags", 1000, 2000, 1)
         assert repo.get_last_poll_ts(comp_id) is None
 
+    def test_overlapping_competitions_same_deposit(self, repo):
+        """Same news_id can be recorded in two competitions independently."""
+        comp1 = repo.create_competition("Comp 1", "blood_bags", 1000, 2000, 1)
+        comp2 = repo.create_competition("Comp 2", "blood_bags", 1000, 2000, 1)
+        repo.insert_deposit(comp1, 42, "Steven", "Blood Bag : O+", 10, 1500, "news_001")
+        repo.insert_deposit(comp2, 42, "Steven", "Blood Bag : O+", 10, 1500, "news_001")
+
+        lb1 = repo.get_leaderboard(comp1)
+        lb2 = repo.get_leaderboard(comp2)
+        assert len(lb1) == 1 and lb1[0]["total"] == 10
+        assert len(lb2) == 1 and lb2[0]["total"] == 10
+
     def test_create_competition_with_items(self, repo):
         comp_id = repo.create_competition("Item Comp", "", 1000, 2000, 42, items="Xanax,LSD")
         comp = repo.get_competition(comp_id)
@@ -452,6 +464,30 @@ class TestArmouryRoutes:
         data = resp.json()
         assert "drugs" in data["categories"]
         assert "Xanax" in data["categories"]["drugs"]
+
+    def test_debug_endpoint_admin(self, armoury_app):
+        client, _, armoury_repo = armoury_app
+        headers = {"X-Player-Id": "123"}
+        comp_id = armoury_repo.create_competition("Comp", "blood_bags", 1000, 2000, 42)
+        armoury_repo.insert_deposit(comp_id, 42, "Bombel", "Blood Bag : O+", 10, 1500, "n1")
+        armoury_repo.insert_deposit(comp_id, 99, "Steven", "Blood Bag : A+", 5, 1600, "n2")
+        resp = client.get(f"/api/armoury/competitions/{comp_id}/debug", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_deposits"] == 2
+        assert data["unique_players"] == 2
+        assert "42" in data["by_player"]
+        assert "99" in data["by_player"]
+
+    def test_debug_endpoint_non_admin_403(self, armoury_app):
+        client, mock_ks, armoury_repo = armoury_app
+        comp_id = armoury_repo.create_competition("Comp", "blood_bags", 1000, 2000, 42)
+        mock_ks.is_admin.return_value = False
+        resp = client.get(
+            f"/api/armoury/competitions/{comp_id}/debug",
+            headers={"X-Player-Id": "123"},
+        )
+        assert resp.status_code == 403
 
     def test_unregistered_user_401(self, armoury_app):
         client, mock_ks, _ = armoury_app

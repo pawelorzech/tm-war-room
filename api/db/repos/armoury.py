@@ -46,13 +46,20 @@ class ArmouryRepository(BaseRepository):
             (competition_id, player_id, player_name, item_name, quantity, deposited_at, news_id),
         )
 
-    def get_leaderboard(self, competition_id: int, limit: int = 50) -> list[dict]:
+    def get_leaderboard(self, competition_id: int) -> list[dict]:
         rows = self.execute(
             "SELECT player_id, player_name, SUM(quantity) AS total, COUNT(*) AS deposits, "
             "MAX(deposited_at) AS last_deposit "
             "FROM armoury_deposits WHERE competition_id = ? "
-            "GROUP BY player_id ORDER BY total DESC LIMIT ?",
-            (competition_id, limit),
+            "GROUP BY player_id ORDER BY total DESC",
+            (competition_id,),
+        )
+        return [dict(r) for r in rows]
+
+    def get_deposits(self, competition_id: int) -> list[dict]:
+        rows = self.execute(
+            "SELECT * FROM armoury_deposits WHERE competition_id = ? ORDER BY deposited_at DESC",
+            (competition_id,),
         )
         return [dict(r) for r in rows]
 
