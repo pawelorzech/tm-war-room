@@ -8,7 +8,7 @@ logger = logging.getLogger("tm-hub.scheduler.armoury")
 
 async def run_armoury_poll() -> None:
     from api.scheduler.engine import get_state
-    from api.armoury import parse_deposit_news, matches_category
+    from api.armoury import parse_deposit_news, matches_any_category
 
     state = get_state()
     torn_client = state.get("torn_client")
@@ -60,7 +60,7 @@ async def run_armoury_poll() -> None:
             if not parsed:
                 continue
             player_id, player_name, quantity, item_name = parsed
-            if not matches_category(item_name, comp["category"]):
+            if not matches_any_category(item_name, comp["category"]):
                 continue
             armoury_repo.insert_deposit(
                 competition_id=comp["id"],

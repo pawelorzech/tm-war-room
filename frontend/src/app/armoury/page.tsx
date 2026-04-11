@@ -16,6 +16,7 @@ interface Competition {
   start_ts: number;
   end_ts: number;
   created_by: number | null;
+  prize_text: string | null;
 }
 
 interface LeaderboardEntry {
@@ -35,6 +36,7 @@ interface LeaderboardData {
     status: string;
     start_ts: number;
     end_ts: number;
+    prize_text: string | null;
   };
   leaderboard: LeaderboardEntry[];
   total_deposited: number;
@@ -44,13 +46,23 @@ interface LeaderboardData {
 /* ── Helpers ────────────────────────────────────────── */
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
-  blood_bags: { label: 'Blood Bags', icon: '\u{1FA78}' },
-  temporary:  { label: 'Temporary Items', icon: '\u{1F489}' },
-  alcohol:    { label: 'Alcohol', icon: '\u{1F37A}' },
+  blood_bags:    { label: 'Blood Bags', icon: '\u{1FA78}' },
+  temporary:     { label: 'Temporary Items', icon: '\u{1F489}' },
+  alcohol:       { label: 'Alcohol', icon: '\u{1F37A}' },
+  medical:       { label: 'Medical', icon: '\u{1FA79}' },
+  drugs:         { label: 'Drugs', icon: '\u{1F48A}' },
+  energy_drinks: { label: 'Energy Drinks', icon: '\u{26A1}' },
+  candy:         { label: 'Candy', icon: '\u{1F36C}' },
 };
 
 function categoryDisplay(cat: string) {
-  return CATEGORY_META[cat] || { label: cat, icon: '\u{1F6E1}\uFE0F' };
+  const cats = cat.split(',').map(c => c.trim());
+  if (cats.length === 1) {
+    return CATEGORY_META[cats[0]] || { label: cat, icon: '\u{1F6E1}\uFE0F' };
+  }
+  const labels = cats.map(c => CATEGORY_META[c]?.label || c);
+  const icons = cats.map(c => CATEGORY_META[c]?.icon || '');
+  return { label: labels.join(' + '), icon: icons.filter(Boolean).join('') };
 }
 
 function relativeTime(ts: number): string {
@@ -101,7 +113,8 @@ export default function ArmouryPage() {
   const [showPast, setShowPast] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState('');
-  const [formCategory, setFormCategory] = useState('blood_bags');
+  const [formCategories, setFormCategories] = useState<string[]>(['blood_bags']);
+  const [formPrizeText, setFormPrizeText] = useState('');
   const [formStart, setFormStart] = useState('');
   const [formEnd, setFormEnd] = useState('');
   const [formError, setFormError] = useState('');
@@ -174,15 +187,18 @@ export default function ArmouryPage() {
   const handleCreate = async () => {
     setFormError('');
     if (!formName.trim()) { setFormError('Name is required'); return; }
+    if (formCategories.length === 0) { setFormError('Select at least one category'); return; }
     if (!formStart || !formEnd) { setFormError('Start and end dates are required'); return; }
     const startTs = Math.floor(new Date(formStart).getTime() / 1000);
     const endTs = Math.floor(new Date(formEnd).getTime() / 1000);
     if (endTs <= startTs) { setFormError('End must be after start'); return; }
     setSubmitting(true);
     try {
-      await api.armouryCreateCompetition({ name: formName.trim(), category: formCategory, start_ts: startTs, end_ts: endTs });
+      await api.armouryCreateCompetition({ name: formName.trim(), categories: formCategories, start_ts: startTs, end_ts: endTs, prize_text: formPrizeText || undefined });
       setShowForm(false);
       setFormName('');
+      setFormCategories(['blood_bags']);
+      setFormPrizeText('');
       setFormStart('');
       setFormEnd('');
       await loadData();
@@ -224,7 +240,7 @@ export default function ArmouryPage() {
         <PageExplainer id="armoury" title="Armoury Competitions — How it works" bullets={[
           'Faction leadership creates competitions around restocking specific item categories (blood bags, temporary items, or alcohol).',
           'Every deposit you make to the faction armoury during the competition window is tracked automatically via the Torn API.',
-          'The leaderboard shows who has deposited the most items. Top 3 win Xanax prizes from leadership.',
+          'The leaderboard shows who has deposited the most items. Prizes are announced by leadership for each competition.',
           'Leaderboard refreshes every 60 seconds. Keep depositing to climb the ranks!',
           'Data: Torn API v2 armoury logs, scanned every data refresh cycle.',
         ]} />
@@ -275,7 +291,7 @@ export default function ArmouryPage() {
               {/* Prize info */}
               <div className="bg-bg-elevated/50 rounded-lg p-3 text-xs text-text-secondary">
                 {'\u{1F3C6}'} <span className="font-semibold text-text-primary">Prizes:</span>{' '}
-                Top 3 win Xanax &mdash; 1st: 3 days, 2nd: 2 days, 3rd: 1 day
+                {activeBoard.competition.prize_text || 'Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day'}
               </div>
 
               {isAdmin && (
@@ -452,13 +468,26 @@ export default function ArmouryPage() {
                     className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50" />
                 </div>
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">Category</label>
-                  <select value={formCategory} onChange={e => setFormCategory(e.target.value)}
-                    className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-torn-green/50">
-                    <option value="blood_bags">{'\u{1FA78}'} Blood Bags</option>
-                    <option value="temporary">{'\u{1F489}'} Temporary Items</option>
-                    <option value="alcohol">{'\u{1F37A}'} Alcohol</option>
-                  </select>
+                  <label className="block text-xs text-text-muted mb-1">Categories</label>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(CATEGORY_META).map(([key, { label, icon }]) => (
+                      <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <input type="checkbox"
+                          checked={formCategories.includes(key)}
+                          onChange={() => setFormCategories(prev =>
+                            prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
+                          )}
+                          className="rounded border-text-secondary/40 text-torn-green focus:ring-torn-green/50" />
+                        <span>{icon} {label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">Prizes (optional)</label>
+                  <input type="text" value={formPrizeText} onChange={e => setFormPrizeText(e.target.value)}
+                    placeholder="e.g. Top 3 win Xanax — 1st: 3 days, 2nd: 2 days, 3rd: 1 day"
+                    className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>

@@ -17,9 +17,10 @@ repo = None
 
 class CreateCompetition(BaseModel):
     name: str
-    category: str
+    categories: list[str]
     start_ts: int
     end_ts: int
+    prize_text: str | None = None
 
 
 @router.get("/competitions")
@@ -63,16 +64,21 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
         raise HTTPException(status_code=401, detail="Register your API key first")
     if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
-    if body.category not in VALID_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
+    if not body.categories:
+        raise HTTPException(status_code=400, detail="At least one category is required")
+    for cat in body.categories:
+        if cat not in VALID_CATEGORIES:
+            raise HTTPException(status_code=400, detail=f"Invalid category '{cat}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
     if body.end_ts <= body.start_ts:
         raise HTTPException(status_code=400, detail="end_ts must be after start_ts")
+    category_str = ",".join(sorted(set(body.categories)))
     comp_id = repo.create_competition(
         name=body.name,
-        category=body.category,
+        category=category_str,
         start_ts=body.start_ts,
         end_ts=body.end_ts,
         created_by=x_player_id,
+        prize_text=body.prize_text,
     )
     return {"id": comp_id, "status": "created"}
 
