@@ -86,6 +86,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Resources",
     icon: "📚",
     items: [
+      { label: "Member Guide", href: "/guide", icon: "📖" },
       { label: "Userscripts", href: "/scripts", icon: "🔧" },
       { label: "FAQ", href: "/faq", icon: "❓" },
       { label: "Changelog", href: "/changelog", icon: "📋" },

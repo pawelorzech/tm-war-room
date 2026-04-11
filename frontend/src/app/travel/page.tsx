@@ -170,9 +170,14 @@ export default function TravelPage() {
           "TRIP PROFIT = best item profit x your capacity. PROFIT/HR factors in round-trip time. Higher = better use of your time.",
           "Stock quantity shows how many are available — 0 means sold out (wait for restock). Prices may change with supply.",
           "Sort by $/hour for best ROI. Short trips (Mexico 26min) can beat long ones despite lower per-item profit.",
+          "Flowers and plushies are the safest items to run — low total cost (~300K) means minimal mug risk.",
+          "Check abroad stock on YATA (yata.yt/bazaar/abroad) before flying — shops can run out.",
+          "Protect yourself while selling: self-hosp with wrong blood bag, or travel immediately after listing.",
+          "Private Island with airstrip + pilot = 30% faster travel + 10 extra item capacity.",
+          "All market sales have a 5% fee — factor this into profit calculations.",
         ]}
         dataSources={["YATA /api/v1/travel/export/ — abroad stock & prices, cached 15min", "Torn API v1 items — market values, cached 5min"]}
-        links={[["Torn Wiki: Travel", "https://wiki.torn.com/wiki/Travel"], ["TornTravel.com", "https://www.torntravel.com"], ["YATA Travel", "https://yata.yt/bazaar/abroad/"]]}
+        links={[["Torn Wiki: Travel", "https://wiki.torn.com/wiki/Travel"], ["TornTravel.com", "https://www.torntravel.com"], ["YATA Travel", "https://yata.yt/bazaar/abroad/"], ["Torn Wiki: Properties", "https://wiki.torn.com/wiki/Properties"]]}
         />
 
         {/* Controls */}

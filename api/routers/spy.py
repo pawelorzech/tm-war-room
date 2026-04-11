@@ -80,8 +80,9 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
     now = datetime.now(timezone.utc)
     blocked_ids = {r["player_id"] for r in svc.repo.get_blocked()}
 
-    # Batch-load all known estimates instead of N+1 per-member queries
-    all_estimates = {e["player_id"]: e for e in svc.repo.get_all_estimates()}
+    # Batch-load estimates only for this faction's members (not entire table)
+    member_ids = [m.id for m in members if m.id not in blocked_ids]
+    all_estimates = svc.repo.get_estimates_bulk(member_ids)
 
     # Collect members needing TornStats lookup
     to_lookup = [m for m in members if m.id not in blocked_ids

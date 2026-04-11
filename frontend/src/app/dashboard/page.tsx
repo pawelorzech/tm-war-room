@@ -5,6 +5,12 @@ import { api } from '@/lib/api-client';
 import { usePageVisible } from '@/hooks/usePageVisible';
 import Link from 'next/link';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { TIPS, type Tip } from '@/data/tips';
+
+function pickRandomTips(count: number): Tip[] {
+  const shuffled = [...TIPS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
 
 interface StatusData {
   war_active: boolean;
@@ -44,6 +50,7 @@ export default function DashboardPage() {
   const [chatUnread, setChatUnread] = useState<{ channels: Record<string, number>; total: number } | null>(null);
   const [chatChannelNames, setChatChannelNames] = useState<Record<number, string>>({});
   const [chatBannerDismissed, setChatBannerDismissed] = useState(false);
+  const [shownTips, setShownTips] = useState<Tip[]>(() => pickRandomTips(3));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -212,6 +219,40 @@ export default function DashboardPage() {
               </div>
             </Widget>
           )}
+        </div>
+
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg" aria-hidden="true">💡</span>
+              <h3 className="text-xs text-text-muted uppercase tracking-wider font-medium">Quick Tips</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShownTips(pickRandomTips(3))}
+                className="text-sm text-text-muted hover:text-text-primary transition-colors"
+                aria-label="Shuffle tips"
+                title="Shuffle tips"
+              >
+                🔀
+              </button>
+              <Link
+                href="/guide"
+                className="text-sm text-text-muted hover:text-torn-green transition-colors"
+                title="Full Guide"
+              >
+                📖
+              </Link>
+            </div>
+          </div>
+          <ul className="space-y-2">
+            {shownTips.map((tip, i) => (
+              <li key={i} className="flex gap-2 text-sm text-text-secondary leading-snug">
+                <span className="text-text-muted shrink-0">•</span>
+                <span>{tip.text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

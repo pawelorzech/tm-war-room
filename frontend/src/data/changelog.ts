@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.8.1";
+export const CURRENT_VERSION = "1.9.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.9.0",
+    date: "2026-04-11",
+    title: "Game Knowledge & Member Guide",
+    changes: [
+      { type: "feat", text: "New Member Guide page — comprehensive onboarding guide covering training, money safety, medical items, education priorities, and casino strategy" },
+      { type: "feat", text: "Educational tooltips added to 7 pages (stats, loot, chain, bounties, travel, revives, company) with game mechanic tips and strategy advice" },
+      { type: "feat", text: "Quick Tips widget on dashboard — rotating game tips with shuffle button" },
+      { type: "feat", text: "Seasonal event banners — date-aware tips during Easter, Elimination, Halloween, Christmas, and Museum Day events" },
+    ],
+  },
   {
     version: "1.8.1",
     date: "2026-04-11",

@@ -43,52 +43,57 @@ class StatSnapshotRepository(BaseRepository):
         return dict(row) if row else None
 
     def get_all_latest(self) -> list[dict]:
-        """Get the most recent snapshot for each player."""
+        """Get the most recent snapshot for each player.
+
+        Uses window function (single pass) with idx_snap_player_date_desc index.
+        """
         rows = self.execute("""
-            SELECT s.* FROM stat_snapshots s
-            INNER JOIN (SELECT player_id, MAX(snapshot_date) as max_date FROM stat_snapshots GROUP BY player_id) latest
-            ON s.player_id = latest.player_id AND s.snapshot_date = latest.max_date
-            ORDER BY s.total DESC
+            SELECT * FROM (
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY snapshot_date DESC) AS rn
+                FROM stat_snapshots
+            ) WHERE rn = 1
+            ORDER BY total DESC
         """)
         return [dict(r) for r in rows]
 
     def get_all_growth(self, days: int = 30) -> list[dict]:
-        """Get stat growth for ALL players over the last N days."""
+        """Get stat growth for ALL players over the last N days.
+
+        Uses window functions (single pass) instead of 4 self-joins.
+        """
         from datetime import date, timedelta
         cutoff = (date.today() - timedelta(days=days)).isoformat()
-        today = date.today().isoformat()
-        # Get the earliest snapshot on or after cutoff and the latest snapshot for each player
         rows = self.execute("""
+            WITH ranked AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY snapshot_date ASC) AS rn_first,
+                    ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY snapshot_date DESC) AS rn_last
+                FROM stat_snapshots
+                WHERE snapshot_date >= ?
+            ),
+            first_snap AS (SELECT * FROM ranked WHERE rn_first = 1),
+            last_snap  AS (SELECT * FROM ranked WHERE rn_last = 1)
             SELECT
-                s1.player_id,
-                s1.snapshot_date AS from_date,
-                s2.snapshot_date AS to_date,
-                s2.strength - s1.strength AS str_growth,
-                s2.defense - s1.defense AS def_growth,
-                s2.speed - s1.speed AS spd_growth,
-                s2.dexterity - s1.dexterity AS dex_growth,
-                s2.total - s1.total AS total_growth,
-                s1.total AS start_total,
-                s2.total AS end_total,
-                COALESCE(s2.xanax_taken, 0) - COALESCE(s1.xanax_taken, 0) AS xanax_delta,
-                COALESCE(s2.refills, 0) - COALESCE(s1.refills, 0) AS refills_delta,
-                COALESCE(s2.energy_drinks, 0) - COALESCE(s1.energy_drinks, 0) AS energy_drinks_delta,
-                COALESCE(s2.stat_enhancers_used, 0) - COALESCE(s1.stat_enhancers_used, 0) AS se_delta,
-                COALESCE(s2.easter_eggs, 0) - COALESCE(s1.easter_eggs, 0) AS easter_eggs_delta,
-                s2.gym_energy AS end_gym_energy,
-                s1.gym_energy AS start_gym_energy
-            FROM (
-                SELECT * FROM stat_snapshots s
-                INNER JOIN (SELECT player_id, MIN(snapshot_date) as min_date FROM stat_snapshots WHERE snapshot_date >= ? GROUP BY player_id) m
-                ON s.player_id = m.player_id AND s.snapshot_date = m.min_date
-            ) s1
-            INNER JOIN (
-                SELECT * FROM stat_snapshots s
-                INNER JOIN (SELECT player_id, MAX(snapshot_date) as max_date FROM stat_snapshots GROUP BY player_id) m
-                ON s.player_id = m.player_id AND s.snapshot_date = m.max_date
-            ) s2
-            ON s1.player_id = s2.player_id
-            WHERE s1.snapshot_date != s2.snapshot_date
+                f.player_id,
+                f.snapshot_date AS from_date,
+                l.snapshot_date AS to_date,
+                l.strength - f.strength AS str_growth,
+                l.defense - f.defense AS def_growth,
+                l.speed - f.speed AS spd_growth,
+                l.dexterity - f.dexterity AS dex_growth,
+                l.total - f.total AS total_growth,
+                f.total AS start_total,
+                l.total AS end_total,
+                COALESCE(l.xanax_taken, 0) - COALESCE(f.xanax_taken, 0) AS xanax_delta,
+                COALESCE(l.refills, 0) - COALESCE(f.refills, 0) AS refills_delta,
+                COALESCE(l.energy_drinks, 0) - COALESCE(f.energy_drinks, 0) AS energy_drinks_delta,
+                COALESCE(l.stat_enhancers_used, 0) - COALESCE(f.stat_enhancers_used, 0) AS se_delta,
+                COALESCE(l.easter_eggs, 0) - COALESCE(f.easter_eggs, 0) AS easter_eggs_delta,
+                l.gym_energy AS end_gym_energy,
+                f.gym_energy AS start_gym_energy
+            FROM first_snap f
+            INNER JOIN last_snap l ON f.player_id = l.player_id
+            WHERE f.snapshot_date != l.snapshot_date
             ORDER BY total_growth DESC
         """, (cutoff,))
         return [dict(r) for r in rows]

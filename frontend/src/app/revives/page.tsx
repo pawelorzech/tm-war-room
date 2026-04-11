@@ -82,7 +82,11 @@ export default function RevivesPage() {
           "Revive contracts let you hire external revivers (like NPC hospitals or revive services) — useful when your faction's own revivers are hospitalized or offline.",
           "Faction revive coordination is critical: assign dedicated revivers, ensure they have medical items stocked, and track who's pulling their weight on the leaderboard.",
           "A player is only 'revivable' if they have revives enabled in their Torn settings. Some players disable this — you cannot revive them no matter what.",
-        ]} dataSources={["Torn API v2 faction revives", "Recent revive activity from attack logs"]} links={[["Torn Wiki: Reviving", "https://wiki.torn.com/wiki/Revive"]]} />
+          "Revives cost 25 energy in a reviving faction, 75 energy without — joining a medical faction makes it worthwhile.",
+          "Standard revive price: ~1M cash or 1 Xanax per revive.",
+          "Brain Surgeon unlock path: Medical job, then 10K intel, 4K endurance, 2.6K manual labor, and ~25 days to reach.",
+          "You keep the revive passive after leaving the medical job — train stats there, then move to a better company.",
+        ]} dataSources={["Torn API v2 faction revives", "Recent revive activity from attack logs"]} links={[["Torn Wiki: Reviving", "https://wiki.torn.com/wiki/Revive"], ["Torn Wiki: Medical", "https://wiki.torn.com/wiki/Medical"]]} />
 
         {loading && !data ? (
           <>

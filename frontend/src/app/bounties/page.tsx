@@ -198,7 +198,11 @@ export default function BountiesPage() {
           "Click a target name to go directly to the attack page. Check their profile on Torn first if threat is unknown.",
           "Pro tip: Filter by 'Easy' to find quick cash. Bounties with multiple quantity (x2, x3) can be hit multiple times.",
           "Data: Torn API v2 bounties endpoint, cached 60s. Threat from spy database + personalstats estimates.",
-        ]} />
+          "Always check the target's Xanax/LSD usage and networth before attacking — level-holders can be far stronger than their level suggests.",
+          "High networth + high Xanax count usually means a well-trained player regardless of level.",
+          "Make sure the bounty reward is worth the risk — factor in hospital time and supply costs.",
+          "Multiple bounties on the same target stack — you collect all rewards on a single successful hit.",
+        ]} links={[["Torn Wiki: Bounties", "https://wiki.torn.com/wiki/Bounty"]]} />
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 items-center">
