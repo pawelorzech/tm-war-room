@@ -109,6 +109,7 @@ class TestMatchesAnyCategory:
 MIGRATION_PATHS = [
     "api/db/migrations/032_armoury_competitions.sql",
     "api/db/migrations/033_armoury_prizes_and_multicategory.sql",
+    "api/db/migrations/034_deposits_unique_per_competition.sql",
 ]
 
 
