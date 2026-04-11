@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.8.0";
+export const CURRENT_VERSION = "1.8.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.8.1",
+    date: "2026-04-11",
+    title: "Login & Stability Fixes",
+    changes: [
+      { type: "fix", text: "Login no longer fails when the server is briefly restarting — transient errors no longer force logout" },
+      { type: "fix", text: "Root page (/) now loads correctly instead of showing a 500 error" },
+    ],
+  },
   {
     version: "1.8.0",
     date: "2026-04-11",
