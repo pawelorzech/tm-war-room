@@ -83,6 +83,12 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
         prize_text=body.prize_text,
         items=items_str,
     )
+    # Auto-poll to pick up existing deposits for the new competition
+    try:
+        from api.scheduler.jobs.armoury_poll import run_armoury_poll
+        await run_armoury_poll()
+    except Exception as e:
+        logger.warning("Auto-poll after competition creation failed: %s", e)
     return {"id": comp_id, "status": "created"}
 
 
