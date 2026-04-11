@@ -51,7 +51,7 @@ def get_service(name: str) -> Any:
 class MCPAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not MCP_SECRET:
-            return await call_next(request)
+            return Response("Not found", status_code=404)
         auth = request.headers.get("authorization", "")
         if auth != f"Bearer {MCP_SECRET}":
             return Response("Unauthorized", status_code=401)
@@ -82,7 +82,5 @@ register_all_tools(mcp)
 
 
 def get_mcp_middleware() -> list[Middleware]:
-    """Return middleware list for http_app(). Includes auth if MCP_SECRET set."""
-    if MCP_SECRET:
-        return [Middleware(MCPAuthMiddleware)]
-    return []
+    """Return middleware list for http_app(). MCP stays closed unless a secret is configured."""
+    return [Middleware(MCPAuthMiddleware)]

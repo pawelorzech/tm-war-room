@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -20,7 +20,7 @@ logger = logging.getLogger("tm-hub")
 from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, JWT_SECRET
 from api.torn_client import TornClient
-from api.auth import create_jwt
+from api.auth import create_jwt, rate_limiter, require_bearer_token
 from api.db import KeyStore
 from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
@@ -317,6 +317,10 @@ app.include_router(armoury_router)
 _mcp_app = mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware())
 app.mount("/mcp", _mcp_app)
 
+PUBLIC_API_PATHS = {
+    "/api/keys",
+}
+
 @app.get("/api/settings/public")
 async def public_settings():
     from api.db.repos.settings import AppSettingsRepository
@@ -325,11 +329,8 @@ async def public_settings():
 
 
 @app.post("/api/admin/refresh-avatars")
-async def admin_refresh_avatars(request: Request):
+async def admin_refresh_avatars(admin: dict = Depends(admin_mod.require_superadmin)):
     """Manually trigger avatar refresh (superadmin only) with diagnostics."""
-    pid = request.headers.get("x-player-id")
-    if str(pid) != str(SUPERADMIN_ID):
-        raise HTTPException(status_code=403, detail="Forbidden")
     from api import b2_client
     from api.scheduler.engine import get_state
     diag = {
@@ -355,8 +356,8 @@ async def admin_refresh_avatars(request: Request):
             diag["avatars_after"] = len(key_repo.get_avatar_map())
         return {"ok": True, **diag}
     except Exception as e:
-        import traceback
-        return {"error": str(e), "trace": traceback.format_exc(), **diag}
+        logger.exception("Avatar refresh failed for superadmin %d", admin["sub"])
+        raise HTTPException(status_code=500, detail="Avatar refresh failed") from e
 
 
 @app.get("/api/status")
@@ -385,6 +386,39 @@ async def redirect_old_domains(request: Request, call_next):
             status_code=301,
         )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def enforce_api_auth(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and path not in PUBLIC_API_PATHS and not path.startswith("/api/admin/"):
+        try:
+            payload = require_bearer_token(
+                request.headers.get("authorization", ""),
+                JWT_SECRET,
+                allowed_token_types=("session", "admin"),
+            )
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+        player_id_raw = request.headers.get("x-player-id")
+        if player_id_raw is not None:
+            if not player_id_raw.isdigit():
+                return JSONResponse({"detail": "Invalid X-Player-Id header"}, status_code=400)
+            if int(player_id_raw) != payload["sub"]:
+                return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
+
+        request.state.auth = payload
+
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    if path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
 
 
 @app.middleware("http")
@@ -673,7 +707,10 @@ class KeyRegister(BaseModel):
 
 
 @app.post("/api/keys")
-async def register_key(body: KeyRegister):
+async def register_key(body: KeyRegister, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    if not rate_limiter.check(f"register:{client_ip}", max_requests=10):
+        raise HTTPException(status_code=429, detail="Too many registration attempts, try again later")
     try:
         resp = await torn_client._http.get(
             "https://api.torn.com/user/",
