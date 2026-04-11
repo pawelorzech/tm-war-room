@@ -9,7 +9,7 @@ TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (Fast
 ## Commands
 
 ```bash
-# Backend tests (426 tests, async)
+# Backend tests (427 tests, async)
 uv run pytest tests/ -v
 uv run pytest tests/test_threat.py -v          # single file
 uv run pytest tests/test_routes.py -k "enemy"  # by keyword
@@ -73,11 +73,11 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | Variable | Required | Default |
 |----------|----------|---------|
 | `TORN_API_KEY` | yes | — |
-| `ENCRYPTION_KEY` | yes (ephemeral if missing) | — |
+| `ENCRYPTION_KEY` | yes (fails in prod, ephemeral in dev) | — |
 | `TORNSTATS_API_KEY` | no | — |
 | `FACTION_ID` | no | 11559 |
 | `CACHE_TTL` | no | 60 |
-| `JWT_SECRET` | no (ephemeral if missing) | — |
+| `JWT_SECRET` | yes (fails in prod, ephemeral in dev) | — |
 
 ## Versioning
 
@@ -131,6 +131,20 @@ When building a new feature:
 3. Build the feature with educational context (not just raw data)
 4. Add data source attribution and useful external links
 5. Test with real data before deploying
+
+## Security architecture
+
+- **Middleware auth** (`main.py:enforce_api_auth`): JWT + mandatory X-Player-Id on all `/api/*` except `PUBLIC_API_PATHS` and `/api/admin/*`. Admin routes have their own auth via `require_admin` dependency.
+- **Rate limiting**: shared `rate_limiter` singleton in `api/auth.py` — reuse for any new rate limits (don't create per-module rate limiters)
+- **Security headers**: CSP, HSTS, Permissions-Policy, X-Frame-Options set in middleware. CSP allows `analityka.tri.ovh` (Umami), `*.backblazeb2.com` (avatars), `www.torn.com` (images).
+- **Secrets**: `ENCRYPTION_KEY` and `JWT_SECRET` fail-fast in production (`APP_VERSION != "dev"`), ephemeral in dev/test
+- **MCP auth**: bearer token with `hmac.compare_digest`, returns 404 if secret not configured
+
+## Gotchas
+
+- **Router state injection**: when adding a dependency (e.g. `key_store`) to a router, wire it in BOTH `main.py` lifespan AND test fixtures
+- **Middleware vs admin auth**: `/api/admin/*` bypasses `enforce_api_auth` middleware — admin endpoints rely solely on `require_admin` dependency
+- **Dependency audit**: run `uv run pip-audit` and `cd frontend && npm audit` before releases
 
 ## Testing notes
 
