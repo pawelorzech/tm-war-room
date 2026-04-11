@@ -107,7 +107,7 @@ function rankDecoration(rank: number): { medal: string; color: string } {
 
 export default function ArmouryPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
-  const [activeBoard, setActiveBoard] = useState<LeaderboardData | null>(null);
+  const [activeBoards, setActiveBoards] = useState<Map<number, LeaderboardData>>(new Map());
   const [pastBoards, setPastBoards] = useState<Map<number, LeaderboardData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showPast, setShowPast] = useState(false);
@@ -133,13 +133,13 @@ export default function ArmouryPage() {
     try {
       const res = await api.armouryCompetitions();
       setCompetitions(res.competitions);
-      const active = res.competitions.find(c => c.status === 'active');
-      if (active) {
-        const lb = await api.armouryLeaderboard(active.id);
-        setActiveBoard(lb);
-      } else {
-        setActiveBoard(null);
-      }
+      const actives = res.competitions.filter(c => c.status === 'active');
+      const boards = new Map<number, LeaderboardData>();
+      await Promise.all(actives.map(async (c) => {
+        const lb = await api.armouryLeaderboard(c.id);
+        boards.set(c.id, lb);
+      }));
+      setActiveBoards(boards);
     } catch {
       /* swallow */
     } finally {
@@ -220,7 +220,7 @@ export default function ArmouryPage() {
     }
   };
 
-  const activeComp = competitions.find(c => c.status === 'active');
+  const activeComps = competitions.filter(c => c.status === 'active');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -247,118 +247,125 @@ export default function ArmouryPage() {
 
         {loading ? (
           <TableSkeleton rows={8} cols={5} />
-        ) : activeComp && activeBoard ? (
-          <>
-            {/* Active competition banner */}
-            <div className="bg-bg-card border border-torn-green/20 rounded-xl p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{categoryDisplay(activeComp.category).icon}</span>
-                  <div>
-                    <h2 className="text-lg font-bold">{activeComp.name}</h2>
-                    <p className="text-xs text-text-muted">
-                      {categoryDisplay(activeComp.category).label} &middot; {formatDate(activeComp.start_ts)} &ndash; {formatDate(activeComp.end_ts)}
-                    </p>
+        ) : activeComps.length > 0 ? (
+          activeComps.map(comp => {
+            const board = activeBoards.get(comp.id);
+            return (
+              <div key={comp.id} className="space-y-4">
+                {/* Active competition banner */}
+                <div className="bg-bg-card border border-torn-green/20 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{categoryDisplay(comp.category).icon}</span>
+                      <div>
+                        <h2 className="text-lg font-bold">{comp.name}</h2>
+                        <p className="text-xs text-text-muted">
+                          {categoryDisplay(comp.category).label} &middot; {formatDate(comp.start_ts)} &ndash; {formatDate(comp.end_ts)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 text-xs font-bold rounded-full bg-torn-green/20 text-torn-green">
+                      {countdown(comp.end_ts)}
+                    </span>
                   </div>
-                </div>
-                <span className="px-3 py-1 text-xs font-bold rounded-full bg-torn-green/20 text-torn-green">
-                  {countdown(activeComp.end_ts)}
-                </span>
-              </div>
 
-              {/* Stats bar */}
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="text-text-muted text-xs">Total deposited</span>
-                  <p className="font-bold text-torn-green tabular-nums">{activeBoard.total_deposited.toLocaleString()}</p>
-                </div>
-                <div>
-                  <span className="text-text-muted text-xs">Participants</span>
-                  <p className="font-bold tabular-nums">{activeBoard.participants}</p>
-                </div>
-                <div>
-                  <span className="text-text-muted text-xs">Your rank</span>
-                  <p className="font-bold tabular-nums">
-                    {myPid
-                      ? (activeBoard.leaderboard.find(e => String(e.player_id) === myPid)?.rank
-                          ? `#${activeBoard.leaderboard.find(e => String(e.player_id) === myPid)!.rank}`
-                          : '—')
-                      : '—'}
-                  </p>
-                </div>
-              </div>
+                  {/* Stats bar */}
+                  {board && (
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <div>
+                        <span className="text-text-muted text-xs">Total deposited</span>
+                        <p className="font-bold text-torn-green tabular-nums">{board.total_deposited.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <span className="text-text-muted text-xs">Participants</span>
+                        <p className="font-bold tabular-nums">{board.participants}</p>
+                      </div>
+                      <div>
+                        <span className="text-text-muted text-xs">Your rank</span>
+                        <p className="font-bold tabular-nums">
+                          {myPid
+                            ? (board.leaderboard.find(e => String(e.player_id) === myPid)?.rank
+                                ? `#${board.leaderboard.find(e => String(e.player_id) === myPid)!.rank}`
+                                : '—')
+                            : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Prize info */}
-              <div className="bg-bg-elevated/50 rounded-lg p-3 text-xs text-text-secondary">
-                {'\u{1F3C6}'} <span className="font-semibold text-text-primary">Prizes:</span>{' '}
-                {activeBoard.competition.prize_text || 'Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day'}
-              </div>
+                  {/* Prize info */}
+                  <div className="bg-bg-elevated/50 rounded-lg p-3 text-xs text-text-secondary">
+                    {'\u{1F3C6}'} <span className="font-semibold text-text-primary">Prizes:</span>{' '}
+                    {comp.prize_text || 'Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day'}
+                  </div>
 
-              {isAdmin && (
-                <button onClick={() => handleEnd(activeComp.id)}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 transition-colors font-medium">
-                  End Competition
-                </button>
-              )}
-            </div>
+                  {isAdmin && (
+                    <button onClick={() => handleEnd(comp.id)}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 transition-colors font-medium">
+                      End Competition
+                    </button>
+                  )}
+                </div>
 
-            {/* Leaderboard table */}
-            {activeBoard.leaderboard.length > 0 ? (
-              <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                        <th className="py-2 px-3 w-12">Rank</th>
-                        <th className="py-2 px-3">Player</th>
-                        <th className="py-2 px-3 text-right">Total Deposited</th>
-                        <th className="py-2 px-3 text-right hidden sm:table-cell"># Deposits</th>
-                        <th className="py-2 px-3 text-right hidden sm:table-cell">Last Deposit</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeBoard.leaderboard.map(entry => {
-                        const { medal, color } = rankDecoration(entry.rank);
-                        const isMe = myPid && String(entry.player_id) === myPid;
-                        return (
-                          <tr key={entry.player_id}
-                            className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isMe ? 'bg-torn-green/10' : ''}`}>
-                            <td className={`py-2 px-3 font-bold tabular-nums ${color}`}>
-                              {medal ? `${medal} ` : ''}{entry.rank}
-                            </td>
-                            <td className="py-2 px-3">
-                              <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
-                                className="font-medium text-text-primary hover:text-torn-green transition-colors">
-                                {entry.player_name || `#${entry.player_id}`}
-                              </a>
-                              {isMe && (
-                                <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded bg-torn-green/20 text-torn-green font-bold uppercase">
-                                  You
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2 px-3 text-right font-semibold text-torn-green tabular-nums">
-                              {entry.total.toLocaleString()}
-                            </td>
-                            <td className="py-2 px-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
-                              {entry.deposits}
-                            </td>
-                            <td className="py-2 px-3 text-right text-text-muted text-xs hidden sm:table-cell">
-                              {entry.last_deposit ? relativeTime(entry.last_deposit) : '—'}
-                            </td>
+                {/* Leaderboard table */}
+                {board && board.leaderboard.length > 0 ? (
+                  <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                            <th className="py-2 px-3 w-12">Rank</th>
+                            <th className="py-2 px-3">Player</th>
+                            <th className="py-2 px-3 text-right">Total Deposited</th>
+                            <th className="py-2 px-3 text-right hidden sm:table-cell"># Deposits</th>
+                            <th className="py-2 px-3 text-right hidden sm:table-cell">Last Deposit</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        </thead>
+                        <tbody>
+                          {board.leaderboard.map(entry => {
+                            const { medal, color } = rankDecoration(entry.rank);
+                            const isMe = myPid && String(entry.player_id) === myPid;
+                            return (
+                              <tr key={entry.player_id}
+                                className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isMe ? 'bg-torn-green/10' : ''}`}>
+                                <td className={`py-2 px-3 font-bold tabular-nums ${color}`}>
+                                  {medal ? `${medal} ` : ''}{entry.rank}
+                                </td>
+                                <td className="py-2 px-3">
+                                  <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
+                                    className="font-medium text-text-primary hover:text-torn-green transition-colors">
+                                    {entry.player_name || `#${entry.player_id}`}
+                                  </a>
+                                  {isMe && (
+                                    <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded bg-torn-green/20 text-torn-green font-bold uppercase">
+                                      You
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-right font-semibold text-torn-green tabular-nums">
+                                  {entry.total.toLocaleString()}
+                                </td>
+                                <td className="py-2 px-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
+                                  {entry.deposits}
+                                </td>
+                                <td className="py-2 px-3 text-right text-text-muted text-xs hidden sm:table-cell">
+                                  {entry.last_deposit ? relativeTime(entry.last_deposit) : '—'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
+                    No deposits yet. Be the first to contribute!
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
-                No deposits yet. Be the first to contribute!
-              </div>
-            )}
-          </>
+            );
+          })
         ) : (
           /* Empty state — no active competition */
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-8 text-center space-y-2">
