@@ -480,7 +480,7 @@ export default function ArmouryPage() {
                       <div>
                         <h2 className="text-lg font-bold">{selectedComp.name}</h2>
                         <p className="text-xs text-text-muted">
-                          {competitionScope(selectedComp).label} &middot; {formatDate(selectedComp.start_ts)} &ndash; {formatDate(selectedComp.end_ts)}
+                          {competitionScope(selectedComp).label} &middot; {formatDate(selectedComp.start_ts)}{selectedComp.end_ts ? <> &ndash; {formatDate(selectedComp.end_ts)}</> : ' — ongoing'}
                         </p>
                       </div>
                     </div>
