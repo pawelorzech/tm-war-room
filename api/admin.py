@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel as PydanticBaseModel
 
 from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
-from api.auth import create_jwt, decode_jwt, rate_limiter
+from api.auth import create_jwt, require_bearer_token, rate_limiter
 
 logger = logging.getLogger("tm-hub.admin")
 
@@ -38,15 +38,11 @@ def init_bots(chat_repo, chat_manager) -> None:
 
 
 async def require_admin(request: Request) -> dict:
-    auth_header = request.headers.get("authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
-    token = auth_header[7:]
-    payload = decode_jwt(token, JWT_SECRET)
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if payload.get("token_type") != "admin":
-        raise HTTPException(status_code=401, detail="Admin token required")
+    payload = require_bearer_token(
+        request.headers.get("authorization", ""),
+        JWT_SECRET,
+        allowed_token_types=("admin",),
+    )
     pid = payload["sub"]
     if pid != SUPERADMIN_ID and not _key_store.is_admin(pid):
         raise HTTPException(status_code=403, detail="Not an admin")
@@ -68,14 +64,11 @@ async def create_session(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.check(f"session:{client_ip}", max_requests=5):
         raise HTTPException(status_code=429, detail="Too many attempts, try again later")
-    auth_header = request.headers.get("authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
-    payload = decode_jwt(auth_header[7:], JWT_SECRET)
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if payload.get("token_type") != "session":
-        raise HTTPException(status_code=401, detail="Session token required")
+    payload = require_bearer_token(
+        request.headers.get("authorization", ""),
+        JWT_SECRET,
+        allowed_token_types=("session",),
+    )
     player_id = payload["sub"]
     if player_id != SUPERADMIN_ID and not _key_store.is_admin(player_id):
         raise HTTPException(status_code=403, detail="Not an admin")

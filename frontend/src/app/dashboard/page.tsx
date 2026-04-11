@@ -70,8 +70,7 @@ export default function DashboardPage() {
       api.chatUnread().catch(() => null),
       api.chatChannels().catch(() => null),
     ]).then(([overview, lootData, chainData, bountyData, ocData, chatUnreadData, chatChannelsData]) => {
-      // Status from a simple fetch (no auth needed)
-      fetch('/api/status').then(r => r.json()).then(s => setStatus(s)).catch(() => {});
+      api.status().then((s) => setStatus(s)).catch(() => {});
 
       if (overview) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

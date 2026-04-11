@@ -215,6 +215,7 @@ export const api = {
   versionDismiss: (version: string) =>
     apiFetch<{ ok: boolean }>('/api/version/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }) }),
   // ── Settings ──────────────────────────────────────────────
+  status: () => apiFetch<{ war_active: boolean; poll_interval: number; last_refresh: number; refresh_cycle: number }>("/api/status"),
   publicSettings: () => apiFetch<Record<string, string>>("/api/settings/public"),
 
   // ── Chat ──────────────────────────────────────────────────

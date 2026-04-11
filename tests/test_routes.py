@@ -9,8 +9,23 @@ from httpx import AsyncClient, ASGITransport
 from api.auth import create_jwt
 from api.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
 
-AUTH_HEADERS = {"X-Player-Id": "123"}
 TEST_JWT_SECRET = "test-secret-for-route-tests"
+
+
+def auth_headers(player_id: int = 123, name: str = "Test") -> dict[str, str]:
+    return {
+        "X-Player-Id": str(player_id),
+        "Authorization": f"Bearer {create_jwt(player_id, name, TEST_JWT_SECRET, token_type='session')}",
+    }
+
+
+AUTH_HEADERS = auth_headers()
+
+
+@pytest.fixture(autouse=True)
+def patch_route_jwt_secret():
+    with patch("api.main.JWT_SECRET", TEST_JWT_SECRET), patch("api.routers.chat.JWT_SECRET", TEST_JWT_SECRET):
+        yield
 
 
 def _make_member(id: int = 123, name: str = "Test", status_state: str = "Okay", online: str = "Online", position: str = "Team 1") -> FactionMember:
@@ -116,7 +131,17 @@ async def test_overview_no_auth(mock_client, mock_store):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/overview")
-    assert resp.status_code == 422
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_overview_rejects_token_player_mismatch(mock_client, mock_store):
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/overview", headers=auth_headers(999, "Mismatch") | {"X-Player-Id": "123"})
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -307,7 +332,7 @@ async def test_detail_full_access_sees_all(mock_client_yata, mock_store_leader):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+            resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
     assert resp.status_code == 200
     data = resp.json()
     assert data["yata_down"] is False
@@ -340,7 +365,7 @@ async def test_detail_self_only_sees_self(mock_client_yata, mock_store_member):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "456"})
+            resp = await ac.get("/api/members/detail", headers=auth_headers(456, "Member1"))
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["members"]) == 1
@@ -355,7 +380,7 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+            resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
     assert resp.status_code == 200
     data = resp.json()
     assert data["yata_down"] is True
@@ -416,7 +441,7 @@ async def test_detail_yata_sharing_flags(mock_client_yata, mock_store_leader):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers={"X-Player-Id": "123"})
+            resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
     assert resp.status_code == 200
     data = resp.json()
     assert data["members"]["456"]["source"] == "hidden"
@@ -538,7 +563,7 @@ async def test_push_vapid_key():
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/push/vapid-key")
+            resp = await ac.get("/api/push/vapid-key", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     assert resp.json()["vapid_public_key"] == "test_public_key_base64"
 
@@ -620,10 +645,9 @@ async def test_middleware_logs_requests(mock_client, mock_store):
             from api.main import app
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                await ac.get("/api/overview", headers={"X-Player-Id": "123"})
+                await ac.get("/api/overview", headers=AUTH_HEADERS)
         stats = real_analytics.get_request_stats(days=1)
         assert stats["total_requests"] >= 1
         users = real_analytics.get_user_stats(days=1)
         pids = {u["player_id"] for u in users}
         assert 123 in pids
-

@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 import jwt
+from fastapi import HTTPException
 
 
 def create_jwt(
@@ -30,6 +31,21 @@ def decode_jwt(token: str, secret: str) -> dict | None:
         return payload
     except (jwt.InvalidTokenError, KeyError, ValueError):
         return None
+
+
+def require_bearer_token(
+    auth_header: str,
+    secret: str,
+    allowed_token_types: tuple[str, ...] = ("session", "admin"),
+) -> dict:
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    payload = decode_jwt(auth_header[7:], secret)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if payload.get("token_type") not in allowed_token_types:
+        raise HTTPException(status_code=401, detail="Invalid token type")
+    return payload
 
 
 class RateLimiter:

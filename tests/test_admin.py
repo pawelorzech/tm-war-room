@@ -11,6 +11,13 @@ NON_ADMIN_ID = 999
 TEST_JWT_SECRET = "test-secret-for-admin-tests"
 
 
+def auth_headers(player_id: int, name: str) -> dict[str, str]:
+    return {
+        "X-Player-Id": str(player_id),
+        "Authorization": f"Bearer {create_jwt(player_id, name, TEST_JWT_SECRET, token_type='session')}",
+    }
+
+
 @pytest.fixture
 def mock_client():
     client = AsyncMock()
@@ -60,6 +67,7 @@ def _setup_app(mock_client, mock_store, mock_analytics):
     stack.enter_context(patch("api.main.torn_client", mock_client))
     stack.enter_context(patch("api.main.key_store", mock_store))
     stack.enter_context(patch("api.main.analytics_store", mock_analytics))
+    stack.enter_context(patch("api.main.JWT_SECRET", TEST_JWT_SECRET))
     stack.enter_context(patch("api.admin._key_store", mock_store))
     stack.enter_context(patch("api.admin._analytics_store", mock_analytics))
     stack.enter_context(patch("api.admin._torn_client", mock_client))
@@ -320,13 +328,14 @@ async def test_middleware_logs_requests(mock_client, mock_store):
         real_analytics = AnalyticsStore(db_path=os.path.join(tmp, "test.db"))
         with patch("api.main.torn_client", mock_client), \
              patch("api.main.key_store", mock_store), \
-             patch("api.main.analytics_store", real_analytics):
+             patch("api.main.analytics_store", real_analytics), \
+             patch("api.main.JWT_SECRET", TEST_JWT_SECRET):
             from api.main import app
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as ac:
-                await ac.get("/api/overview", headers={"X-Player-Id": "123"})
+                await ac.get("/api/overview", headers=auth_headers(ADMIN_ID, "Bombla"))
         stats = real_analytics.get_request_stats(days=1)
         assert stats["total_requests"] >= 1
         users = real_analytics.get_user_stats(days=1)
         pids = {u["player_id"] for u in users}
-        assert 123 in pids
+        assert ADMIN_ID in pids
