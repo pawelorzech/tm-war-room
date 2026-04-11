@@ -2,20 +2,12 @@ import contextlib
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
-
 from api.auth import create_jwt
+from tests.conftest import TEST_JWT_SECRET, auth_headers
 
 
 ADMIN_ID = 2362436
 NON_ADMIN_ID = 999
-TEST_JWT_SECRET = "test-secret-for-admin-tests"
-
-
-def auth_headers(player_id: int, name: str) -> dict[str, str]:
-    return {
-        "X-Player-Id": str(player_id),
-        "Authorization": f"Bearer {create_jwt(player_id, name, TEST_JWT_SECRET, token_type='session')}",
-    }
 
 
 @pytest.fixture
@@ -280,7 +272,7 @@ async def test_delete_key_endpoint_requires_admin_token(mock_client, mock_store,
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
                 f"/api/keys/{NON_ADMIN_ID}",
-                headers={"Authorization": f"Bearer {session_token}"},
+                headers={"Authorization": f"Bearer {session_token}", "X-Player-Id": str(ADMIN_ID)},
             )
     assert resp.status_code == 401
     mock_store.delete_key.assert_not_called()
@@ -295,7 +287,7 @@ async def test_delete_key_endpoint_rejects_non_admin_admin_token(mock_client, mo
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
                 f"/api/keys/{ADMIN_ID}",
-                headers={"Authorization": f"Bearer {forged_admin_token}"},
+                headers={"Authorization": f"Bearer {forged_admin_token}", "X-Player-Id": str(NON_ADMIN_ID)},
             )
     assert resp.status_code == 403
     mock_store.delete_key.assert_not_called()
@@ -310,7 +302,7 @@ async def test_delete_key_endpoint_allows_admin_token(mock_client, mock_store, m
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
                 f"/api/keys/{NON_ADMIN_ID}",
-                headers={"Authorization": f"Bearer {admin_token}"},
+                headers={"Authorization": f"Bearer {admin_token}", "X-Player-Id": str(ADMIN_ID)},
             )
     assert resp.status_code == 200
     assert resp.json()["deleted_player_id"] == NON_ADMIN_ID
