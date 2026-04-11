@@ -379,6 +379,8 @@ export const api = {
     apiPostJson<{ id: number; status: string }>('/api/armoury/competitions', data),
   armouryEndCompetition: (id: number) =>
     apiPostJson<{ status: string }>(`/api/armoury/competitions/${id}/end`, {}),
+  armouryDeleteCompetition: (id: number) =>
+    apiFetch<{ status: string }>(`/api/armoury/competitions/${id}`, { method: 'DELETE' }),
   armourySearchItems: (q: string) =>
     apiFetch<{ items: { id: number; name: string; type: string }[] }>(
       `/api/armoury/items/search?q=${encodeURIComponent(q)}`

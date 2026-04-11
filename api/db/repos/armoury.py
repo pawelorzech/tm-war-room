@@ -35,6 +35,10 @@ class ArmouryRepository(BaseRepository):
     def end_competition(self, comp_id: int) -> None:
         self.mutate("UPDATE armoury_competitions SET status = 'ended' WHERE id = ?", (comp_id,))
 
+    def delete_competition(self, comp_id: int) -> None:
+        self.mutate("DELETE FROM armoury_deposits WHERE competition_id = ?", (comp_id,))
+        self.mutate("DELETE FROM armoury_competitions WHERE id = ?", (comp_id,))
+
     def insert_deposit(
         self, competition_id: int, player_id: int, player_name: str,
         item_name: str, quantity: int, deposited_at: int, news_id: str,

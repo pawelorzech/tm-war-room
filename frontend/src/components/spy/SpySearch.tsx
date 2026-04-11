@@ -34,6 +34,8 @@ export function SpySearch() {
         setError(`No players matching "${q}" in our database yet. To add someone, search by their player ID (found on their Torn profile page).`);
       } else if (msg.includes('No spy data')) {
         setError('No spy data found on TornStats for this player.');
+      } else if (msg.includes('Missing X-Player-Id') || msg.includes('Unauthorized') || msg.includes('Token')) {
+        setError('Authentication error — please log out and log back in.');
       } else {
         setError(msg);
       }

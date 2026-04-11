@@ -35,7 +35,9 @@ export function usePDAPolling() {
               id: event.event_id % 10000,
               timestamp: Date.now() + 1000,
               subtitle: event.body,
-              urlCallback: event.url ? `https://hub.tri.ovh${event.url}` : 'https://hub.tri.ovh/notifications',
+              urlCallback: event.url
+                ? (event.url.startsWith('http://') || event.url.startsWith('https://') ? event.url : `https://hub.tri.ovh${event.url}`)
+                : 'https://hub.tri.ovh/notifications',
             });
           }
         }

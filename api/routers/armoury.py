@@ -114,6 +114,19 @@ class UpdateCompetition(BaseModel):
     prize_text: str | None = None
 
 
+@router.delete("/competitions/{comp_id}")
+async def delete_competition(comp_id: int, x_player_id: int = Header()):
+    if not key_store or not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    comp = repo.get_competition(comp_id)
+    if not comp:
+        raise HTTPException(status_code=404, detail="Competition not found")
+    repo.delete_competition(comp_id)
+    return {"status": "deleted"}
+
+
 @router.put("/competitions/{comp_id}")
 async def update_competition(comp_id: int, body: UpdateCompetition, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):

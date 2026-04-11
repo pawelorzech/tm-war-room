@@ -116,7 +116,7 @@ export function ManageAdmins({ adminFetch }: { adminFetch: AdminFetch }) {
   return (
     <div className="space-y-6">
       {/* Superadmin note */}
-      <div className="bg-blue-900/20 border border-blue-700 text-blue-200 rounded p-3 text-sm">
+      <div className="bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 rounded p-3 text-sm">
         Superadmin (player {superadminId}) always has full access and cannot be demoted.
       </div>
 

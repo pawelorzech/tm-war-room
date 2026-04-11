@@ -38,7 +38,12 @@ export function FactionLookup() {
       const result = await api.spyFaction(fid);
       setData(result);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Lookup failed');
+      const msg = e instanceof Error ? e.message : 'Lookup failed';
+      if (msg.includes('Missing X-Player-Id') || msg.includes('Unauthorized') || msg.includes('Token')) {
+        setError('Authentication error — please log out and log back in.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
