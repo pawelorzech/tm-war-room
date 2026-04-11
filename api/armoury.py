@@ -20,7 +20,7 @@ TEMPORARY_ITEMS = {"Epinephrine", "Melatonin", "Tyrosine", "Serotonin"}
 
 MEDICAL_ITEMS = {
     "First Aid Kit", "Small First Aid Kit", "Morphine",
-    "Empty Blood Bag",
+    "Empty Blood Bag", "Ipecac Syrup",
 }
 
 DRUG_ITEMS = {
@@ -30,17 +30,20 @@ DRUG_ITEMS = {
 
 ENERGY_DRINK_ITEMS = {
     "Can of Munster", "Can of Red Cow", "Can of Taurine Elite",
-    "Bottle of Energy Drink",
+    "Bottle of Energy Drink", "Can of Santa Shooters",
+    "Can of Rockstar Rudolph",
 }
 
 CANDY_ITEMS = {
     "Bag of Candy Kisses", "Bag of Tootsie Rolls", "Box of Bon Bons",
     "Box of Chocolate Bars", "Jawbreaker", "Lollipop",
+    "Bag of Chocolate Kisses", "Box of Sweet Hearts",
+    "Box of Extra Strong Mints", "Bag of Bon Bons",
 }
 
 _RE_PLAYER_ID = re.compile(r"XID=(\d+)")
 _RE_PLAYER_NAME = re.compile(r">([^<]+)</a>")
-_RE_DEPOSIT = re.compile(r"deposited (\d+) x (.+)$")
+_RE_DEPOSIT = re.compile(r"deposited (\d+)\s*x\s+(.+)$")
 
 
 def parse_deposit_news(html: str) -> tuple[int, str, int, str] | None:
