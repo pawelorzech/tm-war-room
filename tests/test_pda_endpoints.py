@@ -27,6 +27,9 @@ def client(repos):
     push_mod.event_repo = event_repo
     push_mod.push_service = MagicMock(enabled=True)
     push_mod.vapid_public_key = "test-key"
+    mock_ks = MagicMock()
+    mock_ks.has_key.return_value = True
+    push_mod.key_store = mock_ks
 
     app = FastAPI()
     app.include_router(push_mod.router)
