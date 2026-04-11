@@ -35,7 +35,7 @@ export function useWarData() {
   const refresh = useCallback(async () => {
     try {
       const [ov, det, en] = await Promise.all([
-        getOverview(true),
+        getOverview(),
         api.detail(),
         api.enemy(),
       ]);

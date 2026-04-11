@@ -36,19 +36,32 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (onChatPage) setChatUnread(0);
   }, [onChatPage]);
 
-  // Poll chat unread (skip while on /chat or tab hidden)
+  // Unified poll: chat unread (every 30s) + heartbeat (every 60s, piggybacks on even ticks)
   useEffect(() => {
-    if (!canAccessChat || !isLoggedIn || onChatPage || !visible) return;
+    if (!isLoggedIn || !visible) return;
     let cancelled = false;
+    let tick = 0;
     const poll = () => {
+      tick++;
+      // Heartbeat every 60s (every 2nd tick)
+      if (tick % 2 === 0) api.heartbeat().catch(() => {});
+      // Chat unread every 30s (skip on /chat page)
+      if (canAccessChat && !onChatPage) {
+        api.chatUnread()
+          .then((data) => { if (!cancelled) setChatUnread(data.total); })
+          .catch(() => {});
+      }
+    };
+    // Initial calls
+    api.heartbeat().catch(() => {});
+    if (canAccessChat && !onChatPage) {
       api.chatUnread()
         .then((data) => { if (!cancelled) setChatUnread(data.total); })
         .catch(() => {});
-    };
-    poll();
+    }
     const interval = setInterval(poll, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [canAccessChat, isLoggedIn, onChatPage, visible]);
+  }, [isLoggedIn, canAccessChat, onChatPage, visible]);
 
   // Register service worker for all authenticated users (PWA + push)
   useEffect(() => {
@@ -97,15 +110,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   usePDAPolling();
-
-  // Heartbeat — keep hub presence alive (pause when tab hidden)
-  useEffect(() => {
-    if (!isLoggedIn || !visible) return;
-    const beat = () => api.heartbeat().catch(() => {});
-    beat();
-    const interval = setInterval(beat, 60_000);
-    return () => clearInterval(interval);
-  }, [isLoggedIn, visible]);
 
   if (!isLoggedIn) {
     return <>{children}</>;

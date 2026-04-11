@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { useSort } from '@/hooks/useSort';
 import { SortableHeader } from '@/components/layout/SortableHeader';
@@ -55,7 +55,7 @@ export default function MarketPage() {
   const types = [...new Set(items.map(i => i.type).filter(Boolean))].sort();
 
   // Compute filtered list (sorting handled by useSort)
-  const filteredItems = (() => {
+  const filteredItems = useMemo(() => {
     let list = items;
 
     // Type filter
@@ -82,7 +82,7 @@ export default function MarketPage() {
     }
 
     return list;
-  })();
+  }, [items, typeFilter, search, filter, taxPct]);
 
   const { sorted: displayItems, sortCol, sortDir, toggle: toggleSort } = useSort(filteredItems, 'market_value');
 
