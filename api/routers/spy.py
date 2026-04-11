@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel
@@ -72,28 +73,43 @@ async def list_known_estimates(svc: SpyService = Depends(_require_service)):
 async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_service)):
     if not torn_client:
         raise HTTPException(status_code=503, detail="Torn client not initialized")
-    members = await torn_client.fetch_enemy_members(faction_id)
-    faction_info = await torn_client.fetch_faction_info(faction_id)
+    members, faction_info = await asyncio.gather(
+        torn_client.fetch_enemy_members(faction_id),
+        torn_client.fetch_faction_info(faction_id),
+    )
     now = datetime.now(timezone.utc)
     blocked_ids = {r["player_id"] for r in svc.repo.get_blocked()}
+
+    # Batch-load all known estimates instead of N+1 per-member queries
+    all_estimates = {e["player_id"]: e for e in svc.repo.get_all_estimates()}
+
+    # Collect members needing TornStats lookup
+    to_lookup = [m for m in members if m.id not in blocked_ids
+                 and m.id not in all_estimates and tornstats_key][:20]
+
+    # Parallel TornStats lookups
+    async def _ts_lookup(m):
+        return m, await torn_client.fetch_tornstats_spy_user(m.id, tornstats_key)
+    ts_results = await asyncio.gather(*[_ts_lookup(m) for m in to_lookup], return_exceptions=True)
+    for result in ts_results:
+        if isinstance(result, Exception):
+            continue
+        m, ts_data = result
+        if ts_data and ts_data.get("total", 0) > 0:
+            svc.repo.upsert_report(
+                player_id=m.id, player_name=ts_data.get("player_name") or m.name,
+                source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
+                speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
+                confidence="estimate", reported_at=now.isoformat(),
+            )
+            svc.refresh_estimate(m.id)
+            all_estimates[m.id] = svc.repo.get_estimate(m.id)
+
     results = []
-    lookups_done = 0
     for m in members:
         if m.id in blocked_ids:
             continue
-        est = svc.repo.get_estimate(m.id)
-        if not est and tornstats_key and lookups_done < 20:
-            ts_data = await torn_client.fetch_tornstats_spy_user(m.id, tornstats_key)
-            if ts_data and ts_data.get("total", 0) > 0:
-                svc.repo.upsert_report(
-                    player_id=m.id, player_name=ts_data.get("player_name") or m.name,
-                    source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
-                    speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
-                    confidence="estimate", reported_at=now.isoformat(),
-                )
-                svc.refresh_estimate(m.id)
-                est = svc.repo.get_estimate(m.id)
-            lookups_done += 1
+        est = all_estimates.get(m.id)
         if est:
             entry = _fmt_estimate(est, now)
             entry["player_name"] = entry["player_name"] or m.name

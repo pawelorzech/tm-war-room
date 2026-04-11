@@ -80,7 +80,28 @@ async function readResponseBody(res: Response): Promise<unknown> {
   return res.json().catch(() => ({}));
 }
 
+// Deduplicate concurrent GET requests to the same path
+const _inflight = new Map<string, Promise<unknown>>();
+
 async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
+  const method = init?.method?.toUpperCase() ?? "GET";
+  const isGet = method === "GET";
+
+  // Reuse inflight GET requests instead of firing duplicates
+  if (isGet) {
+    const pending = _inflight.get(path);
+    if (pending) return pending as Promise<T>;
+  }
+
+  const promise = _apiFetchInner<T>(path, init);
+  if (isGet) {
+    _inflight.set(path, promise);
+    promise.finally(() => _inflight.delete(path));
+  }
+  return promise;
+}
+
+async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<T> {
   const headers = buildAuthHeaders(
     {
       ...((init?.headers as Record<string, string>) || {}),

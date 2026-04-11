@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
@@ -9,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from pydantic import BaseModel
@@ -271,14 +273,13 @@ async def lifespan(app: FastAPI):
     })
     from api import b2_client
     if b2_client.is_configured():
-        import asyncio as _asyncio
         async def _startup_avatar_refresh():
             from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
             try:
                 await run_refresh_avatars()
             except Exception as e:
                 logger.warning("Startup avatar refresh failed: %s", e)
-        _asyncio.create_task(_startup_avatar_refresh())
+        asyncio.create_task(_startup_avatar_refresh())
 
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
     async with _mcp_app.lifespan(_mcp_app):
@@ -290,6 +291,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TM Hub", lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.include_router(admin_router)
 from api.routers.admin_push import router as admin_push_router
 app.include_router(admin_push_router)
@@ -519,9 +521,11 @@ def _get_active_api_key() -> str:
 @app.get("/api/overview")
 async def overview(_=Depends(verify_member)):
     active_key = _get_active_api_key()
-    members = await torn_client.fetch_members(api_key=active_key)
-    war = await torn_client.fetch_war(api_key=active_key)
-    chain = await torn_client.fetch_chain(api_key=active_key)
+    members, war, chain = await asyncio.gather(
+        torn_client.fetch_members(api_key=active_key),
+        torn_client.fetch_war(api_key=active_key),
+        torn_client.fetch_chain(api_key=active_key),
+    )
     return {
         "members": [m.model_dump() for m in members],
         "war": war.model_dump() if war else None,
@@ -565,7 +569,6 @@ async def members_detail(x_player_id: int = Header()):
     yata_down = yata_data is None
 
     # Fetch per-key data for registered members (parallel)
-    import asyncio
     visible_keys = [(e["player_id"], e["api_key"]) for e in all_keys if e["player_id"] in visible_ids]
 
     async def _fetch_bars(pid: int, api_key: str) -> tuple[int, Any]:
@@ -872,9 +875,18 @@ async def serve_frontend(path: str):
     ]
     for candidate in candidates:
         if candidate and os.path.isfile(candidate):
-            return FileResponse(candidate)
+            return FileResponse(candidate, headers=_static_cache_headers(candidate))
 
     fallback = _resolve_static_path(static_root, "index.html")
     if fallback and os.path.isfile(fallback):
-        return FileResponse(fallback)
+        return FileResponse(fallback, headers={"Cache-Control": "public, max-age=0, must-revalidate"})
     raise HTTPException(status_code=404, detail="Not found")
+
+
+def _static_cache_headers(file_path: str) -> dict[str, str]:
+    """Cache headers: immutable for hashed Next.js assets, revalidate for HTML."""
+    if "/_next/" in file_path:
+        return {"Cache-Control": "public, max-age=31536000, immutable"}
+    if file_path.endswith(".html"):
+        return {"Cache-Control": "public, max-age=0, must-revalidate"}
+    return {"Cache-Control": "public, max-age=3600"}

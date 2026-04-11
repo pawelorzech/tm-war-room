@@ -64,32 +64,42 @@ async def list_bounties(
         if spy_service:
             baseline_spy = spy_service.repo.get_estimate(x_player_id)
 
-    # 2. For each bounty target, try spy data first, then personalstats lookup
+    # 2. Batch-load spy estimates instead of N+1 per-target
     target_ids = [b["target_id"] for b in bounties]
     spy_data = {}
     if spy_service:
+        all_est = {e["player_id"]: e for e in spy_service.repo.get_all_estimates()}
         for tid in target_ids:
-            est = spy_service.repo.get_estimate(tid)
-            if est:
-                spy_data[tid] = est
+            if tid in all_est:
+                spy_data[tid] = all_est[tid]
 
-    # 3. For top bounties without spy data, fetch personalstats + status
+    # 3. For top bounties without spy data, fetch personalstats + status (parallel)
     target_status = {}  # player_id -> status_state
-    lookups_done = 0
+    to_fetch = []
+    bounty_map = {}  # tid -> bounty ref
     for b in bounties:
         tid = b["target_id"]
-        if tid in spy_data or lookups_done >= MAX_PROFILE_LOOKUPS:
+        if tid not in spy_data and len(to_fetch) < MAX_PROFILE_LOOKUPS:
+            to_fetch.append(tid)
+            bounty_map[tid] = b
+
+    async def _fetch_profile(tid: int):
+        return tid, await torn_client.fetch_user_profile_stats(tid)
+
+    profile_results = await asyncio.gather(
+        *[_fetch_profile(tid) for tid in to_fetch], return_exceptions=True
+    )
+    for result in profile_results:
+        if isinstance(result, Exception):
             continue
-        profile = await torn_client.fetch_user_profile_stats(tid)
+        tid, profile = result
         if profile:
             ps_raw = profile.get("personalstats", {})
+            b = bounty_map[tid]
             level = profile.get("level", 0) or b.get("target_level", 0)
             b["target_level"] = level
-            # Track status for filtering
             target_status[tid] = profile.get("status_state", "")
-            # Store as PersonalStats for threat computation
             ps = PersonalStats.from_torn_api(ps_raw)
-            # Also estimate stats for display
             est_data = estimate_stats(ps_raw, level, profile.get("age", 0))
             spy_data[tid] = {
                 "total": est_data["estimated_total"],
@@ -97,7 +107,6 @@ async def list_bounties(
                 "source": "personalstats_estimate",
                 "personalstats": ps,
             }
-        lookups_done += 1
 
     # 4. Compute threat for each bounty
     for b in bounties:
