@@ -17,7 +17,7 @@ export function useEnemyData() {
 
   const refresh = useCallback(async () => {
     try {
-      const [ov, en] = await Promise.all([getOverview(true), api.enemy()]);
+      const [ov, en] = await Promise.all([getOverview(), api.enemy()]);
       setOverview(ov);
       setEnemy(en);
       setLastUpdate(new Date());

@@ -19,6 +19,7 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir . && pip install --no-cache-dir --pre "apscheduler>=4.0.0a5"
 COPY api/ api/
 COPY --from=frontend /frontend/out/ static/
+RUN find static -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' -o -name '*.json' -o -name '*.svg' -o -name '*.xml' -o -name '*.txt' \) -exec gzip -9 -k {} \;
 COPY nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p data
 

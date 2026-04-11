@@ -17,7 +17,7 @@ export function useTeamData() {
 
   const refresh = useCallback(async () => {
     try {
-      const [ov, det] = await Promise.all([getOverview(true), api.detail()]);
+      const [ov, det] = await Promise.all([getOverview(), api.detail()]);
       setOverview(ov);
       setDetail(det);
       setLastUpdate(new Date());
