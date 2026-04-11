@@ -322,6 +322,7 @@ export const api = {
     competitions: {
       id: number; name: string; category: string; status: string;
       start_ts: number; end_ts: number; created_by: number | null;
+      prize_text: string | null;
     }[];
     count: number;
   }>('/api/armoury/competitions'),
@@ -329,6 +330,7 @@ export const api = {
     competition: {
       id: number; name: string; category: string; status: string;
       start_ts: number; end_ts: number;
+      prize_text: string | null;
     };
     leaderboard: {
       rank: number; player_id: number; player_name: string;
@@ -337,10 +339,10 @@ export const api = {
     total_deposited: number;
     participants: number;
   }>(`/api/armoury/competitions/${id}/leaderboard`),
-  armouryCreateCompetition: (data: { name: string; category: string; start_ts: number; end_ts: number }) =>
+  armouryCreateCompetition: (data: { name: string; categories: string[]; start_ts: number; end_ts: number; prize_text?: string }) =>
     apiPostJson<{ id: number; status: string }>('/api/armoury/competitions', data),
   armouryEndCompetition: (id: number) =>
-    apiFetch<{ status: string }>(`/api/armoury/competitions/${id}/end`, { method: 'POST' }),
+    apiPostJson<{ status: string }>(`/api/armoury/competitions/${id}/end`, {}),
 
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 

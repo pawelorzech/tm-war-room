@@ -5,10 +5,10 @@ from api.db.repos.base import BaseRepository
 
 class ArmouryRepository(BaseRepository):
 
-    def create_competition(self, name: str, category: str, start_ts: int, end_ts: int, created_by: int) -> int:
+    def create_competition(self, name: str, category: str, start_ts: int, end_ts: int, created_by: int, prize_text: str | None = None) -> int:
         return self.mutate(
-            "INSERT INTO armoury_competitions (name, category, start_ts, end_ts, created_by) VALUES (?, ?, ?, ?, ?)",
-            (name, category, start_ts, end_ts, created_by),
+            "INSERT INTO armoury_competitions (name, category, start_ts, end_ts, created_by, prize_text) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, category, start_ts, end_ts, created_by, prize_text),
         )
 
     def get_competition(self, comp_id: int) -> dict | None:

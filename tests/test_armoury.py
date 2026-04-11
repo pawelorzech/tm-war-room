@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
-from api.armoury import parse_deposit_news, matches_category
+from api.armoury import parse_deposit_news, matches_category, matches_any_category
 
 # ---------------------------------------------------------------------------
 # 1. Parser tests
@@ -82,11 +82,34 @@ class TestMatchesCategory:
         assert matches_category("Bottle of Beer", "drugs") is False
 
 
+class TestMatchesAnyCategory:
+    def test_single_category(self):
+        assert matches_any_category("Blood Bag : O+", "blood_bags") is True
+
+    def test_comma_separated_match_first(self):
+        assert matches_any_category("Blood Bag : O+", "blood_bags,temporary") is True
+
+    def test_comma_separated_match_second(self):
+        assert matches_any_category("Epinephrine", "blood_bags,temporary") is True
+
+    def test_comma_separated_no_match(self):
+        assert matches_any_category("Xanax", "blood_bags,temporary") is False
+
+    def test_spaces_around_commas(self):
+        assert matches_any_category("Bottle of Beer", "blood_bags, alcohol") is True
+
+    def test_all_three(self):
+        assert matches_any_category("Melatonin", "alcohol,blood_bags,temporary") is True
+
+
 # ---------------------------------------------------------------------------
 # 2. Repository tests
 # ---------------------------------------------------------------------------
 
-MIGRATION_PATH = "api/db/migrations/032_armoury_competitions.sql"
+MIGRATION_PATHS = [
+    "api/db/migrations/032_armoury_competitions.sql",
+    "api/db/migrations/033_armoury_prizes_and_multicategory.sql",
+]
 
 
 @pytest.fixture
@@ -95,8 +118,9 @@ def repo(tmp_path):
 
     db_path = str(tmp_path / "test.db")
     conn = sqlite3.connect(db_path)
-    with open(MIGRATION_PATH) as f:
-        conn.executescript(f.read())
+    for path in MIGRATION_PATHS:
+        with open(path) as f:
+            conn.executescript(f.read())
     conn.close()
     return ArmouryRepository(db_path=db_path)
 
@@ -214,8 +238,9 @@ def armoury_app(tmp_path):
 
     db_path = str(tmp_path / "router_test.db")
     conn = sqlite3.connect(db_path)
-    with open(MIGRATION_PATH) as f:
-        conn.executescript(f.read())
+    for path in MIGRATION_PATHS:
+        with open(path) as f:
+            conn.executescript(f.read())
     conn.close()
 
     armoury_repo = ArmouryRepository(db_path=db_path)
@@ -260,7 +285,7 @@ class TestArmouryRoutes:
         # Create a competition
         client.post(
             "/api/armoury/competitions",
-            json={"name": "BB Comp", "category": "blood_bags", "start_ts": 1000, "end_ts": 2000},
+            json={"name": "BB Comp", "categories": ["blood_bags"], "start_ts": 1000, "end_ts": 2000},
             headers=headers,
         )
         resp = client.get("/api/armoury/competitions", headers=headers)
@@ -273,7 +298,7 @@ class TestArmouryRoutes:
         client, _, _ = armoury_app
         resp = client.post(
             "/api/armoury/competitions",
-            json={"name": "New Comp", "category": "temporary", "start_ts": 1000, "end_ts": 2000},
+            json={"name": "New Comp", "categories": ["temporary"], "start_ts": 1000, "end_ts": 2000},
             headers={"X-Player-Id": "123"},
         )
         assert resp.status_code == 200
@@ -286,7 +311,7 @@ class TestArmouryRoutes:
         mock_ks.is_admin.return_value = False
         resp = client.post(
             "/api/armoury/competitions",
-            json={"name": "Comp", "category": "blood_bags", "start_ts": 1000, "end_ts": 2000},
+            json={"name": "Comp", "categories": ["blood_bags"], "start_ts": 1000, "end_ts": 2000},
             headers={"X-Player-Id": "123"},
         )
         assert resp.status_code == 403
@@ -295,7 +320,7 @@ class TestArmouryRoutes:
         client, _, _ = armoury_app
         resp = client.post(
             "/api/armoury/competitions",
-            json={"name": "Comp", "category": "drugs", "start_ts": 1000, "end_ts": 2000},
+            json={"name": "Comp", "categories": ["invalid_cat"], "start_ts": 1000, "end_ts": 2000},
             headers={"X-Player-Id": "123"},
         )
         assert resp.status_code == 400
