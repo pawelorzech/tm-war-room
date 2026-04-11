@@ -8,16 +8,7 @@ from httpx import AsyncClient, ASGITransport
 
 from api.auth import create_jwt
 from api.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
-
-TEST_JWT_SECRET = "test-secret-for-route-tests"
-
-
-def auth_headers(player_id: int = 123, name: str = "Test") -> dict[str, str]:
-    return {
-        "X-Player-Id": str(player_id),
-        "Authorization": f"Bearer {create_jwt(player_id, name, TEST_JWT_SECRET, token_type='session')}",
-    }
-
+from tests.conftest import TEST_JWT_SECRET, auth_headers
 
 AUTH_HEADERS = auth_headers()
 
@@ -205,7 +196,7 @@ async def test_delete_key_requires_admin_token(mock_client, mock_store):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
                 "/api/keys/999",
-                headers={"Authorization": f"Bearer {session_token}"},
+                headers={"Authorization": f"Bearer {session_token}", "X-Player-Id": "123"},
             )
 
     assert resp.status_code == 401
@@ -226,7 +217,7 @@ async def test_delete_key_with_admin_token_succeeds(mock_client, mock_store):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.delete(
                 "/api/keys/999",
-                headers={"Authorization": f"Bearer {admin_token}"},
+                headers={"Authorization": f"Bearer {admin_token}", "X-Player-Id": "123"},
             )
 
     assert resp.status_code == 200

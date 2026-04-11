@@ -20,7 +20,7 @@ logger = logging.getLogger("tm-hub")
 from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, JWT_SECRET
 from api.torn_client import TornClient
-from api.auth import create_jwt, rate_limiter, require_bearer_token
+from api.auth import create_jwt, rate_limiter, require_bearer_token, TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN
 from api.db import KeyStore
 from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
@@ -319,6 +319,7 @@ app.mount("/mcp", _mcp_app)
 
 PUBLIC_API_PATHS = {
     "/api/keys",
+    "/api/settings/public",
 }
 
 @app.get("/api/settings/public")
@@ -396,17 +397,18 @@ async def enforce_api_auth(request: Request, call_next):
             payload = require_bearer_token(
                 request.headers.get("authorization", ""),
                 JWT_SECRET,
-                allowed_token_types=("session", "admin"),
+                allowed_token_types=(TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN),
             )
         except HTTPException as exc:
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
         player_id_raw = request.headers.get("x-player-id")
-        if player_id_raw is not None:
-            if not player_id_raw.isdigit():
-                return JSONResponse({"detail": "Invalid X-Player-Id header"}, status_code=400)
-            if int(player_id_raw) != payload["sub"]:
-                return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
+        if player_id_raw is None:
+            return JSONResponse({"detail": "Missing X-Player-Id header"}, status_code=400)
+        if not player_id_raw.isdigit():
+            return JSONResponse({"detail": "Invalid X-Player-Id header"}, status_code=400)
+        if int(player_id_raw) != payload["sub"]:
+            return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
 
         request.state.auth = payload
 
