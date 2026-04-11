@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { api } from '@/lib/api-client';
 import { useSort } from '@/hooks/useSort';
 import { SortableHeader } from '@/components/layout/SortableHeader';
@@ -31,6 +31,22 @@ interface BountyResponse {
   threat_mode: string;
 }
 
+interface GroupedBounty {
+  target_id: number;
+  target_name: string;
+  target_level: number;
+  target_status: string;
+  threat_score: number;
+  threat_label: string;
+  threat_source: string;
+  estimated_total: number | null;
+  total_reward: number;
+  total_quantity: number;
+  bounty_count: number;
+  lister_count: number;
+  bounties: Bounty[];
+}
+
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
@@ -45,6 +61,8 @@ function fmtStats(n: number | null): string {
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
   return n.toLocaleString();
 }
+
+const UNAVAILABLE_STATES = ['hospital', 'jail', 'traveling', 'fallen'];
 
 const THREAT_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
   easy: { bg: 'bg-torn-green/15', text: 'text-torn-green', ring: 'ring-torn-green/30' },
@@ -96,26 +114,66 @@ export default function BountiesPage() {
 
   const bounties = data?.bounties || [];
 
-  let filtered = search
-    ? bounties.filter(b =>
-        b.target_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.lister_name.toLowerCase().includes(search.toLowerCase())
-      )
-    : bounties;
+  const grouped = useMemo(() => {
+    let filtered: Bounty[] = search
+      ? bounties.filter(b =>
+          b.target_name.toLowerCase().includes(search.toLowerCase()) ||
+          b.lister_name.toLowerCase().includes(search.toLowerCase())
+        )
+      : bounties;
 
-  if (filterThreat !== 'all') {
-    filtered = filtered.filter(b => b.threat_label === filterThreat);
-  }
+    if (filterThreat !== 'all') {
+      filtered = filtered.filter(b => b.threat_label === filterThreat);
+    }
+    if (hideUnavailable) {
+      filtered = filtered.filter(b => !UNAVAILABLE_STATES.includes(b.target_status));
+    }
 
-  const UNAVAILABLE_STATES = ['hospital', 'jail', 'traveling', 'fallen'];
-  if (hideUnavailable) {
-    filtered = filtered.filter(b => !UNAVAILABLE_STATES.includes(b.target_status));
-  }
+    const map = new Map<number, GroupedBounty>();
+    for (const b of filtered) {
+      const existing = map.get(b.target_id);
+      if (existing) {
+        existing.total_reward += b.reward;
+        existing.total_quantity += b.quantity;
+        existing.bounty_count += 1;
+        existing.bounties.push(b);
+      } else {
+        map.set(b.target_id, {
+          target_id: b.target_id,
+          target_name: b.target_name,
+          target_level: b.target_level,
+          target_status: b.target_status,
+          threat_score: b.threat_score,
+          threat_label: b.threat_label,
+          threat_source: b.threat_source,
+          estimated_total: b.estimated_total,
+          total_reward: b.reward,
+          total_quantity: b.quantity,
+          bounty_count: 1,
+          lister_count: 1,
+          bounties: [b],
+        });
+      }
+    }
+    for (const g of map.values()) {
+      g.lister_count = new Set(g.bounties.map(b => b.lister_id)).size;
+    }
+    return Array.from(map.values());
+  }, [bounties, search, filterThreat, hideUnavailable]);
 
-  const { sorted: sortedBounties, sortCol, sortDir, toggle: toggleSort } = useSort(filtered, 'reward');
+  const { sorted: sortedGroups, sortCol, sortDir, toggle: toggleSort } = useSort(grouped, 'total_reward');
 
-  const easyCount = bounties.filter(b => b.threat_label === 'easy').length;
-  const mediumCount = bounties.filter(b => b.threat_label === 'medium').length;
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggleExpand = useCallback((id: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const easyCount = grouped.filter(g => g.threat_label === 'easy').length;
+  const mediumCount = grouped.filter(g => g.threat_label === 'medium').length;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -124,7 +182,7 @@ export default function BountiesPage() {
           <div>
             <h1 className="text-2xl font-bold">Bounty Board</h1>
             <p className="text-text-secondary text-sm mt-1">
-              {bounties.length} bounties worth {fmtMoney(data?.total_value || 0)} total
+              {grouped.length} target{grouped.length !== 1 ? 's' : ''} · {bounties.length} bounties worth {fmtMoney(data?.total_value || 0)}
               {data?.threat_mode === 'relative' && (
                 <span className="text-torn-green"> · Threat relative to you</span>
               )}
@@ -188,57 +246,105 @@ export default function BountiesPage() {
 
         {loading ? (
           <TableSkeleton rows={10} cols={5} />
-        ) : sortedBounties.length > 0 ? (
+        ) : sortedGroups.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+                    <th className="py-2 px-2 w-8"></th>
                     <SortableHeader label="Target" column="target_name" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
                     <SortableHeader label="Threat" column="threat_score" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} />
-                    <SortableHeader label="Reward" column="reward" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
-                    <th className="py-2 px-3 hidden sm:table-cell text-text-muted text-xs uppercase tracking-wider">Listed by</th>
-                    <th className="py-2 px-3 hidden md:table-cell">Reason</th>
+                    <SortableHeader label="Total Reward" column="total_reward" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="text-right" />
+                    <SortableHeader label="Listers" column="bounty_count" currentCol={sortCol} currentDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
                     <th className="py-2 px-3 text-right">Qty</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedBounties.map((b, i) => {
-                    const unavailable = UNAVAILABLE_STATES.includes(b.target_status);
+                  {sortedGroups.map(g => {
+                    const isExpanded = expanded.has(g.target_id);
+                    const unavailable = UNAVAILABLE_STATES.includes(g.target_status);
+                    const hasMultiple = g.bounty_count > 1;
                     return (
-                    <tr key={`${b.target_id}-${i}`} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${unavailable ? 'opacity-40' : ''}`}>
-                      <td className="py-2 px-3">
-                        <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${b.target_id}`} target="_blank"
-                          className="font-medium text-text-primary hover:text-torn-green transition-colors">
-                          {b.target_name || `#${b.target_id}`}
-                        </a>
-                        {b.target_level > 0 && (
-                          <span className="text-text-muted text-[10px] ml-1">Lv{b.target_level}</span>
-                        )}
-                        {unavailable && (
-                          <span className="ml-1 px-1.5 py-0.5 text-[9px] rounded bg-danger/15 text-danger font-medium uppercase">
-                            {b.target_status}
-                          </span>
-                        )}
-                        {b.estimated_total != null && b.estimated_total > 0 && (
-                          <span className="text-text-muted text-[10px] ml-1" title="Estimated total battle stats">
-                            ~{fmtStats(b.estimated_total)} stats
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3">
-                        <ThreatBadge label={b.threat_label} score={b.threat_score} source={b.threat_source} />
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold text-torn-green tabular-nums">{fmtMoney(b.reward)}</td>
-                      <td className="py-2 px-3 text-text-secondary hidden sm:table-cell">
-                        <a href={`https://www.torn.com/profiles.php?XID=${b.lister_id}`} target="_blank"
-                          className="hover:text-torn-green transition-colors">
-                          {b.lister_name || `#${b.lister_id}`}
-                        </a>
-                      </td>
-                      <td className="py-2 px-3 text-text-muted text-xs max-w-[200px] truncate hidden md:table-cell">{b.reason || '—'}</td>
-                      <td className="py-2 px-3 text-right text-text-secondary">{b.quantity > 1 ? `x${b.quantity}` : ''}</td>
-                    </tr>
+                    <Fragment key={g.target_id}>
+                      <tr
+                        onClick={hasMultiple ? () => toggleExpand(g.target_id) : undefined}
+                        className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${
+                          unavailable ? 'opacity-40' : ''
+                        } ${hasMultiple ? 'cursor-pointer' : ''}`}
+                      >
+                        <td className="py-2 px-2 w-8 text-center text-text-muted">
+                          {hasMultiple && (
+                            <span className={`inline-block text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3">
+                          <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`} target="_blank"
+                            onClick={e => e.stopPropagation()}
+                            className="font-medium text-text-primary hover:text-torn-green transition-colors">
+                            {g.target_name || `#${g.target_id}`}
+                          </a>
+                          {g.target_level > 0 && (
+                            <span className="text-text-muted text-[10px] ml-1">Lv{g.target_level}</span>
+                          )}
+                          {unavailable && (
+                            <span className="ml-1 px-1.5 py-0.5 text-[9px] rounded bg-danger/15 text-danger font-medium uppercase">
+                              {g.target_status}
+                            </span>
+                          )}
+                          {g.estimated_total != null && g.estimated_total > 0 && (
+                            <span className="text-text-muted text-[10px] ml-1" title="Estimated total battle stats">
+                              ~{fmtStats(g.estimated_total)} stats
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3">
+                          <ThreatBadge label={g.threat_label} score={g.threat_score} source={g.threat_source} />
+                        </td>
+                        <td className="py-2 px-3 text-right font-semibold text-torn-green tabular-nums">
+                          {fmtMoney(g.total_reward)}
+                          {hasMultiple && (
+                            <span className="text-text-muted text-[10px] font-normal ml-1">
+                              ({g.bounty_count})
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-text-secondary text-xs hidden sm:table-cell">
+                          {hasMultiple ? (
+                            <span>{g.lister_count} lister{g.lister_count !== 1 ? 's' : ''}</span>
+                          ) : (
+                            <a href={`https://www.torn.com/profiles.php?XID=${g.bounties[0].lister_id}`} target="_blank"
+                              onClick={e => e.stopPropagation()}
+                              className="hover:text-torn-green transition-colors">
+                              {g.bounties[0].lister_name || `#${g.bounties[0].lister_id}`}
+                            </a>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-right text-text-secondary">
+                          {g.total_quantity > 1 ? `x${g.total_quantity}` : ''}
+                        </td>
+                      </tr>
+                      {isExpanded && g.bounties.map((b, i) => (
+                        <tr key={`${g.target_id}-d-${i}`} className="bg-bg-elevated/30 border-b border-border-light/50 text-xs">
+                          <td className="py-1.5 px-2 text-text-muted/30 text-center">└</td>
+                          <td className="py-1.5 px-3" colSpan={2}>
+                            <span className="text-text-muted">by </span>
+                            <a href={`https://www.torn.com/profiles.php?XID=${b.lister_id}`} target="_blank"
+                              className="text-text-primary hover:text-torn-green transition-colors">
+                              {b.lister_name || `#${b.lister_id}`}
+                            </a>
+                            {b.reason && (
+                              <span className="text-text-muted ml-2">— {b.reason}</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-3 text-right text-torn-green/70 tabular-nums">{fmtMoney(b.reward)}</td>
+                          <td className="py-1.5 px-3 hidden sm:table-cell"></td>
+                          <td className="py-1.5 px-3 text-right text-text-muted">
+                            {b.quantity > 1 ? `x${b.quantity}` : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                     );
                   })}
                 </tbody>
