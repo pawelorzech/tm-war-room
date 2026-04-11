@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 from api.auth import create_jwt
-from tests.conftest import TEST_JWT_SECRET, auth_headers
+from tests.helpers import TEST_JWT_SECRET, auth_headers
 
 
 ADMIN_ID = 2362436

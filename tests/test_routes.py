@@ -8,7 +8,7 @@ from httpx import AsyncClient, ASGITransport
 
 from api.auth import create_jwt
 from api.models import FactionMember, WarStatus, MemberBars, Bar, Cooldowns, LastAction, MemberStatus, WarFaction, FactionInfo, PersonalStats
-from tests.conftest import TEST_JWT_SECRET, auth_headers
+from tests.helpers import TEST_JWT_SECRET, auth_headers
 
 AUTH_HEADERS = auth_headers()
 
