@@ -414,7 +414,19 @@ async def enforce_api_auth(request: Request, call_next):
         request.state.auth = payload
 
     response = await call_next(request)
-    response.headers.setdefault("Content-Security-Policy", "base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self' https://analityka.tri.ovh; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https://www.torn.com https://*.backblazeb2.com; "
+        "connect-src 'self' wss://hub.tri.ovh https://analityka.tri.ovh; "
+        "font-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "object-src 'none'",
+    )
     response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
