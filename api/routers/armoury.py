@@ -149,6 +149,35 @@ async def trigger_poll(x_player_id: int = Header()):
     return {"status": "polled"}
 
 
+@router.get("/competitions/{comp_id}/debug")
+async def debug_competition(comp_id: int, x_player_id: int = Header()):
+    if not key_store or not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    comp = repo.get_competition(comp_id)
+    if not comp:
+        raise HTTPException(status_code=404, detail="Competition not found")
+    deposits = repo.get_deposits(comp_id)
+    last_poll_ts = repo.get_last_poll_ts(comp_id)
+    # Group deposits by player for quick overview
+    by_player: dict[int, dict] = {}
+    for d in deposits:
+        pid = d["player_id"]
+        if pid not in by_player:
+            by_player[pid] = {"name": d["player_name"], "items": [], "total_qty": 0}
+        by_player[pid]["items"].append({"item": d["item_name"], "qty": d["quantity"], "ts": d["deposited_at"], "news_id": d["news_id"]})
+        by_player[pid]["total_qty"] += d["quantity"]
+    return {
+        "competition": comp,
+        "last_poll_ts": last_poll_ts,
+        "total_deposits": len(deposits),
+        "unique_players": len(by_player),
+        "by_player": by_player,
+        "raw_deposits": deposits,
+    }
+
+
 @router.get("/items/search")
 async def search_items(q: str = "", x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):

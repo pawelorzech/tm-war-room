@@ -7,7 +7,7 @@ import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
 import { ItemMultiSelect } from '@/components/ui/ItemMultiSelect';
 
-/* ── Types ──────────────────────────────────────────── */
+/* -- Types -------------------------------------------------- */
 
 interface Competition {
   id: number;
@@ -45,7 +45,7 @@ interface LeaderboardData {
   participants: number;
 }
 
-/* ── Helpers ────────────────────────────────────────── */
+/* -- Helpers ------------------------------------------------- */
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   blood_bags:    { label: 'Blood Bags', icon: '\u{1FA78}' },
@@ -56,17 +56,6 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   energy_drinks: { label: 'Energy Drinks', icon: '\u{26A1}' },
   candy:         { label: 'Candy', icon: '\u{1F36C}' },
 };
-
-function categoryDisplay(cat: string) {
-  const cats = cat.split(',').map(c => c.trim()).filter(Boolean);
-  if (cats.length === 0) return { label: '', icon: '' };
-  if (cats.length === 1) {
-    return CATEGORY_META[cats[0]] || { label: cat, icon: '\u{1F6E1}\uFE0F' };
-  }
-  const labels = cats.map(c => CATEGORY_META[c]?.label || c);
-  const icons = cats.map(c => CATEGORY_META[c]?.icon || '');
-  return { label: labels.join(' + '), icon: icons.filter(Boolean).join('') };
-}
 
 function competitionScope(comp: Competition): { label: string; icon: string } {
   const parts: string[] = [];
@@ -129,14 +118,151 @@ function rankDecoration(rank: number): { medal: string; color: string } {
   return { medal: '', color: 'text-text-secondary' };
 }
 
-/* ── Page ───────────────────────────────────────────── */
+/* -- Leaderboard Table (shared between active & past) ------- */
+
+function LeaderboardTable({ board, myPid, compact }: {
+  board: LeaderboardData;
+  myPid: string | null;
+  compact?: boolean;
+}) {
+  if (board.leaderboard.length === 0) {
+    return (
+      <div className="p-4 text-center text-text-muted text-sm">
+        No deposits recorded.
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+            <th className="py-2 px-3 w-12">Rank</th>
+            <th className="py-2 px-3">Player</th>
+            <th className="py-2 px-3 text-right">Total</th>
+            <th className="py-2 px-3 text-right hidden sm:table-cell"># Deps</th>
+            {!compact && <th className="py-2 px-3 text-right hidden sm:table-cell">Last</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {board.leaderboard.map(entry => {
+            const { medal, color } = rankDecoration(entry.rank);
+            const isMe = myPid && String(entry.player_id) === myPid;
+            return (
+              <tr key={entry.player_id}
+                className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isMe ? 'bg-torn-green/10' : ''}`}>
+                <td className={`${compact ? 'py-1.5' : 'py-2'} px-3 font-bold tabular-nums ${color}`}>
+                  {medal ? `${medal} ` : ''}{entry.rank}
+                </td>
+                <td className={`${compact ? 'py-1.5' : 'py-2'} px-3`}>
+                  <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
+                    className="font-medium text-text-primary hover:text-torn-green transition-colors">
+                    {entry.player_name || `#${entry.player_id}`}
+                  </a>
+                  {isMe && (
+                    <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded bg-torn-green/20 text-torn-green font-bold uppercase">
+                      You
+                    </span>
+                  )}
+                </td>
+                <td className={`${compact ? 'py-1.5' : 'py-2'} px-3 text-right font-semibold text-torn-green tabular-nums`}>
+                  {entry.total.toLocaleString()}
+                </td>
+                <td className={`${compact ? 'py-1.5' : 'py-2'} px-3 text-right text-text-secondary tabular-nums hidden sm:table-cell`}>
+                  {entry.deposits}
+                </td>
+                {!compact && (
+                  <td className="py-2 px-3 text-right text-text-muted text-xs hidden sm:table-cell">
+                    {entry.last_deposit ? relativeTime(entry.last_deposit) : '\u2014'}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="px-3 py-2 text-[10px] text-text-muted">
+        {board.participants} participant{board.participants !== 1 ? 's' : ''} &middot; all shown
+      </p>
+    </div>
+  );
+}
+
+/* -- Past Competition Card (collapsed preview, expandable) -- */
+
+function PastCompetitionCard({ comp, myPid }: {
+  comp: Competition;
+  myPid: string | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [board, setBoard] = useState<LeaderboardData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !board) {
+      setLoading(true);
+      try {
+        const lb = await api.armouryLeaderboard(comp.id);
+        setBoard(lb);
+      } catch { /* swallow */ }
+      finally { setLoading(false); }
+    }
+  };
+
+  const { label, icon } = competitionScope(comp);
+  const top3 = board?.leaderboard.slice(0, 3) ?? [];
+
+  return (
+    <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
+      <button onClick={handleToggle}
+        className="w-full p-3 flex items-center gap-3 text-left hover:bg-bg-elevated/30 transition-colors">
+        <span className={`text-xs transition-transform ${expanded ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
+        <span className="text-base">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-sm truncate">{comp.name}</p>
+            <span className="shrink-0 px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-muted font-medium">Ended</span>
+          </div>
+          <p className="text-[10px] text-text-muted truncate">
+            {label} &middot; {formatDatetime(comp.start_ts)} &ndash; {formatDatetime(comp.end_ts)}
+          </p>
+          {/* Top-3 preview when collapsed */}
+          {!expanded && board && top3.length > 0 && (
+            <p className="text-[11px] text-text-secondary mt-1 truncate">
+              {top3.map((e, i) => {
+                const { medal } = rankDecoration(e.rank);
+                return `${medal} ${e.player_name} ${e.total.toLocaleString()}`;
+              }).join('  ')}
+              {(board.participants > 3) && `  +${board.participants - 3} more`}
+            </p>
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        loading ? (
+          <div className="p-3 text-center text-text-muted text-sm">Loading...</div>
+        ) : board ? (
+          <div className="border-t border-border">
+            <LeaderboardTable board={board} myPid={myPid} compact />
+          </div>
+        ) : (
+          <div className="p-3 text-center text-text-muted text-sm">Failed to load.</div>
+        )
+      )}
+    </div>
+  );
+}
+
+/* -- Page --------------------------------------------------- */
 
 export default function ArmouryPage() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [activeBoards, setActiveBoards] = useState<Map<number, LeaderboardData>>(new Map());
-  const [pastBoards, setPastBoards] = useState<Map<number, LeaderboardData>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [showPast, setShowPast] = useState(false);
+  const [selectedCompId, setSelectedCompId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState('');
   const [formCategories, setFormCategories] = useState<string[]>(['blood_bags']);
@@ -156,7 +282,10 @@ export default function ArmouryPage() {
   const role = typeof window !== 'undefined' ? localStorage.getItem('myKeyRole') : null;
   const isAdmin = role === 'admin' || role === 'superadmin';
 
-  /* Load all competitions + active leaderboard */
+  const activeComps = competitions.filter(c => c.status === 'active');
+  const pastComps = competitions.filter(c => c.status === 'ended');
+
+  /* Load all competitions + active leaderboards */
   const loadData = useCallback(async (triggerPoll = false) => {
     setLoading(true);
     try {
@@ -165,13 +294,18 @@ export default function ArmouryPage() {
       }
       const res = await api.armouryCompetitions();
       setCompetitions(res.competitions);
-      const actives = res.competitions.filter(c => c.status === 'active');
+      const actives = res.competitions.filter((c: Competition) => c.status === 'active');
       const boards = new Map<number, LeaderboardData>();
-      await Promise.all(actives.map(async (c) => {
+      await Promise.all(actives.map(async (c: Competition) => {
         const lb = await api.armouryLeaderboard(c.id);
         boards.set(c.id, lb);
       }));
       setActiveBoards(boards);
+      // Auto-select first active competition if none selected
+      setSelectedCompId(prev => {
+        if (prev && actives.some((c: Competition) => c.id === prev)) return prev;
+        return actives.length > 0 ? actives[0].id : null;
+      });
     } catch {
       /* swallow */
     } finally {
@@ -192,33 +326,11 @@ export default function ArmouryPage() {
     return () => clearInterval(iv);
   }, [loadData]);
 
-  /* Countdown timer — update display every 60s */
+  /* Countdown timer -- update display every 60s */
   useEffect(() => {
     timerRef.current = setInterval(() => setTick(t => t + 1), 60_000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
-
-  /* Load a past competition leaderboard */
-  const loadPastBoard = useCallback(async (id: number) => {
-    if (pastBoards.has(id)) return;
-    try {
-      const lb = await api.armouryLeaderboard(id);
-      setPastBoards(prev => new Map(prev).set(id, lb));
-    } catch {
-      /* swallow */
-    }
-  }, [pastBoards]);
-
-  const pastCompetitions = competitions.filter(c => c.status === 'ended');
-
-  /* Expand past section & load all boards */
-  const togglePast = () => {
-    const next = !showPast;
-    setShowPast(next);
-    if (next) {
-      pastCompetitions.forEach(c => loadPastBoard(c.id));
-    }
-  };
 
   /* Admin: create competition */
   const handleCreate = async () => {
@@ -265,7 +377,8 @@ export default function ArmouryPage() {
     }
   };
 
-  const activeComps = competitions.filter(c => c.status === 'active');
+  const selectedComp = activeComps.find(c => c.id === selectedCompId) ?? null;
+  const selectedBoard = selectedCompId ? activeBoards.get(selectedCompId) ?? null : null;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -282,7 +395,7 @@ export default function ArmouryPage() {
           <RefreshButton onRefresh={() => loadData(true)} />
         </div>
 
-        <PageExplainer id="armoury" title="Armoury Competitions — How it works" bullets={[
+        <PageExplainer id="armoury" title="Armoury Competitions \u2014 How it works" bullets={[
           'Faction leadership creates competitions around restocking specific item categories (blood bags, temporary items, or alcohol).',
           'Every deposit you make to the faction armoury during the competition window is tracked automatically via the Torn API.',
           'The leaderboard shows who has deposited the most items. Prizes are announced by leadership for each competition.',
@@ -293,46 +406,67 @@ export default function ArmouryPage() {
         {loading ? (
           <TableSkeleton rows={8} cols={5} />
         ) : activeComps.length > 0 ? (
-          activeComps.map(comp => {
-            const board = activeBoards.get(comp.id);
-            return (
-              <div key={comp.id} className="space-y-4">
-                {/* Active competition banner */}
+          <div className="space-y-4">
+            {/* Competition pill tabs (horizontal scroll on mobile) */}
+            {activeComps.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+                {activeComps.map(comp => {
+                  const { icon } = competitionScope(comp);
+                  const isSelected = comp.id === selectedCompId;
+                  return (
+                    <button key={comp.id} onClick={() => setSelectedCompId(comp.id)}
+                      className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+                        ${isSelected
+                          ? 'bg-torn-green/20 text-torn-green border border-torn-green/40 shadow-sm'
+                          : 'bg-bg-card border border-text-secondary/20 text-text-secondary hover:text-text-primary hover:border-text-secondary/40'
+                        }`}>
+                      <span>{icon}</span>
+                      <span className="truncate max-w-[140px]">{comp.name}</span>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-torn-green' : 'bg-torn-green/40'}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selected competition details */}
+            {selectedComp && (
+              <>
                 <div className="bg-bg-card border border-torn-green/20 rounded-xl p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{competitionScope(comp).icon}</span>
+                      <span className="text-xl">{competitionScope(selectedComp).icon}</span>
                       <div>
-                        <h2 className="text-lg font-bold">{comp.name}</h2>
+                        <h2 className="text-lg font-bold">{selectedComp.name}</h2>
                         <p className="text-xs text-text-muted">
-                          {competitionScope(comp).label} &middot; {formatDate(comp.start_ts)} &ndash; {formatDate(comp.end_ts)}
+                          {competitionScope(selectedComp).label} &middot; {formatDate(selectedComp.start_ts)} &ndash; {formatDate(selectedComp.end_ts)}
                         </p>
                       </div>
                     </div>
                     <span className="px-3 py-1 text-xs font-bold rounded-full bg-torn-green/20 text-torn-green">
-                      {countdown(comp.end_ts)}
+                      {countdown(selectedComp.end_ts)}
                     </span>
                   </div>
 
                   {/* Stats bar */}
-                  {board && (
+                  {selectedBoard && (
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div>
                         <span className="text-text-muted text-xs">Total deposited</span>
-                        <p className="font-bold text-torn-green tabular-nums">{board.total_deposited.toLocaleString()}</p>
+                        <p className="font-bold text-torn-green tabular-nums">{selectedBoard.total_deposited.toLocaleString()}</p>
                       </div>
                       <div>
                         <span className="text-text-muted text-xs">Participants</span>
-                        <p className="font-bold tabular-nums">{board.participants}</p>
+                        <p className="font-bold tabular-nums">{selectedBoard.participants}</p>
                       </div>
                       <div>
                         <span className="text-text-muted text-xs">Your rank</span>
                         <p className="font-bold tabular-nums">
                           {myPid
-                            ? (board.leaderboard.find(e => String(e.player_id) === myPid)?.rank
-                                ? `#${board.leaderboard.find(e => String(e.player_id) === myPid)!.rank}`
-                                : '—')
-                            : '—'}
+                            ? (selectedBoard.leaderboard.find(e => String(e.player_id) === myPid)?.rank
+                                ? `#${selectedBoard.leaderboard.find(e => String(e.player_id) === myPid)!.rank}`
+                                : '\u2014')
+                            : '\u2014'}
                         </p>
                       </div>
                     </div>
@@ -341,14 +475,14 @@ export default function ArmouryPage() {
                   {/* Prize info */}
                   <div className="bg-bg-elevated/50 rounded-lg p-3 text-xs text-text-secondary">
                     {'\u{1F3C6}'} <span className="font-semibold text-text-primary">Prizes:</span>{' '}
-                    {comp.prize_text || 'Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day'}
+                    {selectedComp.prize_text || 'Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day'}
                   </div>
 
                   {isAdmin && (
-                    confirmEndId === comp.id ? (
+                    confirmEndId === selectedComp.id ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-danger font-medium">End this competition?</span>
-                        <button onClick={() => handleEnd(comp.id)}
+                        <button onClick={() => handleEnd(selectedComp.id)}
                           className="px-3 py-1.5 text-xs rounded-lg bg-danger text-white hover:bg-danger/80 transition-colors font-bold">
                           Yes, end it
                         </button>
@@ -358,7 +492,7 @@ export default function ArmouryPage() {
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmEndId(comp.id)}
+                      <button onClick={() => setConfirmEndId(selectedComp.id)}
                         className="px-3 py-1.5 text-xs rounded-lg bg-danger/15 text-danger hover:bg-danger/25 transition-colors font-medium">
                         End Competition
                       </button>
@@ -367,66 +501,20 @@ export default function ArmouryPage() {
                 </div>
 
                 {/* Leaderboard table */}
-                {board && board.leaderboard.length > 0 ? (
+                {selectedBoard ? (
                   <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                            <th className="py-2 px-3 w-12">Rank</th>
-                            <th className="py-2 px-3">Player</th>
-                            <th className="py-2 px-3 text-right">Total Deposited</th>
-                            <th className="py-2 px-3 text-right hidden sm:table-cell"># Deposits</th>
-                            <th className="py-2 px-3 text-right hidden sm:table-cell">Last Deposit</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {board.leaderboard.map(entry => {
-                            const { medal, color } = rankDecoration(entry.rank);
-                            const isMe = myPid && String(entry.player_id) === myPid;
-                            return (
-                              <tr key={entry.player_id}
-                                className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${isMe ? 'bg-torn-green/10' : ''}`}>
-                                <td className={`py-2 px-3 font-bold tabular-nums ${color}`}>
-                                  {medal ? `${medal} ` : ''}{entry.rank}
-                                </td>
-                                <td className="py-2 px-3">
-                                  <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
-                                    className="font-medium text-text-primary hover:text-torn-green transition-colors">
-                                    {entry.player_name || `#${entry.player_id}`}
-                                  </a>
-                                  {isMe && (
-                                    <span className="ml-1.5 px-1.5 py-0.5 text-[9px] rounded bg-torn-green/20 text-torn-green font-bold uppercase">
-                                      You
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-2 px-3 text-right font-semibold text-torn-green tabular-nums">
-                                  {entry.total.toLocaleString()}
-                                </td>
-                                <td className="py-2 px-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
-                                  {entry.deposits}
-                                </td>
-                                <td className="py-2 px-3 text-right text-text-muted text-xs hidden sm:table-cell">
-                                  {entry.last_deposit ? relativeTime(entry.last_deposit) : '—'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <LeaderboardTable board={selectedBoard} myPid={myPid} />
                   </div>
                 ) : (
                   <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center text-text-secondary">
                     No deposits yet. Be the first to contribute!
                   </div>
                 )}
-              </div>
-            );
-          })
+              </>
+            )}
+          </div>
         ) : (
-          /* Empty state — no active competition */
+          /* Empty state -- no active competition */
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-8 text-center space-y-2">
             <p className="text-3xl">{'\u{1F6E1}\uFE0F'}</p>
             <p className="text-text-secondary font-medium">No active competitions</p>
@@ -435,82 +523,14 @@ export default function ArmouryPage() {
         )}
 
         {/* Past competitions */}
-        {pastCompetitions.length > 0 && (
-          <div>
-            <button onClick={togglePast}
-              className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
-              <span className={`transition-transform ${showPast ? 'rotate-90' : ''}`}>{'\u25B6'}</span>
-              Past Competitions ({pastCompetitions.length})
-            </button>
-
-            {showPast && (
-              <div className="mt-3 space-y-4">
-                {pastCompetitions.map(comp => {
-                  const board = pastBoards.get(comp.id);
-                  const { label, icon } = competitionScope(comp);
-                  return (
-                    <div key={comp.id} className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                      <div className="p-3 border-b border-border flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span>{icon}</span>
-                          <div>
-                            <p className="font-semibold text-sm">{comp.name}</p>
-                            <p className="text-[10px] text-text-muted">
-                              {label} &middot; {formatDatetime(comp.start_ts)} &ndash; {formatDatetime(comp.end_ts)}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-muted font-medium">Ended</span>
-                      </div>
-                      {board ? (
-                        board.leaderboard.length > 0 ? (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
-                                  <th className="py-2 px-3 w-12">Rank</th>
-                                  <th className="py-2 px-3">Player</th>
-                                  <th className="py-2 px-3 text-right">Total</th>
-                                  <th className="py-2 px-3 text-right hidden sm:table-cell"># Deposits</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {board.leaderboard.slice(0, 5).map(entry => {
-                                  const { medal, color } = rankDecoration(entry.rank);
-                                  return (
-                                    <tr key={entry.player_id} className="border-b border-border-light">
-                                      <td className={`py-1.5 px-3 font-bold tabular-nums ${color}`}>
-                                        {medal ? `${medal} ` : ''}{entry.rank}
-                                      </td>
-                                      <td className="py-1.5 px-3">
-                                        <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
-                                          className="text-text-primary hover:text-torn-green transition-colors">
-                                          {entry.player_name || `#${entry.player_id}`}
-                                        </a>
-                                      </td>
-                                      <td className="py-1.5 px-3 text-right font-semibold text-torn-green tabular-nums">
-                                        {entry.total.toLocaleString()}
-                                      </td>
-                                      <td className="py-1.5 px-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
-                                        {entry.deposits}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <p className="p-3 text-center text-text-muted text-sm">No deposits recorded.</p>
-                        )
-                      ) : (
-                        <p className="p-3 text-center text-text-muted text-sm">Loading...</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        {pastComps.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-text-secondary">
+              Past Competitions ({pastComps.length})
+            </h3>
+            {pastComps.map(comp => (
+              <PastCompetitionCard key={comp.id} comp={comp} myPid={myPid} />
+            ))}
           </div>
         )}
 
@@ -558,7 +578,7 @@ export default function ArmouryPage() {
                 <div>
                   <label className="block text-xs text-text-muted mb-1">Prizes (optional)</label>
                   <input type="text" value={formPrizeText} onChange={e => setFormPrizeText(e.target.value)}
-                    placeholder="e.g. Top 3 win Xanax — 1st: 3 days, 2nd: 2 days, 3rd: 1 day"
+                    placeholder="e.g. Top 3 win Xanax \u2014 1st: 3 days, 2nd: 2 days, 3rd: 1 day"
                     className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
