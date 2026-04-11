@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Header, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from api.auth import decode_jwt
+from api.auth import decode_jwt, rate_limiter
 from api.chat_manager import ChatManager
 from api.config import SUPERADMIN_ID, JWT_SECRET
 
@@ -27,23 +27,9 @@ torn_client = None  # Set by main.py
 presence_repo = None  # Set by main.py
 
 
-# Per-player WebSocket message rate limiter: max 2 messages/second, burst 5
-_ws_msg_times: dict[int, list[float]] = {}
-_WS_MSG_RATE = 2  # messages per second
-_WS_MSG_WINDOW = 5  # rolling window in seconds
-_WS_MSG_MAX = _WS_MSG_RATE * _WS_MSG_WINDOW  # 10 messages in 5s
-
-
-def _ws_rate_ok(player_id: int) -> bool:
-    now = time.time()
-    cutoff = now - _WS_MSG_WINDOW
-    times = [t for t in _ws_msg_times.get(player_id, []) if t > cutoff]
-    if len(times) >= _WS_MSG_MAX:
-        _ws_msg_times[player_id] = times
-        return False
-    times.append(now)
-    _ws_msg_times[player_id] = times
-    return True
+def _msg_rate_ok(player_id: int) -> bool:
+    """Allow max 10 messages per 5-second window (shared across HTTP + WS)."""
+    return rate_limiter.check(f"chat_msg:{player_id}", max_requests=10, window_seconds=5)
 
 
 def _not_ready():
@@ -191,7 +177,7 @@ async def send_message(
     channel_id: int, body: MessageCreate, x_player_id: int = Header(),
 ):
     _verify_member(x_player_id)
-    if not _ws_rate_ok(x_player_id):
+    if not _msg_rate_ok(x_player_id):
         raise HTTPException(status_code=429, detail="Too many messages, slow down")
     if chat_repo.is_muted(x_player_id):
         raise HTTPException(status_code=403, detail="You are muted")
@@ -668,7 +654,7 @@ async def chat_websocket(ws: WebSocket):
             payload = msg.get("payload", {})
 
             if msg_type == "message":
-                if not _ws_rate_ok(player_id):
+                if not _msg_rate_ok(player_id):
                     continue  # silently drop — client won't notice lag
                 await _handle_ws_message(player_id, payload)
             elif msg_type == "typing":
@@ -720,8 +706,7 @@ async def _handle_ws_message(player_id: int, payload: dict) -> None:
         if not thread or thread["locked"]:
             return
 
-    all_keys = key_store.get_all_keys() if key_store else []
-    sender = next((k for k in all_keys if k["player_id"] == player_id), None)
+    sender = key_store.get_key(player_id) if key_store else None
     name = sender["player_name"] if sender else str(player_id)
 
     msg = chat_repo.create_message(
