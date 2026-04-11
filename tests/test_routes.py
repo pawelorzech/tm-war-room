@@ -137,17 +137,22 @@ async def test_overview_rejects_token_player_mismatch(mock_client, mock_store):
 
 @pytest.mark.asyncio
 async def test_members_detail(mock_client, mock_store):
-    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
-        from api.main import app
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers=AUTH_HEADERS)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["yata_down"] is True
-    assert "123" in data["members"]
-    assert data["members"]["123"]["source"] == "torn_api"
-    assert data["members"]["123"]["energy"] == 500
+    import api.main as _main
+    _main._bars_cache = {123: {"energy": 500, "max_energy": 1000, "drug_cd": 0}}
+    try:
+        with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/api/members/detail", headers=AUTH_HEADERS)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["yata_down"] is True
+        assert "123" in data["members"]
+        assert data["members"]["123"]["source"] == "torn_api"
+        assert data["members"]["123"]["energy"] == 500
+    finally:
+        _main._bars_cache = {}
 
 
 @pytest.mark.asyncio
@@ -319,22 +324,27 @@ def mock_store_leader():
 
 @pytest.mark.asyncio
 async def test_detail_full_access_sees_all(mock_client_yata, mock_store_leader):
-    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
-        from api.main import app
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["yata_down"] is False
-    assert "123" in data["members"]
-    assert "456" in data["members"]
-    assert data["members"]["123"]["source"] == "torn_api"
-    assert data["members"]["123"]["energy"] == 150
-    assert data["members"]["123"]["max_energy"] == 150
-    assert data["members"]["456"]["source"] == "yata"
-    assert data["members"]["456"]["energy"] == 120
-    assert data["members"]["456"]["max_energy"] is None
+    import api.main as _main
+    _main._bars_cache = {123: {"energy": 150, "max_energy": 150, "drug_cd": 0}}
+    try:
+        with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["yata_down"] is False
+        assert "123" in data["members"]
+        assert "456" in data["members"]
+        assert data["members"]["123"]["source"] == "torn_api"
+        assert data["members"]["123"]["energy"] == 150
+        assert data["members"]["123"]["max_energy"] == 150
+        assert data["members"]["456"]["source"] == "yata"
+        assert data["members"]["456"]["energy"] == 120
+        assert data["members"]["456"]["max_energy"] is None
+    finally:
+        _main._bars_cache = {}
 
 
 @pytest.fixture
@@ -366,20 +376,25 @@ async def test_detail_self_only_sees_self(mock_client_yata, mock_store_member):
 
 @pytest.mark.asyncio
 async def test_detail_yata_down(mock_client_yata, mock_store_leader):
+    import api.main as _main
+    _main._bars_cache = {123: {"energy": 150, "max_energy": 150, "drug_cd": 0}}
     mock_client_yata.fetch_yata_members = AsyncMock(return_value=None)
-    with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
-        from api.main import app
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["yata_down"] is True
-    assert "123" in data["members"]
-    assert data["members"]["123"]["source"] == "torn_api"
-    # Player 456 exists in faction but has no key and YATA is down
-    assert "456" in data["members"]
-    assert data["members"]["456"]["source"] == "unavailable"
+    try:
+        with patch("api.main.torn_client", mock_client_yata), patch("api.main.key_store", mock_store_leader):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/api/members/detail", headers=auth_headers(123, "Leader"))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["yata_down"] is True
+        assert "123" in data["members"]
+        assert data["members"]["123"]["source"] == "torn_api"
+        # Player 456 exists in faction but has no key and YATA is down
+        assert "456" in data["members"]
+        assert data["members"]["456"]["source"] == "unavailable"
+    finally:
+        _main._bars_cache = {}
 
 
 @pytest.mark.asyncio

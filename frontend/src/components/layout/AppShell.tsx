@@ -46,7 +46,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     };
     poll();
-    const interval = setInterval(poll, 15_000);
+    const interval = setInterval(poll, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [canAccessChat, isLoggedIn, onChatPage, visible]);
 
@@ -103,7 +103,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (!isLoggedIn || !visible) return;
     const beat = () => api.heartbeat().catch(() => {});
     beat();
-    const interval = setInterval(beat, 30_000);
+    const interval = setInterval(beat, 60_000);
     return () => clearInterval(interval);
   }, [isLoggedIn, visible]);
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api-client";
+import { getOverview } from "@/lib/overview-cache";
 import { usePageVisible } from "@/hooks/usePageVisible";
 import type {
   OverviewResponse,
@@ -34,7 +35,7 @@ export function useWarData() {
   const refresh = useCallback(async () => {
     try {
       const [ov, det, en] = await Promise.all([
-        api.overview(),
+        getOverview(true),
         api.detail(),
         api.enemy(),
       ]);

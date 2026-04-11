@@ -61,81 +61,62 @@ export default function DashboardPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([
-      api.overview().catch(() => null),
-      api.lootTimers().catch(() => null),
-      api.chainList().catch(() => null),
-      api.bounties().catch(() => null),
-      api.ocOverview('planning').catch(() => null),
-      api.chatUnread().catch(() => null),
-      api.chatChannels().catch(() => null),
-    ]).then(([overview, lootData, chainData, bountyData, ocData, chatUnreadData, chatChannelsData]) => {
-      api.status().then((s) => setStatus(s)).catch(() => {});
+    api.dashboard().then((data) => {
+      setStatus(data.status);
 
-      if (overview) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const members = ((overview as any).members || []) as Record<string, unknown>[];
-        const total = members.length;
-        const online = members.filter(m => {
-          const la = getLastActionStr(m).toLowerCase();
-          return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
-        }).length;
-        const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
-        const traveling = members.filter(m => {
-          const s = getStatusStr(m).toLowerCase();
-          return s.includes('travel') || s.includes('abroad');
-        }).length;
-        const onWall = members.filter(m => !!m.is_on_wall).length;
-        setMemberCounts({ total, online, hospital, traveling, onWall });
-      }
+      // Members
+      const members = (data.members || []) as Record<string, unknown>[];
+      const total = members.length;
+      const online = members.filter(m => {
+        const la = getLastActionStr(m).toLowerCase();
+        return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
+      }).length;
+      const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
+      const traveling = members.filter(m => {
+        const s = getStatusStr(m).toLowerCase();
+        return s.includes('travel') || s.includes('abroad');
+      }).length;
+      const onWall = members.filter(m => !!m.is_on_wall).length;
+      setMemberCounts({ total, online, hospital, traveling, onWall });
 
-      if (lootData) {
+      // Loot
+      if (data.loot) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const npcs = (lootData as any).npcs as LootNPC[] || [];
+        const npcs = ((data.loot as any).npcs as LootNPC[]) || [];
         const best = npcs.reduce((a: LootNPC | null, b: LootNPC) =>
           !a || b.level > a.level ? b : a, null);
         setTopLoot(best);
       }
 
-      if (chainData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cd = chainData as any;
-        setChainCount(cd.total_chains || 0);
-        setAttackCount(cd.attacks_in_db || 0);
-      }
+      // Chain
+      setChainCount(data.chain_summary.total_chains || 0);
+      setAttackCount(data.chain_summary.attacks_in_db || 0);
 
-      if (bountyData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const bd = bountyData as any;
-        const bounties = bd.bounties || [];
-        const easy = bounties.filter((b: { threat_label: string }) => b.threat_label === 'easy').length;
+      // Bounties
+      if (data.bounties.length > 0) {
+        const easy = data.bounties.filter((b: unknown) => (b as { threat_label: string }).threat_label === 'easy').length;
         setEasyBounties(easy);
-        setBountyValue(bd.total_value || 0);
+        const totalValue = data.bounties.reduce((sum: number, b: unknown) => sum + ((b as { reward: number }).reward || 0), 0);
+        setBountyValue(totalValue);
       }
 
-      if (ocData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const od = ocData as any;
-        const crimes = od.crimes || [];
-        setOcTotal(crimes.length);
-        // Count crimes where all participants have planning_complete
-        const ready = crimes.filter((c: { participants: { planning_complete: boolean }[] }) =>
-          c.participants.length > 0 && c.participants.every((p: { planning_complete: boolean }) => p.planning_complete)
-        ).length;
-        setOcReady(ready);
-      }
+      // OC
+      const crimes = data.oc_crimes;
+      setOcTotal(crimes.length);
+      const ready = crimes.filter((c: unknown) => {
+        const crime = c as { participants: { planning_complete: boolean }[] };
+        return crime.participants.length > 0 && crime.participants.every(p => p.planning_complete);
+      }).length;
+      setOcReady(ready);
 
-      if (chatUnreadData) {
-        setChatUnread(chatUnreadData as { channels: Record<string, number>; total: number });
+      // Chat
+      setChatUnread(data.chat_unread);
+      const nameMap: Record<number, string> = {};
+      for (const ch of data.chat_channels) {
+        nameMap[ch.id] = ch.name;
       }
-      if (chatChannelsData) {
-        const nameMap: Record<number, string> = {};
-        for (const ch of (chatChannelsData as { channels: { id: number; name: string }[] }).channels) {
-          nameMap[ch.id] = ch.name;
-        }
-        setChatChannelNames(nameMap);
-      }
-    }).finally(() => setLoading(false));
+      setChatChannelNames(nameMap);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);

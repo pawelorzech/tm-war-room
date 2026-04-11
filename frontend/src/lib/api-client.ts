@@ -125,6 +125,20 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
 
 export const api = {
   overview: () => apiFetch<import("@/types/war").OverviewResponse>("/api/overview"),
+  dashboard: () => apiFetch<{
+    members: unknown[];
+    war: unknown;
+    war_progress: unknown;
+    chain: unknown;
+    chain_summary: { total_chains: number; attacks_in_db: number };
+    loot: unknown;
+    bounties: unknown[];
+    oc_crimes: unknown[];
+    chat_unread: { channels: Record<string, number>; total: number };
+    chat_channels: { id: number; name: string }[];
+    status: { war_active: boolean; poll_interval: number; last_refresh: number; refresh_cycle: number };
+    cached_at: number;
+  }>("/api/dashboard"),
   detail: () => apiFetch<import("@/types/war").DetailResponse>("/api/members/detail"),
   enemy: (factionId?: number) => {
     const pid = getPlayerId();
