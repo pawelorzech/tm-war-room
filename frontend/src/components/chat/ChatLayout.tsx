@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { useAuth } from "@/hooks/useAuth";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import { ChannelList } from "./ChannelList";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
@@ -17,6 +18,7 @@ import type { Thread, Channel } from "@/types/chat";
 
 export function ChatLayout() {
   const { playerId, role } = useAuth();
+  const visible = usePageVisible();
   const {
     channels, activeChannelId, messages, loading, loadingMessages,
     unreadCounts, totalUnread, onlinePlayers, typingPlayers, isLoadingOlder, hasMoreOlder,
@@ -64,6 +66,7 @@ export function ChatLayout() {
       setTravelers([]);
       return;
     }
+    if (!visible) return;
     let cancelled = false;
     const fetchTravelers = () => {
       api.chatTraveling()
@@ -73,7 +76,7 @@ export function ChatLayout() {
     fetchTravelers();
     const interval = setInterval(fetchTravelers, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [activeChannel]);
+  }, [activeChannel, visible]);
 
   // Close online popover on outside click
   useEffect(() => {

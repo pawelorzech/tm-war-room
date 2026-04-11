@@ -394,29 +394,33 @@ async def dashboard_aggregate(x_player_id: int = Header()):
     overview_task = torn_client.fetch_members(api_key=active_key)
     chain_task = torn_client.fetch_chain(api_key=active_key)
     war_task = torn_client.fetch_war(api_key=active_key)
+    bounties_task = torn_client.fetch_bounties()
+    oc_task = torn_client.fetch_faction_crimes(cat="planning")
 
-    members, chain, war = await asyncio.gather(overview_task, chain_task, war_task)
+    results = await asyncio.gather(
+        overview_task, chain_task, war_task, bounties_task, oc_task,
+        return_exceptions=True,
+    )
+    members = results[0] if not isinstance(results[0], BaseException) else []
+    chain = results[1] if not isinstance(results[1], BaseException) else None
+    war = results[2] if not isinstance(results[2], BaseException) else None
+    bounties = results[3] if not isinstance(results[3], BaseException) else []
+    oc_crimes = results[4] if not isinstance(results[4], BaseException) else []
 
-    member_dicts = [m.model_dump() for m in members]
-
-    # Pre-computed counts for dashboard (avoids sending full member list to frontend)
+    # Pre-computed counts — iterate Pydantic models directly (no model_dump overhead)
     _online_count = 0
     _hospital_count = 0
     _traveling_count = 0
     _wall_count = 0
-    for md in member_dicts:
-        status_val = md.get("status") or {}
-        last_action_val = md.get("last_action") or {}
-        status_str = (status_val.get("description") or status_val.get("state") or "") if isinstance(status_val, dict) else str(status_val)
-        la_str = (last_action_val.get("relative") or last_action_val.get("status") or "") if isinstance(last_action_val, dict) else str(last_action_val)
-        status_lower = status_str.lower()
+    for m in members:
+        status_lower = (m.status.description or m.status.state or "").lower()
         if "hospital" in status_lower:
             _hospital_count += 1
         elif "travel" in status_lower or "abroad" in status_lower:
             _traveling_count += 1
-        if md.get("is_on_wall"):
+        if m.is_on_wall:
             _wall_count += 1
-        la_lower = la_str.lower()
+        la_lower = (m.last_action.relative or "").lower()
         if "online" in la_lower or la_lower.startswith(("0 ", "1 ", "2 ", "3 ", "4 ", "5 ")):
             _online_count += 1
 
@@ -438,20 +442,6 @@ async def dashboard_aggregate(x_player_id: int = Header()):
     except Exception:
         pass
 
-    # Bounties (cached)
-    bounties = []
-    try:
-        bounties = await torn_client.fetch_bounties()
-    except Exception:
-        pass
-
-    # OC (cached)
-    oc_crimes = []
-    try:
-        oc_crimes = await torn_client.fetch_faction_crimes(cat="planning")
-    except Exception:
-        pass
-
     # Chat unread
     chat_unread = {"channels": {}, "total": 0}
     chat_channels = []
@@ -467,9 +457,8 @@ async def dashboard_aggregate(x_player_id: int = Header()):
         pass
 
     return {
-        "members": member_dicts,
         "member_counts": {
-            "total": len(member_dicts),
+            "total": len(members),
             "online": _online_count,
             "hospital": _hospital_count,
             "traveling": _traveling_count,

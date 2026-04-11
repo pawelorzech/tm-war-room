@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import { api, getSessionToken } from "@/lib/api-client";
 import type { Channel, Message, ChatWSMessage } from "@/types/chat";
 
 export function useChat() {
   const { playerId, playerName } = useAuth();
+  const visible = usePageVisible();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -281,6 +283,7 @@ export function useChat() {
 
   // Clean up stale typing indicators
   useEffect(() => {
+    if (!visible) return;
     const interval = setInterval(() => {
       const now = Date.now();
       setTypingPlayers(prev => {
@@ -292,7 +295,7 @@ export function useChat() {
       });
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [visible]);
 
   // ── Init ───────────────────────────────────────────────
   useEffect(() => {
@@ -302,22 +305,26 @@ export function useChat() {
     })();
     connectWS();
 
-    // Poll online players every 30s
+    // Initial fetch
+    api.chatOnline().then(d => setOnlinePlayers(d.online)).catch(() => {});
+
+    return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [loadChannels, connectWS]);
+
+  // Poll online players every 30s (only when page is visible)
+  useEffect(() => {
+    if (!visible) return;
     const pollOnline = setInterval(async () => {
       try {
         const data = await api.chatOnline();
         setOnlinePlayers(data.online);
       } catch { /* ignore */ }
     }, 30000);
-    // Initial fetch
-    api.chatOnline().then(d => setOnlinePlayers(d.online)).catch(() => {});
-
-    return () => {
-      clearInterval(pollOnline);
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, [loadChannels, connectWS]);
+    return () => clearInterval(pollOnline);
+  }, [visible]);
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 

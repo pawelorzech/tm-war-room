@@ -20,21 +20,6 @@ interface LootNPC {
   reservations: { player_name: string }[];
 }
 
-// Helper to safely extract status string from member data
-function getStatusStr(m: Record<string, unknown>): string {
-  const s = m.status;
-  if (typeof s === 'string') return s;
-  if (s && typeof s === 'object') return (s as Record<string, unknown>).description as string || (s as Record<string, unknown>).state as string || '';
-  return '';
-}
-
-function getLastActionStr(m: Record<string, unknown>): string {
-  const la = m.last_action;
-  if (typeof la === 'string') return la;
-  if (la && typeof la === 'object') return (la as Record<string, unknown>).relative as string || (la as Record<string, unknown>).status as string || '';
-  return '';
-}
-
 function Widget({ title, href, children }: { title: string; href: string; children: React.ReactNode }) {
   return (
     <Link href={href} className="bg-bg-card border border-text-secondary/15 rounded-xl p-4 hover:border-torn-green/30 transition-all block">
@@ -65,24 +50,10 @@ export default function DashboardPage() {
     api.dashboard().then((data) => {
       setStatus(data.status);
 
-      // Members — use server-computed counts if available, fallback to client-side
-      const mc = (data as Record<string, unknown>).member_counts as { total: number; online: number; hospital: number; traveling: number; on_wall: number } | undefined;
+      // Members — use server-computed counts
+      const mc = (data as Record<string, unknown>).member_counts as { total: number; online: number; hospital: number; traveling: number; on_wall: number };
       if (mc) {
         setMemberCounts({ total: mc.total, online: mc.online, hospital: mc.hospital, traveling: mc.traveling, onWall: mc.on_wall });
-      } else {
-        const members = (data.members || []) as Record<string, unknown>[];
-        const total = members.length;
-        const online = members.filter(m => {
-          const la = getLastActionStr(m).toLowerCase();
-          return la.includes('online') || la.match(/^\d+\s+second/) || (la.match(/^(\d+)\s+minute/) && parseInt(la) <= 5);
-        }).length;
-        const hospital = members.filter(m => getStatusStr(m).toLowerCase().includes('hospital')).length;
-        const traveling = members.filter(m => {
-          const s = getStatusStr(m).toLowerCase();
-          return s.includes('travel') || s.includes('abroad');
-        }).length;
-        const onWall = members.filter(m => !!m.is_on_wall).length;
-        setMemberCounts({ total, online, hospital, traveling, onWall });
       }
 
       // Loot

@@ -42,5 +42,4 @@ class NotificationRepository(BaseRepository):
         cursor = conn.execute("DELETE FROM notifications WHERE created_at < ?", (cutoff,))
         deleted = cursor.rowcount
         conn.commit()
-        conn.close()
         return deleted

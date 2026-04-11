@@ -21,7 +21,6 @@ class AttackRepository(BaseRepository):
             attack.get("fair_fight", 1), attack.get("war_modifier", 1), attack.get("chain_modifier", 1),
         ))
         conn.commit()
-        conn.close()
 
     def bulk_upsert(self, attacks: list[dict]) -> int:
         conn = self._conn()
@@ -45,7 +44,6 @@ class AttackRepository(BaseRepository):
             if c.rowcount > 0:
                 inserted += 1
         conn.commit()
-        conn.close()
         return inserted
 
     def get_chain_report(self, since: int = 0) -> list[dict]:
@@ -148,10 +146,13 @@ class AttackRepository(BaseRepository):
         row = self.execute_one("SELECT COUNT(*) as cnt FROM attack_log")
         return row["cnt"] if row else 0
 
-    def get_all_ordered(self) -> list[dict]:
-        """All attacks ordered by started ASC for chain detection."""
+    def get_all_ordered(self, since_days: int = 90) -> list[dict]:
+        """Attacks ordered by started ASC for chain detection (default: last 90 days)."""
+        import time as _time
+        cutoff = int(_time.time()) - since_days * 86400
         rows = self.execute(
-            "SELECT * FROM attack_log ORDER BY started ASC"
+            "SELECT * FROM attack_log WHERE started >= ? ORDER BY started ASC",
+            (cutoff,),
         )
         return [dict(r) for r in rows]
 
