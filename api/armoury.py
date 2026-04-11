@@ -80,3 +80,29 @@ def matches_category(item_name: str, category: str) -> bool:
 
 def matches_any_category(item_name: str, categories: str) -> bool:
     return any(matches_category(item_name, c.strip()) for c in categories.split(","))
+
+
+def matches_competition(item_name: str, category_csv: str | None, items_csv: str | None) -> bool:
+    """Check if a deposit matches a competition's categories OR specific items."""
+    if category_csv:
+        if matches_any_category(item_name, category_csv):
+            return True
+    if items_csv:
+        if item_name in {i.strip() for i in items_csv.split(",") if i.strip()}:
+            return True
+    return False
+
+
+CATEGORY_TO_ITEMS: dict[str, list[str]] = {
+    "blood_bags": [
+        "Blood Bag : A+", "Blood Bag : A-", "Blood Bag : B+", "Blood Bag : B-",
+        "Blood Bag : AB+", "Blood Bag : AB-", "Blood Bag : O+", "Blood Bag : O-",
+        "Blood Bag : Irradiated",
+    ],
+    "temporary": sorted(TEMPORARY_ITEMS),
+    "alcohol": sorted(ALCOHOL_ITEMS),
+    "medical": sorted(MEDICAL_ITEMS),
+    "drugs": sorted(DRUG_ITEMS),
+    "energy_drinks": sorted(ENERGY_DRINK_ITEMS),
+    "candy": sorted(CANDY_ITEMS),
+}

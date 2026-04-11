@@ -30,3 +30,5 @@ APP_VERSION: str = os.environ.get("APP_VERSION", "dev")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY")
 VAPID_MAILTO = os.environ.get("VAPID_MAILTO", "mailto:admin@tri.ovh")
+
+MCP_SECRET: str = os.environ.get("MCP_SECRET", "")

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tm-war-room": {
+      "type": "http",
+      "url": "https://hub.tri.ovh/mcp",
+      "headers": {
+        "Authorization": "Bearer ${TM_HUB_MCP_SECRET}"
+      }
+    }
+  }
+}
