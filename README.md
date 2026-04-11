@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white" alt="Next.js 15" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React 19" />
   <img src="https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwindcss&logoColor=white" alt="Tailwind v4" />
-  <img src="https://img.shields.io/badge/tests-235-green?logo=pytest&logoColor=white" alt="235 tests" />
+  <img src="https://img.shields.io/badge/tests-426-green?logo=pytest&logoColor=white" alt="426 tests" />
 </p>
 
 ---
@@ -94,6 +94,7 @@ TM Hub is a self-hosted web application built for [Torn.com](https://www.torn.co
 | **Travel Planner** | 11 countries with travel times, items abroad, market prices |
 | **Company Tracker** | Company data and employee stats |
 | **Player Compare** | Side-by-side stat comparison between players |
+| **Armoury Competitions** | Create deposit competitions for categories or specific items, autocomplete item search, live leaderboards |
 
 ### Guides & Education
 | Feature | Description |
@@ -111,6 +112,7 @@ TM Hub is a self-hosted web application built for [Torn.com](https://www.torn.co
 - **Admin panel** — analytics dashboard, announcement editor, spy data management, role management
 - **Push notifications** — browser notifications for important events
 - **Background refresh** — all data stays fresh automatically
+- **Faction chat** — built-in chat for faction coordination
 - **Page explainers** — dismissible tutorial panel on every page
 
 ---
@@ -124,7 +126,7 @@ TM Hub is a self-hosted web application built for [Torn.com](https://www.torn.co
 | **Auth** | Torn API key validation → Fernet encryption → `X-Player-Id` header |
 | **Integrations** | Torn API v1/v2, TornStats API, YATA API |
 | **Deploy** | Docker (multi-stage) → GitHub Actions → Coolify → VPS |
-| **Testing** | 235 pytest tests (async), static export build verification |
+| **Testing** | 426 pytest tests (async), static export build verification |
 
 ---
 
@@ -140,14 +142,14 @@ api/
 ├── admin.py                # Admin panel router
 ├── db/
 │   ├── __init__.py         # KeyStore facade
-│   ├── migrations/         # 20 versioned SQL migrations
+│   ├── migrations/         # 35 versioned SQL migrations
 │   └── repos/              # SQLite repositories (BaseRepository pattern)
 ├── services/               # Business logic (SpyService, etc.)
-├── routers/                # Feature routers (28 route modules)
+├── routers/                # Feature routers (22 route modules)
 └── scheduler/              # APScheduler 4 background jobs
 
 frontend/src/
-├── app/                    # Next.js pages (33 routes)
+├── app/                    # Next.js pages (32 routes)
 ├── components/             # React components organized by domain
 ├── data/changelog.ts       # Version history + CURRENT_VERSION (semver)
 ├── hooks/                  # Data-fetching hooks (useAuth, useWarData, etc.)
@@ -210,7 +212,7 @@ cd frontend && npm run dev
 ### Testing
 
 ```bash
-# Run all 235 backend tests
+# Run all backend tests
 uv run pytest tests/ -v
 
 # Run specific test file

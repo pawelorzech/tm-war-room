@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
-from api.armoury import parse_deposit_news, matches_category, matches_any_category
+from api.armoury import parse_deposit_news, matches_category, matches_any_category, matches_competition
 
 # ---------------------------------------------------------------------------
 # 1. Parser tests
@@ -102,6 +102,38 @@ class TestMatchesAnyCategory:
         assert matches_any_category("Melatonin", "alcohol,blood_bags,temporary") is True
 
 
+class TestMatchesCompetition:
+    def test_category_only_match(self):
+        assert matches_competition("Xanax", "drugs", None) is True
+
+    def test_category_only_no_match(self):
+        assert matches_competition("Xanax", "blood_bags", None) is False
+
+    def test_items_only_match(self):
+        assert matches_competition("Xanax", None, "Xanax,LSD") is True
+
+    def test_items_only_no_match(self):
+        assert matches_competition("Cannabis", None, "Xanax,LSD") is False
+
+    def test_both_match_via_category(self):
+        assert matches_competition("Xanax", "drugs", "LSD") is True
+
+    def test_both_match_via_items(self):
+        assert matches_competition("Xanax", "blood_bags", "Xanax,LSD") is True
+
+    def test_both_no_match(self):
+        assert matches_competition("Xanax", "blood_bags", "Epinephrine") is False
+
+    def test_empty_category_and_items(self):
+        assert matches_competition("Xanax", "", None) is False
+
+    def test_empty_strings(self):
+        assert matches_competition("Xanax", "", "") is False
+
+    def test_items_with_spaces(self):
+        assert matches_competition("Xanax", None, "LSD, Xanax, PCP") is True
+
+
 # ---------------------------------------------------------------------------
 # 2. Repository tests
 # ---------------------------------------------------------------------------
@@ -110,6 +142,7 @@ MIGRATION_PATHS = [
     "api/db/migrations/032_armoury_competitions.sql",
     "api/db/migrations/033_armoury_prizes_and_multicategory.sql",
     "api/db/migrations/034_deposits_unique_per_competition.sql",
+    "api/db/migrations/035_armoury_items.sql",
 ]
 
 
@@ -224,6 +257,24 @@ class TestArmouryRepository:
     def test_get_last_poll_ts_empty(self, repo):
         comp_id = repo.create_competition("Comp", "blood_bags", 1000, 2000, 1)
         assert repo.get_last_poll_ts(comp_id) is None
+
+    def test_create_competition_with_items(self, repo):
+        comp_id = repo.create_competition("Item Comp", "", 1000, 2000, 42, items="Xanax,LSD")
+        comp = repo.get_competition(comp_id)
+        assert comp is not None
+        assert comp["items"] == "Xanax,LSD"
+        assert comp["category"] == ""
+
+    def test_create_competition_items_null_by_default(self, repo):
+        comp_id = repo.create_competition("Cat Comp", "drugs", 1000, 2000, 42)
+        comp = repo.get_competition(comp_id)
+        assert comp["items"] is None
+
+    def test_update_competition_items(self, repo):
+        comp_id = repo.create_competition("Comp", "drugs", 1000, 2000, 42)
+        repo.update_competition(comp_id, items="Xanax,LSD,PCP")
+        comp = repo.get_competition(comp_id)
+        assert comp["items"] == "Xanax,LSD,PCP"
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +415,43 @@ class TestArmouryRoutes:
             headers={"X-Player-Id": "123"},
         )
         assert resp.status_code == 403
+
+    def test_create_competition_items_only(self, armoury_app):
+        client, _, _ = armoury_app
+        resp = client.post(
+            "/api/armoury/competitions",
+            json={"name": "Item Comp", "items": ["Xanax", "LSD"], "start_ts": 1000, "end_ts": 2000},
+            headers={"X-Player-Id": "123"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "created"
+
+    def test_create_competition_categories_and_items(self, armoury_app):
+        client, _, _ = armoury_app
+        resp = client.post(
+            "/api/armoury/competitions",
+            json={"name": "Mixed", "categories": ["blood_bags"], "items": ["Xanax"], "start_ts": 1000, "end_ts": 2000},
+            headers={"X-Player-Id": "123"},
+        )
+        assert resp.status_code == 200
+
+    def test_create_competition_no_categories_no_items_400(self, armoury_app):
+        client, _, _ = armoury_app
+        resp = client.post(
+            "/api/armoury/competitions",
+            json={"name": "Empty", "categories": [], "items": [], "start_ts": 1000, "end_ts": 2000},
+            headers={"X-Player-Id": "123"},
+        )
+        assert resp.status_code == 400
+
+    def test_list_categories(self, armoury_app):
+        client, _, _ = armoury_app
+        resp = client.get("/api/armoury/categories", headers={"X-Player-Id": "123"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "drugs" in data["categories"]
+        assert "Xanax" in data["categories"]["drugs"]
 
     def test_unregistered_user_401(self, armoury_app):
         client, mock_ks, _ = armoury_app

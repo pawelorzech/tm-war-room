@@ -14,30 +14,28 @@ _items_cache_ts: float = 0
 CACHE_TTL = 300  # 5 min
 
 
-@router.get("/prices")
-async def get_all_items():
-    """Get ALL items with market values, buy/sell prices for profit calculations."""
+async def ensure_items_cache(tc=None) -> list[dict]:
+    """Populate and return the items cache, usable from other routers."""
     global _items_cache, _items_cache_ts
-    if not torn_client:
-        raise HTTPException(status_code=503, detail="Market not initialized")
+    client = tc or torn_client
+    if not client:
+        return _items_cache or []
 
     now = time.time()
     if _items_cache and now - _items_cache_ts < CACHE_TTL:
-        return {"items": _items_cache, "count": len(_items_cache)}
+        return _items_cache
 
     try:
-        resp = await torn_client._http.get(
+        resp = await client._http.get(
             "https://api.torn.com/torn/",
-            params={"selections": "items", "key": torn_client._api_key},
+            params={"selections": "items", "key": client._api_key},
         )
         resp.raise_for_status()
         raw = await _json(resp)
         items_data = raw.get("items", {})
     except Exception as e:
         logger.error("Failed to fetch items: %s", e)
-        if _items_cache:
-            return {"items": _items_cache, "count": len(_items_cache)}
-        raise HTTPException(status_code=502, detail="Failed to fetch item data")
+        return _items_cache or []
 
     items = []
     for iid_str, item in items_data.items():
@@ -59,8 +57,6 @@ async def get_all_items():
         # Profit calculations
         # If you buy from NPC (buy_price) and sell on market (market_value)
         profit_buy_npc = (market_value - buy_price) if buy_price > 0 and market_value > 0 else 0
-        # If you buy from NPC and sell to NPC
-        profit_npc_npc = (sell_price - buy_price) if buy_price > 0 and sell_price > 0 else 0
 
         items.append({
             "id": iid,
@@ -80,4 +76,15 @@ async def get_all_items():
     _items_cache = items
     _items_cache_ts = now
     logger.info("Loaded %d items for market scanner", len(items))
+    return _items_cache
+
+
+@router.get("/prices")
+async def get_all_items():
+    """Get ALL items with market values, buy/sell prices for profit calculations."""
+    if not torn_client:
+        raise HTTPException(status_code=503, detail="Market not initialized")
+    items = await ensure_items_cache()
+    if not items:
+        raise HTTPException(status_code=502, detail="Failed to fetch item data")
     return {"items": items, "count": len(items)}
