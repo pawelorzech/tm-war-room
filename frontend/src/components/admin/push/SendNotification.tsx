@@ -134,7 +134,7 @@ export function SendNotification({ adminFetch }: SendNotificationProps) {
           <label className="text-xs text-text-muted block mb-1">URL (optional)</label>
           <input value={url} onChange={e => setUrl(e.target.value)}
             className="w-full px-3 py-2 text-sm bg-bg-elevated border border-border rounded-lg text-text-primary"
-            placeholder="/wars, /chain, etc." />
+            placeholder="/wars, /chain, or https://www.torn.com/..." />
         </div>
       </div>
 

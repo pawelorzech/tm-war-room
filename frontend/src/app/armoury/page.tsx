@@ -190,13 +190,16 @@ function LeaderboardTable({ board, myPid, compact }: {
 
 /* -- Past Competition Card (collapsed preview, expandable) -- */
 
-function PastCompetitionCard({ comp, myPid }: {
+function PastCompetitionCard({ comp, myPid, isAdmin, onDelete }: {
   comp: Competition;
   myPid: string | null;
+  isAdmin: boolean;
+  onDelete?: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [board, setBoard] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleToggle = async () => {
     const next = !expanded;
@@ -251,6 +254,28 @@ function PastCompetitionCard({ comp, myPid }: {
         ) : (
           <div className="p-3 text-center text-text-muted text-sm">Failed to load.</div>
         )
+      )}
+      {expanded && isAdmin && onDelete && (
+        <div className="border-t border-border p-3 flex justify-end">
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-400">Delete this competition and all its data?</span>
+              <button onClick={() => onDelete(comp.id)}
+                className="px-3 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700 transition-colors">
+                Yes, delete
+              </button>
+              <button onClick={() => setConfirmDelete(false)}
+                className="px-3 py-1 text-xs rounded bg-bg-elevated text-text-secondary hover:bg-bg-elevated/80 transition-colors">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)}
+              className="px-3 py-1 text-xs rounded text-red-400 hover:bg-red-500/10 transition-colors">
+              Delete
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -377,6 +402,16 @@ export default function ArmouryPage() {
     }
   };
 
+  /* Admin: delete competition */
+  const handleDelete = async (id: number) => {
+    try {
+      await api.armouryDeleteCompetition(id);
+      await loadData();
+    } catch {
+      /* swallow */
+    }
+  };
+
   const selectedComp = activeComps.find(c => c.id === selectedCompId) ?? null;
   const selectedBoard = selectedCompId ? activeBoards.get(selectedCompId) ?? null : null;
 
@@ -396,12 +431,12 @@ export default function ArmouryPage() {
         </div>
 
         <PageExplainer id="armoury" title="Armoury Competitions \u2014 How it works" bullets={[
-          'Faction leadership creates competitions around restocking specific item categories (blood bags, temporary items, or alcohol).',
+          'Faction leadership creates competitions around restocking specific item categories — blood bags, temporary items, alcohol, medical, drugs, energy drinks, candy, or specific items.',
           'Every deposit you make to the faction armoury during the competition window is tracked automatically via the Torn API.',
-          'The leaderboard shows who has deposited the most items. Prizes are announced by leadership for each competition.',
+          'The leaderboard shows who has deposited the most qualifying items. Prizes are announced by leadership for each competition.',
           'Leaderboard refreshes every 60 seconds. Keep depositing to climb the ranks!',
-          'Data: Torn API v2 armoury logs, scanned every data refresh cycle.',
-        ]} />
+          'Admins can create competitions with custom date ranges, categories, specific items, and prize descriptions.',
+        ]} dataSources={['Torn API v2 armoury news logs', 'Polled every data refresh cycle (~30s)']} links={[['Torn Wiki: Armoury', 'https://wiki.torn.com/wiki/Faction_Armoury']]} />
 
         {loading ? (
           <TableSkeleton rows={8} cols={5} />
@@ -529,7 +564,7 @@ export default function ArmouryPage() {
               Past Competitions ({pastComps.length})
             </h3>
             {pastComps.map(comp => (
-              <PastCompetitionCard key={comp.id} comp={comp} myPid={myPid} />
+              <PastCompetitionCard key={comp.id} comp={comp} myPid={myPid} isAdmin={isAdmin} onDelete={handleDelete} />
             ))}
           </div>
         )}
