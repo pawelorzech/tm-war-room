@@ -10,6 +10,12 @@ push_repo = None       # Set by main.py
 push_service = None    # Set by main.py
 vapid_public_key = None  # Set by main.py
 event_repo = None      # Set by main.py — NotificationEventRepository
+key_store = None       # Set by main.py — for member validation
+
+
+def _verify_member(player_id: int):
+    if not key_store or not key_store.has_key(player_id):
+        raise HTTPException(status_code=403, detail="Not a faction member")
 
 
 class SubscribeRequest(BaseModel):
@@ -29,6 +35,7 @@ async def get_vapid_key():
 
 @router.post("/subscribe")
 async def subscribe(req: SubscribeRequest, x_player_id: int = Header()):
+    _verify_member(x_player_id)
     if not push_repo:
         raise HTTPException(status_code=503, detail="Not initialized")
     push_repo.save(
@@ -43,6 +50,7 @@ async def subscribe(req: SubscribeRequest, x_player_id: int = Header()):
 
 @router.put("/preferences")
 async def update_preferences(req: PreferencesRequest, x_player_id: int = Header()):
+    _verify_member(x_player_id)
     if not push_repo:
         raise HTTPException(status_code=503, detail="Not initialized")
     push_repo.update_preferences(x_player_id, req.preferences)
@@ -51,6 +59,7 @@ async def update_preferences(req: PreferencesRequest, x_player_id: int = Header(
 
 @router.delete("/unsubscribe")
 async def unsubscribe(endpoint: str, x_player_id: int = Header()):
+    _verify_member(x_player_id)
     if not push_repo:
         raise HTTPException(status_code=503, detail="Not initialized")
     # Verify ownership before deleting
@@ -66,6 +75,7 @@ async def unsubscribe(endpoint: str, x_player_id: int = Header()):
 @router.post("/pda/register")
 async def pda_register(x_player_id: int = Header()):
     """Register PDA as notification channel for this player."""
+    _verify_member(x_player_id)
     sentinel_endpoint = f"pda:{x_player_id}"
     push_repo.save(
         player_id=x_player_id,
@@ -85,6 +95,7 @@ async def pda_register(x_player_id: int = Header()):
 @router.get("/pda/poll")
 async def pda_poll(x_player_id: int = Header()):
     """Get pending notifications for this PDA player. Marks them as delivered."""
+    _verify_member(x_player_id)
     if not event_repo:
         return {"events": []}
     pending = event_repo.get_pending_pda(x_player_id)
@@ -108,5 +119,6 @@ async def pda_poll(x_player_id: int = Header()):
 @router.delete("/pda/unregister")
 async def pda_unregister(x_player_id: int = Header()):
     """Unregister PDA channel for this player."""
+    _verify_member(x_player_id)
     push_repo.delete_by_endpoint(f"pda:{x_player_id}")
     return {"status": "ok"}

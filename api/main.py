@@ -144,6 +144,7 @@ async def lifespan(app: FastAPI):
     from api.db.repos.push_repository import PushRepository
     push_repo = PushRepository(db_path="data/keys.db")
     push_mod.push_repo = push_repo
+    push_mod.key_store = key_store
     from api.config import VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY, VAPID_MAILTO
     push_mod.vapid_public_key = VAPID_PUBLIC_KEY
 

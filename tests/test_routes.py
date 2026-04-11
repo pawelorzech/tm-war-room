@@ -565,6 +565,7 @@ async def test_push_subscribe(mock_client, mock_store):
         import api.routers.push as push_mod
         mock_push_repo = MagicMock()
         push_mod.push_repo = mock_push_repo
+        push_mod.key_store = mock_store
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
