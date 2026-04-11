@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import { usePageVisible } from '@/hooks/usePageVisible';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -62,11 +63,14 @@ export default function StakeoutPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const visible = usePageVisible();
+
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => {
+    if (!visible) return;
     const timer = setInterval(loadData, 15000); // Refresh every 15s
     return () => clearInterval(timer);
-  }, [loadData]);
+  }, [loadData, visible]);
 
   const handleAdd = async () => {
     const pid = parseInt(addId);

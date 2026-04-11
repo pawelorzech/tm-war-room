@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api-client";
+import { getOverview } from "@/lib/overview-cache";
 import { usePageVisible } from "@/hooks/usePageVisible";
 import type { OverviewResponse, DetailResponse } from "@/types/war";
 
@@ -16,7 +17,7 @@ export function useTeamData() {
 
   const refresh = useCallback(async () => {
     try {
-      const [ov, det] = await Promise.all([api.overview(), api.detail()]);
+      const [ov, det] = await Promise.all([getOverview(true), api.detail()]);
       setOverview(ov);
       setDetail(det);
       setLastUpdate(new Date());

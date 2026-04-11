@@ -251,6 +251,38 @@ async def run_refresh_data() -> None:
         except Exception as e:
             logger.error("Background loot refresh failed: %s", e)
 
+    # 7b. Member bars — every cycle during war, every 2nd peacetime
+    if war_active or _cycle % 2 == 0:
+        try:
+            key_repo = state.get("key_repo")
+            if key_repo and torn_client:
+                import asyncio as _aio
+                pairs = key_repo.get_all_player_ids_with_keys()
+
+                async def _bg_bars(pid: int, enc_key) -> tuple[int, dict | None]:
+                    try:
+                        api_key = key_repo.decrypt_key(enc_key)
+                        bars = await torn_client.fetch_member_bars(api_key)
+                        return pid, {
+                            "energy": bars.energy.current,
+                            "max_energy": bars.energy.maximum,
+                            "drug_cd": bars.cooldowns.drug,
+                        }
+                    except Exception:
+                        return pid, None
+
+                results = await _aio.gather(*[_bg_bars(pid, enc) for pid, enc in pairs])
+                from api.main import _bars_cache
+                import time as _t
+                from api import main as _main_mod
+                for pid, data in results:
+                    if data is not None:
+                        _bars_cache[pid] = data
+                _main_mod._bars_cache_ts = _t.time()
+                refreshed.append(f"bars:{sum(1 for _, d in results if d)}/{len(pairs)}")
+        except Exception as e:
+            logger.error("Background bars refresh failed: %s", e)
+
     # 8. OC — full cycle only
     if is_full_cycle:
         try:

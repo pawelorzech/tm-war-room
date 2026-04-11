@@ -74,6 +74,10 @@ key_store: KeyStore | None = None
 analytics_store = None
 presence_repo = None  # PresenceRepository, set in lifespan
 
+# Background bars cache: {player_id: {energy, max_energy, drug_cd}} — refreshed by scheduler
+_bars_cache: dict[int, dict] = {}
+_bars_cache_ts: float = 0
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -376,6 +380,92 @@ async def app_status():
     }
 
 
+@app.get("/api/dashboard")
+async def dashboard_aggregate(x_player_id: int = Header()):
+    """Single aggregated endpoint for the dashboard page — replaces 7+ parallel calls."""
+    if not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+
+    from api.scheduler.jobs.refresh_data import war_active, last_full_refresh, _cycle
+
+    active_key = _get_active_api_key()
+
+    # All these hit in-memory caches (refreshed by scheduler), so they're fast
+    overview_task = torn_client.fetch_members(api_key=active_key)
+    chain_task = torn_client.fetch_chain(api_key=active_key)
+    war_task = torn_client.fetch_war(api_key=active_key)
+
+    members, chain, war = await asyncio.gather(overview_task, chain_task, war_task)
+
+    member_dicts = [m.model_dump() for m in members]
+
+    # Loot data (from cache, refreshed by scheduler/endpoint)
+    loot_data = None
+    try:
+        from api.routers import loot as loot_mod
+        if loot_mod._cache:
+            loot_data = loot_mod._cache
+    except Exception:
+        pass
+
+    # Chain summary
+    chain_summary = {"total_chains": 0, "attacks_in_db": 0}
+    try:
+        from api.routers import chain as chain_mod_ref
+        if chain_mod_ref.attack_repo:
+            chain_summary["attacks_in_db"] = chain_mod_ref.attack_repo.get_count()
+    except Exception:
+        pass
+
+    # Bounties (cached)
+    bounties = []
+    try:
+        bounties = await torn_client.fetch_bounties()
+    except Exception:
+        pass
+
+    # OC (cached)
+    oc_crimes = []
+    try:
+        oc_crimes = await torn_client.fetch_faction_crimes(cat="planning")
+    except Exception:
+        pass
+
+    # Chat unread
+    chat_unread = {"channels": {}, "total": 0}
+    chat_channels = []
+    try:
+        from api.routers import chat as chat_mod_ref
+        if chat_mod_ref.chat_repo:
+            channels = chat_mod_ref.chat_repo.get_channels()
+            chat_channels = [{"id": c["id"], "name": c["name"]} for c in channels]
+            unread = chat_mod_ref.chat_repo.get_unread_counts(x_player_id)
+            total = sum(unread.values())
+            chat_unread = {"channels": unread, "total": total}
+    except Exception:
+        pass
+
+    return {
+        "members": member_dicts,
+        "war": war.model_dump() if war else None,
+        "war_progress": _build_war_progress(war),
+        "chain": chain,
+        "chain_summary": chain_summary,
+        "loot": loot_data,
+        "bounties": bounties,
+        "oc_crimes": oc_crimes,
+        "chat_unread": chat_unread,
+        "chat_channels": chat_channels,
+        "status": {
+            "war_active": war_active,
+            "poll_interval": 15 if war_active else 60,
+            "last_refresh": int(last_full_refresh),
+            "refresh_cycle": _cycle,
+        },
+        "cached_at": int(time.time()),
+    }
+
+
 CANONICAL_HOST = "hub.tri.ovh"
 REDIRECT_HOSTS = {"rw.tri.ovh", "train.tri.ovh"}
 
@@ -435,8 +525,30 @@ async def enforce_api_auth(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
     if path.startswith("/api/"):
-        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers.setdefault("Cache-Control", _api_cache_header(path))
     return response
+
+
+# Cache-Control per API path: cacheable read-only endpoints get stale-while-revalidate
+_API_CACHE_RULES: list[tuple[str, str]] = [
+    ("/api/company/catalog", "private, max-age=300, stale-while-revalidate=600"),
+    ("/api/stocks/market", "private, max-age=120, stale-while-revalidate=300"),
+    ("/api/awards/me", "private, max-age=60, stale-while-revalidate=300"),
+    ("/api/overview", "private, max-age=15, stale-while-revalidate=30"),
+    ("/api/dashboard", "private, max-age=15, stale-while-revalidate=30"),
+    ("/api/status", "private, max-age=10, stale-while-revalidate=20"),
+    ("/api/bounties", "private, max-age=30, stale-while-revalidate=60"),
+    ("/api/loot", "private, max-age=15, stale-while-revalidate=30"),
+    ("/api/market/prices", "private, max-age=60, stale-while-revalidate=120"),
+    ("/api/travel", "private, max-age=60, stale-while-revalidate=120"),
+]
+
+
+def _api_cache_header(path: str) -> str:
+    for prefix, header in _API_CACHE_RULES:
+        if path.startswith(prefix):
+            return header
+    return "no-store"
 
 
 @app.middleware("http")
@@ -544,7 +656,6 @@ async def members_detail(x_player_id: int = Header()):
     if not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
-    all_keys = key_store.get_all_keys()
     active_key = _get_active_api_key()
     members = await torn_client.fetch_members(api_key=active_key)
     member_map = {m.id: m for m in members}
@@ -562,35 +673,23 @@ async def members_detail(x_player_id: int = Header()):
 
     # Fetch YATA data (single attempt with one fallback key, no loop)
     yata_data = await torn_client.fetch_yata_members(api_key=active_key)
-    if yata_data is None and all_keys:
+    if yata_data is None:
+        all_keys = key_store.get_all_keys()
         fallback_key = next((k["api_key"] for k in all_keys if k["api_key"] != active_key), None)
         if fallback_key:
             yata_data = await torn_client.fetch_yata_members(api_key=fallback_key)
     yata_down = yata_data is None
 
-    # Fetch per-key data for registered members (parallel)
-    visible_keys = [(e["player_id"], e["api_key"]) for e in all_keys if e["player_id"] in visible_ids]
-
-    async def _fetch_bars(pid: int, api_key: str) -> tuple[int, Any]:
-        try:
-            bars = await torn_client.fetch_member_bars(api_key)
-            return pid, bars
-        except Exception:
-            return pid, None
-
-    bar_results = await asyncio.gather(*[_fetch_bars(pid, key) for pid, key in visible_keys])
-    per_key = {pid: bars for pid, bars in bar_results if bars is not None}
-
-    # Merge: per-key wins, then YATA, then status flags
+    # Read from background bars cache (populated by scheduler every 30s)
     result = {}
     for pid in visible_ids:
         pid_str = str(pid)
-        if pid in per_key:
-            bars = per_key[pid]
+        cached_bars = _bars_cache.get(pid)
+        if cached_bars:
             result[pid_str] = {
-                "energy": bars.energy.current,
-                "max_energy": bars.energy.maximum,
-                "drug_cd": bars.cooldowns.drug,
+                "energy": cached_bars["energy"],
+                "max_energy": cached_bars["max_energy"],
+                "drug_cd": cached_bars["drug_cd"],
                 "refill": False,
                 "source": "torn_api",
             }
