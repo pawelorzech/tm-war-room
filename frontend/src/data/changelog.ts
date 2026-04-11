@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.7.0";
+export const CURRENT_VERSION = "1.8.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.8.0",
+    date: "2026-04-11",
+    title: "Armoury Restock Competitions",
+    changes: [
+      { type: "feat", text: "Armoury competitions — track who deposits the most blood bags, temporary items, or alcohol to the faction armoury" },
+      { type: "feat", text: "Live leaderboard with podium for top 3, auto-refreshes every 60 seconds" },
+      { type: "feat", text: "Admin controls to create competitions with configurable item category and date range" },
+    ],
+  },
   {
     version: "1.7.0",
     date: "2026-04-07",

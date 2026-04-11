@@ -317,6 +317,31 @@ export const api = {
       status: { description: string } | null;
     }>('/api/profile/me'),
 
+  // ── Armoury Competitions ────────────────────────────
+  armouryCompetitions: () => apiFetch<{
+    competitions: {
+      id: number; name: string; category: string; status: string;
+      start_ts: number; end_ts: number; created_by: number | null;
+    }[];
+    count: number;
+  }>('/api/armoury/competitions'),
+  armouryLeaderboard: (id: number) => apiFetch<{
+    competition: {
+      id: number; name: string; category: string; status: string;
+      start_ts: number; end_ts: number;
+    };
+    leaderboard: {
+      rank: number; player_id: number; player_name: string;
+      total: number; deposits: number; last_deposit: number;
+    }[];
+    total_deposited: number;
+    participants: number;
+  }>(`/api/armoury/competitions/${id}/leaderboard`),
+  armouryCreateCompetition: (data: { name: string; category: string; start_ts: number; end_ts: number }) =>
+    apiPostJson<{ id: number; status: string }>('/api/armoury/competitions', data),
+  armouryEndCompetition: (id: number) =>
+    apiFetch<{ status: string }>(`/api/armoury/competitions/${id}/end`, { method: 'POST' }),
+
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
   registerKey: (apiKey: string) =>
