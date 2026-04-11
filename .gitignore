@@ -17,6 +17,7 @@ frontend/tsconfig.tsbuildinfo
 .playwright-mcp/
 firebase-debug.log
 docs/superpowers/handover-*.md
+PENTEST_PLAN.md
 
 # Keep docs screenshots
 !docs/screenshots/*.png
