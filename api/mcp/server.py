@@ -7,6 +7,7 @@ etc.) are injected later via ``set_services()`` from the FastAPI lifespan.
 
 from __future__ import annotations
 
+import hmac
 import logging
 from typing import Any
 
@@ -53,7 +54,8 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
         if not MCP_SECRET:
             return Response("Not found", status_code=404)
         auth = request.headers.get("authorization", "")
-        if auth != f"Bearer {MCP_SECRET}":
+        expected = f"Bearer {MCP_SECRET}"
+        if not hmac.compare_digest(auth.encode(), expected.encode()):
             return Response("Unauthorized", status_code=401)
         return await call_next(request)
 
