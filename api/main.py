@@ -63,6 +63,8 @@ from api.routers.version import router as version_router
 import api.routers.version as version_mod
 from api.routers.chat import router as chat_router
 import api.routers.chat as chat_mod
+from api.routers.armoury import router as armoury_router
+import api.routers.armoury as armoury_mod
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -182,6 +184,12 @@ async def lifespan(app: FastAPI):
     chat_mod.notification_dispatcher = notification_dispatcher
     chat_mod.torn_client = torn_client
 
+    from api.db.repos.armoury import ArmouryRepository
+    armoury_repo = ArmouryRepository(db_path="data/keys.db")
+    armoury_mod.repo = armoury_repo
+    armoury_mod.torn_client = torn_client
+    armoury_mod.key_store = key_store
+
     from api.db.repos.version_dismissals import VersionDismissalRepository
     version_mod.dismissal_repo = VersionDismissalRepository(db_path="data/keys.db")
 
@@ -240,6 +248,7 @@ async def lifespan(app: FastAPI):
         "notification_dispatcher": notification_dispatcher,
         "chat_repo": chat_repo,
         "chat_manager": chat_mgr,
+        "armoury_repo": armoury_repo,
     })
     from api import b2_client
     if b2_client.is_configured():
@@ -283,6 +292,7 @@ app.include_router(company_router)
 app.include_router(push_router)
 app.include_router(version_router)
 app.include_router(chat_router)
+app.include_router(armoury_router)
 
 @app.get("/api/settings/public")
 async def public_settings():

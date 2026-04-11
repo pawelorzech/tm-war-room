@@ -647,6 +647,40 @@ class TornClient:
             self._log_integration("torn", "torn/companies", False, (time.time() - t0) * 1000, str(e))
             raise
 
+    async def fetch_armoury_deposits(self, from_ts: int, to_ts: int, api_key: str | None = None) -> list[dict]:
+        api_key_value = self._resolve_api_key(api_key)
+        all_entries: list[dict] = []
+        url = f"{V2_BASE}/faction/news"
+        params: dict[str, Any] = {
+            "cat": "armoryDeposit",
+            "from": from_ts,
+            "to": to_ts,
+            "sort": "ASC",
+            "limit": 100,
+            "key": api_key_value,
+        }
+        start = time.time()
+        try:
+            while True:
+                resp = await self._http.get(url, params=params)
+                resp.raise_for_status()
+                raw = await _json(resp)
+                entries = raw.get("news", [])
+                all_entries.extend(entries)
+                metadata = raw.get("_metadata", {})
+                next_params = metadata.get("next")
+                if not next_params or not entries:
+                    break
+                if isinstance(next_params, dict):
+                    params.update(next_params)
+                else:
+                    break
+            self._log_integration("torn_api", "/v2/faction/news?cat=armoryDeposit", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/faction/news?cat=armoryDeposit", False, (time.time() - start) * 1000, str(e))
+            raise
+        return all_entries
+
     async def fetch_tornstats_spy(self, faction_id: int, ts_key: str) -> dict[int, "PersonalStats"]:
         from api.models import PersonalStats
         cache_key = f"tspy_{faction_id}"
