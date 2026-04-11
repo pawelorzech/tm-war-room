@@ -90,7 +90,7 @@ async def stock_portfolio(x_player_id: int = Header()):
                 status_code=403,
                 detail="Your API key doesn't have stock access. Use a Full Access key from Torn Settings → API Keys."
             )
-        raise HTTPException(status_code=502, detail=f"Torn API error: {e}")
+        raise HTTPException(status_code=502, detail="Torn API temporarily unavailable")
 
     if not portfolio:
         raise HTTPException(

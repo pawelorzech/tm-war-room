@@ -715,7 +715,7 @@ async def training_stats(x_player_id: int = Header()):
         raise
     except Exception as e:
         logger.error("Training stats fetch failed for pid=%d: %s", x_player_id, e)
-        raise HTTPException(status_code=502, detail=f"Torn API error: {e}")
+        raise HTTPException(status_code=502, detail="Torn API temporarily unavailable")
 
 
 class KeyRegister(BaseModel):
@@ -738,7 +738,7 @@ async def register_key(body: KeyRegister, request: Request):
             raw = await raw
     except Exception as e:
         logger.error("Key registration failed — Torn API error: %s", e)
-        raise HTTPException(status_code=502, detail=f"Failed to validate key with Torn API: {e}")
+        raise HTTPException(status_code=502, detail="Failed to validate key — Torn API temporarily unavailable")
     if "error" in raw:
         logger.warning("Key registration rejected — Torn API: %s", raw["error"]["error"])
         raise HTTPException(status_code=400, detail=raw["error"]["error"])
