@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel as PydanticBaseModel
 
 from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
-from api.auth import create_jwt, require_bearer_token, rate_limiter
+from api.auth import create_jwt, require_bearer_token, rate_limiter, TOKEN_TYPE_ADMIN, TOKEN_TYPE_SESSION
 
 logger = logging.getLogger("tm-hub.admin")
 
@@ -41,7 +41,7 @@ async def require_admin(request: Request) -> dict:
     payload = require_bearer_token(
         request.headers.get("authorization", ""),
         JWT_SECRET,
-        allowed_token_types=("admin",),
+        allowed_token_types=(TOKEN_TYPE_ADMIN,),
     )
     pid = payload["sub"]
     if pid != SUPERADMIN_ID and not _key_store.is_admin(pid):
@@ -67,7 +67,7 @@ async def create_session(request: Request):
     payload = require_bearer_token(
         request.headers.get("authorization", ""),
         JWT_SECRET,
-        allowed_token_types=("session",),
+        allowed_token_types=(TOKEN_TYPE_SESSION,),
     )
     player_id = payload["sub"]
     if player_id != SUPERADMIN_ID and not _key_store.is_admin(player_id):
@@ -75,7 +75,7 @@ async def create_session(request: Request):
     user_key = _key_store.get_key(player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="No API key registered")
-    token = create_jwt(player_id, user_key["player_name"], JWT_SECRET, token_type="admin")
+    token = create_jwt(player_id, user_key["player_name"], JWT_SECRET, token_type=TOKEN_TYPE_ADMIN)
     logger.info("Admin session created: %s [%d]", user_key["player_name"], player_id)
     return {"token": token}
 
