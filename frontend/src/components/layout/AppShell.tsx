@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthGate } from "./AuthGate";
@@ -18,6 +18,7 @@ import { api } from "@/lib/api-client";
 import { PDAProvider } from '@/contexts/PDAContext';
 import { usePDAPolling } from '@/hooks/usePDAPolling';
 import { AvatarProvider } from '@/contexts/AvatarContext';
+import { usePageVisible } from '@/hooks/usePageVisible';
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
@@ -26,6 +27,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const { canAccess: canAccessChat } = useChatAccess();
   const [chatUnread, setChatUnread] = useState(0);
+  const visible = usePageVisible();
   const pathname = usePathname();
   const onChatPage = pathname.startsWith("/chat");
 
@@ -34,9 +36,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (onChatPage) setChatUnread(0);
   }, [onChatPage]);
 
-  // Poll chat unread (skip while on /chat — the chat hook handles its own state)
+  // Poll chat unread (skip while on /chat or tab hidden)
   useEffect(() => {
-    if (!canAccessChat || !isLoggedIn || onChatPage) return;
+    if (!canAccessChat || !isLoggedIn || onChatPage || !visible) return;
     let cancelled = false;
     const poll = () => {
       api.chatUnread()
@@ -46,7 +48,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     poll();
     const interval = setInterval(poll, 15_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [canAccessChat, isLoggedIn, onChatPage]);
+  }, [canAccessChat, isLoggedIn, onChatPage, visible]);
 
   // Register service worker for all authenticated users (PWA + push)
   useEffect(() => {
@@ -96,14 +98,14 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
   usePDAPolling();
 
-  // Heartbeat — keep hub presence alive
+  // Heartbeat — keep hub presence alive (pause when tab hidden)
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !visible) return;
     const beat = () => api.heartbeat().catch(() => {});
     beat();
     const interval = setInterval(beat, 30_000);
     return () => clearInterval(interval);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, visible]);
 
   if (!isLoggedIn) {
     return <>{children}</>;

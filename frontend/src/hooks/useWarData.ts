@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api-client";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import type {
   OverviewResponse,
   DetailResponse,
@@ -20,6 +21,7 @@ interface WarDataState {
 }
 
 export function useWarData() {
+  const visible = usePageVisible();
   const [state, setState] = useState<WarDataState>({
     overview: null,
     detail: null,
@@ -28,7 +30,6 @@ export function useWarData() {
     lastUpdate: null,
     error: null,
   });
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -65,12 +66,11 @@ export function useWarData() {
   }, []);
 
   useEffect(() => {
+    if (!visible) return;
     refresh();
-    intervalRef.current = setInterval(refresh, REFRESH_INTERVAL);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [refresh]);
+    const id = setInterval(refresh, REFRESH_INTERVAL);
+    return () => clearInterval(id);
+  }, [refresh, visible]);
 
   return {
     ...state,

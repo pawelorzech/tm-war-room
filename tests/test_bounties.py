@@ -52,6 +52,7 @@ def bounties_setup(monkeypatch):
 
     mock_spy = MagicMock()
     mock_spy.repo.get_estimate.return_value = None
+    mock_spy.repo.get_all_estimates.return_value = []
 
     monkeypatch.setattr(mod, "torn_client", mock_client)
     monkeypatch.setattr(mod, "key_store", mock_key_store)
@@ -88,11 +89,10 @@ async def test_bounties_sorted_by_reward(bounties_setup):
 async def test_bounties_with_spy_data(bounties_setup):
     """When spy data exists, it should be used for threat scoring."""
     mock_spy = bounties_setup["spy"]
-    mock_spy.repo.get_estimate.side_effect = lambda tid: (
+    mock_spy.repo.get_all_estimates.return_value = [
         {"player_id": 100, "total": 50_000_000, "strength": 10e6, "defense": 10e6,
-         "speed": 15e6, "dexterity": 15e6, "confidence": "estimate", "source": "tornstats"}
-        if tid == 100 else None
-    )
+         "speed": 15e6, "dexterity": 15e6, "confidence": "estimate", "source": "tornstats"},
+    ]
 
     result = await list_bounties(x_player_id=42)
     target_100 = next(b for b in result["bounties"] if b["target_id"] == 100)
