@@ -280,7 +280,8 @@ async def lifespan(app: FastAPI):
         _asyncio.create_task(_startup_avatar_refresh())
 
     logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
-    yield
+    async with mcp_server._lifespan_manager():
+        yield
     await chat_mgr.close_all()
     await app_scheduler.__aexit__(None, None, None)
     await torn_client.close()
