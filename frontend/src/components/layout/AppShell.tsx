@@ -7,6 +7,7 @@ import { AuthGate } from "./AuthGate";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { AnnouncementCarousel } from "./AnnouncementCarousel";
+import { SeasonalBanner } from "./SeasonalBanner";
 import { BottomNavBar } from "@/components/nav/BottomNavBar";
 import { MobileSearch } from "@/components/nav/MobileSearch";
 import { InstallPrompt } from "./InstallPrompt";
@@ -190,6 +191,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         )}
+        <SeasonalBanner />
         <ErrorBoundary>
           <div className={onChatPage ? "flex-1 min-h-0 flex flex-col overflow-hidden overscroll-contain" : "flex-1"}>
             {children}

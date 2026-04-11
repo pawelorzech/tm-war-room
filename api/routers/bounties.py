@@ -64,14 +64,11 @@ async def list_bounties(
         if spy_service:
             baseline_spy = spy_service.repo.get_estimate(x_player_id)
 
-    # 2. Batch-load spy estimates instead of N+1 per-target
+    # 2. Batch-load spy estimates for target IDs only (not entire table)
     target_ids = [b["target_id"] for b in bounties]
     spy_data = {}
     if spy_service:
-        all_est = {e["player_id"]: e for e in spy_service.repo.get_all_estimates()}
-        for tid in target_ids:
-            if tid in all_est:
-                spy_data[tid] = all_est[tid]
+        spy_data = spy_service.repo.get_estimates_bulk(target_ids)
 
     # 3. For top bounties without spy data, fetch personalstats + status (parallel)
     target_status = {}  # player_id -> status_state

@@ -134,11 +134,16 @@ export default function CompanyPage() {
           "JP are earned daily based on your work effectiveness. You can spend up to 100 JP per day on energy-granting specials. Passive specials are always active once the star requirement is met.",
           "New employees have a 72-hour recruit cooldown before they can use specials. Plan your company switches around this.",
           "Coordinate with faction members — having people spread across different companies gives the faction access to more specials. Check who works where in the faction section above the directory.",
+          "Best starter companies for new players: Sweet Shop (energy drinks from job points) or Adult Novelties (E-DVDs for happy jumps).",
+          "To run your own company: buy TGP + TCP stocks first, and complete the Business Management education course.",
+          "Company specials can be very valuable — always ask about specials and pay before joining.",
+          "City/NPC jobs give work stats needed for passives (reviving, spying) — consider doing these first.",
         ]}
         dataSources={["Torn API /torn?selections=companies", "Member job data from stored API keys"]}
         links={[
           ["Torn Wiki: Companies", "https://wiki.torn.com/wiki/Company"],
           ["Torn Wiki: Company Specials", "https://wiki.torn.com/wiki/Company/Special_List"],
+          ["Torn Wiki: Jobs", "https://wiki.torn.com/wiki/Jobs"],
         ]}
         />
 

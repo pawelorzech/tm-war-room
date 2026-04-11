@@ -193,9 +193,13 @@ export default function ChainPage() {
           "Bonus hits are the most valuable attacks in a chain — the player who lands hit #10, #25, #50, etc. gets a large respect multiplier. Coordinate with your faction to give bonus hits to members who can maximize respect gain (high-level targets).",
           "To keep a chain alive, someone must land a successful attack every 5 minutes. Use the timer and member list to ensure coverage — especially during overnight hours or when activity is low.",
           "Click any chain to see the per-member breakdown: who contributed the most hits, who landed bonus hits, and who started/ended the chain. Use this to recognize top contributors and improve future chain coordination.",
+          "You need 10 hits within 5 minutes to START a chain.",
+          "Once started, make at least 1 hit before the timer expires to keep the chain going.",
+          "Chain bonuses (extra respect) trigger at: 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000 hits.",
+          "Leave targets (don't hospitalize) if you need XP. Hospitalize for maximum chain timer extension.",
         ]}
         dataSources={["Torn API v2 faction attacks", "Chain detection from attack timestamps"]}
-        links={[["Torn Wiki: Chain", "https://wiki.torn.com/wiki/Chain"]]}
+        links={[["Torn Wiki: Chain", "https://wiki.torn.com/wiki/Chain"], ["Torn Wiki: Respect", "https://wiki.torn.com/wiki/Respect"]]}
         />
 
         {/* Tab switcher */}

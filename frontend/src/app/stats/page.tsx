@@ -121,7 +121,11 @@ export default function StatsPage() {
           "Growth rate (per day) tells you how efficiently you're training. If your rate drops, you may need to switch gyms, optimize happy, or adjust your energy management.",
           "The faction leaderboard shows relative strength — see where you stand compared to other members and identify who might need training advice.",
           "Snapshot history shows training consistency. Gaps or flat lines mean missed training days. Consistent daily gains compound into massive advantages over months.",
-        ]} dataSources={["Daily stat snapshots collected at 04:00 UTC", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"]]} />
+          "Happiness directly affects how many stats you gain per energy in the gym — always train with high happy.",
+          "Move to a better property to increase your happiness cap. Private Island is ideal for the airstrip bonus too.",
+          "Switzerland rehab (level 15+) restores happiness to maximum in a single rehab — cheapest way to refill.",
+          "Candy + Ecstasy combo: eat candies first (booster cooldown), then use Ecstasy to double your current happiness.",
+        ]} dataSources={["Daily stat snapshots collected at 04:00 UTC", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"], ["Torn Wiki: Properties", "https://wiki.torn.com/wiki/Properties"]]} />
 
         {loading && !snapshots.length ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading stat data...</div>

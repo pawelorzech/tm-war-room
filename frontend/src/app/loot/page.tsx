@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { api } from '@/lib/api-client';
 import { usePageVisible } from '@/hooks/usePageVisible';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,12 +36,35 @@ interface LootData {
 const LEVEL_COLORS = ['', 'text-text-muted', 'text-torn-blue', 'text-torn-green', 'text-torn-yellow', 'text-torn-red'];
 const LEVEL_BG = ['', 'bg-text-muted/10', 'bg-torn-blue/10', 'bg-torn-green/10', 'bg-torn-yellow/10', 'bg-torn-red/10'];
 
+// Shared clock so all Countdown instances use one setInterval instead of N
+let _nowSec = Date.now() / 1000;
+let _listeners = new Set<() => void>();
+let _timer: ReturnType<typeof setInterval> | null = null;
+
+function _subscribe(cb: () => void) {
+  _listeners.add(cb);
+  if (!_timer) {
+    _timer = setInterval(() => {
+      _nowSec = Date.now() / 1000;
+      _listeners.forEach(l => l());
+    }, 1000);
+  }
+  return () => {
+    _listeners.delete(cb);
+    if (_listeners.size === 0 && _timer) {
+      clearInterval(_timer);
+      _timer = null;
+    }
+  };
+}
+function _getSnapshot() { return _nowSec; }
+
+function useSharedClock() {
+  return useSyncExternalStore(_subscribe, _getSnapshot, _getSnapshot);
+}
+
 function Countdown({ targetTs }: { targetTs: number }) {
-  const [now, setNow] = useState(Date.now() / 1000);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now() / 1000), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const now = useSharedClock();
   const diff = Math.max(0, targetTs - now);
   if (diff <= 0) return <span className="text-torn-green font-semibold">Ready!</span>;
   const h = Math.floor(diff / 3600);
@@ -117,9 +140,14 @@ export default function LootPage() {
           "Timing is everything: NPCs respawn at specific intervals after being hospitalized. Loot levels increase over time — Level 2: +30min, Level 3: +90min, Level 4: +3.5h, Level 5: +7.5h after hospital release. Plan your attacks around these windows.",
           "Reserve an NPC to coordinate with your faction — claim which NPC you want to hit and at what loot level. This prevents multiple faction members from wasting attacks on the same target at low levels.",
           "Pro tip: Attack at Level 4+ for the best return on your energy. Coordinate with faction members so everyone benefits — one person looting at Level 2 wastes potential profit for everyone.",
+          "Never attack NPCs solo — the distraction mechanic means you'll get counter-attacked without team support.",
+          "Loot levels: L1 at hosp out, L2 at +30min, L3 at +1h, L4 at +2h, L5 at +4h.",
+          "Faction teams typically hit at Level 4. Only hit when others are hitting to benefit from distraction.",
+          "Seasonal NPCs: Easter Bunny appears in April, Scrooge during Christmas.",
+          "5 lootable NPCs: Duke [4], Leslie [15], Jimmy [19], Fernando [20], Tiny [21] — numbers are their Torn levels.",
         ]}
         dataSources={["Torn API v2 NPC data", "Loot timers estimated from Torn attack reports", "Community-sourced NPC schedules"]}
-        links={[["Torn Wiki: NPC", "https://wiki.torn.com/wiki/NPC"]]}
+        links={[["Torn Wiki: NPC", "https://wiki.torn.com/wiki/NPC"], ["Torn Wiki: Loot", "https://wiki.torn.com/wiki/Loot"]]}
         />
 
         {loading && !data ? (
