@@ -157,9 +157,12 @@ export default function ArmouryPage() {
   const isAdmin = role === 'admin' || role === 'superadmin';
 
   /* Load all competitions + active leaderboard */
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (triggerPoll = false) => {
     setLoading(true);
     try {
+      if (triggerPoll && isAdmin) {
+        try { await api.armouryPoll(); } catch { /* non-critical */ }
+      }
       const res = await api.armouryCompetitions();
       setCompetitions(res.competitions);
       const actives = res.competitions.filter(c => c.status === 'active');
@@ -174,7 +177,7 @@ export default function ArmouryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -276,7 +279,7 @@ export default function ArmouryPage() {
               Track who deposits the most items to the faction armoury
             </p>
           </div>
-          <RefreshButton onRefresh={loadData} />
+          <RefreshButton onRefresh={() => loadData(true)} />
         </div>
 
         <PageExplainer id="armoury" title="Armoury Competitions — How it works" bullets={[

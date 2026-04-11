@@ -349,6 +349,8 @@ export const api = {
     ),
   armouryCategories: () =>
     apiFetch<{ categories: Record<string, string[]> }>('/api/armoury/categories'),
+  armouryPoll: () =>
+    apiPostJson<{ status: string }>('/api/armoury/poll', {}),
 
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
