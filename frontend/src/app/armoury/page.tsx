@@ -102,6 +102,7 @@ function formatDatetime(ts: number): string {
 }
 
 function countdown(endTs: number): string {
+  if (!endTs) return 'Open-ended';
   const diff = Math.max(0, endTs - Math.floor(Date.now() / 1000));
   if (diff === 0) return 'Ended';
   const d = Math.floor(diff / 86400);
@@ -230,7 +231,7 @@ function PastCompetitionCard({ comp, myPid, isAdmin, onDelete }: {
             <span className="shrink-0 px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-muted font-medium">Ended</span>
           </div>
           <p className="text-[10px] text-text-muted truncate">
-            {label} &middot; {formatDatetime(comp.start_ts)} &ndash; {formatDatetime(comp.end_ts)}
+            {label} &middot; {formatDatetime(comp.start_ts)}{comp.end_ts ? <> &ndash; {formatDatetime(comp.end_ts)}</> : ' — ongoing'}
           </p>
           {/* Top-3 preview when collapsed */}
           {!expanded && board && top3.length > 0 && (
@@ -367,10 +368,10 @@ export default function ArmouryPage() {
     setFormError('');
     if (!formName.trim()) { setFormError('Name is required'); return; }
     if (formCategories.length === 0 && formItems.length === 0) { setFormError('Select at least one category or item'); return; }
-    if (!formStart || !formEnd) { setFormError('Start and end dates are required'); return; }
+    if (!formStart) { setFormError('Start date is required'); return; }
     const startTs = Math.floor(new Date(formStart).getTime() / 1000);
-    const endTs = Math.floor(new Date(formEnd).getTime() / 1000);
-    if (endTs <= startTs) { setFormError('End must be after start'); return; }
+    const endTs = formEnd ? Math.floor(new Date(formEnd).getTime() / 1000) : undefined;
+    if (endTs && endTs <= startTs) { setFormError('End must be after start'); return; }
     setSubmitting(true);
     try {
       await api.armouryCreateCompetition({
@@ -579,7 +580,17 @@ export default function ArmouryPage() {
           <div className="space-y-3">
             <div className="border-t border-border pt-4">
               <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-3">Admin Controls</h3>
-              <button onClick={() => setShowForm(f => !f)}
+              <button onClick={() => {
+                  setShowForm(f => {
+                    if (!f) {
+                      // Default start to now when opening form
+                      const now = new Date();
+                      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                      setFormStart(now.toISOString().slice(0, 16));
+                    }
+                    return !f;
+                  });
+                }}
                 className="px-4 py-2 text-sm rounded-lg bg-torn-green/20 text-torn-green hover:bg-torn-green/30 transition-colors font-medium">
                 {showForm ? 'Cancel' : '+ New Competition'}
               </button>
@@ -628,7 +639,7 @@ export default function ArmouryPage() {
                       className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-torn-green/50" />
                   </div>
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">End</label>
+                    <label className="block text-xs text-text-muted mb-1">End (optional — leave empty for open-ended)</label>
                     <input type="datetime-local" value={formEnd} onChange={e => setFormEnd(e.target.value)}
                       className="w-full bg-bg-elevated border border-text-secondary/20 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-torn-green/50" />
                   </div>

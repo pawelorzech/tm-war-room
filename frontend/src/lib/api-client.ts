@@ -375,7 +375,7 @@ export const api = {
     total_deposited: number;
     participants: number;
   }>(`/api/armoury/competitions/${id}/leaderboard`),
-  armouryCreateCompetition: (data: { name: string; categories: string[]; items?: string[]; start_ts: number; end_ts: number; prize_text?: string }) =>
+  armouryCreateCompetition: (data: { name: string; categories: string[]; items?: string[]; start_ts: number; end_ts?: number; prize_text?: string }) =>
     apiPostJson<{ id: number; status: string }>('/api/armoury/competitions', data),
   armouryEndCompetition: (id: number) =>
     apiPostJson<{ status: string }>(`/api/armoury/competitions/${id}/end`, {}),

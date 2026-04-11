@@ -28,7 +28,8 @@ async def run_armoury_poll() -> None:
     api_key = fk["api_key"] if fk else None
 
     for comp in competitions:
-        if now > comp["end_ts"]:
+        end_ts = comp["end_ts"] or 0
+        if end_ts and now > end_ts:
             armoury_repo.end_competition(comp["id"])
             logger.info("Auto-ended competition %d (%s)", comp["id"], comp["name"])
             continue
@@ -39,7 +40,7 @@ async def run_armoury_poll() -> None:
         else:
             from_ts += 1
 
-        to_ts = min(now, comp["end_ts"])
+        to_ts = min(now, end_ts) if end_ts else now
         if from_ts >= to_ts:
             continue
 
