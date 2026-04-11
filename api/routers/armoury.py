@@ -94,3 +94,14 @@ async def end_competition(comp_id: int, x_player_id: int = Header()):
         raise HTTPException(status_code=404, detail="Competition not found")
     repo.end_competition(comp_id)
     return {"status": "ended"}
+
+
+@router.post("/poll")
+async def trigger_poll(x_player_id: int = Header()):
+    if not key_store or not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from api.scheduler.jobs.armoury_poll import run_armoury_poll
+    await run_armoury_poll()
+    return {"status": "polled"}
