@@ -17,7 +17,6 @@ class SpyRepository(BaseRepository):
                 fetched_at = CURRENT_TIMESTAMP
         """, (player_id, player_name, source, strength, defense, speed, dexterity, total, confidence, reported_at))
         conn.commit()
-        conn.close()
 
     def get_reports(self, player_id: int) -> list[dict]:
         rows = self.execute("SELECT * FROM spy_reports WHERE player_id = ? ORDER BY reported_at DESC", (player_id,))
@@ -37,7 +36,6 @@ class SpyRepository(BaseRepository):
                 source = excluded.source, reported_at = excluded.reported_at, updated_at = CURRENT_TIMESTAMP
         """, (player_id, player_name, strength, defense, speed, dexterity, total, confidence, source, reported_at))
         conn.commit()
-        conn.close()
 
     def get_estimate(self, player_id: int) -> dict | None:
         row = self.execute_one("SELECT * FROM spy_estimates WHERE player_id = ?", (player_id,))
@@ -63,7 +61,6 @@ class SpyRepository(BaseRepository):
         conn.execute("DELETE FROM spy_reports WHERE player_id = ?", (player_id,))
         conn.commit()
         deleted = c1.rowcount > 0
-        conn.close()
         return deleted
 
     def is_blocked(self, player_id: int) -> bool:
@@ -80,14 +77,12 @@ class SpyRepository(BaseRepository):
         conn.execute("DELETE FROM spy_estimates WHERE player_id = ?", (player_id,))
         conn.execute("DELETE FROM spy_reports WHERE player_id = ?", (player_id,))
         conn.commit()
-        conn.close()
 
     def unblock_player(self, player_id: int) -> bool:
         conn = self._conn()
         c = conn.execute("DELETE FROM spy_blocked WHERE player_id = ?", (player_id,))
         conn.commit()
         removed = c.rowcount > 0
-        conn.close()
         return removed
 
     def get_blocked(self) -> list[dict]:
@@ -102,14 +97,12 @@ class SpyRepository(BaseRepository):
         conn = self._conn()
         conn.execute("INSERT OR REPLACE INTO spy_hidden (player_id, hidden_by) VALUES (?, ?)", (player_id, hidden_by))
         conn.commit()
-        conn.close()
 
     def unhide_player(self, player_id: int) -> bool:
         conn = self._conn()
         c = conn.execute("DELETE FROM spy_hidden WHERE player_id = ?", (player_id,))
         conn.commit()
         removed = c.rowcount > 0
-        conn.close()
         return removed
 
     def get_hidden_ids(self) -> set[int]:

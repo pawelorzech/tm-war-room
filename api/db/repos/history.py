@@ -26,7 +26,6 @@ class HistoryRepository(BaseRepository):
             except Exception:
                 pass
         conn.commit()
-        conn.close()
         return inserted
 
     def get_stock_history(self, stock_id: int, days: int = 30) -> list[dict]:
@@ -65,5 +64,4 @@ class HistoryRepository(BaseRepository):
         cursor = conn.execute("DELETE FROM stock_history WHERE recorded_at < ?", (cutoff,))
         deleted = cursor.rowcount
         conn.commit()
-        conn.close()
         return deleted

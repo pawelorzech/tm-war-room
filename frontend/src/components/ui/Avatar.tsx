@@ -40,6 +40,8 @@ export function Avatar({ playerId, name, size = 'sm', className = '' }: AvatarPr
         alt={name || String(playerId)}
         width={SIZE_PX[size]}
         height={SIZE_PX[size]}
+        loading="lazy"
+        decoding="async"
         className={`rounded-full object-cover shrink-0 ${cls} ${className}`}
         onError={() => setImgError(true)}
       />

@@ -126,7 +126,6 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
 export const api = {
   overview: () => apiFetch<import("@/types/war").OverviewResponse>("/api/overview"),
   dashboard: () => apiFetch<{
-    members: unknown[];
     war: unknown;
     war_progress: unknown;
     chain: unknown;

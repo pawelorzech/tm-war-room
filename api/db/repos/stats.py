@@ -27,7 +27,6 @@ class StatSnapshotRepository(BaseRepository):
               xanax_taken, refills, energy_drinks, networth, gym_trains, stat_enhancers_used, easter_eggs,
               gym_energy))
         conn.commit()
-        conn.close()
 
     def get_snapshots(self, player_id: int, limit: int = 365) -> list[dict]:
         rows = self.execute(

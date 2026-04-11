@@ -30,7 +30,6 @@ class CirculationRepository(BaseRepository):
                     recorded_at = excluded.recorded_at
             """, (award_id, award_type, circulation, today, now))
         conn.commit()
-        conn.close()
 
     def get_history(self, award_id: int, award_type: str, days: int = 30) -> list[dict]:
         rows = self.execute("""
