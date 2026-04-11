@@ -98,6 +98,7 @@ async def end_competition(comp_id: int, x_player_id: int = Header()):
 
 class UpdateCompetition(BaseModel):
     name: str | None = None
+    categories: list[str] | None = None
     start_ts: int | None = None
     end_ts: int | None = None
     prize_text: str | None = None
@@ -115,6 +116,12 @@ async def update_competition(comp_id: int, body: UpdateCompetition, x_player_id:
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="Nothing to update")
+    if body.categories is not None:
+        for cat in body.categories:
+            if cat not in VALID_CATEGORIES:
+                raise HTTPException(status_code=400, detail=f"Invalid category '{cat}'. Must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
+        updates["category"] = ",".join(sorted(set(body.categories)))
+        del updates["categories"]
     repo.update_competition(comp_id, **updates)
     return {"status": "updated", "updated_fields": list(updates.keys())}
 
