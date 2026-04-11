@@ -25,6 +25,13 @@ class ArmouryRepository(BaseRepository):
         )
         return [dict(r) for r in rows]
 
+    def update_competition(self, comp_id: int, **kwargs) -> None:
+        if not kwargs:
+            return
+        cols = ", ".join(f"{k} = ?" for k in kwargs)
+        vals = tuple(kwargs.values()) + (comp_id,)
+        self.mutate(f"UPDATE armoury_competitions SET {cols} WHERE id = ?", vals)
+
     def end_competition(self, comp_id: int) -> None:
         self.mutate("UPDATE armoury_competitions SET status = 'ended' WHERE id = ?", (comp_id,))
 
