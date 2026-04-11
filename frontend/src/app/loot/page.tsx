@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import { usePageVisible } from '@/hooks/usePageVisible';
 import { useAuth } from '@/hooks/useAuth';
 import { useSort } from '@/hooks/useSort';
 import { PageExplainer } from '@/components/layout/PageExplainer';
@@ -71,19 +72,22 @@ export default function LootPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
     setError(null);
     api.lootTimers().then(d => setData(d as LootData))
       .catch(e => setError(e.message || 'Failed to load'))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  const visible = usePageVisible();
+
+  useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => {
+    if (!visible) return;
     const timer = setInterval(loadData, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [loadData, visible]);
 
   const { sorted: sortedNpcs, sortCol, sortDir, toggle: toggleSort } = useSort(data?.npcs ?? [], 'level');
 

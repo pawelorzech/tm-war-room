@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api-client';
+import { usePageVisible } from '@/hooks/usePageVisible';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -338,6 +339,8 @@ export default function ArmouryPage() {
     }
   }, [isAdmin]);
 
+  const visible = usePageVisible();
+
   useEffect(() => { loadData(); }, [loadData]);
 
   /* Fetch category item lists for tooltips */
@@ -345,17 +348,19 @@ export default function ArmouryPage() {
     api.armouryCategories().then(res => setCategoryItemsMap(res.categories)).catch(() => {});
   }, []);
 
-  /* Auto-refresh every 60s */
+  /* Auto-refresh every 60s — paused when tab is hidden */
   useEffect(() => {
+    if (!visible) return;
     const iv = setInterval(loadData, 60_000);
     return () => clearInterval(iv);
-  }, [loadData]);
+  }, [loadData, visible]);
 
-  /* Countdown timer -- update display every 60s */
+  /* Countdown timer -- update display every 60s — paused when tab is hidden */
   useEffect(() => {
+    if (!visible) return;
     timerRef.current = setInterval(() => setTick(t => t + 1), 60_000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+  }, [visible]);
 
   /* Admin: create competition */
   const handleCreate = async () => {

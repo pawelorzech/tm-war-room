@@ -43,6 +43,16 @@ class SpyRepository(BaseRepository):
         row = self.execute_one("SELECT * FROM spy_estimates WHERE player_id = ?", (player_id,))
         return dict(row) if row else None
 
+    def get_estimates_bulk(self, player_ids: list[int]) -> dict[int, dict]:
+        if not player_ids:
+            return {}
+        placeholders = ",".join("?" * len(player_ids))
+        rows = self.execute(
+            f"SELECT * FROM spy_estimates WHERE player_id IN ({placeholders})",
+            tuple(player_ids),
+        )
+        return {r["player_id"]: dict(r) for r in rows}
+
     def get_all_estimates(self) -> list[dict]:
         rows = self.execute("SELECT * FROM spy_estimates ORDER BY total DESC")
         return [dict(r) for r in rows]
