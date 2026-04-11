@@ -65,6 +65,7 @@ from api.routers.chat import router as chat_router
 import api.routers.chat as chat_mod
 from api.routers.armoury import router as armoury_router
 import api.routers.armoury as armoury_mod
+from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
 key_store: KeyStore | None = None
@@ -234,6 +235,23 @@ async def lifespan(app: FastAPI):
     from api.routers.chat import _notify_mentions
     revive_bot_mod._notify_mentions_fn = _notify_mentions
 
+    # MCP service registry — expose repos/client to MCP tools
+    mcp_set_services(
+        torn_client=torn_client,
+        key_store=key_store,
+        armoury_repo=armoury_repo,
+        spy_service=spy_mod.spy_service,
+        spy_repo=spy_repo,
+        target_repo=target_repo,
+        attack_repo=attack_repo,
+        stats_repo=stats_repo,
+        stakeout_repo=stakeout_repo,
+        chat_repo=chat_repo,
+        notification_repo=notification_repo,
+        notification_dispatcher=notification_dispatcher,
+        tornstats_key=TORNSTATS_API_KEY,
+    )
+
     from api.scheduler.engine import create_and_start_scheduler
     app_scheduler = await create_and_start_scheduler({
         "key_repo": key_store._keys,
@@ -293,6 +311,9 @@ app.include_router(push_router)
 app.include_router(version_router)
 app.include_router(chat_router)
 app.include_router(armoury_router)
+
+# MCP server (Streamable HTTP transport)
+app.mount("/mcp", mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware()))
 
 @app.get("/api/settings/public")
 async def public_settings():

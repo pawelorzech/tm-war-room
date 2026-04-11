@@ -12,6 +12,7 @@ dependencies = [
     "apscheduler>=4.0.0a5",
     "pywebpush>=2.0.0",
     "b2sdk>=2.5.0",
+    "fastmcp>=3.0.0",
 ]
 
 [project.optional-dependencies]
