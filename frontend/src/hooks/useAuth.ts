@@ -152,9 +152,10 @@ function useProvideAuth(): AuthContextValue {
       const detail = (event as CustomEvent<{ authenticated?: boolean }>).detail;
       if (detail?.authenticated === false) {
         setLoggedOut();
-        return;
       }
-      void refresh();
+      // authenticated=true: login() already set state from POST /api/keys.
+      // Calling refresh() here fires GET /api/me — a transient 401 wipes
+      // the session and makes login appear to "just refresh".
     };
 
     window.addEventListener("storage", handleStorage);
