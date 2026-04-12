@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
@@ -72,8 +72,27 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const isBot = message.bot_id !== null;
+
+  /* Touch support: tap message to toggle actions, tap outside to dismiss */
+  const isCoarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
+  const handleTouchToggle = useCallback(() => {
+    if (isCoarse) setShowActions(prev => !prev);
+  }, [isCoarse]);
+
+  useEffect(() => {
+    if (!showActions || !isCoarse) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
+  }, [showActions, isCoarse]);
 
   const handleDelete = async () => {
     if (!confirm("Delete this message?")) return;
@@ -99,9 +118,11 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
 
   return (
     <div
-      className="group flex gap-2 px-3 py-1 hover:bg-bg-elevated/50 transition-colors"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      ref={containerRef}
+      className="group relative flex gap-2 px-3 py-1 hover:bg-bg-elevated/50 transition-colors"
+      onMouseEnter={isCoarse ? undefined : () => setShowActions(true)}
+      onMouseLeave={isCoarse ? undefined : () => setShowActions(false)}
+      onClick={handleTouchToggle}
     >
       {/* Avatar area */}
       {isBot ? (
@@ -169,13 +190,13 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
         )}
       </div>
 
-      {/* Actions */}
+      {/* Actions — absolute pill at top-right */}
       {showActions && !editing && (isOwn || isAdmin) && (
-        <div className="flex items-start gap-0.5 shrink-0 mt-1 bg-bg-surface border border-border rounded-md shadow-sm px-1 py-0.5">
+        <div className="absolute right-2 top-0 z-10 flex items-center gap-0.5 bg-bg-surface border border-border rounded-md shadow-sm px-1 py-0.5">
           {isOwn && !isBot && (
             <button
-              onClick={() => { setEditContent(message.content); setEditing(true); }}
-              className="p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors"
+              onClick={(e) => { e.stopPropagation(); setEditContent(message.content); setEditing(true); }}
+              className="relative p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors before:absolute before:inset-[-8px] before:content-['']"
               title="Edit"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -186,8 +207,8 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
           )}
           {isAdmin && (
             <button
-              onClick={handlePin}
-              className={`p-1 rounded hover:bg-bg-elevated transition-colors ${message.pinned ? "text-torn-yellow" : "text-text-muted hover:text-torn-yellow"}`}
+              onClick={(e) => { e.stopPropagation(); handlePin(); }}
+              className={`relative p-1 rounded hover:bg-bg-elevated transition-colors before:absolute before:inset-[-8px] before:content-[''] ${message.pinned ? "text-torn-yellow" : "text-text-muted hover:text-torn-yellow"}`}
               title={message.pinned ? "Unpin message" : "Pin message"}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill={message.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -197,8 +218,8 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
           )}
           {(isOwn || isAdmin) && (
             <button
-              onClick={handleDelete}
-              className="p-1 rounded hover:bg-torn-red/10 text-text-muted hover:text-torn-red transition-colors"
+              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+              className="relative p-1 rounded hover:bg-torn-red/10 text-text-muted hover:text-torn-red transition-colors before:absolute before:inset-[-8px] before:content-['']"
               title="Delete message"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
