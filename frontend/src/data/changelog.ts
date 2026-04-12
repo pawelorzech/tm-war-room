@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.9.0";
+export const CURRENT_VERSION = "1.9.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.9.1",
+    date: "2026-04-12",
+    title: "Login Stability Fix",
+    changes: [
+      { type: "fix", text: "Fix login appearing to refresh without logging in — caused by a race condition where session validation could fire before login completed" },
+    ],
+  },
   {
     version: "1.9.0",
     date: "2026-04-11",
