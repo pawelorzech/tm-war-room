@@ -436,7 +436,7 @@ export default function ArmouryPage() {
           <RefreshButton onRefresh={() => loadData(true)} />
         </div>
 
-        <PageExplainer id="armoury" title="Armoury Competitions \u2014 How it works" bullets={[
+        <PageExplainer id="armoury" title="Armoury Competitions — How it works" bullets={[
           'Faction leadership creates competitions around restocking specific item categories — blood bags, temporary items, alcohol, medical, drugs, energy drinks, candy, or specific items.',
           'Every deposit you make to the faction armoury during the competition window is tracked automatically via the Torn API.',
           'The leaderboard shows who has deposited the most qualifying items. Prizes are announced by leadership for each competition.',
