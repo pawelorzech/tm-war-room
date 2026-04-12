@@ -21,9 +21,11 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
   const { pinnedItems, pin, unpin, isPinned, isFull } = usePinnedNav();
   const [browseOpen, setBrowseOpen] = useState(false);
 
-  // Favorite slots: first 2 pins (or 3 if no chat)
+  // Favorite slots: first 2 pins (or 3 if no chat), excluding /dashboard (Home tab covers it)
   const favSlotCount = canAccessChat ? 2 : 3;
-  const favSlots = pinnedItems.slice(0, favSlotCount);
+  const favSlots = pinnedItems
+    .filter(item => item.href !== "/dashboard" && item.href !== "/chat")
+    .slice(0, favSlotCount);
 
   const isActive = (href: string) => pathname.startsWith(href);
 
