@@ -169,7 +169,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <main
         className={`lg:ml-[200px] pt-12 lg:pt-0 flex flex-col ${
           onChatPage
-            ? "flex-1 min-h-0 overflow-hidden"
+            ? "flex-1 min-h-0 overflow-hidden pb-20 lg:pb-0"
             : "min-h-screen pb-20 lg:pb-0"
         }`}
       >
