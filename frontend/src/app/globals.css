@@ -133,6 +133,17 @@ html.keyboard-open [data-chat-page] .keyboard-open-chat-hide {
   display: none;
 }
 
+/* Chat page: lock html/body to visual viewport to prevent document scroll */
+html.chat-active {
+  height: var(--vvh, 100dvh) !important;
+  overflow: hidden !important;
+}
+html.chat-active > body {
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
 /* Chat page: remove bottom padding when keyboard opens (nav is hidden) */
 html.keyboard-open [data-chat-page] > main {
   padding-bottom: 0 !important;
