@@ -117,7 +117,11 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen" data-chat-page={onChatPage || undefined}>
+    <div
+      className={onChatPage ? "flex flex-col overflow-hidden" : "min-h-screen"}
+      style={onChatPage ? { height: "var(--vvh, 100dvh)" } : undefined}
+      data-chat-page={onChatPage || undefined}
+    >
       {/* Desktop sidebar */}
       <div className="hidden lg:block fixed top-0 left-0 w-[200px] h-full z-40">
         <Sidebar unreadCount={unreadCount} chatUnread={chatUnread} showVersionBadge={showNotice} />
@@ -165,10 +169,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <main
         className={`lg:ml-[200px] pt-12 lg:pt-0 flex flex-col ${
           onChatPage
-            ? "overflow-hidden lg:min-h-screen pb-0"
+            ? "flex-1 min-h-0 overflow-hidden"
             : "min-h-screen pb-20 lg:pb-0"
         }`}
-        style={onChatPage ? { height: "var(--vvh, 100dvh)" } : undefined}
       >
         <AnnouncementCarousel announcements={active} onDismiss={dismiss} />
         {showNotice && latestEntry && (

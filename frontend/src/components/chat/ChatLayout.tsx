@@ -255,7 +255,7 @@ export function ChatLayout() {
           /* Chat view */
           <>
             {/* Channel header */}
-            <div className="border-b border-border">
+            <div className="border-b border-border shrink-0 keyboard-open-chat-hide">
               <div className="p-3 flex items-center gap-2">
                 <button
                   onClick={() => setMobileView("channels")}

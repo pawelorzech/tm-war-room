@@ -141,7 +141,7 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
   };
 
   return (
-    <div className="border-t border-border p-3 relative">
+    <div className="border-t border-border p-3 relative shrink-0">
       {/* Autocomplete dropdown */}
       {suggestions.length > 0 && (
         <div
