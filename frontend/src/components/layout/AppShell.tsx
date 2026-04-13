@@ -110,6 +110,18 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Lock html/body to visual viewport on chat page to prevent document scroll
+  // when keyboard opens (html.h-full + body.min-h-full keep the old viewport height,
+  // making the document taller than the visual viewport → browser auto-scrolls → chaos).
+  useEffect(() => {
+    if (onChatPage) {
+      document.documentElement.classList.add("chat-active");
+    } else {
+      document.documentElement.classList.remove("chat-active");
+    }
+    return () => document.documentElement.classList.remove("chat-active");
+  }, [onChatPage]);
+
   usePDAPolling();
 
   if (!isLoggedIn) {
