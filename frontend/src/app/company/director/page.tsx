@@ -15,8 +15,10 @@ import type {
   DirectorNewsEntry,
   ApplicationsRankedResponse,
 } from '@/types/company-director';
+import { WeeklyComparisonView } from '@/components/company/WeeklyComparisonView';
+import { TrainsAlertConfig } from '@/components/company/TrainsAlertConfig';
 
-type Tab = 'overview' | 'employees' | 'applications' | 'stock' | 'news' | 'trends' | 'faction';
+type Tab = 'overview' | 'employees' | 'applications' | 'stock' | 'news' | 'trends' | 'comparison' | 'faction';
 
 function formatMoney(n: number | undefined | null): string {
   if (n == null) return '$—';
@@ -39,12 +41,15 @@ function formatRelative(timestamp: number | undefined): string {
 
 export default function CompanyDirectorPage() {
   const {
-    me, faction, news, trends, ranked,
-    loading, newsLoading, trendsLoading, rankedLoading, error,
+    me, faction, news, trends, ranked, comparison, pinned, trainsAlerts,
+    loading, newsLoading, trendsLoading, rankedLoading, comparisonLoading, pinnedLoading, alertsLoading, error,
     refresh, loadNews, loadTrends, loadRanked,
+    loadComparison, loadPinned, pinWeek, unpinWeek,
+    loadTrainsAlerts, toggleTrainsAlert,
   } = useCompanyDirector();
   const [tab, setTab] = useState<Tab>('overview');
   const [trendsDays, setTrendsDays] = useState<number>(30);
+  const [compareScope, setCompareScope] = useState<'same_type' | 'all'>('same_type');
 
   const isDirector = me?.is_director === true;
 
@@ -53,6 +58,19 @@ export default function CompanyDirectorPage() {
       loadTrends(trendsDays);
     }
   }, [tab, isDirector, trends, trendsLoading, trendsDays, loadTrends]);
+
+  useEffect(() => {
+    if (tab === 'comparison' && isDirector && !comparison && !comparisonLoading) {
+      loadComparison({ scope: compareScope });
+      if (!pinned.length && !pinnedLoading) loadPinned();
+    }
+  }, [tab, isDirector, comparison, comparisonLoading, compareScope, loadComparison, pinned.length, pinnedLoading, loadPinned]);
+
+  useEffect(() => {
+    if (tab === 'employees' && isDirector && !trainsAlerts.length && !alertsLoading) {
+      loadTrainsAlerts();
+    }
+  }, [tab, isDirector, trainsAlerts.length, alertsLoading, loadTrainsAlerts]);
 
   // Precompute sorted/derived lists
   const employees = useMemo(() => {
@@ -93,6 +111,7 @@ export default function CompanyDirectorPage() {
     { id: 'stock', label: 'Stock', directorOnly: true },
     { id: 'news', label: 'News', directorOnly: true },
     { id: 'trends', label: 'Trends', directorOnly: true },
+    { id: 'comparison', label: 'Comparison', directorOnly: true },
     { id: 'faction', label: 'TM Companies' },
   ];
 
@@ -171,7 +190,16 @@ export default function CompanyDirectorPage() {
               : <DirectorTeaser tab="overview" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'employees' && (isDirector
-              ? <EmployeesTab employees={employees} />
+              ? (
+                <div className="space-y-4">
+                  <EmployeesTab employees={employees} />
+                  <TrainsAlertConfig
+                    employees={employees}
+                    alerts={trainsAlerts}
+                    onToggle={toggleTrainsAlert}
+                  />
+                </div>
+              )
               : <DirectorTeaser tab="employees" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'applications' && (isDirector
@@ -207,6 +235,22 @@ export default function CompanyDirectorPage() {
                   }}
                 />
               : <DirectorTeaser tab="trends" onSeeFaction={() => setTab('faction')} />)}
+
+            {effectiveTab === 'comparison' && (isDirector
+              ? <WeeklyComparisonView
+                  comparison={comparison}
+                  comparisonLoading={comparisonLoading}
+                  pinned={pinned}
+                  scope={compareScope}
+                  onScopeChange={(s) => { setCompareScope(s); loadComparison({ scope: s }); }}
+                  onPinCurrent={async (label, note) => {
+                    if (!comparison) return;
+                    await pinWeek(comparison.week_start_ts, label, note);
+                  }}
+                  onUnpin={unpinWeek}
+                  onReload={() => loadComparison({ scope: compareScope })}
+                />
+              : <DirectorTeaser tab="comparison" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'faction' && (
               <FactionTab companies={factionCompanies} />
@@ -622,6 +666,17 @@ const TEASER_CONTENT: Record<Exclude<Tab, 'faction'>, {
       'Daily + weekly income trajectory',
       'Popularity / efficiency / environment — spot regressions',
       'Aggregated stock sales across all products',
+    ],
+  },
+  comparison: {
+    icon: '🏆',
+    title: 'Compare your week against every other company',
+    blurb: 'Weekly ranking against every class-10 company we track — anchored to Mon 18:00 TCT, not Torn\'s rolling 7-day blur.',
+    bullets: [
+      'Rank within your company type + overall (all class-10)',
+      'Pin any past week (e.g. "Halloween 2025") to overlay in future comparisons',
+      'Your own anchored weekly sales (diff from daily stock snapshots)',
+      'Rival data = Torn public rolling 7-day (only metric exposed for other companies)',
     ],
   },
 };

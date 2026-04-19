@@ -149,11 +149,20 @@ async def lifespan(app: FastAPI):
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
     from api.db.repos.companies import CompanySnapshotRepository
+    from api.db.repos.tracked_companies import TrackedCompaniesRepository
+    from api.db.repos.pinned_weeks import PinnedWeeksRepository
+    from api.db.repos.company_alerts import CompanyAlertConfigRepository
     companies_repo = CompanySnapshotRepository(db_path="data/keys.db")
+    tracked_companies_repo = TrackedCompaniesRepository(db_path="data/keys.db")
+    pinned_weeks_repo = PinnedWeeksRepository(db_path="data/keys.db")
+    company_alerts_repo = CompanyAlertConfigRepository(db_path="data/keys.db")
     company_director_mod.torn_client = torn_client
     company_director_mod.key_store = key_store
     company_director_mod.tornstats_key = TORNSTATS_API_KEY
     company_director_mod.companies_repo = companies_repo
+    company_director_mod.tracked_companies_repo = tracked_companies_repo
+    company_director_mod.pinned_weeks_repo = pinned_weeks_repo
+    company_director_mod.company_alerts_repo = company_alerts_repo
 
     from api.db.repos.push_repository import PushRepository
     push_repo = PushRepository(db_path="data/keys.db")
@@ -283,6 +292,9 @@ async def lifespan(app: FastAPI):
         "chat_manager": chat_mgr,
         "armoury_repo": armoury_repo,
         "companies_repo": companies_repo,
+        "tracked_companies_repo": tracked_companies_repo,
+        "pinned_weeks_repo": pinned_weeks_repo,
+        "company_alerts_repo": company_alerts_repo,
     })
     from api import b2_client
     if b2_client.is_configured():
@@ -564,6 +576,9 @@ _API_CACHE_RULES: list[tuple[str, str]] = [
     ("/api/company/director/faction", "private, max-age=300, stale-while-revalidate=600"),
     ("/api/company/director/trends", "private, max-age=300, stale-while-revalidate=600"),
     ("/api/company/director/applications/ranked", "private, max-age=60, stale-while-revalidate=120"),
+    ("/api/company/director/weekly-comparison", "private, max-age=60, stale-while-revalidate=180"),
+    ("/api/company/director/pinned-weeks", "private, max-age=30, stale-while-revalidate=60"),
+    ("/api/company/director/alerts", "private, max-age=30, stale-while-revalidate=60"),
     ("/api/stocks/market", "private, max-age=120, stale-while-revalidate=300"),
     ("/api/awards/me", "private, max-age=60, stale-while-revalidate=300"),
     ("/api/overview", "private, max-age=15, stale-while-revalidate=30"),

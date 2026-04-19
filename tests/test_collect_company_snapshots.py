@@ -6,18 +6,29 @@ import pytest
 
 from api.db.migrations.runner import run_migrations
 from api.db.repos.companies import CompanySnapshotRepository
+from api.db.repos.tracked_companies import TrackedCompaniesRepository
 from api.scheduler.jobs.collect_company_snapshots import collect_company_snapshots
 
 
 @pytest.fixture
-def repo():
+def db_path():
     tmpdir = tempfile.mkdtemp()
-    db_path = os.path.join(tmpdir, "test.db")
+    path = os.path.join(tmpdir, "test.db")
     migrations_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "api", "db", "migrations"
     )
-    run_migrations(db_path, migrations_dir)
+    run_migrations(path, migrations_dir)
+    return path
+
+
+@pytest.fixture
+def repo(db_path):
     return CompanySnapshotRepository(db_path=db_path)
+
+
+@pytest.fixture
+def tracked_repo(db_path):
+    return TrackedCompaniesRepository(db_path=db_path)
 
 
 @pytest.fixture
@@ -27,11 +38,12 @@ def key_repo():
         {"player_id": 123, "player_name": "Bombel", "api_key": "key-director"},
         {"player_id": 456, "player_name": "Jan", "api_key": "key-employee"},
     ]
+    kr.get_faction_key.return_value = {"api_key": "key-director"}
     return kr
 
 
 @pytest.mark.asyncio
-async def test_collect_company_snapshots_director(repo, key_repo):
+async def test_collect_company_snapshots_director(repo, tracked_repo, key_repo):
     tc = AsyncMock()
     # key-director returns real data; key-employee returns None for director selections
     def _detailed(api_key):
@@ -64,7 +76,7 @@ async def test_collect_company_snapshots_director(repo, key_repo):
                                        "on_order": 0, "sold_amount": 1000, "sold_worth": 25000}}
     })
 
-    await collect_company_snapshots(key_repo, repo, tc)
+    await collect_company_snapshots(key_repo, repo, tracked_repo, tc)
 
     # detailed called for both keys (one real, one None)
     assert tc.fetch_company_detailed.await_count == 2
@@ -88,11 +100,11 @@ async def test_collect_company_snapshots_director(repo, key_repo):
 
 
 @pytest.mark.asyncio
-async def test_collect_company_snapshots_no_director(repo, key_repo):
+async def test_collect_company_snapshots_no_director(repo, tracked_repo, key_repo):
     tc = AsyncMock()
     tc.fetch_company_detailed = AsyncMock(return_value=None)  # everyone's an employee
 
-    await collect_company_snapshots(key_repo, repo, tc)
+    await collect_company_snapshots(key_repo, repo, tracked_repo, tc)
 
     # No snapshot should have been written
     assert repo.get_snapshots(50000, days=1) == []

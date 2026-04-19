@@ -23,6 +23,8 @@ async def create_and_start_scheduler(app_state: dict):
     from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
     from api.scheduler.jobs.armoury_poll import run_armoury_poll
     from api.scheduler.jobs.collect_company_snapshots import run_collect_company_snapshots
+    from api.scheduler.jobs.discover_companies import run_discover_companies
+    from api.scheduler.jobs.check_trains_stagnation import run_check_trains_stagnation
 
     global _state
     _state = app_state
@@ -85,7 +87,25 @@ async def create_and_start_scheduler(app_state: dict):
         id="collect_company_snapshots_schedule",
     )
 
+    await scheduler.configure_task("discover_companies", func=run_discover_companies)
+    await scheduler.add_schedule(
+        "discover_companies",
+        IntervalTrigger(hours=24),
+        id="discover_companies_schedule",
+    )
+
+    await scheduler.configure_task("check_trains_stagnation", func=run_check_trains_stagnation)
+    await scheduler.add_schedule(
+        "check_trains_stagnation",
+        IntervalTrigger(hours=24),
+        id="check_trains_stagnation_schedule",
+    )
+
     await scheduler.start_in_background()
 
-    logger.info("Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), collect_company_snapshots (24h)")
+    logger.info(
+        "Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), "
+        "refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), "
+        "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h)"
+    )
     return scheduler

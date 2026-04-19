@@ -5,6 +5,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
+from pydantic import BaseModel, Field
+
+from api.time_utils import week_start_tct, week_end_tct, format_week_label
 
 logger = logging.getLogger("tm-hub.company_director")
 
@@ -14,6 +17,9 @@ torn_client = None  # Set by main.py
 key_store = None  # Set by main.py
 tornstats_key: str | None = None  # Set by main.py
 companies_repo = None  # CompanySnapshotRepository, set by main.py
+tracked_companies_repo = None  # TrackedCompaniesRepository, set by main.py
+pinned_weeks_repo = None  # PinnedWeeksRepository, set by main.py
+company_alerts_repo = None  # CompanyAlertConfigRepository, set by main.py
 
 _FACTION_PROFILE_CONCURRENCY = 5
 
@@ -282,3 +288,274 @@ async def director_trends(
         "company": company_rows,
         "stock": stock_rows,
     }
+
+
+# ----------------------------- Weekly comparison -----------------------------
+
+
+async def _resolve_viewer_company(api_key: str) -> tuple[int, int]:
+    """Return (company_id, company_type) from the viewer's training data. Zero on failure."""
+    training = await torn_client.fetch_training_data(api_key)
+    if not training or not isinstance(training.get("job"), dict):
+        return 0, 0
+    job = training["job"]
+    return int(job.get("company_id") or 0), int(job.get("company_type") or 0)
+
+
+@router.get("/weekly-comparison")
+async def director_weekly_comparison(
+    x_player_id: int = Header(),
+    week_start: int | None = Query(default=None, description="Unix ts of Mon 18:00 TCT; omit for current week"),
+    scope: str = Query(default="same_type", pattern="^(same_type|all)$"),
+    limit: int = Query(default=25, ge=1, le=100),
+) -> dict[str, Any]:
+    """Rank this viewer's company vs. every tracked company for the anchored week.
+
+    Weekly anchor = Monday 18:00 TCT (= UTC). Rankings use Torn's rolling 7-day
+    weekly_income — the only metric exposed publicly for rivals. For OUR own
+    company we additionally return the diff of lifetime sold_worth captured in
+    stock snapshots (true anchored-week sales). See docs at /company/director.
+    """
+    _require_services()
+    if companies_repo is None:
+        raise HTTPException(status_code=503, detail="Snapshots not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+
+    viewer_company_id, viewer_company_type = await _resolve_viewer_company(api_key)
+
+    start_ts = week_start if week_start is not None else week_start_tct()
+    end_ts = week_end_tct(start_ts)
+
+    ct_filter = viewer_company_type if (scope == "same_type" and viewer_company_type) else None
+    ranked = companies_repo.rank_companies_by_week(
+        start_ts, end_ts, company_type=ct_filter, limit=limit
+    )
+
+    own_rank: int | None = None
+    own_snapshot: dict | None = None
+    own_weekly_sales: dict | None = None
+    if viewer_company_id:
+        own_snapshot = companies_repo.get_own_weekly_snapshot(
+            viewer_company_id, start_ts, end_ts
+        )
+        own_weekly_sales = companies_repo.get_weekly_sales(
+            viewer_company_id, start_ts, end_ts
+        )
+        # If own company wasn't in the top-N, compute its rank separately
+        for idx, r in enumerate(ranked, start=1):
+            if r["company_id"] == viewer_company_id:
+                own_rank = idx
+                break
+        if own_rank is None and own_snapshot and own_snapshot.get("weekly_income") is not None:
+            all_ranked = companies_repo.rank_companies_by_week(
+                start_ts, end_ts, company_type=ct_filter, limit=2000
+            )
+            for idx, r in enumerate(all_ranked, start=1):
+                if r["company_id"] == viewer_company_id:
+                    own_rank = idx
+                    break
+
+    return {
+        "week_start_ts": start_ts,
+        "week_end_ts": end_ts,
+        "week_label": format_week_label(start_ts),
+        "scope": scope,
+        "company_type_filter": ct_filter,
+        "viewer_company_id": viewer_company_id,
+        "viewer_company_type": viewer_company_type,
+        "viewer_rank": own_rank,
+        "viewer_snapshot": own_snapshot,
+        "viewer_weekly_sales": own_weekly_sales,
+        "ranked": ranked,
+        "tracked_total": len(tracked_companies_repo.list_all()) if tracked_companies_repo else 0,
+    }
+
+
+# ----------------------------- Pinned weeks -----------------------------
+
+
+class PinnedWeekCreate(BaseModel):
+    week_start: int = Field(..., description="Unix ts, Mon 18:00 TCT")
+    label: str = Field(..., min_length=1, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.get("/pinned-weeks")
+async def director_list_pinned_weeks(x_player_id: int = Header()) -> dict[str, Any]:
+    _require_services()
+    if pinned_weeks_repo is None:
+        raise HTTPException(status_code=503, detail="Pinned weeks not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+    company_id, _ = await _resolve_viewer_company(api_key)
+    pins = pinned_weeks_repo.list_for(x_player_id, company_id=company_id or None)
+    for p in pins:
+        p["label_auto"] = format_week_label(p["week_start_ts"])
+    return {"company_id": company_id, "pinned": pins}
+
+
+@router.post("/pinned-weeks")
+async def director_create_pinned_week(
+    body: PinnedWeekCreate,
+    x_player_id: int = Header(),
+) -> dict[str, Any]:
+    _require_services()
+    if pinned_weeks_repo is None or companies_repo is None:
+        raise HTTPException(status_code=503, detail="Pinned weeks not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+    company_id, _ = await _resolve_viewer_company(api_key)
+    if not company_id:
+        raise HTTPException(status_code=400, detail="No company — can't pin a week")
+    pinned_id = pinned_weeks_repo.create(
+        player_id=x_player_id,
+        company_id=company_id,
+        week_start_ts=body.week_start,
+        label=body.label,
+        note=body.note,
+    )
+    # Return snapshot + sales for the pinned week so UI can render immediately
+    start_ts = body.week_start
+    end_ts = week_end_tct(start_ts)
+    snap = companies_repo.get_own_weekly_snapshot(company_id, start_ts, end_ts)
+    sales = companies_repo.get_weekly_sales(company_id, start_ts, end_ts)
+    return {
+        "id": pinned_id,
+        "company_id": company_id,
+        "week_start_ts": start_ts,
+        "week_end_ts": end_ts,
+        "label": body.label,
+        "note": body.note,
+        "snapshot": snap,
+        "weekly_sales": sales,
+    }
+
+
+@router.delete("/pinned-weeks/{pinned_id}")
+async def director_delete_pinned_week(
+    pinned_id: int,
+    x_player_id: int = Header(),
+) -> dict[str, Any]:
+    _require_services()
+    if pinned_weeks_repo is None:
+        raise HTTPException(status_code=503, detail="Pinned weeks not initialized")
+    ok = pinned_weeks_repo.delete(x_player_id, pinned_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Pinned week not found")
+    return {"ok": True, "id": pinned_id}
+
+
+@router.get("/pinned-weeks/{pinned_id}/data")
+async def director_pinned_week_data(
+    pinned_id: int,
+    x_player_id: int = Header(),
+) -> dict[str, Any]:
+    """Return the snapshot + sales for a previously-pinned week (for chart overlay)."""
+    _require_services()
+    if pinned_weeks_repo is None or companies_repo is None:
+        raise HTTPException(status_code=503, detail="Pinned weeks not initialized")
+    pin = pinned_weeks_repo.get(x_player_id, pinned_id)
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pinned week not found")
+    start_ts = pin["week_start_ts"]
+    end_ts = week_end_tct(start_ts)
+    snap = companies_repo.get_own_weekly_snapshot(pin["company_id"], start_ts, end_ts)
+    sales = companies_repo.get_weekly_sales(pin["company_id"], start_ts, end_ts)
+    return {
+        **pin,
+        "week_end_ts": end_ts,
+        "snapshot": snap,
+        "weekly_sales": sales,
+    }
+
+
+# ----------------------------- Trains alerts -----------------------------
+
+
+class AlertConfigUpsert(BaseModel):
+    target_player_id: int
+    enabled: bool = True
+    threshold_days: int = Field(default=3, ge=1, le=30)
+
+
+@router.get("/alerts/trains")
+async def director_list_trains_alerts(x_player_id: int = Header()) -> dict[str, Any]:
+    _require_services()
+    if company_alerts_repo is None:
+        raise HTTPException(status_code=503, detail="Alerts not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+    company_id, _ = await _resolve_viewer_company(api_key)
+    if not company_id:
+        return {"company_id": 0, "alerts": []}
+    alerts = company_alerts_repo.list_for_company(company_id, alert_type="company_trains_stagnant")
+    return {"company_id": company_id, "alerts": alerts}
+
+
+@router.post("/alerts/trains")
+async def director_upsert_trains_alert(
+    body: AlertConfigUpsert,
+    x_player_id: int = Header(),
+) -> dict[str, Any]:
+    """Toggle 'trains stagnant' alert for a specific employee. enabled=False removes."""
+    _require_services()
+    if company_alerts_repo is None:
+        raise HTTPException(status_code=503, detail="Alerts not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+    company_id, _ = await _resolve_viewer_company(api_key)
+    if not company_id:
+        raise HTTPException(status_code=400, detail="No company — can't configure alerts")
+
+    # Authorization: only directors can configure alerts. We already verified
+    # they have a director key (implicit — _resolve_viewer_company returned a
+    # company_id), but we also require the viewer to BE the director. Quick
+    # check: call detailed, which returns None for non-directors.
+    detailed = await torn_client.fetch_company_detailed(api_key)
+    if detailed is None:
+        raise HTTPException(status_code=403, detail="Only directors can configure company alerts")
+
+    if body.enabled:
+        company_alerts_repo.upsert(
+            company_id=company_id,
+            alert_type="company_trains_stagnant",
+            target_player_id=body.target_player_id,
+            threshold_days=body.threshold_days,
+        )
+    else:
+        company_alerts_repo.delete(
+            company_id=company_id,
+            alert_type="company_trains_stagnant",
+            target_player_id=body.target_player_id,
+        )
+    return {"ok": True, "company_id": company_id, **body.model_dump()}
+
+
+# ----------------------------- Manual watchlist -----------------------------
+
+
+class TrackedCompanyAdd(BaseModel):
+    company_id: int = Field(..., gt=0)
+
+
+@router.post("/tracked-companies")
+async def director_add_tracked_company(
+    body: TrackedCompanyAdd,
+    x_player_id: int = Header(),
+) -> dict[str, Any]:
+    """Manually add a rival company to the daily snapshot watchlist.
+    The next snapshot cycle will include it with scope='public'."""
+    _require_services()
+    if tracked_companies_repo is None:
+        raise HTTPException(status_code=503, detail="Tracked companies not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+    # Fetch public profile once so we have a name + type immediately
+    profile_raw = await torn_client.fetch_company_profile(body.company_id, api_key)
+    profile = (profile_raw or {}).get("company") if profile_raw else None
+    if not profile:
+        raise HTTPException(status_code=404, detail="Company not found or API error")
+    tracked_companies_repo.upsert(
+        company_id=body.company_id,
+        company_type=profile.get("company_type"),
+        rating=profile.get("rating"),
+        name=profile.get("name"),
+        director_id=profile.get("director"),
+        source="manual",
+    )
+    return {"ok": True, "company": tracked_companies_repo.get(body.company_id)}
