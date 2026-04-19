@@ -149,3 +149,28 @@ export interface DirectorTrendsResponse {
   company: CompanyTrendRow[];
   stock: CompanyStockTrendRow[];
 }
+
+export interface RankedApplicant {
+  userID: number;
+  name: string;
+  level: number;
+  message: string;
+  status: string;
+  expires: number;
+  stats: { manual_labor: number; intelligence: number; endurance: number };
+  stats_hidden: boolean;
+  efficiency: {
+    status?: boolean;
+    message?: string;
+    companies?: Record<string, Record<string, number>>;
+  } | null;
+  best_position: string | null;
+  best_score: number | null;
+}
+
+export interface ApplicationsRankedResponse {
+  is_director: boolean;
+  tornstats_enabled: boolean;
+  applicants: RankedApplicant[];
+  count?: number;
+}

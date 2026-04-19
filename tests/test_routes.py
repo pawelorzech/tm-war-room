@@ -660,6 +660,61 @@ async def test_company_director_news(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_company_director_applications_ranked(mock_client, mock_store):
+    mock_client.fetch_company_applications = AsyncMock(return_value={
+        "applications": {
+            "100": {"userID": 100, "name": "Alice", "level": 40, "status": "active",
+                     "stats": {"manual_labor": 1000, "intelligence": 500, "endurance": 800},
+                     "message": "hire me", "expires": 1775000000},
+            "200": {"userID": 200, "name": "Bob", "level": 30, "status": "active",
+                     "stats": {"manual_labor": 500, "intelligence": 300, "endurance": 200},
+                     "message": "", "expires": 1775000000},
+        }
+    })
+    # Higher global score for Alice (1200), lower for Bob (900)
+    mock_client.fetch_tornstats_efficiency = AsyncMock(side_effect=[
+        {"status": True, "companies": {"Hair Salon": {"Stylist": 1200, "Manager": 1000}}},
+        {"status": True, "companies": {"Hair Salon": {"Stylist": 900, "Manager": 500}}},
+    ])
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.tornstats_key = "tskey"
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/applications/ranked", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is True
+    assert data["count"] == 2
+    # Alice ranks first (higher best_score)
+    assert data["applicants"][0]["name"] == "Alice"
+    assert data["applicants"][0]["best_position"] == "Stylist"
+    assert data["applicants"][0]["best_score"] == 1200
+    assert data["applicants"][1]["name"] == "Bob"
+
+
+@pytest.mark.asyncio
+async def test_company_director_applications_ranked_non_director(mock_client, mock_store):
+    mock_client.fetch_company_applications = AsyncMock(return_value=None)
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.tornstats_key = "tskey"
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/applications/ranked", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is False
+    assert data["applicants"] == []
+
+
+@pytest.mark.asyncio
 async def test_company_director_trends(mock_client, mock_store):
     mock_client.fetch_training_data = AsyncMock(return_value={
         "job": {"company_id": 50000, "company_name": "Co", "company_type": 34, "position": "Director"},

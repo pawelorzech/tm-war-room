@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.11.0";
+export const CURRENT_VERSION = "1.12.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.12.0",
+    date: "2026-04-19",
+    title: "Hiring Ranker",
+    changes: [
+      { type: "feat", text: "Applications tab on /company/director now ranks applicants by predicted efficiency using TornStats — 'Top pick' badges on the best 3 and a per-applicant 'Best as X' recommendation" },
+      { type: "feat", text: "Rate-limited batch calls (semaphore=5) respect the TornStats 100/min budget even with many applicants" },
+      { type: "feat", text: "Explicit 'Rank applicants' button — no surprise external calls until you ask" },
+    ],
+  },
   {
     version: "1.11.0",
     date: "2026-04-19",

@@ -13,6 +13,7 @@ import type {
   CompanyTrendRow,
   CompanyStockTrendRow,
   DirectorNewsEntry,
+  ApplicationsRankedResponse,
 } from '@/types/company-director';
 
 type Tab = 'overview' | 'employees' | 'applications' | 'stock' | 'news' | 'trends' | 'faction';
@@ -38,9 +39,9 @@ function formatRelative(timestamp: number | undefined): string {
 
 export default function CompanyDirectorPage() {
   const {
-    me, faction, news, trends,
-    loading, newsLoading, trendsLoading, error,
-    refresh, loadNews, loadTrends,
+    me, faction, news, trends, ranked,
+    loading, newsLoading, trendsLoading, rankedLoading, error,
+    refresh, loadNews, loadTrends, loadRanked,
   } = useCompanyDirector();
   const [tab, setTab] = useState<Tab>('overview');
   const [trendsDays, setTrendsDays] = useState<number>(30);
@@ -173,7 +174,12 @@ export default function CompanyDirectorPage() {
             )}
 
             {effectiveTab === 'applications' && isDirector && (
-              <ApplicationsTab applications={applications} />
+              <ApplicationsTab
+                applications={applications}
+                ranked={ranked}
+                rankedLoading={rankedLoading}
+                onRank={loadRanked}
+              />
             )}
 
             {effectiveTab === 'stock' && isDirector && (
@@ -315,50 +321,147 @@ function EmployeesTab({ employees }: { employees: [string, CompanyEmployee][] })
   );
 }
 
-function ApplicationsTab({ applications }: { applications: [string, CompanyApplication][] }) {
+function ApplicationsTab({
+  applications,
+  ranked,
+  rankedLoading,
+  onRank,
+}: {
+  applications: [string, CompanyApplication][];
+  ranked: ApplicationsRankedResponse | null;
+  rankedLoading: boolean;
+  onRank: () => void;
+}) {
   if (applications.length === 0) {
     return <div className="text-text-muted text-sm">No pending applications.</div>;
   }
+
+  // Build ID → ranked entry map to decorate raw applications
+  const rankedById = useMemo(() => {
+    const m = new Map<number, ApplicationsRankedResponse['applicants'][number]>();
+    if (ranked?.applicants) for (const a of ranked.applicants) m.set(a.userID, a);
+    return m;
+  }, [ranked]);
+
+  const topIds = useMemo(() => {
+    if (!ranked?.applicants) return new Set<number>();
+    return new Set(ranked.applicants.slice(0, 3).map((a) => a.userID));
+  }, [ranked]);
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {applications.map(([id, a]) => (
-        <div key={id} className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <a
-              href={`https://www.torn.com/profiles.php?XID=${a.userID}`}
-              target="_blank"
-              rel="noopener"
-              className="font-semibold hover:text-torn-green"
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-text-secondary">
+          {ranked ? (
+            <>
+              Ranked by predicted efficiency across all positions (TornStats).
+              {!ranked.tornstats_enabled && (
+                <span className="text-yellow-400"> TornStats key not set — rankings unavailable.</span>
+              )}
+            </>
+          ) : (
+            <>Click below to predict each applicant&apos;s efficiency at every position using TornStats.</>
+          )}
+        </p>
+        {!ranked && (
+          <button
+            onClick={onRank}
+            disabled={rankedLoading}
+            className="px-3 py-1.5 text-xs rounded-lg bg-torn-green/20 text-torn-green hover:bg-torn-green/30 disabled:opacity-50"
+          >
+            {rankedLoading ? 'Ranking…' : 'Rank applicants'}
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(ranked?.applicants ?? applications.map(([, a]) => ({
+          userID: a.userID,
+          name: a.name,
+          level: a.level,
+          message: a.message,
+          status: a.status,
+          expires: a.expires,
+          stats: a.stats ?? { manual_labor: 0, intelligence: 0, endurance: 0 },
+          stats_hidden: !a.stats,
+          efficiency: null,
+          best_position: null,
+          best_score: null,
+        }))).map((a) => {
+          const isTop = topIds.has(a.userID);
+          return (
+            <div
+              key={a.userID}
+              className={`bg-bg-card border rounded-xl p-3 space-y-2 ${
+                isTop
+                  ? 'border-torn-green/60 shadow-lg shadow-torn-green/10'
+                  : 'border-text-secondary/15'
+              }`}
             >
-              {a.name}
-            </a>
-            <span className="text-[10px] text-text-muted">Lvl {a.level}</span>
-          </div>
-          {a.stats && (
-            <div className="grid grid-cols-3 gap-1 text-[10px]">
-              <div className="bg-bg-elevated rounded px-2 py-1">
-                <div className="text-text-muted uppercase">Man</div>
-                <div className="text-text-primary font-semibold">{a.stats.manual_labor.toLocaleString()}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`https://www.torn.com/profiles.php?XID=${a.userID}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="font-semibold hover:text-torn-green"
+                  >
+                    {a.name}
+                  </a>
+                  {isTop && (
+                    <span className="text-[10px] bg-torn-green/20 text-torn-green px-1.5 py-0.5 rounded-full font-semibold uppercase">
+                      Top pick
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-text-muted">Lvl {a.level}</span>
               </div>
-              <div className="bg-bg-elevated rounded px-2 py-1">
-                <div className="text-text-muted uppercase">Int</div>
-                <div className="text-text-primary font-semibold">{a.stats.intelligence.toLocaleString()}</div>
+
+              {a.best_position && a.best_score != null && (
+                <div className="bg-torn-green/10 border border-torn-green/20 rounded-lg px-2 py-1.5 text-xs">
+                  Best as <strong className="text-torn-green">{a.best_position}</strong> · score{' '}
+                  {a.best_score.toLocaleString()}
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-1 text-[10px]">
+                <div className="bg-bg-elevated rounded px-2 py-1">
+                  <div className="text-text-muted uppercase">Man</div>
+                  <div className="text-text-primary font-semibold">
+                    {a.stats.manual_labor.toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-bg-elevated rounded px-2 py-1">
+                  <div className="text-text-muted uppercase">Int</div>
+                  <div className="text-text-primary font-semibold">
+                    {a.stats.intelligence.toLocaleString()}
+                  </div>
+                </div>
+                <div className="bg-bg-elevated rounded px-2 py-1">
+                  <div className="text-text-muted uppercase">End</div>
+                  <div className="text-text-primary font-semibold">
+                    {a.stats.endurance.toLocaleString()}
+                  </div>
+                </div>
               </div>
-              <div className="bg-bg-elevated rounded px-2 py-1">
-                <div className="text-text-muted uppercase">End</div>
-                <div className="text-text-primary font-semibold">{a.stats.endurance.toLocaleString()}</div>
+              {a.stats_hidden && (
+                <p className="text-[10px] text-yellow-400">
+                  Applicant hid their work stats — ranking skipped.
+                </p>
+              )}
+
+              {a.message && (
+                <p className="text-xs text-text-secondary whitespace-pre-wrap">{a.message}</p>
+              )}
+
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
+                <span className="uppercase">{a.status}</span>
+                <span>expires {formatRelative(a.expires)}</span>
               </div>
             </div>
-          )}
-          {a.message && (
-            <p className="text-xs text-text-secondary whitespace-pre-wrap">{a.message}</p>
-          )}
-          <div className="flex items-center justify-between text-[10px] text-text-muted">
-            <span className="uppercase">{a.status}</span>
-            <span>expires {formatRelative(a.expires)}</span>
-          </div>
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }
