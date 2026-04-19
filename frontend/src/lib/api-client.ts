@@ -224,6 +224,15 @@ export const api = {
     }[];
     count: number;
   }>('/api/company/faction'),
+  companyDirectorMe: () => apiFetch<import('@/types/company-director').DirectorMeResponse>('/api/company/director/me'),
+  companyDirectorNews: (opts?: { from?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.from) qs.set('from', String(opts.from));
+    if (opts?.limit) qs.set('limit', String(opts.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<import('@/types/company-director').DirectorNewsResponse>(`/api/company/director/news${suffix}`);
+  },
+  companyDirectorFaction: () => apiFetch<import('@/types/company-director').DirectorFactionResponse>('/api/company/director/faction'),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),

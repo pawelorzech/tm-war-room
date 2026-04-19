@@ -55,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Revives", href: "/revives", icon: "💚" },
       { label: "Travel", href: "/travel", icon: "✈️" },
       { label: "Companies", href: "/company", icon: "🏢" },
+      { label: "Director", href: "/company/director", icon: "💼" },
     ],
   },
   {

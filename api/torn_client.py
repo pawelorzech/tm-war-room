@@ -647,6 +647,121 @@ class TornClient:
             self._log_integration("torn", "torn/companies", False, (time.time() - t0) * 1000, str(e))
             raise
 
+    async def _fetch_company_selection(
+        self,
+        selection: str,
+        api_key: str,
+        *,
+        company_id: int | None = None,
+        extra_params: dict[str, Any] | None = None,
+        cache_ttl: int = 60,
+    ) -> dict | None:
+        """Fetch a /company/[id]?selections=... endpoint. Returns None on access-error (code 7)."""
+        path = f"/company/{company_id}" if company_id else "/company/"
+        scope = self._cache_scope(api_key) if company_id is None else f"id{company_id}"
+        cache_key = f"company_{selection}:{scope}"
+        if extra_params:
+            cache_key += ":" + ":".join(f"{k}={v}" for k, v in sorted(extra_params.items()))
+        cached = self._get_cached(cache_key, ttl=cache_ttl)
+        if cached is not None:
+            return cached
+        params: dict[str, Any] = {"selections": selection, "key": api_key}
+        if extra_params:
+            params.update(extra_params)
+        t0 = time.time()
+        endpoint = f"{path}?selections={selection}"
+        try:
+            resp = await self._http.get(f"{V1_BASE}{path}", params=params)
+            resp.raise_for_status()
+            raw = await _json(resp)
+            if isinstance(raw, dict) and raw.get("error"):
+                err = raw["error"]
+                code = err.get("code") if isinstance(err, dict) else None
+                self._log_integration("torn_api", endpoint, False, (time.time() - t0) * 1000, str(err))
+                if code in (7, 2):
+                    # 7 = access level too low; 2 = incorrect key (no director rights)
+                    self._set_cached(cache_key, None)
+                    return None
+                return None
+            self._set_cached(cache_key, raw)
+            self._log_integration("torn_api", endpoint, True, (time.time() - t0) * 1000)
+            return raw
+        except Exception as e:
+            self._log_integration("torn_api", endpoint, False, (time.time() - t0) * 1000, str(e))
+            return None
+
+    async def fetch_company_detailed(self, api_key: str | None = None) -> dict | None:
+        """Director-only: financials + operational metrics + upgrades. None if not director."""
+        return await self._fetch_company_selection("detailed", self._resolve_api_key(api_key))
+
+    async def fetch_company_employees(self, api_key: str | None = None) -> dict | None:
+        """Director-only: per-employee effectiveness, wage, stats. None if not director."""
+        return await self._fetch_company_selection("employees", self._resolve_api_key(api_key))
+
+    async def fetch_company_applications(self, api_key: str | None = None) -> dict | None:
+        """Director-only: pending job applications with stats + message. None if not director."""
+        return await self._fetch_company_selection("applications", self._resolve_api_key(api_key))
+
+    async def fetch_company_stock(self, api_key: str | None = None) -> dict | None:
+        """Director-only: current stock levels + sales. None if not director."""
+        return await self._fetch_company_selection("stock", self._resolve_api_key(api_key))
+
+    async def fetch_company_news(
+        self,
+        api_key: str | None = None,
+        *,
+        from_ts: int | None = None,
+        to_ts: int | None = None,
+        limit: int | None = None,
+    ) -> dict | None:
+        """Director-only: company news events. None if not director."""
+        extra: dict[str, Any] = {}
+        if from_ts is not None:
+            extra["from"] = from_ts
+        if to_ts is not None:
+            extra["to"] = to_ts
+        if limit is not None:
+            extra["limit"] = limit
+        return await self._fetch_company_selection(
+            "news", self._resolve_api_key(api_key), extra_params=extra or None
+        )
+
+    async def fetch_company_profile(self, company_id: int, api_key: str | None = None) -> dict | None:
+        """Public: company profile by id. Returns None on error."""
+        return await self._fetch_company_selection(
+            "profile",
+            self._resolve_api_key(api_key),
+            company_id=company_id,
+            cache_ttl=300,
+        )
+
+    async def fetch_tornstats_efficiency(
+        self, ts_key: str, *, manual_labor: int, intelligence: int, endurance: int
+    ) -> dict | None:
+        """TornStats: predicted employee efficiency per company position for given work stats.
+        Returns raw response dict or None on error/disabled key."""
+        cache_key = f"ts_efficiency_{manual_labor}_{intelligence}_{endurance}"
+        cached = self._get_cached(cache_key, ttl=3600)
+        if cached is not None:
+            return cached
+        t0 = time.time()
+        try:
+            resp = await self._http.get(
+                f"https://www.tornstats.com/api/v2/{ts_key}/efficiency",
+                params={"man": manual_labor, "int": intelligence, "end": endurance},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("tornstats", "/api/v2/efficiency", True, (time.time() - t0) * 1000)
+        except Exception as e:
+            self._log_integration("tornstats", "/api/v2/efficiency", False, (time.time() - t0) * 1000, str(e))
+            return None
+        if not raw.get("status", True):
+            self._set_cached(cache_key, None)
+            return None
+        self._set_cached(cache_key, raw)
+        return raw
+
     async def fetch_armoury_deposits(self, from_ts: int, to_ts: int, api_key: str | None = None) -> list[dict]:
         api_key_value = self._resolve_api_key(api_key)
         all_entries: list[dict] = []
