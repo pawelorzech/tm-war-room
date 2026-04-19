@@ -174,3 +174,108 @@ export interface ApplicationsRankedResponse {
   applicants: RankedApplicant[];
   count?: number;
 }
+
+// ---------------- Weekly comparison ----------------
+
+export interface RankedCompanyRow {
+  company_id: number;
+  weekly_income: number | null;
+  weekly_customers: number | null;
+  daily_income: number | null;
+  daily_customers: number | null;
+  rating: number | null;
+  employees_hired: number | null;
+  employees_capacity: number | null;
+  recorded_at: number;
+  scope: 'director' | 'public';
+  tracked_name: string | null;
+  tracked_company_type: number | null;
+  tracked_source: string | null;
+}
+
+export interface WeeklySalesProduct {
+  product_name: string;
+  amount: number;
+  worth: number;
+}
+
+export interface WeeklySalesAggregate {
+  products: WeeklySalesProduct[];
+  total_amount: number;
+  total_worth: number;
+}
+
+export interface ViewerWeeklySnapshot {
+  company_id: number;
+  snapshot_date: string;
+  company_funds: number | null;
+  company_bank: number | null;
+  advertising_budget: number | null;
+  popularity: number | null;
+  efficiency: number | null;
+  environment: number | null;
+  trains_available: number | null;
+  rating: number | null;
+  daily_income: number | null;
+  daily_customers: number | null;
+  weekly_income: number | null;
+  weekly_customers: number | null;
+  employees_hired: number | null;
+  employees_capacity: number | null;
+  scope: string;
+  recorded_at: number;
+}
+
+export interface WeeklyComparisonResponse {
+  week_start_ts: number;
+  week_end_ts: number;
+  week_label: string;
+  scope: 'same_type' | 'all';
+  company_type_filter: number | null;
+  viewer_company_id: number;
+  viewer_company_type: number;
+  viewer_rank: number | null;
+  viewer_snapshot: ViewerWeeklySnapshot | null;
+  viewer_weekly_sales: WeeklySalesAggregate | null;
+  ranked: RankedCompanyRow[];
+  tracked_total: number;
+}
+
+// ---------------- Pinned weeks ----------------
+
+export interface PinnedWeek {
+  id: number;
+  player_id: number;
+  company_id: number;
+  week_start_ts: number;
+  label: string;
+  label_auto?: string;
+  note: string | null;
+  created_at: number;
+}
+
+export interface PinnedWeeksResponse {
+  company_id: number;
+  pinned: PinnedWeek[];
+}
+
+export interface PinnedWeekData extends PinnedWeek {
+  week_end_ts: number;
+  snapshot: ViewerWeeklySnapshot | null;
+  weekly_sales: WeeklySalesAggregate | null;
+}
+
+// ---------------- Trains alerts ----------------
+
+export interface TrainsAlertRow {
+  company_id: number;
+  alert_type: string;
+  target_player_id: number;
+  threshold_days: number;
+  created_at: number;
+}
+
+export interface TrainsAlertsResponse {
+  company_id: number;
+  alerts: TrainsAlertRow[];
+}

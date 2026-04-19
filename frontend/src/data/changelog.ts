@@ -12,9 +12,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.12.2";
+export const CURRENT_VERSION = "1.13.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.0",
+    date: "2026-04-19",
+    title: "Weekly Comparison + Trains Alerts",
+    changes: [
+      { type: "feat", text: "New 'Comparison' tab on /company/director — weekly leaderboard of class-10 companies anchored to Mon 18:00 TCT (not Torn's rolling 7-day). Filter by your company type or see all class-10 overall" },
+      { type: "feat", text: "Anchored weekly sales for your own company — computed as a diff of lifetime sold_worth between week boundaries, so you see a real 'what did I sell this week' figure that resets, not the rolling one Torn shows" },
+      { type: "feat", text: "Pin-a-week — save any week with a label (e.g. 'Halloween 2025') to overlay in future comparisons" },
+      { type: "feat", text: "Background job discovers class-10 rival companies automatically (100 IDs/day sequential scan); daily snapshot pulls their public profile so we build historical data Torn itself doesn't store" },
+      { type: "feat", text: "Per-employee 'trains stagnant' alerts — toggle alerts on any employee from the Employees tab; when company training credits sit unused ≥3 days we ping them via in-app notification (and push if enabled in Settings)" },
+      { type: "feat", text: "Manual tracked-companies endpoint — directors can add any rival company ID to the daily watchlist" },
+    ],
+  },
   {
     version: "1.12.2",
     date: "2026-04-19",

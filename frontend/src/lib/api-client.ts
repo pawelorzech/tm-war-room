@@ -241,6 +241,43 @@ export const api = {
     apiFetch<import('@/types/company-director').ApplicationsRankedResponse>(
       '/api/company/director/applications/ranked',
     ),
+  companyDirectorWeeklyComparison: (opts?: { week_start?: number; scope?: 'same_type' | 'all'; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.week_start) qs.set('week_start', String(opts.week_start));
+    if (opts?.scope) qs.set('scope', opts.scope);
+    if (opts?.limit) qs.set('limit', String(opts.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<import('@/types/company-director').WeeklyComparisonResponse>(
+      `/api/company/director/weekly-comparison${suffix}`,
+    );
+  },
+  companyDirectorPinnedWeeks: () =>
+    apiFetch<import('@/types/company-director').PinnedWeeksResponse>('/api/company/director/pinned-weeks'),
+  companyDirectorPinWeek: (body: { week_start: number; label: string; note?: string }) =>
+    apiPostJson<import('@/types/company-director').PinnedWeekData>(
+      '/api/company/director/pinned-weeks',
+      body,
+    ),
+  companyDirectorDeletePinnedWeek: (id: number) =>
+    apiFetch<{ ok: boolean; id: number }>(`/api/company/director/pinned-weeks/${id}`, { method: 'DELETE' }),
+  companyDirectorPinnedWeekData: (id: number) =>
+    apiFetch<import('@/types/company-director').PinnedWeekData>(
+      `/api/company/director/pinned-weeks/${id}/data`,
+    ),
+  companyDirectorTrainsAlerts: () =>
+    apiFetch<import('@/types/company-director').TrainsAlertsResponse>(
+      '/api/company/director/alerts/trains',
+    ),
+  companyDirectorUpsertTrainsAlert: (body: { target_player_id: number; enabled: boolean; threshold_days?: number }) =>
+    apiPostJson<{ ok: boolean; company_id: number; target_player_id: number; enabled: boolean; threshold_days: number }>(
+      '/api/company/director/alerts/trains',
+      body,
+    ),
+  companyDirectorAddTracked: (company_id: number) =>
+    apiPostJson<{ ok: boolean; company: { company_id: number; name: string | null; rating: number | null; company_type: number | null; source: string } }>(
+      '/api/company/director/tracked-companies',
+      { company_id },
+    ),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),
