@@ -27,7 +27,8 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
     .filter(item => item.href !== "/dashboard" && item.href !== "/chat")
     .slice(0, favSlotCount);
 
-  const isActive = (href: string) => pathname.startsWith(href);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   const tabClass = (active: boolean) =>
     `flex-1 flex flex-col items-center gap-0.5 py-2 pt-2.5 transition-colors duration-200 relative ${

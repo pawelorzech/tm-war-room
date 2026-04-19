@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.12.0";
+export const CURRENT_VERSION = "1.12.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.12.1",
+    date: "2026-04-19",
+    title: "Director page polish",
+    changes: [
+      { type: "fix", text: "Sidebar was highlighting both 'Companies' and 'Director' at the same time on /company/director — prefix-match replaced with exact + descendant match across sidebar, bottom nav, and browse sheet" },
+      { type: "improve", text: "Non-director view of /company/director now shows a teaser per tab explaining exactly what directors get, with an 'unlock' checklist (buy a company, link director's key) instead of a blank 'not a director' banner" },
+      { type: "improve", text: "Lock icons on tabs that are director-only, tabs stay clickable to browse the teasers" },
+    ],
+  },
   {
     version: "1.12.0",
     date: "2026-04-19",

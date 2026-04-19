@@ -37,7 +37,8 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  const isActive = (href: string) => pathname.startsWith(href);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   // Global Cmd+K to open palette
   useEffect(() => {
