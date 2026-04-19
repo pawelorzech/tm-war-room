@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ContextMenu } from "./ContextMenu";
-import type { NavGroup } from "@/lib/nav-data";
+import { isNavItemActive, type NavGroup } from "@/lib/nav-data";
 
 interface CollapsibleGroupProps {
   group: NavGroup;
@@ -64,7 +64,7 @@ export function CollapsibleGroup({
           style={{ animation: "tm-expand 200ms ease-out" }}
         >
           {group.items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = isNavItemActive(pathname, item.href);
             const pinned = isPinned(item.href);
             return (
               <Link
