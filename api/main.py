@@ -563,6 +563,7 @@ _API_CACHE_RULES: list[tuple[str, str]] = [
     ("/api/company/director/news", "private, max-age=60, stale-while-revalidate=120"),
     ("/api/company/director/faction", "private, max-age=300, stale-while-revalidate=600"),
     ("/api/company/director/trends", "private, max-age=300, stale-while-revalidate=600"),
+    ("/api/company/director/applications/ranked", "private, max-age=60, stale-while-revalidate=120"),
     ("/api/stocks/market", "private, max-age=120, stale-while-revalidate=300"),
     ("/api/awards/me", "private, max-age=60, stale-while-revalidate=300"),
     ("/api/overview", "private, max-age=15, stale-while-revalidate=30"),

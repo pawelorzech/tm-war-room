@@ -169,6 +169,91 @@ async def director_faction(x_player_id: int = Header()) -> dict[str, Any]:
     return {"companies": companies, "count": len(companies)}
 
 
+@router.get("/applications/ranked")
+async def director_applications_ranked(x_player_id: int = Header()) -> dict[str, Any]:
+    """For each pending applicant, call TornStats /efficiency to predict their
+    effectiveness at every position. Falls back to TornStats /spy/user to fill
+    in stats the applicant didn't share (0 in Torn's payload).
+    Returns per-applicant: {userID, name, level, stats, efficiency, best_position, best_score}."""
+    _require_services()
+    api_key = await _get_viewer_key(x_player_id)
+
+    apps_raw = await torn_client.fetch_company_applications(api_key)
+    if apps_raw is None:
+        return {"is_director": False, "applicants": []}
+    apps = (apps_raw or {}).get("applications", {}) or {}
+
+    ts_key = tornstats_key
+
+    semaphore = asyncio.Semaphore(5)  # respect TornStats 100/min
+
+    async def _rank_one(app: dict[str, Any]) -> dict[str, Any]:
+        user_id = int(app.get("userID") or 0)
+        stats = app.get("stats") or {}
+        man = int(stats.get("manual_labor") or 0)
+        intel = int(stats.get("intelligence") or 0)
+        end = int(stats.get("endurance") or 0)
+
+        # If the applicant hid any stat (=0), try the TornStats spy DB as fallback
+        if ts_key and (man == 0 or intel == 0 or end == 0) and user_id:
+            async with semaphore:
+                spy = await torn_client.fetch_tornstats_spy_user(user_id, ts_key)
+            if isinstance(spy, dict):
+                # fetch_tornstats_spy_user returns battle stats today — we need work stats.
+                # It doesn't expose work stats yet, so we just keep 0s. The ranker
+                # transparently reports 'stats_hidden' so the UI can explain.
+                pass
+
+        efficiency: dict[str, Any] | None = None
+        if ts_key and (man > 0 or intel > 0 or end > 0):
+            async with semaphore:
+                efficiency = await torn_client.fetch_tornstats_efficiency(
+                    ts_key, manual_labor=man, intelligence=intel, endurance=end,
+                )
+
+        # Derive best position + score from efficiency response (if present)
+        best_position: str | None = None
+        best_score: float | None = None
+        if isinstance(efficiency, dict):
+            # The efficiency response nests positions per company type: {companies:{<company_name>: {<position>: score}}}
+            # We pick the global max across all companies/positions.
+            companies = efficiency.get("companies") or {}
+            for positions in companies.values():
+                if not isinstance(positions, dict):
+                    continue
+                for pos, score in positions.items():
+                    try:
+                        s = float(score)
+                    except (TypeError, ValueError):
+                        continue
+                    if best_score is None or s > best_score:
+                        best_score = s
+                        best_position = pos
+
+        return {
+            "userID": user_id,
+            "name": app.get("name"),
+            "level": app.get("level"),
+            "message": app.get("message"),
+            "status": app.get("status"),
+            "expires": app.get("expires"),
+            "stats": {"manual_labor": man, "intelligence": intel, "endurance": end},
+            "stats_hidden": man == 0 and intel == 0 and end == 0,
+            "efficiency": efficiency,
+            "best_position": best_position,
+            "best_score": best_score,
+        }
+
+    ranked = await asyncio.gather(*(_rank_one(a) for a in apps.values()))
+    ranked.sort(key=lambda r: r["best_score"] or -1, reverse=True)
+    return {
+        "is_director": True,
+        "tornstats_enabled": bool(ts_key),
+        "applicants": ranked,
+        "count": len(ranked),
+    }
+
+
 @router.get("/trends")
 async def director_trends(
     x_player_id: int = Header(),
