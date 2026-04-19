@@ -660,6 +660,37 @@ async def test_company_director_news(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_company_director_trends(mock_client, mock_store):
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Co", "company_type": 34, "position": "Director"},
+    })
+    repo = MagicMock()
+    repo.get_snapshots.return_value = [
+        {"snapshot_date": "2026-04-19", "company_funds": 50_000_000},
+    ]
+    repo.get_stock_trend.return_value = [
+        {"snapshot_date": "2026-04-19", "product_name": "Shampoo", "sold_amount": 1000},
+    ]
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.companies_repo = repo
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/trends?days=7", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["company_id"] == 50000
+    assert data["days"] == 7
+    assert len(data["company"]) == 1
+    assert data["company"][0]["company_funds"] == 50_000_000
+    assert len(data["stock"]) == 1
+    repo.get_snapshots.assert_called_once_with(50000, days=7)
+
+
+@pytest.mark.asyncio
 async def test_company_director_faction(mock_client, mock_store):
     mock_store.get_all_keys.return_value = [
         {"player_id": 123, "player_name": "Bombel", "api_key": "k1"},

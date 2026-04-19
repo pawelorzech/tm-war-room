@@ -6,14 +6,17 @@ import type {
   DirectorMeResponse,
   DirectorFactionResponse,
   DirectorNewsResponse,
+  DirectorTrendsResponse,
 } from "@/types/company-director";
 
 interface DirectorState {
   me: DirectorMeResponse | null;
   faction: DirectorFactionResponse | null;
   news: DirectorNewsResponse | null;
+  trends: DirectorTrendsResponse | null;
   loading: boolean;
   newsLoading: boolean;
+  trendsLoading: boolean;
   error: string | null;
   lastUpdate: Date | null;
 }
@@ -23,8 +26,10 @@ export function useCompanyDirector() {
     me: null,
     faction: null,
     news: null,
+    trends: null,
     loading: true,
     newsLoading: false,
+    trendsLoading: false,
     error: null,
     lastUpdate: null,
   });
@@ -62,9 +67,19 @@ export function useCompanyDirector() {
     }
   }, []);
 
+  const loadTrends = useCallback(async (days = 30) => {
+    setState((prev) => ({ ...prev, trendsLoading: true }));
+    try {
+      const trends = await api.companyDirectorTrends(days);
+      setState((prev) => ({ ...prev, trends, trendsLoading: false }));
+    } catch {
+      setState((prev) => ({ ...prev, trendsLoading: false }));
+    }
+  }, []);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { ...state, refresh, loadNews };
+  return { ...state, refresh, loadNews, loadTrends };
 }

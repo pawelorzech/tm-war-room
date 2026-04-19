@@ -111,3 +111,41 @@ export interface DirectorFactionResponse {
   companies: FactionCompanyEntry[];
   count: number;
 }
+
+export interface CompanyTrendRow {
+  snapshot_date: string;
+  company_funds: number | null;
+  company_bank: number | null;
+  advertising_budget: number | null;
+  value: number | null;
+  popularity: number | null;
+  efficiency: number | null;
+  environment: number | null;
+  trains_available: number | null;
+  rating: number | null;
+  daily_income: number | null;
+  daily_customers: number | null;
+  weekly_income: number | null;
+  weekly_customers: number | null;
+  employees_hired: number | null;
+  employees_capacity: number | null;
+}
+
+export interface CompanyStockTrendRow {
+  snapshot_date: string;
+  product_name: string;
+  cost: number | null;
+  price: number | null;
+  rrp: number | null;
+  in_stock: number | null;
+  on_order: number | null;
+  sold_amount: number | null;
+  sold_worth: number | null;
+}
+
+export interface DirectorTrendsResponse {
+  company_id: number;
+  days: number;
+  company: CompanyTrendRow[];
+  stock: CompanyStockTrendRow[];
+}

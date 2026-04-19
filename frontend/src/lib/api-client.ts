@@ -233,6 +233,10 @@ export const api = {
     return apiFetch<import('@/types/company-director').DirectorNewsResponse>(`/api/company/director/news${suffix}`);
   },
   companyDirectorFaction: () => apiFetch<import('@/types/company-director').DirectorFactionResponse>('/api/company/director/faction'),
+  companyDirectorTrends: (days?: number) =>
+    apiFetch<import('@/types/company-director').DirectorTrendsResponse>(
+      `/api/company/director/trends${days ? `?days=${days}` : ''}`,
+    ),
   marketPrices: (items?: string) => apiFetch<{ items: unknown[]; count: number }>(`/api/market/prices${items ? `?items=${items}` : ''}`),
   statSnapshots: (playerId: number) => apiFetch<{ player_id: number; snapshots: unknown[]; count: number }>(`/api/stats/snapshots/${playerId}`),
   statGrowth: (playerId: number, days: number = 30) => apiFetch<unknown>(`/api/stats/growth/${playerId}?days=${days}`),
