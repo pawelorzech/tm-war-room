@@ -121,6 +121,37 @@ export function findGroupForPath(pathname: string): string | null {
   return null;
 }
 
+/** All nav item hrefs, used for "most specific match wins" active-state logic */
+export const ALL_NAV_HREFS: string[] = ALL_NAV_ITEMS.map((i) => i.href);
+
+/**
+ * Is this nav item "active" for the current pathname?
+ * True when:
+ *   - pathname equals itemHref (exact match), OR
+ *   - pathname is a descendant of itemHref (pathname.startsWith(itemHref + "/"))
+ *     AND no OTHER nav item is a more specific match for that pathname.
+ *
+ * Prevents `/company` from staying lit when viewing `/company/director`
+ * (where `/company/director` is itself a separate nav item).
+ */
+export function isNavItemActive(
+  pathname: string,
+  itemHref: string,
+  allHrefs: string[] = ALL_NAV_HREFS,
+): boolean {
+  if (pathname === itemHref) return true;
+  if (!pathname.startsWith(`${itemHref}/`)) return false;
+  // descendant match — only valid if no longer nav item also matches
+  for (const other of allHrefs) {
+    if (other === itemHref) continue;
+    if (other.length <= itemHref.length) continue;
+    if (pathname === other || pathname.startsWith(`${other}/`)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Simple fuzzy match — checks if all query chars appear in order in the target */
 export function fuzzyMatch(query: string, target: string): boolean {
   const q = query.toLowerCase();

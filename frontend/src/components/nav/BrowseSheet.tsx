@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_GROUPS, fuzzyMatch } from "@/lib/nav-data";
+import { NAV_GROUPS, fuzzyMatch, isNavItemActive } from "@/lib/nav-data";
 
 interface BrowseSheetProps {
   open: boolean;
@@ -134,7 +134,7 @@ export function BrowseSheet({ open, onClose, isPinned, isFull, onPin, onUnpin, s
                   {group.label}
                 </p>
                 {filtered.map(item => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const active = isNavItemActive(pathname, item.href);
                   const pinned = isPinned(item.href);
                   return (
                     <div key={item.href} className="flex items-center gap-2">

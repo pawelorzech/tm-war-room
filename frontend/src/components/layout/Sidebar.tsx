@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChatAccess } from "@/hooks/useChatAccess";
 import { useTheme } from "@/hooks/useTheme";
 import { usePinnedNav } from "@/hooks/usePinnedNav";
-import { NAV_GROUPS } from "@/lib/nav-data";
+import { NAV_GROUPS, isNavItemActive } from "@/lib/nav-data";
 import { CollapsibleGroup } from "@/components/nav/CollapsibleGroup";
 import { ContextMenu } from "@/components/nav/ContextMenu";
 import { SearchBar } from "@/components/nav/SearchBar";
@@ -37,8 +37,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => isNavItemActive(pathname, href);
 
   // Global Cmd+K to open palette
   useEffect(() => {

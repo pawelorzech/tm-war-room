@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.12.1";
+export const CURRENT_VERSION = "1.12.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.12.2",
+    date: "2026-04-19",
+    title: "Nav highlight fix",
+    changes: [
+      { type: "fix", text: "'Companies' and 'Director' were both highlighted at the same time when viewing /company/director — rewrote sidebar active-state to 'most specific match wins' so only the real target item lights up" },
+    ],
+  },
   {
     version: "1.12.1",
     date: "2026-04-19",
