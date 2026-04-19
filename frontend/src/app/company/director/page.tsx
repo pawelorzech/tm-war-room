@@ -1,18 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCompanyDirector } from '@/hooks/useCompanyDirector';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { CompanyTrendsChart } from '@/components/company/CompanyTrendsChart';
 import type {
   CompanyEmployee,
   CompanyApplication,
   CompanyStockItem,
+  CompanyTrendRow,
+  CompanyStockTrendRow,
   DirectorNewsEntry,
 } from '@/types/company-director';
 
-type Tab = 'overview' | 'employees' | 'applications' | 'stock' | 'news' | 'faction';
+type Tab = 'overview' | 'employees' | 'applications' | 'stock' | 'news' | 'trends' | 'faction';
 
 function formatMoney(n: number | undefined | null): string {
   if (n == null) return '$—';
@@ -34,11 +37,21 @@ function formatRelative(timestamp: number | undefined): string {
 }
 
 export default function CompanyDirectorPage() {
-  const { me, faction, news, loading, newsLoading, error, refresh, loadNews } =
-    useCompanyDirector();
+  const {
+    me, faction, news, trends,
+    loading, newsLoading, trendsLoading, error,
+    refresh, loadNews, loadTrends,
+  } = useCompanyDirector();
   const [tab, setTab] = useState<Tab>('overview');
+  const [trendsDays, setTrendsDays] = useState<number>(30);
 
   const isDirector = me?.is_director === true;
+
+  useEffect(() => {
+    if (tab === 'trends' && isDirector && !trends && !trendsLoading) {
+      loadTrends(trendsDays);
+    }
+  }, [tab, isDirector, trends, trendsLoading, trendsDays, loadTrends]);
 
   // Precompute sorted/derived lists
   const employees = useMemo(() => {
@@ -70,6 +83,7 @@ export default function CompanyDirectorPage() {
     { id: 'applications', label: `Applications${applications.length ? ` (${applications.length})` : ''}`, disabled: !isDirector },
     { id: 'stock', label: 'Stock', disabled: !isDirector },
     { id: 'news', label: 'News', disabled: !isDirector },
+    { id: 'trends', label: 'Trends', disabled: !isDirector },
     { id: 'faction', label: 'TM Companies' },
   ];
 
@@ -171,6 +185,19 @@ export default function CompanyDirectorPage() {
                 news={news?.news ?? null}
                 loading={newsLoading}
                 onLoad={() => loadNews({ limit: 100 })}
+              />
+            )}
+
+            {effectiveTab === 'trends' && isDirector && (
+              <TrendsTab
+                companyRows={trends?.company ?? []}
+                stockRows={trends?.stock ?? []}
+                loading={trendsLoading}
+                days={trendsDays}
+                onDaysChange={(d) => {
+                  setTrendsDays(d);
+                  loadTrends(d);
+                }}
               />
             )}
 
@@ -417,6 +444,119 @@ function NewsTab({
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+function TrendsTab({
+  companyRows,
+  stockRows,
+  loading,
+  days,
+  onDaysChange,
+}: {
+  companyRows: CompanyTrendRow[];
+  stockRows: CompanyStockTrendRow[];
+  loading: boolean;
+  days: number;
+  onDaysChange: (d: number) => void;
+}) {
+  // Aggregate stock rows per day (sum sold_amount/sold_worth across products)
+  const stockAggregate = useMemo(() => {
+    const byDate = new Map<string, { sold_amount: number; sold_worth: number; in_stock: number }>();
+    for (const r of stockRows) {
+      const d = r.snapshot_date;
+      const entry = byDate.get(d) ?? { sold_amount: 0, sold_worth: 0, in_stock: 0 };
+      entry.sold_amount += r.sold_amount ?? 0;
+      entry.sold_worth += r.sold_worth ?? 0;
+      entry.in_stock += r.in_stock ?? 0;
+      byDate.set(d, entry);
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([snapshot_date, v]) => ({ snapshot_date, ...v }));
+  }, [stockRows]);
+
+  if (loading) {
+    return <CardSkeleton count={2} />;
+  }
+
+  if (companyRows.length === 0) {
+    return (
+      <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4 text-center text-text-muted text-sm">
+        No snapshots yet — the daily collector started with this release. Come back tomorrow for your first data point. After a week or two you&apos;ll see meaningful trends.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-text-muted">Window:</span>
+          {[7, 30, 90, 365].map((d) => (
+            <button
+              key={d}
+              onClick={() => onDaysChange(d)}
+              className={`px-2 py-1 rounded transition-colors ${
+                days === d
+                  ? 'bg-torn-green/20 text-torn-green'
+                  : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {d === 365 ? '1y' : `${d}d`}
+            </button>
+          ))}
+        </div>
+        <span className="text-[10px] text-text-muted">{companyRows.length} data points</span>
+      </div>
+
+      <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-2">
+        <h3 className="text-sm font-semibold text-text-primary">Financials</h3>
+        <CompanyTrendsChart
+          rows={companyRows}
+          metrics={['company_funds', 'company_bank', 'advertising_budget']}
+        />
+      </section>
+
+      <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-2">
+        <h3 className="text-sm font-semibold text-text-primary">Income & customers</h3>
+        <CompanyTrendsChart rows={companyRows} metrics={['daily_income', 'weekly_income']} />
+      </section>
+
+      <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-2">
+        <h3 className="text-sm font-semibold text-text-primary">Operational health</h3>
+        <CompanyTrendsChart
+          rows={companyRows}
+          metrics={['popularity', 'efficiency', 'environment']}
+        />
+      </section>
+
+      {stockAggregate.length > 0 && (
+        <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-2">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Stock (summed across products)
+          </h3>
+          <CompanyTrendsChart
+            rows={stockAggregate.map((r) => ({
+              snapshot_date: r.snapshot_date,
+              company_funds: r.sold_worth,
+              company_bank: null,
+              advertising_budget: null,
+              popularity: r.in_stock,
+              efficiency: null,
+              environment: null,
+              daily_income: null,
+              weekly_income: null,
+              employees_hired: null,
+            }))}
+            metrics={['company_funds', 'popularity']}
+          />
+          <p className="text-[10px] text-text-muted">
+            Green = total sold value (lifetime, cumulative). Purple = units in stock across all products.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

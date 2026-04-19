@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/company/director", tags=["company-director"])
 torn_client = None  # Set by main.py
 key_store = None  # Set by main.py
 tornstats_key: str | None = None  # Set by main.py
+companies_repo = None  # CompanySnapshotRepository, set by main.py
 
 _FACTION_PROFILE_CONCURRENCY = 5
 
@@ -166,3 +167,33 @@ async def director_faction(x_player_id: int = Header()) -> dict[str, Any]:
         reverse=True,
     )
     return {"companies": companies, "count": len(companies)}
+
+
+@router.get("/trends")
+async def director_trends(
+    x_player_id: int = Header(),
+    days: int = Query(default=30, ge=1, le=365),
+) -> dict[str, Any]:
+    """Time-series for the viewer's own company from daily snapshots.
+    Returns empty lists if no snapshots yet (first day after Phase B deploy)."""
+    _require_services()
+    if companies_repo is None:
+        raise HTTPException(status_code=503, detail="Snapshots not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+
+    # Resolve the viewer's company id via training data.
+    training = await torn_client.fetch_training_data(api_key)
+    company_id = 0
+    if training and isinstance(training.get("job"), dict):
+        company_id = int(training["job"].get("company_id") or 0)
+    if not company_id:
+        return {"company_id": 0, "days": days, "company": [], "stock": []}
+
+    company_rows = companies_repo.get_snapshots(company_id, days=days)
+    stock_rows = companies_repo.get_stock_trend(company_id, days=days)
+    return {
+        "company_id": company_id,
+        "days": days,
+        "company": company_rows,
+        "stock": stock_rows,
+    }

@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.10.0";
+export const CURRENT_VERSION = "1.11.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.11.0",
+    date: "2026-04-19",
+    title: "Company Trends",
+    changes: [
+      { type: "feat", text: "New Trends tab on /company/director — daily snapshots power line charts for funds/bank/ad budget, daily/weekly income, popularity/efficiency/environment, and aggregated stock" },
+      { type: "feat", text: "Daily scheduler job silently collects director snapshots — time-series that neither YATA nor TornStats provide" },
+      { type: "feat", text: "Window selector (7d / 30d / 90d / 1y) on Trends tab" },
+    ],
+  },
   {
     version: "1.10.0",
     date: "2026-04-19",
