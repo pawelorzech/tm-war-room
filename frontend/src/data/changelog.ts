@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.9.1";
+export const CURRENT_VERSION = "1.10.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.10.0",
+    date: "2026-04-19",
+    title: "Company Director Cockpit",
+    changes: [
+      { type: "feat", text: "New /company/director page — full director cockpit with financials, employee effectiveness, applications, stock & margins, and news" },
+      { type: "feat", text: "TM Companies benchmark tab — public profiles (rating, daily/weekly income, staffing) for every company our members run, open to everyone" },
+      { type: "feat", text: "Non-directors see a friendly gate explaining the feature and the public benchmark remains accessible" },
+    ],
+  },
   {
     version: "1.9.1",
     date: "2026-04-12",

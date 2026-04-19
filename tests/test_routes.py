@@ -561,6 +561,135 @@ async def test_company_faction(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_company_director_me_as_director(mock_client, mock_store):
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Bombel Co", "company_type": 34, "position": "Director"},
+    })
+    mock_client.fetch_company_detailed = AsyncMock(return_value={
+        "company_funds": 50_000_000,
+        "company_bank": 100_000_000,
+        "advertising_budget": 1_000_000,
+        "popularity": 8000,
+        "efficiency": 7500,
+        "environment": 500,
+        "trains_available": 3,
+        "value": 500_000_000,
+        "upgrades": {"company_size": 10},
+    })
+    mock_client.fetch_company_employees = AsyncMock(return_value={
+        "company_employees": {"123": {"name": "Alice", "position": "Manager", "effectiveness": {"total": 85}}}
+    })
+    mock_client.fetch_company_applications = AsyncMock(return_value={
+        "applications": {"456": {"userID": 456, "name": "Bob", "level": 30, "status": "active"}}
+    })
+    mock_client.fetch_company_stock = AsyncMock(return_value={
+        "company_stock": {"Shampoo": {"cost": 10, "price": 25, "in_stock": 500, "sold_amount": 1000, "sold_worth": 25000}}
+    })
+    mock_client.fetch_company_profile = AsyncMock(return_value={
+        "company": {"ID": 50000, "name": "Bombel Co", "rating": 10, "director": 123, "daily_income": 5_000_000}
+    })
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/me", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is True
+    assert data["company_id"] == 50000
+    assert data["detailed"]["company_funds"] == 50_000_000
+    assert data["employees"]["123"]["name"] == "Alice"
+    assert data["applications"]["456"]["name"] == "Bob"
+    assert data["stock"]["Shampoo"]["in_stock"] == 500
+    assert data["profile"]["daily_income"] == 5_000_000
+
+
+@pytest.mark.asyncio
+async def test_company_director_me_not_director(mock_client, mock_store):
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Some Co", "company_type": 34, "position": "Cleaner"},
+    })
+    # Non-director selections all return None (access denied)
+    mock_client.fetch_company_detailed = AsyncMock(return_value=None)
+    mock_client.fetch_company_employees = AsyncMock(return_value=None)
+    mock_client.fetch_company_applications = AsyncMock(return_value=None)
+    mock_client.fetch_company_stock = AsyncMock(return_value=None)
+    mock_client.fetch_company_profile = AsyncMock(return_value={
+        "company": {"ID": 50000, "name": "Some Co", "rating": 5}
+    })
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/me", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is False
+    assert data["detailed"] is None
+    assert data["profile"]["name"] == "Some Co"  # public profile still returned
+
+
+@pytest.mark.asyncio
+async def test_company_director_news(mock_client, mock_store):
+    mock_client.fetch_company_news = AsyncMock(return_value={
+        "news": {
+            "1": {"news": "Alice was hired", "timestamp": 1774600000},
+            "2": {"news": "Bob was fired", "timestamp": 1774700000},
+        }
+    })
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/news?limit=50", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is True
+    assert data["count"] == 2
+    # newest first
+    assert data["news"][0]["timestamp"] == 1774700000
+
+
+@pytest.mark.asyncio
+async def test_company_director_faction(mock_client, mock_store):
+    mock_store.get_all_keys.return_value = [
+        {"player_id": 123, "player_name": "Bombel", "api_key": "k1"},
+        {"player_id": 456, "player_name": "Tester", "api_key": "k2"},
+    ]
+    mock_client.fetch_training_data = AsyncMock(side_effect=[
+        {"job": {"company_id": 100, "company_name": "Farm A", "company_type": 34, "position": "Farmer"}},
+        {"job": {"company_id": 200, "company_name": "Farm B", "company_type": 34, "position": "Director"}},
+    ])
+    mock_client.fetch_company_profile = AsyncMock(side_effect=[
+        {"company": {"ID": 100, "name": "Farm A", "rating": 8, "daily_income": 3_000_000}},
+        {"company": {"ID": 200, "name": "Farm B", "rating": 10, "daily_income": 5_000_000}},
+    ])
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/faction", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 2
+    # Highest daily_income first
+    assert data["companies"][0]["company_id"] == 200
+    assert data["companies"][0]["profile"]["daily_income"] == 5_000_000
+
+
+@pytest.mark.asyncio
 async def test_push_vapid_key():
     with patch("api.main.torn_client", MagicMock()), \
          patch("api.main.key_store", MagicMock()):

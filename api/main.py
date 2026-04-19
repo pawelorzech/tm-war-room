@@ -59,6 +59,8 @@ from api.routers.notifications import router as notifications_router
 import api.routers.notifications as notifications_mod
 from api.routers.company import router as company_router
 import api.routers.company as company_mod
+from api.routers.company_director import router as company_director_router
+import api.routers.company_director as company_director_mod
 from api.routers.push import router as push_router
 import api.routers.push as push_mod
 from api.routers.version import router as version_router
@@ -146,6 +148,9 @@ async def lifespan(app: FastAPI):
     notifications_mod.key_store = key_store
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
+    company_director_mod.torn_client = torn_client
+    company_director_mod.key_store = key_store
+    company_director_mod.tornstats_key = TORNSTATS_API_KEY
 
     from api.db.repos.push_repository import PushRepository
     push_repo = PushRepository(db_path="data/keys.db")
@@ -315,6 +320,7 @@ app.include_router(stakeout_router)
 app.include_router(bounties_router)
 app.include_router(notifications_router)
 app.include_router(company_router)
+app.include_router(company_director_router)
 app.include_router(push_router)
 app.include_router(version_router)
 app.include_router(chat_router)
@@ -549,6 +555,9 @@ async def enforce_api_auth(request: Request, call_next):
 # Cache-Control per API path: cacheable read-only endpoints get stale-while-revalidate
 _API_CACHE_RULES: list[tuple[str, str]] = [
     ("/api/company/catalog", "private, max-age=300, stale-while-revalidate=600"),
+    ("/api/company/director/me", "private, max-age=60, stale-while-revalidate=120"),
+    ("/api/company/director/news", "private, max-age=60, stale-while-revalidate=120"),
+    ("/api/company/director/faction", "private, max-age=300, stale-while-revalidate=600"),
     ("/api/stocks/market", "private, max-age=120, stale-while-revalidate=300"),
     ("/api/awards/me", "private, max-age=60, stale-while-revalidate=300"),
     ("/api/overview", "private, max-age=15, stale-while-revalidate=30"),

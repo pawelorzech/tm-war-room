@@ -300,3 +300,174 @@ async def test_fetch_company_catalog(client):
     assert "1" in result
     assert result["1"]["name"] == "Hair Salon"
     assert len(result["1"]["specials"]) == 1
+
+
+def _make_resp(payload: dict) -> AsyncMock:
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = payload
+    mock_resp.raise_for_status = lambda: None
+    return mock_resp
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_detailed_as_director(client):
+    payload = {
+        "company_bank": 100_000_000,
+        "company_funds": 50_000_000,
+        "advertising_budget": 1_000_000,
+        "popularity": 8000,
+        "efficiency": 7500,
+        "environment": 500,
+        "trains_available": 3,
+        "value": 500_000_000,
+        "upgrades": {"company_size": 10, "staffroom_size": "medium", "storage_size": "large", "storage_space": 300},
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)):
+        result = await client.fetch_company_detailed()
+    assert result is not None
+    assert result["company_funds"] == 50_000_000
+    assert result["upgrades"]["company_size"] == 10
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_detailed_non_director_returns_none(client):
+    # Torn returns error code 7 when access level too low
+    with patch.object(client._http, "get", return_value=_make_resp({"error": {"code": 7, "error": "Incorrect"}})):
+        result = await client.fetch_company_detailed()
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_employees(client):
+    payload = {
+        "company_employees": {
+            "123": {
+                "name": "Alice",
+                "position": "Manager",
+                "days_in_company": 90,
+                "wage": 50000,
+                "manual_labor": 1000,
+                "intelligence": 800,
+                "endurance": 500,
+                "effectiveness": {"total": 85, "working_stats": 30, "addiction": 10, "inactivity": 0, "merits": 5, "director_education": 20, "settled_in": 20},
+                "last_action": {"relative": "1 min ago", "status": "Online", "timestamp": 1774600000},
+                "status": {"color": "green", "state": "Okay", "description": "Okay", "details": "", "until": None},
+            }
+        }
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)):
+        result = await client.fetch_company_employees()
+    assert "company_employees" in result
+    assert result["company_employees"]["123"]["effectiveness"]["total"] == 85
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_applications(client):
+    payload = {
+        "applications": {
+            "456": {
+                "userID": 456,
+                "name": "Bob",
+                "level": 30,
+                "message": "hire me",
+                "stats": {"manual_labor": 500, "intelligence": 300, "endurance": 200},
+                "status": "active",
+                "expires": 1775000000,
+            }
+        }
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)):
+        result = await client.fetch_company_applications()
+    assert list(result["applications"].keys()) == ["456"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_stock(client):
+    payload = {
+        "company_stock": {
+            "Shampoo": {"cost": 10, "in_stock": 500, "on_order": 0, "price": 25, "rrp": 25, "sold_amount": 1000, "sold_worth": 25000},
+        }
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)):
+        result = await client.fetch_company_stock()
+    assert result["company_stock"]["Shampoo"]["in_stock"] == 500
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_news(client):
+    payload = {"news": {"1": {"news": "Alice was hired", "timestamp": 1774600000}}}
+    with patch.object(client._http, "get", return_value=_make_resp(payload)) as mock_get:
+        result = await client.fetch_company_news(from_ts=1774000000, limit=50)
+    assert result["news"]["1"]["timestamp"] == 1774600000
+    # verify query params forwarded
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["from"] == 1774000000
+    assert kwargs["params"]["limit"] == 50
+    assert kwargs["params"]["selections"] == "news"
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_profile_public(client):
+    payload = {
+        "company": {
+            "ID": 50000,
+            "name": "Test Co",
+            "company_type": 34,
+            "rating": 10,
+            "director": 999,
+            "employees_hired": 8,
+            "employees_capacity": 10,
+            "daily_income": 5_000_000,
+            "daily_customers": 2000,
+            "weekly_income": 35_000_000,
+            "weekly_customers": 14000,
+            "days_old": 365,
+            "employees": {},
+        }
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)) as mock_get:
+        result = await client.fetch_company_profile(50000)
+    assert result["company"]["name"] == "Test Co"
+    args, _ = mock_get.call_args
+    assert "/company/50000" in args[0]
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_efficiency(client):
+    payload = {
+        "status": True,
+        "message": "ok",
+        "manual_labor": 1000,
+        "intelligence": 500,
+        "endurance": 500,
+        "companies": {
+            "Hair Salon": {"Stylist": 95, "Manager": 80},
+        },
+    }
+    with patch.object(client._http, "get", return_value=_make_resp(payload)) as mock_get:
+        result = await client.fetch_tornstats_efficiency(
+            "tskey", manual_labor=1000, intelligence=500, endurance=500
+        )
+    assert result["status"] is True
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"] == {"man": 1000, "int": 500, "end": 500}
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_efficiency_caches(client):
+    payload = {"status": True, "companies": {}}
+    with patch.object(client._http, "get", return_value=_make_resp(payload)) as mock_get:
+        await client.fetch_tornstats_efficiency("tskey", manual_labor=1, intelligence=2, endurance=3)
+        await client.fetch_tornstats_efficiency("tskey", manual_labor=1, intelligence=2, endurance=3)
+    assert mock_get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_efficiency_error_returns_none(client):
+    async def _raise(*a, **kw):
+        raise Exception("boom")
+    with patch.object(client._http, "get", side_effect=_raise):
+        result = await client.fetch_tornstats_efficiency(
+            "tskey", manual_labor=1, intelligence=2, endurance=3
+        )
+    assert result is None
