@@ -78,18 +78,25 @@ export default function CompanyDirectorPage() {
 
   const factionCompanies = faction?.companies ?? [];
 
-  const TABS: { id: Tab; label: string; disabled?: boolean }[] = [
-    { id: 'overview', label: 'Overview', disabled: !isDirector },
-    { id: 'employees', label: `Employees${employees.length ? ` (${employees.length})` : ''}`, disabled: !isDirector },
-    { id: 'applications', label: `Applications${applications.length ? ` (${applications.length})` : ''}`, disabled: !isDirector },
-    { id: 'stock', label: 'Stock', disabled: !isDirector },
-    { id: 'news', label: 'News', disabled: !isDirector },
-    { id: 'trends', label: 'Trends', disabled: !isDirector },
+  const TABS: { id: Tab; label: string; directorOnly?: boolean }[] = [
+    { id: 'overview', label: 'Overview', directorOnly: true },
+    {
+      id: 'employees',
+      label: `Employees${isDirector && employees.length ? ` (${employees.length})` : ''}`,
+      directorOnly: true,
+    },
+    {
+      id: 'applications',
+      label: `Applications${isDirector && applications.length ? ` (${applications.length})` : ''}`,
+      directorOnly: true,
+    },
+    { id: 'stock', label: 'Stock', directorOnly: true },
+    { id: 'news', label: 'News', directorOnly: true },
+    { id: 'trends', label: 'Trends', directorOnly: true },
     { id: 'faction', label: 'TM Companies' },
   ];
 
-  // If viewer is not a director and is on a director-only tab, redirect to faction
-  const effectiveTab: Tab = !isDirector && tab !== 'faction' ? 'faction' : tab;
+  const effectiveTab: Tab = tab;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -132,80 +139,74 @@ export default function CompanyDirectorPage() {
           </div>
         )}
 
-        {!loading && !isDirector && (
-          <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-4 text-sm text-text-secondary">
-            <strong className="text-text-primary">Not a director.</strong> Director
-            selections require a director&apos;s own API key. Meanwhile, see
-            what companies our faction runs below — the benchmark tab is open
-            to everyone.
-          </div>
-        )}
-
         {/* Tabs */}
         <div className="flex gap-1 border-b border-text-secondary/15 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => !t.disabled && setTab(t.id)}
-              disabled={t.disabled}
-              className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
-                effectiveTab === t.id
-                  ? 'text-torn-green border-b-2 border-torn-green'
-                  : t.disabled
-                    ? 'text-text-muted/40 cursor-not-allowed'
-                    : 'text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const locked = t.directorOnly && !isDirector;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                  effectiveTab === t.id
+                    ? 'text-torn-green border-b-2 border-torn-green'
+                    : locked
+                      ? 'text-text-muted hover:text-text-secondary'
+                      : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {locked && <span className="text-[10px]" aria-hidden>🔒</span>}
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         {loading ? (
           <CardSkeleton count={4} />
         ) : (
           <>
-            {effectiveTab === 'overview' && isDirector && me?.detailed && (
-              <OverviewTab me={me} />
-            )}
+            {effectiveTab === 'overview' && (isDirector && me?.detailed
+              ? <OverviewTab me={me} />
+              : <DirectorTeaser tab="overview" onSeeFaction={() => setTab('faction')} />)}
 
-            {effectiveTab === 'employees' && isDirector && (
-              <EmployeesTab employees={employees} />
-            )}
+            {effectiveTab === 'employees' && (isDirector
+              ? <EmployeesTab employees={employees} />
+              : <DirectorTeaser tab="employees" onSeeFaction={() => setTab('faction')} />)}
 
-            {effectiveTab === 'applications' && isDirector && (
-              <ApplicationsTab
-                applications={applications}
-                ranked={ranked}
-                rankedLoading={rankedLoading}
-                onRank={loadRanked}
-              />
-            )}
+            {effectiveTab === 'applications' && (isDirector
+              ? <ApplicationsTab
+                  applications={applications}
+                  ranked={ranked}
+                  rankedLoading={rankedLoading}
+                  onRank={loadRanked}
+                />
+              : <DirectorTeaser tab="applications" onSeeFaction={() => setTab('faction')} />)}
 
-            {effectiveTab === 'stock' && isDirector && (
-              <StockTab stockItems={stockItems} />
-            )}
+            {effectiveTab === 'stock' && (isDirector
+              ? <StockTab stockItems={stockItems} />
+              : <DirectorTeaser tab="stock" onSeeFaction={() => setTab('faction')} />)}
 
-            {effectiveTab === 'news' && isDirector && (
-              <NewsTab
-                news={news?.news ?? null}
-                loading={newsLoading}
-                onLoad={() => loadNews({ limit: 100 })}
-              />
-            )}
+            {effectiveTab === 'news' && (isDirector
+              ? <NewsTab
+                  news={news?.news ?? null}
+                  loading={newsLoading}
+                  onLoad={() => loadNews({ limit: 100 })}
+                />
+              : <DirectorTeaser tab="news" onSeeFaction={() => setTab('faction')} />)}
 
-            {effectiveTab === 'trends' && isDirector && (
-              <TrendsTab
-                companyRows={trends?.company ?? []}
-                stockRows={trends?.stock ?? []}
-                loading={trendsLoading}
-                days={trendsDays}
-                onDaysChange={(d) => {
-                  setTrendsDays(d);
-                  loadTrends(d);
-                }}
-              />
-            )}
+            {effectiveTab === 'trends' && (isDirector
+              ? <TrendsTab
+                  companyRows={trends?.company ?? []}
+                  stockRows={trends?.stock ?? []}
+                  loading={trendsLoading}
+                  days={trendsDays}
+                  onDaysChange={(d) => {
+                    setTrendsDays(d);
+                    loadTrends(d);
+                  }}
+                />
+              : <DirectorTeaser tab="trends" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'faction' && (
               <FactionTab companies={factionCompanies} />
@@ -547,6 +548,156 @@ function NewsTab({
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+const TEASER_CONTENT: Record<Exclude<Tab, 'faction'>, {
+  icon: string;
+  title: string;
+  blurb: string;
+  bullets: string[];
+}> = {
+  overview: {
+    icon: '📊',
+    title: 'Company cockpit at a glance',
+    blurb: 'For directors: live financial + operational dashboard pulled straight from Torn.',
+    bullets: [
+      'Company funds, bank balance, ad budget, total value',
+      'Popularity, efficiency, environment — the three levers that drive income',
+      'Trains available today + upgrade state',
+      'Daily/weekly income + customer counts with staffing fill rate',
+    ],
+  },
+  employees: {
+    icon: '👥',
+    title: 'Every employee, every effectiveness bucket',
+    blurb: 'Sortable table of your team with the full effectiveness breakdown.',
+    bullets: [
+      'Name, position, wage, days in company',
+      'Effectiveness total + sub-scores (addiction, inactivity, merits, director education, settled-in, working stats)',
+      'Last action + online status',
+      'Flag under-performers automatically (red when effectiveness < 60% or inactive > 3d)',
+    ],
+  },
+  applications: {
+    icon: '📮',
+    title: 'Hire smarter, not harder',
+    blurb: 'Every pending applicant — ranked by TornStats predicted efficiency at every position.',
+    bullets: [
+      'Applicant stats (man / int / end), level, personal message',
+      'Auto-ranking via TornStats /efficiency — top-3 "Top pick" badges',
+      '"Best as X" recommendation per applicant',
+      'TornStats spy fallback if stats were hidden',
+    ],
+  },
+  stock: {
+    icon: '📦',
+    title: 'Stock + sales intelligence',
+    blurb: 'In-stock, on-order, sold-lifetime, margin %. Zero-stock alerts.',
+    bullets: [
+      'Per-product in_stock + on_order',
+      'Cost vs. price → margin % with colour coding (green > 30%, red < 15%)',
+      'Lifetime sold_amount + sold_worth',
+      'Red highlight when in_stock = 0 (lost sales)',
+    ],
+  },
+  news: {
+    icon: '📰',
+    title: 'Your company activity feed',
+    blurb: 'Last 25 (up to 100) news events — hires, fires, trains, deposits, withdrawals.',
+    bullets: [
+      'Chronological timeline with relative timestamps',
+      'Click any player reference to open their Torn profile',
+      '"Load more" extends to 100 entries',
+      'Audit trail for who did what and when',
+    ],
+  },
+  trends: {
+    icon: '📈',
+    title: 'Daily time-series nobody else stores',
+    blurb: 'We snapshot your company every day. After a week you have real trend charts.',
+    bullets: [
+      'Funds / bank / ad-budget over time',
+      'Daily + weekly income trajectory',
+      'Popularity / efficiency / environment — spot regressions',
+      'Aggregated stock sales across all products',
+    ],
+  },
+};
+
+function DirectorTeaser({
+  tab,
+  onSeeFaction,
+}: {
+  tab: Exclude<Tab, 'faction'>;
+  onSeeFaction: () => void;
+}) {
+  const c = TEASER_CONTENT[tab];
+  return (
+    <div className="space-y-4">
+      <div className="bg-torn-green/5 border border-torn-green/20 rounded-xl p-6 space-y-4">
+        <div className="flex items-start gap-4">
+          <span className="text-4xl shrink-0">{c.icon}</span>
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold text-text-primary">{c.title}</h2>
+              <span className="text-[10px] uppercase tracking-wider bg-torn-green/20 text-torn-green px-2 py-0.5 rounded-full font-semibold">
+                Directors only
+              </span>
+            </div>
+            <p className="text-sm text-text-secondary">{c.blurb}</p>
+          </div>
+        </div>
+        <ul className="space-y-1.5 pl-4">
+          {c.bullets.map((b, i) => (
+            <li key={i} className="text-sm text-text-secondary flex items-start gap-2">
+              <span className="text-torn-green mt-0.5 shrink-0">✓</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-text-primary">How to unlock</h3>
+        <ol className="text-sm text-text-secondary space-y-1.5 list-decimal list-inside">
+          <li>
+            Be a director of a Torn company. See{' '}
+            <a
+              href="https://wiki.torn.com/wiki/Company"
+              target="_blank"
+              rel="noopener"
+              className="text-torn-green hover:underline"
+            >
+              Torn Wiki: Companies
+            </a>{' '}
+            for how to buy or take over one.
+          </li>
+          <li>
+            Link your director&apos;s API key in{' '}
+            <a href="/settings" className="text-torn-green hover:underline">
+              Settings
+            </a>
+            . This tool calls the limited-access director selections using your own key — no
+            other member can see your company data.
+          </li>
+        </ol>
+        <div className="pt-2 flex flex-wrap gap-2">
+          <button
+            onClick={onSeeFaction}
+            className="px-3 py-1.5 text-xs rounded-lg bg-torn-green/20 text-torn-green hover:bg-torn-green/30 font-medium"
+          >
+            See TM Companies →
+          </button>
+          <a
+            href="/company"
+            className="px-3 py-1.5 text-xs rounded-lg bg-bg-elevated text-text-secondary hover:text-text-primary"
+          >
+            Browse all company types
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

@@ -134,7 +134,7 @@ export function BrowseSheet({ open, onClose, isPinned, isFull, onPin, onUnpin, s
                   {group.label}
                 </p>
                 {filtered.map(item => {
-                  const active = pathname.startsWith(item.href);
+                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                   const pinned = isPinned(item.href);
                   return (
                     <div key={item.href} className="flex items-center gap-2">

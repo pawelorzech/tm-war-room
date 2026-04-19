@@ -64,7 +64,7 @@ export function CollapsibleGroup({
           style={{ animation: "tm-expand 200ms ease-out" }}
         >
           {group.items.map((item) => {
-            const active = pathname.startsWith(item.href);
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const pinned = isPinned(item.href);
             return (
               <Link
