@@ -44,6 +44,24 @@ def week_end_tct(week_start_ts: int) -> int:
     return week_start_ts + 7 * 86400
 
 
+def calendar_week_start_tct(dt: datetime | None = None) -> int:
+    """Return unix timestamp for Monday 00:00 TCT (UTC) in the calendar week
+    containing *dt* (defaults to now). Used for player-facing Mon-Sun reports."""
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    start = (dt - timedelta(days=dt.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return int(start.timestamp())
+
+
+def calendar_week_end_tct(week_start_ts: int) -> int:
+    """Return exclusive end timestamp for a Monday 00:00 TCT calendar week."""
+    return week_start_ts + 7 * 86400
+
+
 def format_week_label(week_start_ts: int) -> str:
     """Human-readable label like '2025-W43 (Oct 20)' for UI display."""
     dt = datetime.fromtimestamp(week_start_ts, tz=timezone.utc)

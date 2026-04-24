@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from api.time_utils import week_start_tct, week_end_tct, format_week_label
+from api.time_utils import (
+    calendar_week_end_tct,
+    calendar_week_start_tct,
+    week_start_tct,
+    week_end_tct,
+    format_week_label,
+)
 
 logger = logging.getLogger("tm-hub.company_director")
 
@@ -287,6 +295,117 @@ async def director_trends(
         "days": days,
         "company": company_rows,
         "stock": stock_rows,
+    }
+
+
+@router.get("/stock-runway")
+async def director_stock_runway(x_player_id: int = Header()) -> dict[str, Any]:
+    """Estimate whether current product stock can support this week's sell rate
+    through Sunday, using Mon 00:00 TCT as the player-facing week boundary."""
+    _require_services()
+    if companies_repo is None:
+        raise HTTPException(status_code=503, detail="Snapshots not initialized")
+    api_key = await _get_viewer_key(x_player_id)
+
+    training = await torn_client.fetch_training_data(api_key)
+    company_id = 0
+    if training and isinstance(training.get("job"), dict):
+        company_id = int(training["job"].get("company_id") or 0)
+
+    now_ts = int(time.time())
+    week_start_ts = calendar_week_start_tct()
+    week_end_ts = calendar_week_end_tct(week_start_ts)
+    days_remaining = max(0.0, (week_end_ts - now_ts) / 86400)
+
+    base = {
+        "company_id": company_id,
+        "week_start_ts": week_start_ts,
+        "week_end_ts": week_end_ts,
+        "generated_at": now_ts,
+        "days_remaining": round(days_remaining, 2),
+        "history_complete": False,
+        "products": [],
+    }
+    if not company_id:
+        return {"is_director": False, **base}
+
+    stock_raw = await torn_client.fetch_company_stock(api_key)
+    if stock_raw is None:
+        return {"is_director": False, **base}
+
+    stock = (stock_raw or {}).get("company_stock", {}) or {}
+    baselines = companies_repo.get_stock_runway_baselines(company_id, week_start_ts)
+    products: list[dict[str, Any]] = []
+
+    for product_name, item in stock.items():
+        baseline = baselines.get(product_name)
+        current_sold = int(item.get("sold_amount") or 0)
+        current_worth = int(item.get("sold_worth") or 0)
+        if baseline:
+            baseline_sold = int(baseline.get("sold_amount") or 0)
+            baseline_worth = int(baseline.get("sold_worth") or 0)
+            baseline_recorded_at = int(baseline.get("recorded_at") or week_start_ts)
+            baseline_source = baseline.get("source")
+            item_history_complete = bool(baseline.get("history_complete"))
+        else:
+            baseline_sold = current_sold
+            baseline_worth = current_worth
+            baseline_recorded_at = now_ts
+            baseline_source = "current"
+            item_history_complete = False
+
+        elapsed_start = week_start_ts if item_history_complete else baseline_recorded_at
+        elapsed_days = max((now_ts - elapsed_start) / 86400, 1 / 24)
+        sold_since_monday = max(0, current_sold - baseline_sold)
+        worth_since_monday = max(0, current_worth - baseline_worth)
+        avg_daily_sold = sold_since_monday / elapsed_days
+        projected_until_sunday = int(math.ceil(avg_daily_sold * days_remaining))
+        in_stock = int(item.get("in_stock") or 0)
+        on_order = int(item.get("on_order") or 0)
+        available_stock = in_stock + on_order
+        shortage = max(0, projected_until_sunday - available_stock)
+        if shortage > 0:
+            status = "shortage"
+        elif avg_daily_sold > 0 and available_stock - projected_until_sunday < avg_daily_sold:
+            status = "low"
+        else:
+            status = "ok"
+
+        products.append(
+            {
+                "product_name": product_name,
+                "cost": item.get("cost"),
+                "price": item.get("price"),
+                "rrp": item.get("rrp"),
+                "in_stock": in_stock,
+                "on_order": on_order,
+                "available_stock": available_stock,
+                "sold_amount": current_sold,
+                "sold_worth": current_worth,
+                "baseline_sold_amount": baseline_sold,
+                "baseline_sold_worth": baseline_worth,
+                "baseline_recorded_at": baseline_recorded_at,
+                "baseline_source": baseline_source,
+                "history_complete": item_history_complete,
+                "sold_since_monday": sold_since_monday,
+                "sold_worth_since_monday": worth_since_monday,
+                "elapsed_days": round(elapsed_days, 2),
+                "avg_daily_sold": round(avg_daily_sold, 2),
+                "projected_until_sunday": projected_until_sunday,
+                "shortage": shortage,
+                "status": status,
+            }
+        )
+
+    priority = {"shortage": 0, "low": 1, "ok": 2}
+    products.sort(
+        key=lambda p: (priority.get(p["status"], 9), -p["shortage"], -p["projected_until_sunday"], p["product_name"])
+    )
+    return {
+        "is_director": True,
+        **base,
+        "history_complete": all(p["history_complete"] for p in products) if products else False,
+        "products": products,
     }
 
 

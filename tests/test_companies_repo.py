@@ -96,3 +96,53 @@ def test_stock_snapshot(repo):
     assert len(trend) == 1
     assert trend[0]["product_name"] == "Shampoo"
     assert trend[0]["sold_amount"] == 1000
+
+
+def test_stock_runway_baselines_prefer_before_week(repo):
+    week_start = 2_000_000
+    conn = repo._conn()
+    conn.execute(
+        """INSERT INTO company_stock_snapshots
+           (company_id, product_name, snapshot_date, cost, price, rrp,
+            in_stock, on_order, sold_amount, sold_worth, recorded_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (50000, "Shampoo", "2026-04-12", 10, 25, 25, 500, 0, 100, 2500, week_start - 60),
+    )
+    conn.execute(
+        """INSERT INTO company_stock_snapshots
+           (company_id, product_name, snapshot_date, cost, price, rrp,
+            in_stock, on_order, sold_amount, sold_worth, recorded_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (50000, "Shampoo", "2026-04-13", 10, 25, 25, 450, 0, 110, 2750, week_start + 60),
+    )
+    conn.commit()
+
+    baselines = repo.get_stock_runway_baselines(50000, week_start)
+    assert baselines["Shampoo"]["sold_amount"] == 100
+    assert baselines["Shampoo"]["source"] == "before_week"
+    assert baselines["Shampoo"]["history_complete"] is True
+
+
+def test_stock_runway_baselines_fall_back_to_earliest_in_week(repo):
+    week_start = 2_000_000
+    conn = repo._conn()
+    conn.execute(
+        """INSERT INTO company_stock_snapshots
+           (company_id, product_name, snapshot_date, cost, price, rrp,
+            in_stock, on_order, sold_amount, sold_worth, recorded_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (50000, "Shampoo", "2026-04-13", 10, 25, 25, 450, 0, 110, 2750, week_start + 120),
+    )
+    conn.execute(
+        """INSERT INTO company_stock_snapshots
+           (company_id, product_name, snapshot_date, cost, price, rrp,
+            in_stock, on_order, sold_amount, sold_worth, recorded_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (50000, "Shampoo", "2026-04-14", 10, 25, 25, 430, 0, 130, 3250, week_start + 86400),
+    )
+    conn.commit()
+
+    baselines = repo.get_stock_runway_baselines(50000, week_start)
+    assert baselines["Shampoo"]["sold_amount"] == 110
+    assert baselines["Shampoo"]["source"] == "within_week"
+    assert baselines["Shampoo"]["history_complete"] is False

@@ -150,6 +150,43 @@ export interface DirectorTrendsResponse {
   stock: CompanyStockTrendRow[];
 }
 
+export type StockRunwayStatus = 'ok' | 'low' | 'shortage';
+
+export interface CompanyStockRunwayItem {
+  product_name: string;
+  cost: number | null;
+  price: number | null;
+  rrp: number | null;
+  in_stock: number;
+  on_order: number;
+  available_stock: number;
+  sold_amount: number;
+  sold_worth: number;
+  baseline_sold_amount: number;
+  baseline_sold_worth: number;
+  baseline_recorded_at: number;
+  baseline_source: 'before_week' | 'within_week' | 'current' | null;
+  history_complete: boolean;
+  sold_since_monday: number;
+  sold_worth_since_monday: number;
+  elapsed_days: number;
+  avg_daily_sold: number;
+  projected_until_sunday: number;
+  shortage: number;
+  status: StockRunwayStatus;
+}
+
+export interface CompanyStockRunwayResponse {
+  is_director: boolean;
+  company_id: number;
+  week_start_ts: number;
+  week_end_ts: number;
+  generated_at: number;
+  days_remaining: number;
+  history_complete: boolean;
+  products: CompanyStockRunwayItem[];
+}
+
 export interface RankedApplicant {
   userID: number;
   name: string;
