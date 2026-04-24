@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.0";
+export const CURRENT_VERSION = "1.13.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.1",
+    date: "2026-04-24",
+    title: "Company Stock Runway",
+    changes: [
+      { type: "improve", text: "Company Director stock tab now estimates whether each product has enough in-stock + on-order units to keep this week's sell rate going through Sunday" },
+      { type: "improve", text: "Runway uses director-only company stock snapshots with a Monday 00:00 TCT week boundary and clearly marks partial-week history when no Monday baseline exists" },
+    ],
+  },
   {
     version: "1.13.0",
     date: "2026-04-19",

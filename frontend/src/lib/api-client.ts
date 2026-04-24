@@ -237,6 +237,10 @@ export const api = {
     apiFetch<import('@/types/company-director').DirectorTrendsResponse>(
       `/api/company/director/trends${days ? `?days=${days}` : ''}`,
     ),
+  companyDirectorStockRunway: () =>
+    apiFetch<import('@/types/company-director').CompanyStockRunwayResponse>(
+      '/api/company/director/stock-runway',
+    ),
   companyDirectorApplicationsRanked: () =>
     apiFetch<import('@/types/company-director').ApplicationsRankedResponse>(
       '/api/company/director/applications/ranked',

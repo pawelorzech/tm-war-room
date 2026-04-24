@@ -7,6 +7,7 @@ import type {
   DirectorFactionResponse,
   DirectorNewsResponse,
   DirectorTrendsResponse,
+  CompanyStockRunwayResponse,
   ApplicationsRankedResponse,
   WeeklyComparisonResponse,
   PinnedWeek,
@@ -18,6 +19,7 @@ interface DirectorState {
   faction: DirectorFactionResponse | null;
   news: DirectorNewsResponse | null;
   trends: DirectorTrendsResponse | null;
+  stockRunway: CompanyStockRunwayResponse | null;
   ranked: ApplicationsRankedResponse | null;
   comparison: WeeklyComparisonResponse | null;
   pinned: PinnedWeek[];
@@ -25,6 +27,7 @@ interface DirectorState {
   loading: boolean;
   newsLoading: boolean;
   trendsLoading: boolean;
+  stockRunwayLoading: boolean;
   rankedLoading: boolean;
   comparisonLoading: boolean;
   pinnedLoading: boolean;
@@ -38,6 +41,7 @@ const EMPTY: DirectorState = {
   faction: null,
   news: null,
   trends: null,
+  stockRunway: null,
   ranked: null,
   comparison: null,
   pinned: [],
@@ -45,6 +49,7 @@ const EMPTY: DirectorState = {
   loading: true,
   newsLoading: false,
   trendsLoading: false,
+  stockRunwayLoading: false,
   rankedLoading: false,
   comparisonLoading: false,
   pinnedLoading: false,
@@ -67,6 +72,7 @@ export function useCompanyDirector() {
         ...prev,
         me,
         faction,
+        stockRunway: null,
         loading: false,
         lastUpdate: new Date(),
       }));
@@ -96,6 +102,16 @@ export function useCompanyDirector() {
       setState((prev) => ({ ...prev, trends, trendsLoading: false }));
     } catch {
       setState((prev) => ({ ...prev, trendsLoading: false }));
+    }
+  }, []);
+
+  const loadStockRunway = useCallback(async () => {
+    setState((prev) => ({ ...prev, stockRunwayLoading: true }));
+    try {
+      const stockRunway = await api.companyDirectorStockRunway();
+      setState((prev) => ({ ...prev, stockRunway, stockRunwayLoading: false }));
+    } catch {
+      setState((prev) => ({ ...prev, stockRunwayLoading: false }));
     }
   }, []);
 
@@ -194,6 +210,7 @@ export function useCompanyDirector() {
     refresh,
     loadNews,
     loadTrends,
+    loadStockRunway,
     loadRanked,
     loadComparison,
     loadPinned,

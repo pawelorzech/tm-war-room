@@ -10,6 +10,7 @@ import type {
   CompanyEmployee,
   CompanyApplication,
   CompanyStockItem,
+  CompanyStockRunwayResponse,
   CompanyTrendRow,
   CompanyStockTrendRow,
   DirectorNewsEntry,
@@ -41,9 +42,9 @@ function formatRelative(timestamp: number | undefined): string {
 
 export default function CompanyDirectorPage() {
   const {
-    me, faction, news, trends, ranked, comparison, pinned, trainsAlerts,
-    loading, newsLoading, trendsLoading, rankedLoading, comparisonLoading, pinnedLoading, alertsLoading, error,
-    refresh, loadNews, loadTrends, loadRanked,
+    me, faction, news, trends, stockRunway, ranked, comparison, pinned, trainsAlerts,
+    loading, newsLoading, trendsLoading, stockRunwayLoading, rankedLoading, comparisonLoading, pinnedLoading, alertsLoading, error,
+    refresh, loadNews, loadTrends, loadStockRunway, loadRanked,
     loadComparison, loadPinned, pinWeek, unpinWeek,
     loadTrainsAlerts, toggleTrainsAlert,
   } = useCompanyDirector();
@@ -58,6 +59,12 @@ export default function CompanyDirectorPage() {
       loadTrends(trendsDays);
     }
   }, [tab, isDirector, trends, trendsLoading, trendsDays, loadTrends]);
+
+  useEffect(() => {
+    if (tab === 'stock' && isDirector && !stockRunway && !stockRunwayLoading) {
+      loadStockRunway();
+    }
+  }, [tab, isDirector, stockRunway, stockRunwayLoading, loadStockRunway]);
 
   useEffect(() => {
     if (tab === 'comparison' && isDirector && !comparison && !comparisonLoading) {
@@ -212,7 +219,12 @@ export default function CompanyDirectorPage() {
               : <DirectorTeaser tab="applications" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'stock' && (isDirector
-              ? <StockTab stockItems={stockItems} />
+              ? <StockTab
+                  stockItems={stockItems}
+                  runway={stockRunway}
+                  runwayLoading={stockRunwayLoading}
+                  onLoadRunway={loadStockRunway}
+                />
               : <DirectorTeaser tab="stock" onSeeFaction={() => setTab('faction')} />)}
 
             {effectiveTab === 'news' && (isDirector
@@ -377,21 +389,14 @@ function ApplicationsTab({
   rankedLoading: boolean;
   onRank: () => void;
 }) {
-  if (applications.length === 0) {
-    return <div className="text-text-muted text-sm">No pending applications.</div>;
-  }
-
-  // Build ID → ranked entry map to decorate raw applications
-  const rankedById = useMemo(() => {
-    const m = new Map<number, ApplicationsRankedResponse['applicants'][number]>();
-    if (ranked?.applicants) for (const a of ranked.applicants) m.set(a.userID, a);
-    return m;
-  }, [ranked]);
-
   const topIds = useMemo(() => {
     if (!ranked?.applicants) return new Set<number>();
     return new Set(ranked.applicants.slice(0, 3).map((a) => a.userID));
   }, [ranked]);
+
+  if (applications.length === 0) {
+    return <div className="text-text-muted text-sm">No pending applications.</div>;
+  }
 
   return (
     <div className="space-y-3">
@@ -511,45 +516,168 @@ function ApplicationsTab({
   );
 }
 
-function StockTab({ stockItems }: { stockItems: [string, CompanyStockItem][] }) {
+function StockTab({
+  stockItems,
+  runway,
+  runwayLoading,
+  onLoadRunway,
+}: {
+  stockItems: [string, CompanyStockItem][];
+  runway: CompanyStockRunwayResponse | null;
+  runwayLoading: boolean;
+  onLoadRunway: () => void;
+}) {
+  const runwayByProduct = useMemo(() => {
+    const m = new Map<string, CompanyStockRunwayResponse['products'][number]>();
+    for (const item of runway?.products ?? []) m.set(item.product_name, item);
+    return m;
+  }, [runway]);
+
+  const sortedStockItems = useMemo(() => {
+    const priority: Record<string, number> = { shortage: 0, low: 1, ok: 2 };
+    return stockItems.slice().sort(([nameA], [nameB]) => {
+      const a = runwayByProduct.get(nameA);
+      const b = runwayByProduct.get(nameB);
+      const pa = priority[a?.status ?? 'ok'] ?? 9;
+      const pb = priority[b?.status ?? 'ok'] ?? 9;
+      if (pa !== pb) return pa - pb;
+      if ((b?.shortage ?? 0) !== (a?.shortage ?? 0)) return (b?.shortage ?? 0) - (a?.shortage ?? 0);
+      return nameA.localeCompare(nameB);
+    });
+  }, [stockItems, runwayByProduct]);
+
+  const runwaySummary = useMemo(() => {
+    const products = runway?.products ?? [];
+    return {
+      shortages: products.filter((p) => p.status === 'shortage').length,
+      low: products.filter((p) => p.status === 'low').length,
+      shortageUnits: products.reduce((sum, p) => sum + p.shortage, 0),
+    };
+  }, [runway]);
+
   if (stockItems.length === 0) {
     return <div className="text-text-muted text-sm">No stock data.</div>;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-text-muted text-xs uppercase tracking-wide border-b border-text-secondary/15">
-            <th className="py-2 px-2">Product</th>
-            <th className="py-2 px-2 text-right">In stock</th>
-            <th className="py-2 px-2 text-right">On order</th>
-            <th className="py-2 px-2 text-right">Price</th>
-            <th className="py-2 px-2 text-right">Cost</th>
-            <th className="py-2 px-2 text-right">Margin</th>
-            <th className="py-2 px-2 text-right">Sold (lifetime)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stockItems.map(([name, s]) => {
-            const margin = s.price > 0 ? ((s.price - s.cost) / s.price) * 100 : 0;
-            const marginClass = margin > 30 ? 'text-torn-green' : margin > 15 ? 'text-yellow-400' : 'text-danger';
-            const stockClass = s.in_stock === 0 ? 'text-danger font-semibold' : 'text-text-primary';
-            return (
-              <tr key={name} className="border-b border-text-secondary/10">
-                <td className="py-2 px-2 text-text-primary">{name}</td>
-                <td className={`py-2 px-2 text-right ${stockClass}`}>{s.in_stock.toLocaleString()}</td>
-                <td className="py-2 px-2 text-right text-text-secondary">{s.on_order.toLocaleString()}</td>
-                <td className="py-2 px-2 text-right">{formatMoney(s.price)}</td>
-                <td className="py-2 px-2 text-right text-text-muted">{formatMoney(s.cost)}</td>
-                <td className={`py-2 px-2 text-right font-semibold ${marginClass}`}>{margin.toFixed(1)}%</td>
-                <td className="py-2 px-2 text-right text-text-secondary">
-                  {s.sold_amount.toLocaleString()} · {formatMoney(s.sold_worth)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-3 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Stock runway to Sunday</h3>
+            <p className="text-xs text-text-muted mt-0.5">
+              Uses sales pace since Monday 00:00 TCT and live in-stock + on-order counts.
+            </p>
+          </div>
+          <button
+            onClick={onLoadRunway}
+            disabled={runwayLoading}
+            className="px-3 py-1.5 text-xs rounded-lg bg-torn-green/20 text-torn-green hover:bg-torn-green/30 disabled:opacity-50"
+          >
+            {runwayLoading ? 'Checking...' : runway ? 'Refresh runway' : 'Check runway'}
+          </button>
+        </div>
+
+        {runway ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div className="bg-bg-elevated rounded px-2 py-1.5">
+                <div className="text-text-muted">Shortage products</div>
+                <div className="text-danger font-semibold">{runwaySummary.shortages}</div>
+              </div>
+              <div className="bg-bg-elevated rounded px-2 py-1.5">
+                <div className="text-text-muted">Low buffer</div>
+                <div className="text-yellow-400 font-semibold">{runwaySummary.low}</div>
+              </div>
+              <div className="bg-bg-elevated rounded px-2 py-1.5">
+                <div className="text-text-muted">Missing units</div>
+                <div className="text-text-primary font-semibold">{runwaySummary.shortageUnits.toLocaleString()}</div>
+              </div>
+              <div className="bg-bg-elevated rounded px-2 py-1.5">
+                <div className="text-text-muted">Days left</div>
+                <div className="text-text-primary font-semibold">{runway.days_remaining.toFixed(1)}</div>
+              </div>
+            </div>
+            {!runway.history_complete && (
+              <p className="text-[11px] text-yellow-400">
+                Partial week: at least one product has no snapshot before Monday 00:00 TCT, so its average uses the earliest snapshot we have this week.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-text-muted">
+            Runway will load automatically when this tab opens. It needs one or more stock snapshots to estimate the weekly pace.
+          </p>
+        )}
+      </section>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-text-muted text-xs uppercase tracking-wide border-b border-text-secondary/15">
+              <th className="py-2 px-2">Product</th>
+              <th className="py-2 px-2 text-right">Status</th>
+              <th className="py-2 px-2 text-right">In stock</th>
+              <th className="py-2 px-2 text-right">On order</th>
+              <th className="py-2 px-2 text-right">Available</th>
+              <th className="py-2 px-2 text-right">Sold since Mon</th>
+              <th className="py-2 px-2 text-right">Avg/day</th>
+              <th className="py-2 px-2 text-right">Need to Sunday</th>
+              <th className="py-2 px-2 text-right">Shortage</th>
+              <th className="py-2 px-2 text-right">Margin</th>
+              <th className="py-2 px-2 text-right">Sold (lifetime)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedStockItems.map(([name, s]) => {
+              const runwayItem = runwayByProduct.get(name);
+              const margin = s.price > 0 ? ((s.price - s.cost) / s.price) * 100 : 0;
+              const marginClass = margin > 30 ? 'text-torn-green' : margin > 15 ? 'text-yellow-400' : 'text-danger';
+              const stockClass = s.in_stock === 0 ? 'text-danger font-semibold' : 'text-text-primary';
+              const status = runwayItem?.status ?? 'ok';
+              const statusClass = status === 'shortage'
+                ? 'bg-danger/15 text-danger'
+                : status === 'low'
+                  ? 'bg-yellow-400/15 text-yellow-400'
+                  : 'bg-torn-green/15 text-torn-green';
+              return (
+                <tr key={name} className={`border-b border-text-secondary/10 ${status === 'shortage' ? 'bg-danger/5' : status === 'low' ? 'bg-yellow-400/5' : ''}`}>
+                  <td className="py-2 px-2 text-text-primary">{name}</td>
+                  <td className="py-2 px-2 text-right">
+                    {runwayItem ? (
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase font-semibold ${statusClass}`}>
+                        {status === 'shortage' ? 'short' : status}
+                      </span>
+                    ) : (
+                      <span className="text-text-muted">-</span>
+                    )}
+                  </td>
+                  <td className={`py-2 px-2 text-right ${stockClass}`}>{s.in_stock.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right text-text-secondary">{s.on_order.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right text-text-secondary">
+                    {runwayItem?.available_stock.toLocaleString() ?? (s.in_stock + s.on_order).toLocaleString()}
+                  </td>
+                  <td className="py-2 px-2 text-right text-text-secondary">
+                    {runwayItem?.sold_since_monday.toLocaleString() ?? '-'}
+                  </td>
+                  <td className="py-2 px-2 text-right text-text-secondary">
+                    {runwayItem ? runwayItem.avg_daily_sold.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '-'}
+                  </td>
+                  <td className="py-2 px-2 text-right text-text-secondary">
+                    {runwayItem?.projected_until_sunday.toLocaleString() ?? '-'}
+                  </td>
+                  <td className={`py-2 px-2 text-right font-semibold ${runwayItem?.shortage ? 'text-danger' : 'text-text-muted'}`}>
+                    {runwayItem ? runwayItem.shortage.toLocaleString() : '-'}
+                  </td>
+                  <td className={`py-2 px-2 text-right font-semibold ${marginClass}`}>{margin.toFixed(1)}%</td>
+                  <td className="py-2 px-2 text-right text-text-secondary">
+                    {s.sold_amount.toLocaleString()} · {formatMoney(s.sold_worth)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -931,4 +1059,3 @@ function FactionTab({ companies }: { companies: import('@/types/company-director
     </div>
   );
 }
-

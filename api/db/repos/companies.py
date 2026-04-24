@@ -195,6 +195,60 @@ class CompanySnapshotRepository(BaseRepository):
         )
         return [dict(r) for r in rows]
 
+    def get_stock_runway_baselines(
+        self, company_id: int, week_start_ts: int
+    ) -> dict[str, dict]:
+        """Return per-product sales baselines for a calendar week runway.
+
+        Prefer the latest snapshot before the week starts. If a product has no
+        pre-week snapshot, fall back to the earliest snapshot after week start
+        so the caller can still produce a partial-week estimate.
+        """
+        before_rows = self.execute(
+            """
+            WITH ranked AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (PARTITION BY product_name ORDER BY recorded_at DESC) rn
+                FROM company_stock_snapshots
+                WHERE company_id = ? AND recorded_at < ?
+            )
+            SELECT product_name, sold_amount, sold_worth, recorded_at
+            FROM ranked
+            WHERE rn = 1
+            """,
+            (company_id, week_start_ts),
+        )
+        baselines: dict[str, dict] = {}
+        for row in before_rows:
+            d = dict(row)
+            d["source"] = "before_week"
+            d["history_complete"] = True
+            baselines[d["product_name"]] = d
+
+        after_rows = self.execute(
+            """
+            WITH ranked AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (PARTITION BY product_name ORDER BY recorded_at ASC) rn
+                FROM company_stock_snapshots
+                WHERE company_id = ? AND recorded_at >= ?
+            )
+            SELECT product_name, sold_amount, sold_worth, recorded_at
+            FROM ranked
+            WHERE rn = 1
+            """,
+            (company_id, week_start_ts),
+        )
+        for row in after_rows:
+            d = dict(row)
+            if d["product_name"] in baselines:
+                continue
+            d["source"] = "within_week"
+            d["history_complete"] = False
+            baselines[d["product_name"]] = d
+
+        return baselines
+
     # ---------- weekly aggregation (anchored to Mon 18:00 TCT) ----------
 
     def get_weekly_sales(

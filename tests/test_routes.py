@@ -746,6 +746,126 @@ async def test_company_director_trends(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_company_director_stock_runway_statuses(mock_client, mock_store):
+    week_start = 2_000_000
+    now_ts = week_start + 3 * 86400
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Co", "company_type": 34, "position": "Director"},
+    })
+    mock_client.fetch_company_stock = AsyncMock(return_value={
+        "company_stock": {
+            "OK": {"cost": 10, "price": 25, "rrp": 25, "in_stock": 100, "on_order": 0, "sold_amount": 130, "sold_worth": 3250},
+            "Low": {"cost": 10, "price": 25, "rrp": 25, "in_stock": 45, "on_order": 0, "sold_amount": 130, "sold_worth": 3250},
+            "Short": {"cost": 10, "price": 25, "rrp": 25, "in_stock": 20, "on_order": 0, "sold_amount": 130, "sold_worth": 3250},
+        }
+    })
+    repo = MagicMock()
+    repo.get_stock_runway_baselines.return_value = {
+        name: {
+            "product_name": name,
+            "sold_amount": 100,
+            "sold_worth": 2500,
+            "recorded_at": week_start - 60,
+            "source": "before_week",
+            "history_complete": True,
+        }
+        for name in ("OK", "Low", "Short")
+    }
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.companies_repo = repo
+        with patch("api.routers.company_director.time.time", return_value=now_ts), \
+             patch("api.routers.company_director.calendar_week_start_tct", return_value=week_start):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/api/company/director/stock-runway", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    by_name = {p["product_name"]: p for p in data["products"]}
+    assert data["is_director"] is True
+    assert data["history_complete"] is True
+    assert by_name["OK"]["status"] == "ok"
+    assert by_name["Low"]["status"] == "low"
+    assert by_name["Short"]["status"] == "shortage"
+    assert by_name["Short"]["shortage"] == 20
+    assert by_name["Short"]["projected_until_sunday"] == 40
+    repo.get_stock_runway_baselines.assert_called_once_with(50000, week_start)
+
+
+@pytest.mark.asyncio
+async def test_company_director_stock_runway_partial_history(mock_client, mock_store):
+    week_start = 2_000_000
+    now_ts = week_start + 3 * 86400
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Co", "company_type": 34, "position": "Director"},
+    })
+    mock_client.fetch_company_stock = AsyncMock(return_value={
+        "company_stock": {
+            "Shampoo": {"cost": 10, "price": 25, "rrp": 25, "in_stock": 100, "on_order": 0, "sold_amount": 130, "sold_worth": 3250},
+        }
+    })
+    repo = MagicMock()
+    repo.get_stock_runway_baselines.return_value = {
+        "Shampoo": {
+            "product_name": "Shampoo",
+            "sold_amount": 110,
+            "sold_worth": 2750,
+            "recorded_at": week_start + 86400,
+            "source": "within_week",
+            "history_complete": False,
+        }
+    }
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.companies_repo = repo
+        with patch("api.routers.company_director.time.time", return_value=now_ts), \
+             patch("api.routers.company_director.calendar_week_start_tct", return_value=week_start):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/api/company/director/stock-runway", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    item = data["products"][0]
+    assert data["history_complete"] is False
+    assert item["history_complete"] is False
+    assert item["baseline_source"] == "within_week"
+    assert item["sold_since_monday"] == 20
+    assert item["avg_daily_sold"] == 10
+
+
+@pytest.mark.asyncio
+async def test_company_director_stock_runway_non_director(mock_client, mock_store):
+    mock_client.fetch_training_data = AsyncMock(return_value={
+        "job": {"company_id": 50000, "company_name": "Co", "company_type": 34, "position": "Employee"},
+    })
+    mock_client.fetch_company_stock = AsyncMock(return_value=None)
+    repo = MagicMock()
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company_director as cd_mod
+        cd_mod.torn_client = mock_client
+        cd_mod.key_store = mock_store
+        cd_mod.companies_repo = repo
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/director/stock-runway", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_director"] is False
+    assert data["products"] == []
+    repo.get_stock_runway_baselines.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_company_director_faction(mock_client, mock_store):
     mock_store.get_all_keys.return_value = [
         {"player_id": 123, "player_name": "Bombel", "api_key": "k1"},

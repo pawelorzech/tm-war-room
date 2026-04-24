@@ -1,6 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
-from api.time_utils import week_start_tct, week_end_tct, format_week_label
+from api.time_utils import (
+    calendar_week_end_tct,
+    calendar_week_start_tct,
+    week_start_tct,
+    week_end_tct,
+    format_week_label,
+)
 
 
 def _utc(y, m, d, h=0, mi=0):
@@ -61,3 +67,16 @@ def test_format_week_label_includes_iso_week():
     label = format_week_label(ts)
     assert "2026-W16" in label
     assert "Apr 13" in label
+
+
+def test_calendar_week_start_is_monday_midnight():
+    ts = calendar_week_start_tct(_utc(2026, 4, 15, 10))
+    result = datetime.fromtimestamp(ts, tz=timezone.utc)
+    assert result == _utc(2026, 4, 13, 0, 0)
+
+
+def test_calendar_week_end_is_next_monday_midnight():
+    start = calendar_week_start_tct(_utc(2026, 4, 15, 10))
+    end = calendar_week_end_tct(start)
+    result = datetime.fromtimestamp(end, tz=timezone.utc)
+    assert result == _utc(2026, 4, 20, 0, 0)
