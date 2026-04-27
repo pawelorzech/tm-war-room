@@ -1162,3 +1162,43 @@ async def test_logout_clears_cookies():
     joined = " ".join(cookies)
     assert "tm_session=" in joined
     assert "tm_admin=" in joined
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_jti(mock_client, mock_store, tmp_path):
+    """F-16 regression: token used after logout is rejected (jti revoked)."""
+    from api.db.repos.revoked_jwts import RevokedJwtRepository
+    from api.db.migrations.runner import run_migrations
+    import os
+    db = str(tmp_path / "keys.db")
+    run_migrations(db, os.path.dirname(__import__("api.db.migrations", fromlist=["x"]).__file__))
+    revoked_repo = RevokedJwtRepository(db_path=db)
+
+    session_token = create_jwt(123, "Test", TEST_JWT_SECRET, token_type="session")
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.main.revoked_jwt_repo", revoked_repo):
+        from api.auth import set_revocation_check
+        set_revocation_check(revoked_repo.is_revoked)
+        try:
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                # 1. Use the token successfully
+                ok = await ac.get("/api/me", headers={
+                    "Authorization": f"Bearer {session_token}", "X-Player-Id": "123",
+                })
+                assert ok.status_code == 200
+                # 2. Logout (revokes jti)
+                logout = await ac.post("/api/logout", headers={
+                    "Authorization": f"Bearer {session_token}",
+                })
+                assert logout.status_code == 200
+                # 3. Same token must now be rejected
+                after = await ac.get("/api/me", headers={
+                    "Authorization": f"Bearer {session_token}", "X-Player-Id": "123",
+                })
+                assert after.status_code == 401
+        finally:
+            set_revocation_check(lambda _jti: False)

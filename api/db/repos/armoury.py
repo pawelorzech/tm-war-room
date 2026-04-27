@@ -25,12 +25,26 @@ class ArmouryRepository(BaseRepository):
         )
         return [dict(r) for r in rows]
 
+    # F-10: explicit columns prevent regression-prone f-string SQL building.
+    _UPDATABLE_FIELDS = ("name", "category", "items", "start_ts", "end_ts", "prize_text")
+
     def update_competition(self, comp_id: int, **kwargs) -> None:
-        if not kwargs:
+        unknown = set(kwargs) - set(self._UPDATABLE_FIELDS)
+        if unknown:
+            raise ValueError(f"Unknown competition fields: {sorted(unknown)}")
+        fields: list[str] = []
+        vals: list = []
+        for col in self._UPDATABLE_FIELDS:
+            if col in kwargs:
+                fields.append(f"{col} = ?")
+                vals.append(kwargs[col])
+        if not fields:
             return
-        cols = ", ".join(f"{k} = ?" for k in kwargs)
-        vals = tuple(kwargs.values()) + (comp_id,)
-        self.mutate(f"UPDATE armoury_competitions SET {cols} WHERE id = ?", vals)
+        vals.append(comp_id)
+        self.mutate(
+            f"UPDATE armoury_competitions SET {', '.join(fields)} WHERE id = ?",
+            tuple(vals),
+        )
 
     def end_competition(self, comp_id: int) -> None:
         self.mutate("UPDATE armoury_competitions SET status = 'ended' WHERE id = ?", (comp_id,))

@@ -332,3 +332,46 @@ async def test_middleware_logs_requests(mock_client, mock_store):
         users = real_analytics.get_user_stats(days=1)
         pids = {u["player_id"] for u in users}
         assert ADMIN_ID in pids
+
+
+@pytest.mark.asyncio
+async def test_create_session_rejects_revoked_torn_key(mock_client, mock_store, mock_analytics):
+    """F-06 regression: if Torn API rejects the stored key, admin escalation fails."""
+    revoked_resp = AsyncMock()
+    revoked_resp.json.return_value = {"error": {"code": 2, "error": "Incorrect key"}}
+    revoked_resp.raise_for_status = lambda: None
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(return_value=revoked_resp)
+
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        session_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="session")
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post(
+                "/api/admin/session",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+    assert resp.status_code == 401
+    assert "Re-validate" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_session_rejects_key_with_wrong_player_id(mock_client, mock_store, mock_analytics):
+    """F-06 regression: if Torn returns a different player_id than expected, escalation fails."""
+    wrong_pid_resp = AsyncMock()
+    wrong_pid_resp.json.return_value = {"player_id": 99999, "name": "WrongUser", "faction": {"faction_id": 11559}}
+    wrong_pid_resp.raise_for_status = lambda: None
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(return_value=wrong_pid_resp)
+
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        session_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="session")
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post(
+                "/api/admin/session",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+    assert resp.status_code == 401

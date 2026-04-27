@@ -36,13 +36,18 @@ class ChatRepository(BaseRepository):
             (name, description, ch_type, position, int(admin_only), int(time.time()), created_by),
         )
 
+    # F-10: explicit allowlist + raise on unknown (was silent skip — defense-in-depth).
+    _UPDATABLE_CHANNEL_FIELDS = ("name", "description", "type", "position", "admin_only")
+
     def update_channel(self, channel_id: int, **kwargs) -> None:
-        allowed = {"name", "description", "type", "position", "admin_only"}
+        unknown = set(kwargs) - set(self._UPDATABLE_CHANNEL_FIELDS)
+        if unknown:
+            raise ValueError(f"Unknown channel fields: {sorted(unknown)}")
         parts, vals = [], []
-        for k, v in kwargs.items():
-            if k in allowed:
+        for k in self._UPDATABLE_CHANNEL_FIELDS:
+            if k in kwargs:
                 parts.append(f"{k} = ?")
-                vals.append(int(v) if k == "admin_only" else v)
+                vals.append(int(kwargs[k]) if k == "admin_only" else kwargs[k])
         if not parts:
             return
         vals.append(channel_id)

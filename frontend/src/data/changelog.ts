@@ -12,9 +12,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.3";
+export const CURRENT_VERSION = "1.13.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.4",
+    date: "2026-04-27",
+    title: "Session revocation + admin re-auth",
+    changes: [
+      { type: "improve", text: "Logout now actually revokes the session — even a leaked token can't be reused after you sign out (server-side jti deny-list)" },
+      { type: "improve", text: "Admin escalation re-validates your Torn API key against Torn before issuing an admin session — a stolen session token alone is not enough" },
+      { type: "improve", text: "Hardened CI: GitHub Actions pinned by SHA + scoped GITHUB_TOKEN permissions, dependabot watches upstream releases" },
+      { type: "improve", text: "Umami analytics script pinned with SRI hash so a CDN compromise cannot inject script into the app" },
+      { type: "improve", text: "Defensive SQL: armoury + chat repos refuse unknown column names instead of silently skipping them" },
+    ],
+  },
   {
     version: "1.13.3",
     date: "2026-04-27",

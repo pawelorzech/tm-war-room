@@ -75,6 +75,7 @@ torn_client: TornClient | None = None
 key_store: KeyStore | None = None
 analytics_store = None
 presence_repo = None  # PresenceRepository, set in lifespan
+revoked_jwt_repo = None  # F-16: RevokedJwtRepository, set in lifespan
 
 # Background bars cache: {player_id: {energy, max_energy, drug_cd}} — refreshed by scheduler
 _bars_cache: dict[int, dict] = {}
@@ -90,6 +91,12 @@ async def lifespan(app: FastAPI):
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL, analytics_store=analytics_store)
     key_store = KeyStore(db_path="data/keys.db", encryption_key=ENCRYPTION_KEY)
     admin_mod.init(key_store, analytics_store, torn_client, time.time())
+    # F-16: wire up JWT revocation list.
+    from api.db.repos.revoked_jwts import RevokedJwtRepository
+    from api.auth import set_revocation_check
+    global revoked_jwt_repo  # noqa: PLW0603
+    revoked_jwt_repo = RevokedJwtRepository(db_path="data/keys.db")
+    set_revocation_check(revoked_jwt_repo.is_revoked)
     from api.db.repos.spies import SpyRepository
     from api.services.spy import SpyService
     spy_repo = SpyRepository(db_path="data/keys.db")
@@ -1015,9 +1022,27 @@ async def register_key(body: KeyRegister, request: Request):
 
 @app.post("/api/logout")
 async def logout(request: Request):
-    """Clear session/admin cookies (server-side)."""
+    """Clear session/admin cookies + revoke their jti (F-16) so they can't be reused."""
+    from api.auth import decode_jwt as _decode_jwt
     response = JSONResponse(content={"status": "ok"})
     _clear_auth_cookies(response)
+    if revoked_jwt_repo is not None:
+        # Revoke any token presented in cookies or Authorization header.
+        candidates = []
+        for cookie_name in (SESSION_COOKIE_NAME, ADMIN_COOKIE_NAME):
+            tok = request.cookies.get(cookie_name)
+            if tok:
+                candidates.append(tok)
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer "):
+            candidates.append(auth[7:])
+        for raw in candidates:
+            payload = _decode_jwt(raw, JWT_SECRET)
+            if payload and payload.get("jti") and payload.get("exp"):
+                try:
+                    revoked_jwt_repo.revoke(payload["jti"], int(payload["exp"]), payload.get("sub"))
+                except Exception as exc:
+                    logger.warning("Failed to revoke jti=%s: %s", payload.get("jti"), exc)
     return response
 
 
