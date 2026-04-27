@@ -56,3 +56,30 @@ def test_run_migrations_applies_new_only(db_path, migrations_dir):
     conn.close()
     assert len(applied) == 3
     assert any(c[1] == "email" for c in cols)
+
+
+def test_run_migrations_concurrent_workers(db_path, migrations_dir):
+    """Two threads racing run_migrations must both succeed and apply each migration once."""
+    import threading
+
+    errors: list[BaseException] = []
+
+    def worker():
+        try:
+            run_migrations(db_path, migrations_dir)
+        except BaseException as e:  # pragma: no cover - failure path
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == [], f"unexpected errors: {errors}"
+    conn = sqlite3.connect(db_path)
+    applied = [r[0] for r in conn.execute(
+        "SELECT filename FROM _migrations ORDER BY filename"
+    ).fetchall()]
+    conn.close()
+    assert applied == ["001_create_users.sql", "002_create_posts.sql"]
