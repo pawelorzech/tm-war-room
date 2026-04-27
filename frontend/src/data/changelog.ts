@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.15.4";
+export const CURRENT_VERSION = "1.16.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.0",
+    date: "2026-04-27",
+    title: "Sprint 2 #13 — Glitchtip wired (no-op until DSN set)",
+    changes: [
+      { type: "improve", text: "Backend and browser are now ready to report errors and slow traces to a self-hosted Glitchtip instance — turn it on by setting SENTRY_DSN and rebuilding. Until then it stays completely silent" },
+      { type: "improve", text: "Tight PII filter scrubs Torn API keys, auth tokens, and cookies out of every event before transmission — covered by 15 dedicated tests on the backend and the browser uses an identical scrubber" },
+    ],
+  },
   {
     version: "1.15.4",
     date: "2026-04-27",

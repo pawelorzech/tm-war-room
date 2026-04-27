@@ -69,6 +69,8 @@ from api.routers.chat import router as chat_router
 import api.routers.chat as chat_mod
 from api.routers.armoury import router as armoury_router
 import api.routers.armoury as armoury_mod
+from api.routers.preferences import router as preferences_router
+import api.routers.preferences as preferences_mod
 from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
@@ -86,6 +88,11 @@ _bars_cache_ts: float = 0
 async def lifespan(app: FastAPI):
     global torn_client, key_store, analytics_store, presence_repo
     os.makedirs("data", exist_ok=True)
+
+    # Sprint 2 #13: Sentry/Glitchtip — must initialize BEFORE app code runs so
+    # any startup error is captured. PII filter scrubs Torn API keys before send.
+    from api.observability import init_sentry
+    init_sentry()
 
     # Sprint 2 #1+#19: Redis (best-effort) + scheduler leader-election.
     # Each worker initializes its own Redis client (connection pool).
@@ -164,6 +171,11 @@ async def lifespan(app: FastAPI):
     notification_repo = NotificationRepository(db_path="data/keys.db")
     notifications_mod.notification_repo = notification_repo
     notifications_mod.key_store = key_store
+
+    from api.db.repos.pinned_navs import PinnedNavsRepository
+    pinned_navs_repo = PinnedNavsRepository(db_path="data/keys.db")
+    preferences_mod.pinned_navs_repo = pinned_navs_repo
+    preferences_mod.key_store = key_store
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
     from api.db.repos.companies import CompanySnapshotRepository
@@ -366,6 +378,7 @@ app.include_router(push_router)
 app.include_router(version_router)
 app.include_router(chat_router)
 app.include_router(armoury_router)
+app.include_router(preferences_router)
 
 # MCP server (Streamable HTTP transport)
 _mcp_app = mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware())
