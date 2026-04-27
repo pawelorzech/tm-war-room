@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger("tm-hub.scheduler")
 
@@ -103,10 +104,12 @@ async def create_and_start_scheduler(app_state: dict):
     )
 
     # F-18: daily encrypted backup of keys.db to B2 + retention sweep.
+    # `start_time` 60s after scheduler boot → first backup runs ~1 min after deploy,
+    # so a fresh deploy proves the pipeline end-to-end without waiting 24h.
     await scheduler.configure_task("backup_keys_db", func=run_backup_keys_db)
     await scheduler.add_schedule(
         "backup_keys_db",
-        IntervalTrigger(hours=24),
+        IntervalTrigger(hours=24, start_time=datetime.now(timezone.utc) + timedelta(seconds=60)),
         id="backup_keys_db_schedule",
     )
 
