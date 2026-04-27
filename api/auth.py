@@ -1,12 +1,24 @@
 from __future__ import annotations
 
+import secrets as _secrets
 import time
+from typing import Callable
 
 import jwt
 from fastapi import HTTPException
 
 TOKEN_TYPE_SESSION = "session"
 TOKEN_TYPE_ADMIN = "admin"
+
+
+# F-16: pluggable revocation predicate. Set at startup from main.py to point at
+# RevokedJwtRepository.is_revoked. Default: never revoked (no DB, dev / tests).
+_revocation_check: Callable[[str], bool] = lambda _jti: False
+
+
+def set_revocation_check(fn: Callable[[str], bool]) -> None:
+    global _revocation_check
+    _revocation_check = fn
 
 
 def create_jwt(
@@ -23,6 +35,8 @@ def create_jwt(
         "token_type": token_type,
         "iat": now,
         "exp": now + expires_hours * 3600,
+        # F-16: per-token unique ID enables targeted revocation.
+        "jti": _secrets.token_urlsafe(12),
     }
     return jwt.encode(payload, secret, algorithm="HS256")
 
@@ -31,9 +45,13 @@ def decode_jwt(token: str, secret: str) -> dict | None:
     try:
         payload = jwt.decode(token, secret, algorithms=["HS256"])
         payload["sub"] = int(payload["sub"])
-        return payload
     except (jwt.InvalidTokenError, KeyError, ValueError):
         return None
+    # F-16: reject explicitly revoked tokens.
+    jti = payload.get("jti")
+    if jti and _revocation_check(jti):
+        return None
+    return payload
 
 
 def require_bearer_token(
@@ -54,10 +72,19 @@ def require_bearer_token(
 class RateLimiter:
     def __init__(self) -> None:
         self._requests: dict[str, list[float]] = {}
+        self._last_evict: float = time.time()
 
     def check(self, key: str, max_requests: int, window_seconds: int = 60) -> bool:
         now = time.time()
         cutoff = now - window_seconds
+        # F-17: evict dead keys every 5 minutes to bound memory growth.
+        if now - self._last_evict > 300:
+            self._requests = {
+                k: [t for t in v if t > cutoff]
+                for k, v in self._requests.items()
+                if any(t > cutoff for t in v)
+            }
+            self._last_evict = now
         entries = self._requests.get(key, [])
         entries = [t for t in entries if t > cutoff]
         if len(entries) >= max_requests:

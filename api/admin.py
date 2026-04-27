@@ -81,6 +81,35 @@ async def require_superadmin(request: Request) -> dict:
     return payload
 
 
+async def _verify_torn_key_still_valid(player_id: int, api_key: str) -> bool:
+    """F-06: re-validate the Torn API key against Torn before issuing an admin token.
+    Mitigates stolen-session-token → automatic admin escalation: if the legitimate user
+    revoked their key, the stolen session token can no longer escalate.
+    """
+    if _torn_client is None:
+        return False
+    try:
+        resp = await _torn_client._http.get(
+            "https://api.torn.com/user/",
+            params={"selections": "profile", "key": api_key},
+        )
+        resp.raise_for_status()
+        raw = resp.json()
+        import inspect as _inspect
+        if _inspect.isawaitable(raw):
+            raw = await raw
+    except Exception as exc:
+        logger.warning("Admin re-auth: Torn API check failed for pid=%d: %s", player_id, exc)
+        return False
+    if "error" in raw:
+        logger.warning("Admin re-auth: Torn API rejected key for pid=%d: %s", player_id, raw["error"])
+        return False
+    if raw.get("player_id") != player_id:
+        logger.warning("Admin re-auth: key player_id mismatch (got %s, expected %d)", raw.get("player_id"), player_id)
+        return False
+    return True
+
+
 @router.post("/session")
 async def create_session(request: Request):
     from fastapi.responses import JSONResponse
@@ -99,6 +128,9 @@ async def create_session(request: Request):
     user_key = _key_store.get_key(player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="No API key registered")
+    # F-06: stolen session token alone is not enough — require the user's Torn key to still work.
+    if not await _verify_torn_key_still_valid(player_id, user_key["api_key"]):
+        raise HTTPException(status_code=401, detail="Re-validate your Torn API key — admin escalation requires a working key")
     token = create_jwt(player_id, user_key["player_name"], JWT_SECRET, token_type=TOKEN_TYPE_ADMIN)
     logger.info("Admin session created: %s [%d]", user_key["player_name"], player_id)
     response = JSONResponse(content={"token": token})
