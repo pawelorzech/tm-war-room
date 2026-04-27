@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { useCompanyDirector } from '@/hooks/useCompanyDirector';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
@@ -342,7 +343,7 @@ function EmployeesTab({ employees }: { employees: [string, CompanyEmployee][] })
                 <td className="py-2 px-2">
                   <a
                     href={`https://www.torn.com/profiles.php?XID=${id}`}
-                    target="_blank"
+                    target="_blank" rel="noopener noreferrer"
                     rel="noopener"
                     className="text-text-primary hover:text-torn-green"
                   >
@@ -452,7 +453,7 @@ function ApplicationsTab({
                 <div className="flex items-center gap-2">
                   <a
                     href={`https://www.torn.com/profiles.php?XID=${a.userID}`}
-                    target="_blank"
+                    target="_blank" rel="noopener noreferrer"
                     rel="noopener"
                     className="font-semibold hover:text-torn-green"
                   >
@@ -716,7 +717,13 @@ function NewsTab({
           </span>
           <span
             className="text-text-secondary flex-1 [&_a]:text-torn-green [&_a]:hover:underline"
-            dangerouslySetInnerHTML={{ __html: n.news }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(n.news, {
+                ALLOWED_TAGS: ['a', 'b', 'i', 'em', 'strong', 'br', 'span'],
+                ALLOWED_ATTR: ['href', 'title', 'class'],
+                ALLOWED_URI_REGEXP: /^https?:\/\/(www\.)?torn\.com\//,
+              }),
+            }}
           />
         </div>
       ))}
@@ -849,7 +856,7 @@ function DirectorTeaser({
             Be a director of a Torn company. See{' '}
             <a
               href="https://wiki.torn.com/wiki/Company"
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               rel="noopener"
               className="text-torn-green hover:underline"
             >
@@ -1012,7 +1019,7 @@ function FactionTab({ companies }: { companies: import('@/types/company-director
               <div>
                 <a
                   href={`https://www.torn.com/joblist.php#!p=corpinfo&ID=${c.company_id}`}
-                  target="_blank"
+                  target="_blank" rel="noopener noreferrer"
                   rel="noopener"
                   className="font-semibold text-text-primary hover:text-torn-green"
                 >
@@ -1045,7 +1052,7 @@ function FactionTab({ companies }: { companies: import('@/types/company-director
                 <a
                   key={m.player_id}
                   href={`https://www.torn.com/profiles.php?XID=${m.player_id}`}
-                  target="_blank"
+                  target="_blank" rel="noopener noreferrer"
                   rel="noopener"
                   className="px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-secondary hover:text-torn-green"
                 >

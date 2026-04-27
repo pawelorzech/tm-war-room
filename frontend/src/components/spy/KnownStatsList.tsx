@@ -92,7 +92,7 @@ export function KnownStatsList() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
-                <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank"
+                <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
                    className="text-sm font-medium text-text-primary hover:text-torn-green">
                   {e.player_name || `#${e.player_id}`}
                 </a>
@@ -144,7 +144,7 @@ export function KnownStatsList() {
                   <span className={`w-2 h-2 rounded-full inline-block ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
                 </td>
                 <td className="py-1.5 px-2">
-                  <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank"
+                  <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
                      className="text-text-primary hover:text-torn-green transition-colors">
                     {e.player_name || `#${e.player_id}`}
                   </a>

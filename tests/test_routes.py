@@ -993,3 +993,113 @@ async def test_middleware_logs_requests(mock_client, mock_store):
         users = real_analytics.get_user_stats(days=1)
         pids = {u["player_id"] for u in users}
         assert 123 in pids
+
+
+@pytest.mark.asyncio
+async def test_enemy_rejects_mismatched_baseline_pid(mock_client, mock_store):
+    """F-01 regression: caller cannot use another player's API key as baseline."""
+    mock_client.fetch_war = AsyncMock(return_value=_make_war())
+    mock_client.fetch_enemy_members = AsyncMock(return_value=[])
+    mock_client.fetch_faction_info = AsyncMock(return_value=None)
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # caller 123 tries to use player 999's key as baseline
+            resp = await ac.get("/api/enemy?baseline_pid=999", headers=AUTH_HEADERS)
+    assert resp.status_code == 403
+    assert "baseline_pid must match" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_enemy_allows_own_baseline_pid(mock_client, mock_store):
+    """F-01 regression: caller using own player_id as baseline is allowed."""
+    mock_client.fetch_war = AsyncMock(return_value=_make_war())
+    mock_client.fetch_enemy_members = AsyncMock(return_value=[])
+    mock_client.fetch_faction_info = AsyncMock(return_value=None)
+    mock_client.fetch_personalstats = AsyncMock(return_value=PersonalStats(
+        xanax_taken=100, refills=50, attacks_won=200, defends_won=10,
+        networth=1_000_000, highest_beaten=10, best_damage=100, best_kill_streak=10, damage_done=10000))
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/enemy?baseline_pid=123", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_stats_snapshots_rejects_other_player(mock_store):
+    """F-02 regression: caller cannot read another player's stat snapshots."""
+    from api.routers import stats as stats_mod
+    mock_stats_repo = MagicMock()
+    mock_key_repo = MagicMock()
+    mock_key_repo.is_admin = MagicMock(return_value=False)
+
+    with patch.object(stats_mod, "stats_repo", mock_stats_repo), \
+         patch.object(stats_mod, "key_repo", mock_key_repo), \
+         patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # caller 123 requests stats for player 999
+            resp = await ac.get("/api/stats/snapshots/999", headers=AUTH_HEADERS)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_stats_growth_rejects_other_player(mock_store):
+    """F-02 regression: caller cannot read another player's growth."""
+    from api.routers import stats as stats_mod
+    mock_stats_repo = MagicMock()
+    mock_key_repo = MagicMock()
+    mock_key_repo.is_admin = MagicMock(return_value=False)
+
+    with patch.object(stats_mod, "stats_repo", mock_stats_repo), \
+         patch.object(stats_mod, "key_repo", mock_key_repo), \
+         patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/stats/growth/999", headers=AUTH_HEADERS)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_stats_snapshots_allows_own_data(mock_store):
+    """F-02 regression: caller can read own snapshots."""
+    from api.routers import stats as stats_mod
+    mock_stats_repo = MagicMock()
+    mock_stats_repo.get_snapshots.return_value = [{"date": "2026-04-27", "total": 1000}]
+    mock_key_repo = MagicMock()
+    mock_key_repo.is_admin = MagicMock(return_value=False)
+
+    with patch.object(stats_mod, "stats_repo", mock_stats_repo), \
+         patch.object(stats_mod, "key_repo", mock_key_repo), \
+         patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/stats/snapshots/123", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_stats_snapshots_allows_admin_to_view_anyone(mock_store):
+    """F-02 regression: admin can read any player's snapshots."""
+    from api.routers import stats as stats_mod
+    mock_stats_repo = MagicMock()
+    mock_stats_repo.get_snapshots.return_value = [{"date": "2026-04-27", "total": 1000}]
+    mock_key_repo = MagicMock()
+    mock_key_repo.is_admin = MagicMock(return_value=True)  # caller is admin
+
+    with patch.object(stats_mod, "stats_repo", mock_stats_repo), \
+         patch.object(stats_mod, "key_repo", mock_key_repo), \
+         patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/stats/snapshots/999", headers=AUTH_HEADERS)
+    assert resp.status_code == 200

@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.1";
+export const CURRENT_VERSION = "1.13.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.2",
+    date: "2026-04-27",
+    title: "Security hardening",
+    changes: [
+      { type: "fix", text: "Stats snapshots/growth and the enemy baseline endpoint now reject requests for other players' data — only your own player_id is allowed (admins keep full read access)" },
+      { type: "fix", text: "Director news feed HTML is sanitised before rendering, so any odd HTML in Torn news cannot run scripts in your browser" },
+      { type: "fix", text: "All external links opening in a new tab now use rel=noopener noreferrer to prevent reverse tabnabbing" },
+    ],
+  },
   {
     version: "1.13.1",
     date: "2026-04-24",

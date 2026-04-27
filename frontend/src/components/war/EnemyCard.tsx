@@ -103,7 +103,7 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
         <span className="text-xs">{stateNode}</span>
         <a
           href={m.attack_url}
-          target="_blank"
+          target="_blank" rel="noopener noreferrer"
           rel="noopener noreferrer"
           className={`text-xs px-4 py-1.5 rounded-md font-semibold transition-all active:scale-95 ${
             isHosp
@@ -173,7 +173,7 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
           <div className="flex gap-4 mt-2.5 pt-2.5 border-t border-border">
             <a
               href={m.stats_url}
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               rel="noopener noreferrer"
               className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
@@ -182,7 +182,7 @@ export function EnemyCard({ member: m, hasBaseline }: EnemyCardProps) {
             </a>
             <a
               href={m.profile_url}
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               rel="noopener noreferrer"
               className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}

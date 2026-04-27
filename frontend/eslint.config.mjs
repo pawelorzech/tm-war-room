@@ -13,6 +13,7 @@ const eslintConfig = [
       "react-hooks/rules-of-hooks": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-expressions": "warn",
+      "react/jsx-no-target-blank": ["error", { "enforceDynamicLinks": "always", "warnOnSpreadAttributes": true }],
     },
   },
 ];

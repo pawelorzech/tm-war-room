@@ -419,7 +419,7 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                       <Avatar playerId={m.id} name={m.name} size="sm" />
                       <a
                         href={`https://www.torn.com/profiles.php?XID=${m.id}`}
-                        target="_blank"
+                        target="_blank" rel="noopener noreferrer"
                         rel="noopener noreferrer"
                         className="text-text-primary hover:text-torn-green transition-colors"
                       >

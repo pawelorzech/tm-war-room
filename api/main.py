@@ -785,7 +785,15 @@ async def members_detail(x_player_id: int = Header()):
 
 
 @app.get("/api/enemy")
-async def enemy(faction_id: int | None = Query(default=None), baseline_pid: int | None = Query(default=None), _=Depends(verify_member)):
+async def enemy(
+    faction_id: int | None = Query(default=None),
+    baseline_pid: int | None = Query(default=None),
+    x_player_id: int = Header(),
+):
+    if not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    if baseline_pid is not None and baseline_pid != x_player_id:
+        raise HTTPException(status_code=403, detail="baseline_pid must match the authenticated player")
     enemy_id = faction_id
     if not enemy_id:
         war = await torn_client.fetch_war()

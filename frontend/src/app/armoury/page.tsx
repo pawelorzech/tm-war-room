@@ -157,7 +157,7 @@ function LeaderboardTable({ board, myPid, compact }: {
                   {medal ? `${medal} ` : ''}{entry.rank}
                 </td>
                 <td className={`${compact ? 'py-1.5' : 'py-2'} px-3`}>
-                  <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank"
+                  <a href={`https://www.torn.com/profiles.php?XID=${entry.player_id}`} target="_blank" rel="noopener noreferrer"
                     className="font-medium text-text-primary hover:text-torn-green transition-colors">
                     {entry.player_name || `#${entry.player_id}`}
                   </a>

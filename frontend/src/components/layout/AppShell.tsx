@@ -221,7 +221,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
             {" "}— by{" "}
             <a
               href="https://www.torn.com/profiles.php?XID=2362436"
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               className="text-torn-green hover:underline"
             >
               Bombel [2362436]
@@ -231,7 +231,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
                 {" · "}
                 <a
                   href="https://analityka.tri.ovh"
-                  target="_blank"
+                  target="_blank" rel="noopener noreferrer"
                   className="text-torn-blue hover:underline"
                 >
                   Analytics

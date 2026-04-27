@@ -178,7 +178,7 @@ export default function AnalyticsPage() {
                           <tr key={m.attacker_id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
                             <td className="py-1.5 px-3 text-text-muted text-xs">{i + 1}</td>
                             <td className="py-1.5 px-3">
-                              <a href={`https://www.torn.com/profiles.php?XID=${m.attacker_id}`} target="_blank"
+                              <a href={`https://www.torn.com/profiles.php?XID=${m.attacker_id}`} target="_blank" rel="noopener noreferrer"
                                 className="font-medium text-text-primary hover:text-torn-green transition-colors">
                                 {m.attacker_name || `#${m.attacker_id}`}
                               </a>

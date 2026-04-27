@@ -41,7 +41,7 @@ export function WarBanner({ war, warProgress }: WarBannerProps) {
             <span className="text-text-secondary">vs</span>
             <a
               href={`https://www.torn.com/factions.php?step=profile&ID=${them?.id}`}
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               rel="noopener noreferrer"
               className="font-bold text-text-primary hover:text-torn-green transition-colors"
             >
@@ -136,7 +136,7 @@ export function WarBanner({ war, warProgress }: WarBannerProps) {
         <span className="text-text-secondary">vs</span>
         <a
           href={`https://www.torn.com/factions.php?step=profile&ID=${them?.id}`}
-          target="_blank"
+          target="_blank" rel="noopener noreferrer"
           rel="noopener noreferrer"
           className={`font-bold text-text-primary transition-colors ${
             isUrgent ? "hover:text-torn-red" : "hover:text-torn-yellow"

@@ -33,7 +33,7 @@ export function SpyResultCard({ data }: { data: SpyEstimate }) {
           </h3>
           <p className="text-xs text-text-secondary">
             <a href={`https://www.torn.com/profiles.php?XID=${data.player_id}`}
-               target="_blank" className="text-torn-green hover:underline">
+               target="_blank" rel="noopener noreferrer" className="text-torn-green hover:underline">
               [{data.player_id}]
             </a>
           </p>

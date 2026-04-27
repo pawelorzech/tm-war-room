@@ -332,10 +332,10 @@ export default function StocksPage() {
               {portfolioError ? (
                 <>
                   <p className="text-danger font-medium">{portfolioError}</p>
-                  <p className="text-xs">Your API key may not have stock access. Go to <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" className="text-torn-green underline">Torn Settings → API Keys</a> and create a <strong>Full Access</strong> key.</p>
+                  <p className="text-xs">Your API key may not have stock access. Go to <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">Torn Settings → API Keys</a> and create a <strong>Full Access</strong> key.</p>
                 </>
               ) : (
-                <p>No stock holdings found. Buy stocks on the <a href="https://www.torn.com/stockexchange.php" target="_blank" className="text-torn-green hover:underline">Torn Stock Exchange</a>.</p>
+                <p>No stock holdings found. Buy stocks on the <a href="https://www.torn.com/stockexchange.php" target="_blank" rel="noopener noreferrer" className="text-torn-green hover:underline">Torn Stock Exchange</a>.</p>
               )}
             </div>
           )
@@ -472,7 +472,7 @@ export default function StocksPage() {
                         <tr key={s.id} onClick={() => selectStock(s.id, s.name, s.acronym)}
                           className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors cursor-pointer ${selectedStock?.id === s.id ? 'bg-torn-green/5' : ''}`}>
                           <td className="py-1.5 px-3">
-                            <a href={`https://www.torn.com/stockexchange.php#stock=${s.acronym}`} target="_blank"
+                            <a href={`https://www.torn.com/stockexchange.php#stock=${s.acronym}`} target="_blank" rel="noopener noreferrer"
                               className="text-text-primary hover:text-torn-green transition-colors">
                               <span className="font-semibold">{s.acronym}</span>
                               <span className="ml-1.5 text-text-muted text-xs">{s.name}</span>
