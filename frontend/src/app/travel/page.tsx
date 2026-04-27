@@ -294,7 +294,8 @@ export default function TravelPage() {
                       )}
 
                       {c.items.length > 0 ? (
-                        <table className="w-full text-sm mt-2">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-sm mt-2 min-w-[520px]">
                           <thead>
                             <tr className="text-left text-text-muted text-xs uppercase tracking-wider">
                               <th className="py-1.5 pr-3">Item</th>
@@ -340,6 +341,7 @@ export default function TravelPage() {
                             })}
                           </tbody>
                         </table>
+                        </div>
                       ) : (
                         <p className="text-sm text-text-muted mt-2">No price data available — YATA needs players to visit this country.</p>
                       )}

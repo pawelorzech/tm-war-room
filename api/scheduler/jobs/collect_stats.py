@@ -41,8 +41,15 @@ async def _collect_one(entry: dict, today: str, stats_repo: StatSnapshotReposito
 
 
 async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapshotRepository, torn_client) -> None:
+    if torn_client is None:
+        logger.error("collect_stat_snapshots: torn_client is None — cannot fetch (state init issue)")
+        return
     all_keys = key_repo.get_all_keys()
     today = date.today().isoformat()
+    if not all_keys:
+        logger.warning("collect_stat_snapshots: no keys in member_keys — nothing to collect")
+        return
+    logger.info("collect_stat_snapshots: starting for %d members on %s", len(all_keys), today)
     collected = 0
     # Process in batches to respect Torn API rate limits
     for i in range(0, len(all_keys), BATCH_SIZE):

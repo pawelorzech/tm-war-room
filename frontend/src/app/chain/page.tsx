@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
+
+const RecentActivityChart = dynamic(
+  () => import('@/components/chain/RecentActivityChart').then(m => ({ default: m.RecentActivityChart })),
+  { ssr: false, loading: () => <div className="h-56 sm:h-64 bg-bg-elevated/40 rounded animate-pulse" /> }
+);
 
 /* ── Types ── */
 
@@ -482,31 +488,11 @@ function ActivityView({ timeline }: { timeline: TimelineBucket[] }) {
     );
   }
 
-  const maxHits = Math.max(...timeline.map(t => t.hits), 1);
-
   return (
     <div className="space-y-4">
       <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-text-primary mb-3">Hourly Attack Activity (last 48h)</h3>
-        <div className="flex items-end gap-px h-32">
-          {timeline.map((t, i) => {
-            const pct = (t.hits / maxHits) * 100;
-            const d = new Date(t.bucket_start * 1000);
-            const label = `${d.getHours()}:00`;
-            const isNow = i === timeline.length - 1;
-            return (
-              <div key={t.bucket_start} className="flex-1 flex flex-col items-center group relative min-w-0"
-                title={`${fmtDate(t.bucket_start)}: ${t.hits} hits, ${fmtResp(t.respect)} respect, ${t.active_members} members`}>
-                <div className={`w-full rounded-t transition-all ${
-                  isNow ? 'bg-torn-green' : t.hits > 0 ? 'bg-torn-green/60' : 'bg-bg-elevated'
-                }`} style={{ height: `${Math.max(2, pct)}%` }} />
-                {i % 6 === 0 && (
-                  <span className="text-[8px] text-text-muted mt-0.5 hidden sm:block">{label}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <RecentActivityChart timeline={timeline} />
         <div className="flex justify-between mt-2 text-[10px] text-text-muted">
           <span>{timeline.length > 0 ? fmtDate(timeline[0].bucket_start) : ''}</span>
           <span>Now</span>
