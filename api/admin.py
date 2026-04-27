@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from pydantic import BaseModel as PydanticBaseModel
 
-from api.config import SUPERADMIN_ID, JWT_SECRET, APP_VERSION
+from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET, APP_VERSION
 from api.auth import create_jwt, require_bearer_token, rate_limiter, TOKEN_TYPE_ADMIN, TOKEN_TYPE_SESSION
 
 logger = logging.getLogger("tm-hub.admin")
@@ -37,18 +37,40 @@ def init_bots(chat_repo, chat_manager) -> None:
     _chat_manager = chat_manager
 
 
+def _admin_bearer_or_cookie(request: Request) -> str:
+    """Accept admin token from Authorization header (legacy) or tm_admin cookie (preferred)."""
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        return auth
+    cookie_token = request.cookies.get("tm_admin")
+    if cookie_token:
+        return f"Bearer {cookie_token}"
+    return ""
+
+
+def _session_bearer_or_cookie(request: Request) -> str:
+    """Accept session token from Authorization header (legacy) or tm_session cookie."""
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        return auth
+    cookie_token = request.cookies.get("tm_session")
+    if cookie_token:
+        return f"Bearer {cookie_token}"
+    return ""
+
+
 async def require_admin(request: Request) -> dict:
     payload = require_bearer_token(
-        request.headers.get("authorization", ""),
+        _admin_bearer_or_cookie(request),
         JWT_SECRET,
         allowed_token_types=(TOKEN_TYPE_ADMIN,),
     )
     pid = payload["sub"]
-    if pid != SUPERADMIN_ID and not _key_store.is_admin(pid):
+    if pid not in SUPERADMIN_IDS and not _key_store.is_admin(pid):
         raise HTTPException(status_code=403, detail="Not an admin")
     if not rate_limiter.check(f"admin:{pid}", max_requests=60):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
-    payload["role"] = "superadmin" if pid == SUPERADMIN_ID else "admin"
+    payload["role"] = "superadmin" if pid in SUPERADMIN_IDS else "admin"
     return payload
 
 
@@ -61,23 +83,30 @@ async def require_superadmin(request: Request) -> dict:
 
 @router.post("/session")
 async def create_session(request: Request):
+    from fastapi.responses import JSONResponse
+    from api.config import APP_VERSION
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.check(f"session:{client_ip}", max_requests=5):
         raise HTTPException(status_code=429, detail="Too many attempts, try again later")
     payload = require_bearer_token(
-        request.headers.get("authorization", ""),
+        _session_bearer_or_cookie(request),
         JWT_SECRET,
         allowed_token_types=(TOKEN_TYPE_SESSION,),
     )
     player_id = payload["sub"]
-    if player_id != SUPERADMIN_ID and not _key_store.is_admin(player_id):
+    if player_id not in SUPERADMIN_IDS and not _key_store.is_admin(player_id):
         raise HTTPException(status_code=403, detail="Not an admin")
     user_key = _key_store.get_key(player_id)
     if not user_key:
         raise HTTPException(status_code=401, detail="No API key registered")
     token = create_jwt(player_id, user_key["player_name"], JWT_SECRET, token_type=TOKEN_TYPE_ADMIN)
     logger.info("Admin session created: %s [%d]", user_key["player_name"], player_id)
-    return {"token": token}
+    response = JSONResponse(content={"token": token})
+    response.set_cookie(
+        key="tm_admin", value=token, max_age=86400,
+        httponly=True, secure=(APP_VERSION != "dev"), samesite="strict", path="/",
+    )
+    return response
 
 
 @router.get("/keys")
@@ -152,7 +181,7 @@ async def list_admins(admin: dict = Depends(require_admin)):
 async def promote_admin(player_id: int, admin: dict = Depends(require_superadmin)):
     if not _key_store.has_key(player_id):
         raise HTTPException(status_code=404, detail="Player not registered")
-    if player_id == SUPERADMIN_ID:
+    if player_id in SUPERADMIN_IDS:
         raise HTTPException(status_code=400, detail="Superadmin cannot be promoted")
     _key_store.promote_admin(player_id, admin["sub"])
     logger.info("Admin promoted: player %d by superadmin %d", player_id, admin["sub"])

@@ -420,7 +420,7 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                       <a
                         href={`https://www.torn.com/profiles.php?XID=${m.id}`}
                         target="_blank" rel="noopener noreferrer"
-                        rel="noopener noreferrer"
+                        
                         className="text-text-primary hover:text-torn-green transition-colors"
                       >
                         {m.name}

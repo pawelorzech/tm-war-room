@@ -23,7 +23,16 @@ if not _enc_key:
 
 ENCRYPTION_KEY: str = _enc_key
 
-SUPERADMIN_ID: int = 2362436  # Bombel
+# Superadmins: env-var allowlist (comma-separated). Falls back to historical hardcoded value.
+# SUPERADMIN_ID stays for code paths that need a single canonical ID (e.g. created_by columns);
+# SUPERADMIN_IDS is used for authorization checks so a backup admin can be added without code change.
+_superadmin_ids_raw = os.environ.get("SUPERADMIN_IDS", "2362436")
+SUPERADMIN_IDS: frozenset[int] = frozenset(
+    int(x.strip()) for x in _superadmin_ids_raw.split(",") if x.strip().lstrip("-").isdigit()
+)
+if not SUPERADMIN_IDS:
+    raise RuntimeError("SUPERADMIN_IDS must contain at least one player_id")
+SUPERADMIN_ID: int = min(SUPERADMIN_IDS)  # canonical (smallest ID — Bombel by default)
 
 _jwt_secret = os.environ.get("JWT_SECRET", "")
 if not _jwt_secret:

@@ -80,7 +80,7 @@ export default function SettingsPage() {
                 <a
                   href={`https://www.torn.com/profiles.php?XID=${profile.player_id}`}
                   target="_blank" rel="noopener noreferrer"
-                  rel="noopener noreferrer"
+                  
                   className="text-xs text-torn-green hover:underline mt-1 inline-block"
                 >
                   View on Torn ↗

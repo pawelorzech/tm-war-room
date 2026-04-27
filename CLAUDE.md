@@ -78,6 +78,7 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | `FACTION_ID` | no | 11559 |
 | `CACHE_TTL` | no | 60 |
 | `JWT_SECRET` | yes (fails in prod, ephemeral in dev) | — |
+| `SUPERADMIN_IDS` | no | `2362436` (Bombel). Comma-separated allowlist for break-glass — `2362436,<backup>` |
 
 ## Versioning
 

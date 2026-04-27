@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
-from api.config import SUPERADMIN_ID
+from api.config import SUPERADMIN_ID, SUPERADMIN_IDS  # noqa: F401  (SUPERADMIN_ID kept for legacy created_by)
 from api.armoury import VALID_CATEGORIES, CATEGORY_TO_ITEMS
 
 logger = logging.getLogger("tm-hub.armoury")
@@ -63,7 +63,7 @@ async def get_leaderboard(comp_id: int, x_player_id: int = Header()):
 async def create_competition(body: CreateCompetition, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     if not body.categories and not body.items:
         raise HTTPException(status_code=400, detail="At least one category or item is required")
@@ -96,7 +96,7 @@ async def create_competition(body: CreateCompetition, x_player_id: int = Header(
 async def end_competition(comp_id: int, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     comp = repo.get_competition(comp_id)
     if not comp:
@@ -118,7 +118,7 @@ class UpdateCompetition(BaseModel):
 async def delete_competition(comp_id: int, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     comp = repo.get_competition(comp_id)
     if not comp:
@@ -131,7 +131,7 @@ async def delete_competition(comp_id: int, x_player_id: int = Header()):
 async def update_competition(comp_id: int, body: UpdateCompetition, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     comp = repo.get_competition(comp_id)
     if not comp:
@@ -155,7 +155,7 @@ async def update_competition(comp_id: int, body: UpdateCompetition, x_player_id:
 async def trigger_poll(x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     from api.scheduler.jobs.armoury_poll import run_armoury_poll
     await run_armoury_poll()
@@ -166,7 +166,7 @@ async def trigger_poll(x_player_id: int = Header()):
 async def debug_competition(comp_id: int, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
-    if x_player_id != SUPERADMIN_ID and not key_store.is_admin(x_player_id):
+    if x_player_id not in SUPERADMIN_IDS and not key_store.is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin access required")
     comp = repo.get_competition(comp_id)
     if not comp:

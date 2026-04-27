@@ -195,7 +195,7 @@ async def test_delete_key_requires_admin_token(mock_client, mock_store):
          patch("api.main.key_store", mock_store), \
          patch("api.admin._key_store", mock_store), \
          patch("api.admin.JWT_SECRET", TEST_JWT_SECRET), \
-         patch("api.admin.SUPERADMIN_ID", 999999):
+         patch("api.admin.SUPERADMIN_ID", 999999), patch("api.admin.SUPERADMIN_IDS", frozenset([999999])):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -216,7 +216,7 @@ async def test_delete_key_with_admin_token_succeeds(mock_client, mock_store):
          patch("api.main.key_store", mock_store), \
          patch("api.admin._key_store", mock_store), \
          patch("api.admin.JWT_SECRET", TEST_JWT_SECRET), \
-         patch("api.admin.SUPERADMIN_ID", 123):
+         patch("api.admin.SUPERADMIN_ID", 123), patch("api.admin.SUPERADMIN_IDS", frozenset([123])):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -400,7 +400,7 @@ async def test_detail_yata_down(mock_client_yata, mock_store_leader):
 @pytest.mark.asyncio
 async def test_me_admin(mock_client, mock_store):
     with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
-         patch("api.main.SUPERADMIN_ID", 123):
+         patch("api.main.SUPERADMIN_ID", 123), patch("api.main.SUPERADMIN_IDS", frozenset([123])):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -417,7 +417,7 @@ async def test_me_admin(mock_client, mock_store):
 async def test_me_non_admin(mock_client, mock_store):
     mock_store.is_admin = MagicMock(return_value=False)
     with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
-         patch("api.main.SUPERADMIN_ID", 9999):
+         patch("api.main.SUPERADMIN_ID", 9999), patch("api.main.SUPERADMIN_IDS", frozenset([9999])):
         from api.main import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -1103,3 +1103,62 @@ async def test_stats_snapshots_allows_admin_to_view_anyone(mock_store):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.get("/api/stats/snapshots/999", headers=AUTH_HEADERS)
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_register_key_sets_session_cookie(mock_client, mock_store):
+    """F-03 regression: registration sets HttpOnly tm_session cookie."""
+    validate_resp = AsyncMock()
+    validate_resp.json.return_value = {"player_id": 555, "name": "NewMember", "faction": {"faction_id": 11559}}
+    validate_resp.raise_for_status = lambda: None
+    stocks_resp = AsyncMock()
+    stocks_resp.json.return_value = {}
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(side_effect=[validate_resp, stocks_resp])
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.main.FACTION_ID", 11559):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/keys", json={"api_key": "newkey"})
+    assert resp.status_code == 200
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert "tm_session=" in set_cookie
+    lower = set_cookie.lower()
+    assert "httponly" in lower
+    assert "samesite=strict" in lower
+
+
+@pytest.mark.asyncio
+async def test_session_cookie_authenticates_member_endpoints(mock_client, mock_store):
+    """F-03 regression: tm_session cookie alone (no Authorization header) authenticates."""
+    session_token = create_jwt(123, "Test", TEST_JWT_SECRET, token_type="session")
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # Send only the cookie + X-Player-Id, no Authorization header
+            resp = await ac.get(
+                "/api/me",
+                headers={"X-Player-Id": "123"},
+                cookies={"tm_session": session_token},
+            )
+    # /api/me requires has_key — mock_store has 123 registered
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_logout_clears_cookies():
+    """F-03 regression: POST /api/logout returns Set-Cookie clearing both auth cookies."""
+    from api.main import app
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/logout")
+    assert resp.status_code == 200
+    cookies = resp.headers.get_list("set-cookie")
+    joined = " ".join(cookies)
+    assert "tm_session=" in joined
+    assert "tm_admin=" in joined

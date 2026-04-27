@@ -164,7 +164,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
         <a
           href={`https://www.torn.com/factions.php?step=profile&ID=${f.id}`}
           target="_blank" rel="noopener noreferrer"
-          rel="noopener noreferrer"
+          
           className="font-bold text-text-primary hover:text-torn-green transition-colors"
         >
           {f.name}
@@ -346,7 +346,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                     <a
                       href={m.profile_url}
                       target="_blank" rel="noopener noreferrer"
-                      rel="noopener noreferrer"
+                      
                       className="text-text-primary hover:text-torn-green transition-colors"
                     >
                       {m.name}
@@ -378,7 +378,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                       <a
                         href={m.attack_url}
                         target="_blank" rel="noopener noreferrer"
-                        rel="noopener noreferrer"
+                        
                         className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-all active:scale-95 ${
                           isHosp
                             ? "bg-bg-elevated text-text-muted border border-border"
@@ -390,7 +390,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                       <a
                         href={m.stats_url}
                         target="_blank" rel="noopener noreferrer"
-                        rel="noopener noreferrer"
+                        
                         className="text-xs px-2.5 py-1 rounded-md bg-bg-elevated text-text-secondary border border-border hover:text-text-primary hover:border-border transition-colors"
                       >
                         Stats

@@ -166,7 +166,7 @@ export default function CompanyPage() {
                       {fc.members.map(m => (
                         <a key={m.player_id}
                           href={`https://www.torn.com/profiles.php?XID=${m.player_id}`}
-                          target="_blank" rel="noopener"
+                          target="_blank" rel="noopener noreferrer"
                           className="px-2 py-0.5 text-xs rounded-full bg-bg-elevated text-text-secondary hover:text-torn-green transition-colors">
                           {m.player_name} <span className="text-text-muted">({m.position})</span>
                         </a>

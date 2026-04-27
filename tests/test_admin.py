@@ -67,6 +67,7 @@ def _setup_app(mock_client, mock_store, mock_analytics):
     stack.enter_context(patch("api.config.JWT_SECRET", TEST_JWT_SECRET))
     stack.enter_context(patch("api.admin.JWT_SECRET", TEST_JWT_SECRET))
     stack.enter_context(patch("api.admin.SUPERADMIN_ID", ADMIN_ID))
+    stack.enter_context(patch("api.admin.SUPERADMIN_IDS", frozenset([ADMIN_ID])))
     return stack
 
 

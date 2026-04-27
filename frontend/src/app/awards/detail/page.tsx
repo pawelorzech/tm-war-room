@@ -151,12 +151,12 @@ function AwardDetailContent() {
 
           <div className="flex gap-3 justify-center text-xs">
             <a href={`https://www.tornstats.com/${data.kind === 'medal' ? 'medals' : 'honors'}/${data.id}`}
-              target="_blank" rel="noopener"
+              target="_blank" rel="noopener noreferrer"
               className="text-text-muted hover:text-torn-green transition-colors">
               View on TornStats ↗
             </a>
             <a href={`https://wiki.torn.com/wiki/${encodeURIComponent(data.name.replace(/ /g, '_'))}`}
-              target="_blank" rel="noopener"
+              target="_blank" rel="noopener noreferrer"
               className="text-text-muted hover:text-torn-green transition-colors">
               Torn Wiki ↗
             </a>
