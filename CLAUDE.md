@@ -79,6 +79,9 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | `CACHE_TTL` | no | 60 |
 | `JWT_SECRET` | yes (fails in prod, ephemeral in dev) | — |
 | `SUPERADMIN_IDS` | no | `2362436` (Bombel). Comma-separated allowlist for break-glass — `2362436,<backup>` |
+| `BACKUP_ENCRYPTION_KEY` | recommended in prod | Fernet key for daily keys.db backups (F-18). Generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Store outside Coolify** so a Coolify compromise alone cannot decrypt backups. |
+| `BACKUP_RETENTION_DAYS` | no | `30` |
+| `B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` / `B2_PUBLIC_URL` | no | Backblaze B2 credentials (used by avatar refresh + F-18 backups). |
 
 ## Versioning
 

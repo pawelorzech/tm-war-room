@@ -25,6 +25,7 @@ async def create_and_start_scheduler(app_state: dict):
     from api.scheduler.jobs.collect_company_snapshots import run_collect_company_snapshots
     from api.scheduler.jobs.discover_companies import run_discover_companies
     from api.scheduler.jobs.check_trains_stagnation import run_check_trains_stagnation
+    from api.scheduler.jobs.backup_keys_db import run_backup_keys_db
 
     global _state
     _state = app_state
@@ -101,11 +102,20 @@ async def create_and_start_scheduler(app_state: dict):
         id="check_trains_stagnation_schedule",
     )
 
+    # F-18: daily encrypted backup of keys.db to B2 + retention sweep.
+    await scheduler.configure_task("backup_keys_db", func=run_backup_keys_db)
+    await scheduler.add_schedule(
+        "backup_keys_db",
+        IntervalTrigger(hours=24),
+        id="backup_keys_db_schedule",
+    )
+
     await scheduler.start_in_background()
 
     logger.info(
         "Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), "
         "refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), "
-        "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h)"
+        "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h), "
+        "backup_keys_db (24h)"
     )
     return scheduler
