@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.15.0";
+export const CURRENT_VERSION = "1.15.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.1",
+    date: "2026-04-27",
+    title: "Sprint 2 #4 — Brotli compression",
+    changes: [
+      { type: "improve", text: "JavaScript and CSS now ship with Brotli compression in addition to gzip — about 23% smaller payloads for modern browsers, faster first paint on slow connections" },
+      { type: "improve", text: "Bundle analyzer wired up (npm run build with ANALYZE=true) so future bundle bloat is easy to spot" },
+    ],
+  },
   {
     version: "1.15.0",
     date: "2026-04-27",
