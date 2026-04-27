@@ -568,7 +568,7 @@ function LinksContent() {
           <a
             key={r.name}
             href={r.url}
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
             rel="noopener noreferrer"
             className="block bg-bg-elevated/30 rounded-lg px-3 py-2.5 hover:border-torn-green/30 hover:bg-bg-elevated/50 transition-all group border border-transparent"
           >

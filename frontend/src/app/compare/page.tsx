@@ -141,14 +141,14 @@ export default function ComparePage() {
             {/* Player headers */}
             <div className="flex justify-between items-center">
               <div className="text-left">
-                <a href={`https://www.torn.com/profiles.php?XID=${playerA.player_id}`} target="_blank"
+                <a href={`https://www.torn.com/profiles.php?XID=${playerA.player_id}`} target="_blank" rel="noopener noreferrer"
                   className="font-bold text-torn-green hover:underline">{playerA.player_name || `#${playerA.player_id}`}</a>
                 <p className="text-[10px] text-text-muted">
                   Total: {fmtStat(playerA.total)} · {playerA.confidence}
                 </p>
               </div>
               <div className="text-right">
-                <a href={`https://www.torn.com/profiles.php?XID=${playerB.player_id}`} target="_blank"
+                <a href={`https://www.torn.com/profiles.php?XID=${playerB.player_id}`} target="_blank" rel="noopener noreferrer"
                   className="font-bold text-torn-blue hover:underline">{playerB.player_name || `#${playerB.player_id}`}</a>
                 <p className="text-[10px] text-text-muted">
                   Total: {fmtStat(playerB.total)} · {playerB.confidence}

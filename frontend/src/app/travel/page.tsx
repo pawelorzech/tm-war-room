@@ -226,7 +226,7 @@ export default function TravelPage() {
             <h2 className="text-sm font-semibold text-torn-blue mb-2">Currently Traveling ({travelers.length})</h2>
             <div className="flex flex-wrap gap-2">
               {travelers.map(t => (
-                <a key={t.id} href={`https://www.torn.com/profiles.php?XID=${t.id}`} target="_blank"
+                <a key={t.id} href={`https://www.torn.com/profiles.php?XID=${t.id}`} target="_blank" rel="noopener noreferrer"
                   className="px-2.5 py-1 text-xs rounded-full bg-torn-blue/10 text-torn-blue hover:bg-torn-blue/20 transition-colors font-medium">
                   {t.name} <span className="text-torn-blue/60">— {t.status}</span>
                 </a>

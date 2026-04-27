@@ -144,7 +144,7 @@ export default function StakeoutPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Avatar playerId={s.player_id} name={s.player_name ?? undefined} size="sm" />
-                      <a href={`https://www.torn.com/profiles.php?XID=${s.player_id}`} target="_blank"
+                      <a href={`https://www.torn.com/profiles.php?XID=${s.player_id}`} target="_blank" rel="noopener noreferrer"
                         className="font-semibold text-text-primary hover:text-torn-green transition-colors">
                         {s.player_name || `#${s.player_id}`}
                       </a>
@@ -161,7 +161,7 @@ export default function StakeoutPage() {
                     {s.notes && <p className="text-xs text-text-muted mt-1">{s.notes}</p>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${s.player_id}`} target="_blank"
+                    <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${s.player_id}`} target="_blank" rel="noopener noreferrer"
                       className="px-2 py-1 text-xs rounded-md bg-torn-red/15 text-torn-red hover:bg-torn-red/25 transition-colors font-medium">
                       Attack
                     </a>

@@ -49,10 +49,23 @@ async def _ensure_snapshot(player_id: int) -> bool:
         return False
 
 
+def _require_self_or_admin(player_id: int, x_player_id: int) -> None:
+    if player_id == x_player_id:
+        return
+    if key_repo and key_repo.is_admin(x_player_id):
+        return
+    raise HTTPException(status_code=403, detail="You can only view your own stat snapshots")
+
+
 @router.get("/snapshots/{player_id}")
-async def get_snapshots(player_id: int, limit: int = Query(default=365, ge=1, le=3650)):
+async def get_snapshots(
+    player_id: int,
+    limit: int = Query(default=365, ge=1, le=3650),
+    x_player_id: int = Header(),
+):
     if not stats_repo:
         raise HTTPException(status_code=503, detail="Stats not initialized")
+    _require_self_or_admin(player_id, x_player_id)
     snaps = stats_repo.get_snapshots(player_id, limit=limit)
     if not snaps:
         await _ensure_snapshot(player_id)
@@ -63,9 +76,14 @@ async def get_snapshots(player_id: int, limit: int = Query(default=365, ge=1, le
 
 
 @router.get("/growth/{player_id}")
-async def get_growth(player_id: int, days: int = Query(default=30, ge=1, le=365)):
+async def get_growth(
+    player_id: int,
+    days: int = Query(default=30, ge=1, le=365),
+    x_player_id: int = Header(),
+):
     if not stats_repo:
         raise HTTPException(status_code=503, detail="Stats not initialized")
+    _require_self_or_admin(player_id, x_player_id)
     growth = stats_repo.get_growth(player_id, days=days)
     if not growth:
         await _ensure_snapshot(player_id)

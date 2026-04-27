@@ -205,7 +205,7 @@ export default function ActivityPage() {
                     return (
                       <tr key={m.id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
                         <td className="py-1.5 px-3">
-                          <a href={tornProfile(m.id)} target="_blank"
+                          <a href={tornProfile(m.id)} target="_blank" rel="noopener noreferrer"
                             className="font-medium text-text-primary hover:text-torn-green transition-colors">
                             {m.name}
                           </a>

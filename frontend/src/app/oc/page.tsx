@@ -131,7 +131,7 @@ function PlanningCrimeCard({ crime, isOpen, onToggle }: { crime: Crime; isOpen: 
               {[...crime.participants].sort((a, b) => b.checkpoint_pass_rate - a.checkpoint_pass_rate).map(p => (
                 <tr key={p.player_id} className="border-t border-border-light/50">
                   <td className="py-1.5 pr-3">
-                    <a href={tornProfile(p.player_id)} target="_blank"
+                    <a href={tornProfile(p.player_id)} target="_blank" rel="noopener noreferrer"
                       className="text-text-primary hover:text-torn-green transition-colors">
                       {p.player_name || `#${p.player_id}`}
                     </a>
@@ -233,7 +233,7 @@ function CompletedCrimeCard({ crime, isOpen, onToggle }: { crime: Crime; isOpen:
               {[...crime.participants].sort((a, b) => b.checkpoint_pass_rate - a.checkpoint_pass_rate).map(p => (
                 <tr key={p.player_id} className="border-t border-border-light/50">
                   <td className="py-1.5 pr-3">
-                    <a href={tornProfile(p.player_id)} target="_blank"
+                    <a href={tornProfile(p.player_id)} target="_blank" rel="noopener noreferrer"
                       className="text-text-primary hover:text-torn-green transition-colors">
                       {p.player_name || `#${p.player_id}`}
                     </a>

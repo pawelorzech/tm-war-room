@@ -224,7 +224,7 @@ export default function TargetsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <a href={tornProfile(t.player_id)} target="_blank"
+                        <a href={tornProfile(t.player_id)} target="_blank" rel="noopener noreferrer"
                           className="text-sm font-semibold text-text-primary hover:text-torn-green transition-colors">
                           {t.player_name || `#${t.player_id}`}
                         </a>
@@ -240,7 +240,7 @@ export default function TargetsPage() {
                       <p className="text-[10px] text-text-muted mt-1">Added by {t.added_by_name || `#${t.added_by}`}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <a href={tornAttack(t.player_id)} target="_blank"
+                      <a href={tornAttack(t.player_id)} target="_blank" rel="noopener noreferrer"
                         className="px-2 py-1 text-xs rounded-md bg-torn-red/15 text-torn-red hover:bg-torn-red/25 transition-colors font-medium">
                         Attack
                       </a>

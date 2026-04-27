@@ -183,7 +183,7 @@ export default function LootPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${npc.id}`}
-                          target="_blank"
+                          target="_blank" rel="noopener noreferrer"
                           className="text-base font-semibold text-text-primary hover:text-torn-green transition-colors">
                           {npc.name}
                         </a>

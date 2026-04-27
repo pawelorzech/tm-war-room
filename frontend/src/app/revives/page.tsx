@@ -141,7 +141,7 @@ export default function RevivesPage() {
                             <tr key={m.reviver_id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
                               <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                               <td className="py-1.5 px-3">
-                                <a href={tornProfile(m.reviver_id)} target="_blank"
+                                <a href={tornProfile(m.reviver_id)} target="_blank" rel="noopener noreferrer"
                                   className="text-text-primary hover:text-torn-green">{m.reviver_name || `#${m.reviver_id}`}</a>
                               </td>
                               <td className="py-1.5 px-3 font-semibold text-torn-green">{m.revives_given}</td>
@@ -182,12 +182,12 @@ export default function RevivesPage() {
                         {data.revives.map((r, i) => (
                           <tr key={`${r.timestamp}-${i}`} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${r.result !== 'success' ? 'bg-danger/5' : ''}`}>
                             <td className="py-1.5 px-3">
-                              <a href={tornProfile(r.reviver_id)} target="_blank" className="text-text-primary hover:text-torn-green">
+                              <a href={tornProfile(r.reviver_id)} target="_blank" rel="noopener noreferrer" className="text-text-primary hover:text-torn-green">
                                 {r.reviver_name || `#${r.reviver_id}`}
                               </a>
                             </td>
                             <td className="py-1.5 px-3">
-                              <a href={tornProfile(r.target_id)} target="_blank" className="text-text-primary hover:text-torn-green">
+                              <a href={tornProfile(r.target_id)} target="_blank" rel="noopener noreferrer" className="text-text-primary hover:text-torn-green">
                                 {r.target_name || `#${r.target_id}`}
                               </a>
                             </td>

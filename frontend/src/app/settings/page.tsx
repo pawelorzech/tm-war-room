@@ -79,7 +79,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-text-muted mt-0.5">[{profile.player_id}]</p>
                 <a
                   href={`https://www.torn.com/profiles.php?XID=${profile.player_id}`}
-                  target="_blank"
+                  target="_blank" rel="noopener noreferrer"
                   rel="noopener noreferrer"
                   className="text-xs text-torn-green hover:underline mt-1 inline-block"
                 >

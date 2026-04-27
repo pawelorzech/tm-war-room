@@ -174,7 +174,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
           />
           <a
             href={`https://www.torn.com/profiles.php?XID=${m.id}`}
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
             rel="noopener noreferrer"
             className={`font-medium truncate hover:underline ${NAME_COLORS[r]}`}
             onClick={(e) => e.stopPropagation()}
@@ -241,7 +241,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
           <div className="pt-1.5">
             <a
               href={`https://www.torn.com/profiles.php?XID=${m.id}`}
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               rel="noopener noreferrer"
               className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}

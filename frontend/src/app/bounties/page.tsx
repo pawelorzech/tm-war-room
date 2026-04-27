@@ -283,7 +283,7 @@ export default function BountiesPage() {
                           )}
                         </td>
                         <td className="py-2 px-3">
-                          <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`} target="_blank"
+                          <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`} target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             className="font-medium text-text-primary hover:text-torn-green transition-colors">
                             {g.target_name || `#${g.target_id}`}
@@ -317,7 +317,7 @@ export default function BountiesPage() {
                           {hasMultiple ? (
                             <span>{g.lister_count} lister{g.lister_count !== 1 ? 's' : ''}</span>
                           ) : (
-                            <a href={`https://www.torn.com/profiles.php?XID=${g.bounties[0].lister_id}`} target="_blank"
+                            <a href={`https://www.torn.com/profiles.php?XID=${g.bounties[0].lister_id}`} target="_blank" rel="noopener noreferrer"
                               onClick={e => e.stopPropagation()}
                               className="hover:text-torn-green transition-colors">
                               {g.bounties[0].lister_name || `#${g.bounties[0].lister_id}`}
@@ -333,7 +333,7 @@ export default function BountiesPage() {
                           <td className="py-1.5 px-2 text-text-muted/30 text-center">└</td>
                           <td className="py-1.5 px-3" colSpan={2}>
                             <span className="text-text-muted">by </span>
-                            <a href={`https://www.torn.com/profiles.php?XID=${b.lister_id}`} target="_blank"
+                            <a href={`https://www.torn.com/profiles.php?XID=${b.lister_id}`} target="_blank" rel="noopener noreferrer"
                               className="text-text-primary hover:text-torn-green transition-colors">
                               {b.lister_name || `#${b.lister_id}`}
                             </a>

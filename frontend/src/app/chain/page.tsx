@@ -376,7 +376,7 @@ function ChainDetailView({
             <div key={c.label} className="text-center">
               <p className="text-[10px] text-text-muted uppercase">{c.label}</p>
               {c.link ? (
-                <a href={tornProfile(c.link)} target="_blank" className="text-sm font-semibold hover:text-torn-green transition-colors">{c.value}</a>
+                <a href={tornProfile(c.link)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold hover:text-torn-green transition-colors">{c.value}</a>
               ) : (
                 <p className="text-sm font-semibold">{c.value}</p>
               )}
@@ -389,7 +389,7 @@ function ChainDetailView({
             <p className="text-[10px] text-text-muted uppercase mb-1">Bonus Hits</p>
             <div className="flex flex-wrap gap-1.5">
               {chain.bonus_hits.map((b, i) => (
-                <a key={i} href={tornProfile(b.attacker_id)} target="_blank"
+                <a key={i} href={tornProfile(b.attacker_id)} target="_blank" rel="noopener noreferrer"
                   className="px-2 py-0.5 text-xs rounded-full bg-torn-yellow/15 text-torn-yellow hover:bg-torn-yellow/25 transition-colors font-medium">
                   {b.chain.toLocaleString()}x — {b.attacker_name}
                 </a>
@@ -433,7 +433,7 @@ function ChainDetailView({
                     <tr key={m.attacker_id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
                       <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                       <td className="py-1.5 px-3">
-                        <a href={tornProfile(m.attacker_id)} target="_blank"
+                        <a href={tornProfile(m.attacker_id)} target="_blank" rel="noopener noreferrer"
                           className="text-text-primary hover:text-torn-green">{m.attacker_name || `#${m.attacker_id}`}</a>
                       </td>
                       <td className="py-1.5 px-3 font-semibold">{m.hits}</td>

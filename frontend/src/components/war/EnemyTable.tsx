@@ -163,7 +163,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
       <div className="text-sm text-text-secondary mb-1">
         <a
           href={`https://www.torn.com/factions.php?step=profile&ID=${f.id}`}
-          target="_blank"
+          target="_blank" rel="noopener noreferrer"
           rel="noopener noreferrer"
           className="font-bold text-text-primary hover:text-torn-green transition-colors"
         >
@@ -345,7 +345,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                   <td className="py-2 px-2">
                     <a
                       href={m.profile_url}
-                      target="_blank"
+                      target="_blank" rel="noopener noreferrer"
                       rel="noopener noreferrer"
                       className="text-text-primary hover:text-torn-green transition-colors"
                     >
@@ -377,7 +377,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                     <div className="flex gap-1.5">
                       <a
                         href={m.attack_url}
-                        target="_blank"
+                        target="_blank" rel="noopener noreferrer"
                         rel="noopener noreferrer"
                         className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-all active:scale-95 ${
                           isHosp
@@ -389,7 +389,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                       </a>
                       <a
                         href={m.stats_url}
-                        target="_blank"
+                        target="_blank" rel="noopener noreferrer"
                         rel="noopener noreferrer"
                         className="text-xs px-2.5 py-1 rounded-md bg-bg-elevated text-text-secondary border border-border hover:text-text-primary hover:border-border transition-colors"
                       >
