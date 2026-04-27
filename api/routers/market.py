@@ -14,6 +14,38 @@ _items_cache_ts: float = 0
 CACHE_TTL = 300  # 5 min
 
 
+def _iso_to_flag(iso: str) -> str:
+    """Convert ISO country code (e.g. 'MX') to emoji flag (🇲🇽)."""
+    return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in iso.upper())
+
+
+async def _build_abroad_map(client) -> dict[int, dict]:
+    """Build {item_id: {"country_slug": ..., "country_name": ..., "country_flag": "🇲🇽"}}
+    from YATA travel stocks. Returns empty dict on failure — items are simply not flagged abroad."""
+    from api.routers.travel import YATA_COUNTRY_MAP, COUNTRIES
+    by_slug = {c["id"]: c for c in COUNTRIES}
+    try:
+        yata_raw = await client.fetch_yata_travel_stocks()
+    except Exception as e:
+        logger.warning("Abroad map: YATA fetch failed (%s) — items will not be flagged abroad", e)
+        return {}
+    yata_stocks = yata_raw.get("stocks", yata_raw) if yata_raw and isinstance(yata_raw, dict) else {}
+    out: dict[int, dict] = {}
+    for yk, country_slug in YATA_COUNTRY_MAP.items():
+        if yk not in yata_stocks:
+            continue
+        cdata = yata_stocks[yk]
+        c = by_slug.get(country_slug)
+        if not c:
+            continue
+        flag = _iso_to_flag(c["flag"])
+        for yi in cdata.get("stocks", cdata.get("items", [])):
+            iid = yi.get("id", 0)
+            if iid and iid not in out:
+                out[iid] = {"country_slug": country_slug, "country_name": c["name"], "country_flag": flag}
+    return out
+
+
 async def ensure_items_cache(tc=None) -> list[dict]:
     """Populate and return the items cache, usable from other routers."""
     global _items_cache, _items_cache_ts
@@ -37,6 +69,8 @@ async def ensure_items_cache(tc=None) -> list[dict]:
         logger.error("Failed to fetch items: %s", e)
         return _items_cache or []
 
+    abroad_map = await _build_abroad_map(client)
+
     items = []
     for iid_str, item in items_data.items():
         try:
@@ -58,6 +92,9 @@ async def ensure_items_cache(tc=None) -> list[dict]:
         # If you buy from NPC (buy_price) and sell on market (market_value)
         profit_buy_npc = (market_value - buy_price) if buy_price > 0 and market_value > 0 else 0
 
+        abroad = abroad_map.get(iid)
+        is_shop = bool(buy_price > 0) and abroad is None
+
         items.append({
             "id": iid,
             "name": name,
@@ -68,6 +105,10 @@ async def ensure_items_cache(tc=None) -> list[dict]:
             "circulation": circulation,
             "profit_buy_sell": profit_buy_npc,
             "profit_margin_pct": round((profit_buy_npc / buy_price) * 100, 1) if buy_price > 0 and profit_buy_npc > 0 else 0,
+            "is_shop": is_shop,
+            "country_slug": abroad["country_slug"] if abroad else None,
+            "country_name": abroad["country_name"] if abroad else None,
+            "country_flag": abroad["country_flag"] if abroad else None,
         })
 
     # Sort by market value descending
@@ -75,7 +116,7 @@ async def ensure_items_cache(tc=None) -> list[dict]:
 
     _items_cache = items
     _items_cache_ts = now
-    logger.info("Loaded %d items for market scanner", len(items))
+    logger.info("Loaded %d items for market scanner (%d flagged abroad)", len(items), len(abroad_map))
     return _items_cache
 
 

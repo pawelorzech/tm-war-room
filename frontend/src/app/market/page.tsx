@@ -17,6 +17,10 @@ interface MarketItem {
   circulation: number;
   profit_buy_sell: number;
   profit_margin_pct: number;
+  is_shop?: boolean;
+  country_slug?: string | null;
+  country_name?: string | null;
+  country_flag?: string | null;
 }
 
 type Filter = 'top20' | 'all' | 'profitable' | 'tradeable';
@@ -172,6 +176,11 @@ export default function MarketPage() {
                             target="_blank" rel="noopener noreferrer" className="hover:text-torn-green transition-colors">
                             {item.name}
                           </a>
+                          {item.country_flag ? (
+                            <span className="ml-1.5 text-xs" title={`Available in ${item.country_name} — travel to buy`}>{item.country_flag}</span>
+                          ) : item.is_shop ? (
+                            <span className="ml-1.5 text-xs" title="Buyable in Torn shops">🛒</span>
+                          ) : null}
                         </td>
                         <td className="py-1.5 px-3 text-text-muted text-xs">{item.type}</td>
                         <td className="py-1.5 px-3 text-right tabular-nums">{fmtMoney(item.market_value)}</td>

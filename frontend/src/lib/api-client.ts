@@ -205,6 +205,9 @@ export const api = {
   notifications: () => apiFetch<unknown>('/api/notifications'),
   notificationsUnread: () => apiFetch<unknown>('/api/notifications/unread'),
   notificationsReadAll: () => apiFetch<unknown>('/api/notifications/read-all', { method: 'POST' }),
+  pinnedNavsGet: () => apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs'),
+  pinnedNavsPut: (hrefs: string[]) =>
+    apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hrefs }) }),
   stakeoutList: () => apiFetch<unknown>('/api/stakeout'),
   stakeoutAdd: (data: { player_id: number; player_name?: string; notes?: string }) =>
     apiFetch<unknown>('/api/stakeout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),

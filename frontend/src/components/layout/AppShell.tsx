@@ -141,12 +141,13 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface/80 backdrop-blur-md border-b border-border z-40 flex items-center px-3 gap-3">
-        <span
+        <Link
+          href="/dashboard"
           className="text-sm font-extrabold tracking-tight text-torn-green"
           style={{ textShadow: "0 0 12px rgba(63, 185, 80, 0.35)" }}
         >
           TM Hub
-        </span>
+        </Link>
         <div className="flex-1" />
         {/* Search */}
         <button
