@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 
 /* ── Section data ── */
@@ -703,9 +704,9 @@ export default function GuidePage() {
           <p className="text-sm font-medium text-text-primary">Have questions not covered here?</p>
           <p className="text-xs text-text-secondary">
             Ask in faction chat or check our{' '}
-            <a href="/faq" className="text-torn-green hover:text-torn-green/80 underline underline-offset-2 transition-colors">
+            <Link href="/faq" className="text-torn-green hover:text-torn-green/80 underline underline-offset-2 transition-colors">
               FAQ page
-            </a>{' '}
+            </Link>{' '}
             for detailed answers on specific game mechanics.
           </p>
           <p className="text-[10px] text-text-muted mt-2">

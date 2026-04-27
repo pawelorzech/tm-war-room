@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import DOMPurify from 'isomorphic-dompurify';
 import { useCompanyDirector } from '@/hooks/useCompanyDirector';
 import { PageExplainer } from '@/components/layout/PageExplainer';
@@ -863,9 +864,9 @@ function DirectorTeaser({
           </li>
           <li>
             Link your director&apos;s API key in{' '}
-            <a href="/settings" className="text-torn-green hover:underline">
+            <Link href="/settings" className="text-torn-green hover:underline">
               Settings
-            </a>
+            </Link>
             . This tool calls the limited-access director selections using your own key — no
             other member can see your company data.
           </li>
