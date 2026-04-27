@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import date
 from fastapi import APIRouter, HTTPException, Query, Header
+from api.config import SUPERADMIN_IDS
 from api.db.repos.stats import StatSnapshotRepository
 from api.db.repos.keys import KeyRepository
 
@@ -51,6 +52,10 @@ async def _ensure_snapshot(player_id: int) -> bool:
 
 def _require_self_or_admin(player_id: int, x_player_id: int) -> None:
     if player_id == x_player_id:
+        return
+    # Superadmins (config SUPERADMIN_IDS) bypass the DB admin flag — same pattern
+    # as api/admin.py uses for break-glass access.
+    if x_player_id in SUPERADMIN_IDS:
         return
     if key_repo and key_repo.is_admin(x_player_id):
         return

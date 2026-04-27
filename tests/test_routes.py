@@ -1121,6 +1121,33 @@ async def test_stats_snapshots_allows_admin_to_view_anyone(mock_store):
 
 
 @pytest.mark.asyncio
+async def test_stats_snapshots_allows_superadmin_without_db_admin_flag(mock_store):
+    """Bug fix: superadmin (config SUPERADMIN_IDS) can read others even when
+    is_admin returns False — previously got 403 because the check only looked
+    at the DB admin flag, not the config-level superadmin allowlist.
+    """
+    from api.routers import stats as stats_mod
+    from api.config import SUPERADMIN_IDS
+    superadmin_id = next(iter(SUPERADMIN_IDS))
+    mock_stats_repo = MagicMock()
+    mock_stats_repo.get_snapshots.return_value = [{"date": "2026-04-27", "total": 1000}]
+    mock_key_repo = MagicMock()
+    mock_key_repo.is_admin = MagicMock(return_value=False)  # NOT a DB admin
+
+    with patch.object(stats_mod, "stats_repo", mock_stats_repo), \
+         patch.object(stats_mod, "key_repo", mock_key_repo), \
+         patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/api/stats/snapshots/999",
+                headers=auth_headers(superadmin_id, "Bombel"),
+            )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_register_key_sets_session_cookie(mock_client, mock_store):
     """F-03 regression: registration sets HttpOnly tm_session cookie."""
     validate_resp = AsyncMock()

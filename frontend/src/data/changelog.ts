@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.15.3";
+export const CURRENT_VERSION = "1.15.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.4",
+    date: "2026-04-27",
+    title: "Stats: superadmins can view other members + 1.15.3 follow-up",
+    changes: [
+      { type: "fix", text: "Superadmins (config SUPERADMIN_IDS) can now view any member's stat snapshots and growth — previously the check only honored the DB admin flag, so superadmins without the flag got a 403 and the UI showed an empty state" },
+    ],
+  },
   {
     version: "1.15.3",
     date: "2026-04-27",
