@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.15.2";
+export const CURRENT_VERSION = "1.15.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.3",
+    date: "2026-04-27",
+    title: "Stats empty-state copy + service worker cache bump",
+    changes: [
+      { type: "fix", text: "Stats page empty-state used to suggest you needed to register your API key, even when you were looking at someone else's profile — now it correctly tells you that other player needs to register, with their name in the message" },
+      { type: "fix", text: "Bumped service-worker cache version to push everyone past the stale 'Data collected daily at 4:00 UTC' header — stats actually refresh every 15 minutes" },
+    ],
+  },
   {
     version: "1.15.2",
     date: "2026-04-27",

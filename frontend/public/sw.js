@@ -1,6 +1,11 @@
 /* Service Worker for TM Hub — PWA cache + push notifications */
 
-const CACHE_NAME = 'tm-hub-shell-v1';
+// Bump on any release that changes outdated user-facing copy (e.g. v2 forces
+// clients past the stale "Data collected daily at 4:00 UTC" header that lived
+// before the 15-minute schedule rewrite). The activate handler below already
+// deletes any cache that starts with `tm-hub-shell-` and isn't the current
+// CACHE_NAME, so a bump here = global force-refresh.
+const CACHE_NAME = 'tm-hub-shell-v2';
 const SHELL_URLS = [
   '/',
   '/offline.html',

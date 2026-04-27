@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import dynamic from 'next/dynamic';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { getActiveEvent } from '@/data/seasonal-events';
 
 const StatGrowthChart = dynamic(
   () => import('@/components/stats/StatGrowthChart').then(m => ({ default: m.StatGrowthChart })),
@@ -109,7 +110,7 @@ export default function StatsPage() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary">Stat Growth</h1>
             <p className="text-text-secondary text-sm mt-1">
-              Track battle stat progress over time. Data collected daily at 4:00 UTC.
+              Track battle stat progress over time. Data refreshed every 15 minutes.
             </p>
           </div>
           <RefreshButton onRefresh={loadStats} />
@@ -125,14 +126,26 @@ export default function StatsPage() {
           "Move to a better property to increase your happiness cap. Private Island is ideal for the airstrip bonus too.",
           "Switzerland rehab (level 15+) restores happiness to maximum in a single rehab — cheapest way to refill.",
           "Candy + Ecstasy combo: eat candies first (booster cooldown), then use Ecstasy to double your current happiness.",
-        ]} dataSources={["Daily stat snapshots collected at 04:00 UTC", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"], ["Torn Wiki: Properties", "https://wiki.torn.com/wiki/Properties"]]} />
+        ]} dataSources={["Stat snapshots collected automatically every 15 minutes", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"], ["Torn Wiki: Properties", "https://wiki.torn.com/wiki/Properties"]]} />
 
         {loading && !snapshots.length ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading stat data...</div>
         ) : snapshots.length === 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-6 text-center">
-            <p className="text-text-secondary">No stat snapshots yet. Data starts collecting after you register your API key.</p>
-            <p className="text-text-muted text-xs mt-2">Snapshots are taken daily at 4:00 UTC.</p>
+            {currentPid === playerId ? (
+              <p className="text-text-secondary">No stat snapshots for you yet. Stats are collected for members who registered their API key in TM Hub — make sure you completed the login flow. If you registered today, the first snapshot lands within 15 minutes.</p>
+            ) : (
+              <p className="text-text-secondary">
+                No stat snapshots for{' '}
+                <span className="font-semibold">
+                  {leaderboard.find(m => m.player_id === currentPid)?.player_name
+                    || growthLb.find(m => m.player_id === currentPid)?.player_name
+                    || `player ${currentPid}`}
+                </span>
+                {' '}yet. Stats are only collected for members who registered their API key in TM Hub. Once they do, snapshots refresh every 15 minutes.
+              </p>
+            )}
+            <p className="text-text-muted text-xs mt-2">Snapshots are taken automatically every 15 minutes.</p>
           </div>
         ) : (
           <>
@@ -188,11 +201,11 @@ export default function StatsPage() {
             {/* Tab bar */}
             <div className="flex gap-1 border-b border-border">
               {([
-                ['total', 'Total Stats'],
-                ['growth', 'Stat Growth'],
-                ['gym', 'Energy Spent'],
-                ['eggs', 'Easter Eggs'],
-              ] as const).map(([key, label]) => (
+                ['total', 'Total Stats'] as const,
+                ['growth', 'Stat Growth'] as const,
+                ['gym', 'Energy Spent'] as const,
+                ...(getActiveEvent()?.id === 'easter' ? [['eggs', 'Easter Eggs'] as const] : []),
+              ] as ReadonlyArray<readonly [LeaderboardTab, string]>).map(([key, label]) => (
                 <button key={key} onClick={() => setLbTab(key as LeaderboardTab)}
                   className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
                     lbTab === key ? 'border-torn-green text-torn-green' : 'border-transparent text-text-secondary hover:text-text-primary'
@@ -225,7 +238,8 @@ export default function StatsPage() {
                           <td className="py-1.5 px-3 text-text-primary font-medium">
                             {m.player_name || `#${m.player_id}`}
                             <span className="ml-1 text-[10px] text-text-muted">[{m.player_id}]</span>
-                            {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(viewing)</span>}
+                            {m.player_id === playerId && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            {selectedPlayer && selectedPlayer !== playerId && m.player_id === selectedPlayer && <span className="ml-1 text-xs text-text-muted">(viewing)</span>}
                           </td>
                           <td className="py-1.5 px-3 font-semibold text-torn-green">{fmt(m.total)}</td>
                           <td className="py-1.5 px-3">{fmt(m.strength)}</td>
@@ -264,7 +278,8 @@ export default function StatsPage() {
                           <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                           <td className="py-1.5 px-3 text-text-primary font-medium">
                             {m.player_name}
-                            {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            {m.player_id === playerId && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            {selectedPlayer && selectedPlayer !== playerId && m.player_id === selectedPlayer && <span className="ml-1 text-xs text-text-muted">(viewing)</span>}
                           </td>
                           <td className="py-1.5 px-3 text-right font-semibold text-torn-green">+{fmt(m.total_growth)}</td>
                           <td className="py-1.5 px-3 text-right tabular-nums text-torn-green">{m.pct_growth.toFixed(2)}%</td>
@@ -273,7 +288,7 @@ export default function StatsPage() {
                           <td className="py-1.5 px-3 text-right tabular-nums text-text-muted hidden sm:table-cell">{m.se_delta != null ? `+${m.se_delta}` : '—'}</td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={7} className="py-4 text-center text-text-muted text-xs">Need at least 2 daily snapshots to show growth data</td></tr>
+                        <tr><td colSpan={7} className="py-4 text-center text-text-muted text-xs">Need at least 2 snapshots to show growth data — collected automatically every 15 minutes</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -306,7 +321,8 @@ export default function StatsPage() {
                             <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                             <td className="py-1.5 px-3 text-text-primary font-medium">
                               {m.player_name}
-                              {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                              {m.player_id === playerId && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            {selectedPlayer && selectedPlayer !== playerId && m.player_id === selectedPlayer && <span className="ml-1 text-xs text-text-muted">(viewing)</span>}
                             </td>
                             <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{m.energy_spent != null ? `${m.energy_spent.toLocaleString()}E` : '—'}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">{m.xanax_delta != null ? `+${m.xanax_delta}` : '—'}</td>
@@ -314,7 +330,7 @@ export default function StatsPage() {
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">+{fmt(m.total_growth)}</td>
                           </tr>
                         )) : (
-                          <tr><td colSpan={6} className="py-4 text-center text-text-muted text-xs">Energy tracking needs at least 2 daily snapshots. Use Admin → Collect Stats to start.</td></tr>
+                          <tr><td colSpan={6} className="py-4 text-center text-text-muted text-xs">Energy tracking needs at least 2 snapshots — collected automatically every 15 minutes</td></tr>
                         );
                       })()}
                     </tbody>
@@ -349,7 +365,8 @@ export default function StatsPage() {
                             <td className="py-1.5 px-3 text-text-muted">{i + 1}</td>
                             <td className="py-1.5 px-3 text-text-primary font-medium">
                               {m.player_name}
-                              {m.player_id === currentPid && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                              {m.player_id === playerId && <span className="ml-1 text-xs text-torn-green">(you)</span>}
+                            {selectedPlayer && selectedPlayer !== playerId && m.player_id === selectedPlayer && <span className="ml-1 text-xs text-text-muted">(viewing)</span>}
                             </td>
                             <td className="py-1.5 px-3 text-right font-semibold text-torn-green">{(m.easter_eggs_total || 0).toLocaleString()}</td>
                             <td className="py-1.5 px-3 text-right tabular-nums text-text-secondary">
