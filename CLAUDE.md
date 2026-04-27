@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (FastAPI) + `frontend/` (Next.js 16 + React 19 + Tailwind v4).
+TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (FastAPI) + `frontend/` (Next.js 16 + React 19 + Tailwind v4). Production runs gunicorn with 2 uvicorn workers behind nginx; Redis (`tm-hub-redis` in Coolify) provides shared chat pub/sub, scheduler leader-election, and rate-limit state.
 
 ## Commands
 
@@ -82,6 +82,8 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | `BACKUP_ENCRYPTION_KEY` | recommended in prod | Fernet key for daily keys.db backups (F-18). Generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Store outside Coolify** so a Coolify compromise alone cannot decrypt backups. |
 | `BACKUP_RETENTION_DAYS` | no | `30` |
 | `B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` / `B2_PUBLIC_URL` | no | Backblaze B2 credentials (used by avatar refresh + F-18 backups). |
+| `REDIS_URL` | recommended (prod) | — | `redis://default:<pw>@<host>:6379/0`. When set: chat broadcasts go cross-worker via pub/sub, scheduler picks one leader cluster-wide, rate limits are shared. When unset: falls back to per-worker state (works for `WEB_CONCURRENCY=1`). |
+| `WEB_CONCURRENCY` | no | `2` | gunicorn worker count. Multi-worker requires `REDIS_URL` for chat to fan out cross-worker. |
 
 ## Versioning
 

@@ -12,8 +12,14 @@ def get_state() -> dict:
     return _state
 
 
-async def create_and_start_scheduler(app_state: dict):
-    """Create, configure, and start the background scheduler. Returns the scheduler."""
+async def create_and_start_scheduler(app_state: dict, leader_election=None):
+    """Create, configure, and start the background scheduler. Returns the scheduler.
+
+    If ``leader_election`` is provided and this process is a follower (not leader),
+    we register tasks but do NOT call ``start_in_background`` — only the leader
+    actually runs the jobs. This prevents duplicate execution in multi-worker
+    deployments.
+    """
     from apscheduler import AsyncScheduler
     from apscheduler.triggers.interval import IntervalTrigger
     from api.scheduler.jobs.collect_stats import run_collect_stats
@@ -113,12 +119,14 @@ async def create_and_start_scheduler(app_state: dict):
         id="backup_keys_db_schedule",
     )
 
-    await scheduler.start_in_background()
-
-    logger.info(
-        "Scheduler started: collect_stats (15min), circulation (15min), refresh_spies (30min), "
-        "refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), "
-        "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h), "
-        "backup_keys_db (24h)"
-    )
+    if leader_election is None or leader_election.is_leader:
+        await scheduler.start_in_background()
+        logger.info(
+            "Scheduler started (leader): collect_stats (15min), circulation (15min), refresh_spies (30min), "
+            "refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), "
+            "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h), "
+            "backup_keys_db (24h)"
+        )
+    else:
+        logger.info("Scheduler not started — this worker is a follower (leader runs jobs).")
     return scheduler

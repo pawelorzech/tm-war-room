@@ -86,6 +86,17 @@ _bars_cache_ts: float = 0
 async def lifespan(app: FastAPI):
     global torn_client, key_store, analytics_store, presence_repo
     os.makedirs("data", exist_ok=True)
+
+    # Sprint 2 #1+#19: Redis (best-effort) + scheduler leader-election.
+    # Each worker initializes its own Redis client (connection pool).
+    from api.redis_client import init_redis, close_redis
+    await init_redis()
+    from api.scheduler.leader import LeaderElection
+    leader_election = LeaderElection()
+    is_leader = await leader_election.acquire()
+    app.state.leader_election = leader_election
+    app.state.is_scheduler_leader = is_leader
+
     analytics_store = AnalyticsStore(db_path="data/analytics.db")
     analytics_store.cleanup(days=30)
     torn_client = TornClient(api_key=TORN_API_KEY, cache_ttl=CACHE_TTL, analytics_store=analytics_store)
@@ -231,6 +242,8 @@ async def lifespan(app: FastAPI):
     chat_mgr = ChatManager()
     chat_mod.chat_repo = chat_repo
     chat_mod.chat_manager = chat_mgr
+    # Start Redis pub/sub subscriber + online heartbeat (no-op without Redis).
+    await chat_mgr.start_background_tasks()
     chat_mod.key_store = key_store
     chat_mod.push_service = push_service
     chat_mod.presence_repo = presence_repo
@@ -284,7 +297,7 @@ async def lifespan(app: FastAPI):
     )
 
     from api.scheduler.engine import create_and_start_scheduler
-    app_scheduler = await create_and_start_scheduler({
+    app_scheduler = await create_and_start_scheduler(leader_election=leader_election, app_state={
         "key_repo": key_store._keys,
         "stats_repo": stats_repo,
         "spy_service": spy_mod.spy_service,
@@ -304,7 +317,7 @@ async def lifespan(app: FastAPI):
         "company_alerts_repo": company_alerts_repo,
     })
     from api import b2_client
-    if b2_client.is_configured():
+    if b2_client.is_configured() and is_leader:
         async def _startup_avatar_refresh():
             from api.scheduler.jobs.refresh_avatars import run_refresh_avatars
             try:
@@ -313,11 +326,16 @@ async def lifespan(app: FastAPI):
                 logger.warning("Startup avatar refresh failed: %s", e)
         asyncio.create_task(_startup_avatar_refresh())
 
-    logger.info("TM Hub started — superadmin=%d, faction=%d, scheduler active", SUPERADMIN_ID, FACTION_ID)
+    logger.info(
+        "TM Hub started — superadmin=%d, faction=%d, scheduler %s",
+        SUPERADMIN_ID, FACTION_ID, "leader" if is_leader else "follower",
+    )
     async with _mcp_app.lifespan(_mcp_app):
         yield
     await chat_mgr.close_all()
     await app_scheduler.__aexit__(None, None, None)
+    await leader_election.release()
+    await close_redis()
     await torn_client.close()
     logger.info("TM Hub shutting down")
 
@@ -420,6 +438,9 @@ async def healthcheck():
     # Scheduler hasn't a single boolean handle, but if any service ref is wired
     # then create_and_start_scheduler() ran successfully.
     checks["scheduler_initialized"] = bool(state.get("torn_client"))
+    checks["scheduler_role"] = "leader" if getattr(app.state, "is_scheduler_leader", True) else "follower"
+    from api.redis_client import get_redis
+    checks["redis"] = "connected" if get_redis() is not None else "off"
     if not db_ok:
         checks["status"] = "degraded"
         return JSONResponse(checks, status_code=503)
