@@ -398,6 +398,34 @@ async def admin_refresh_avatars(admin: dict = Depends(admin_mod.require_superadm
         raise HTTPException(status_code=500, detail="Avatar refresh failed") from e
 
 
+@app.get("/health")
+async def healthcheck():
+    """Liveness + readiness probe used by nginx and Coolify.
+    Returns 200 with subsystem checks; 503 if any critical dep is down."""
+    from api.scheduler.engine import get_state
+    checks: dict[str, Any] = {"status": "ok"}
+    db_ok = False
+    try:
+        if key_store is not None:
+            db_start = time.time()
+            key_store.has_key(0)  # cheap point lookup; returns False, exercises connection
+            checks["db_ms"] = round((time.time() - db_start) * 1000, 1)
+            db_ok = True
+        else:
+            checks["db_ms"] = None
+    except Exception as e:
+        checks["db_error"] = str(e)
+    checks["db"] = "ok" if db_ok else "down"
+    state = get_state()
+    # Scheduler hasn't a single boolean handle, but if any service ref is wired
+    # then create_and_start_scheduler() ran successfully.
+    checks["scheduler_initialized"] = bool(state.get("torn_client"))
+    if not db_ok:
+        checks["status"] = "degraded"
+        return JSONResponse(checks, status_code=503)
+    return checks
+
+
 @app.get("/api/status")
 async def app_status():
     """System status including war detection for adaptive polling."""
@@ -660,6 +688,22 @@ def _api_cache_header(path: str) -> str:
     return "no-store"
 
 
+request_logger = logging.getLogger("tm-hub.req")
+
+
+def _log_request_json(method: str, path: str, status: int, elapsed_ms: float, pid: int | None) -> None:
+    """Single-line JSON request log for p50/p95/p99 aggregation via jq."""
+    payload = {
+        "event": "req",
+        "method": method,
+        "path": path,
+        "status": status,
+        "elapsed_ms": round(elapsed_ms, 1),
+        "pid": pid,
+    }
+    request_logger.info(json.dumps(payload, separators=(",", ":")))
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     if not request.url.path.startswith("/api/"):
@@ -671,9 +715,11 @@ async def log_requests(request: Request, call_next):
         response = await call_next(request)
     except Exception as e:
         elapsed_ms = (time.time() - start) * 1000
+        _log_request_json(request.method, request.url.path, 500, elapsed_ms, pid)
         logger.error("UNHANDLED %s %s pid=%s %.0fms — %s", request.method, request.url.path, pid, elapsed_ms, e)
         raise
     elapsed_ms = (time.time() - start) * 1000
+    _log_request_json(request.method, request.url.path, response.status_code, elapsed_ms, pid)
     if response.status_code >= 500:
         logger.error("HTTP %d %s %s pid=%s %.0fms", response.status_code, request.method, request.url.path, pid, elapsed_ms)
     elif response.status_code >= 400:

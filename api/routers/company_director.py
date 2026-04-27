@@ -128,14 +128,23 @@ async def director_faction(x_player_id: int = Header()) -> dict[str, Any]:
 
     all_keys = key_store.get_all_keys()
 
+    # Fan out training-data fetches in parallel (was sequential, N×~150ms).
+    # Bound concurrency so we don't hammer Torn API when faction grows.
+    training_semaphore = asyncio.Semaphore(_FACTION_PROFILE_CONCURRENCY)
+
+    async def _fetch_training(kd: dict) -> tuple[dict, dict | None]:
+        async with training_semaphore:
+            try:
+                return kd, await torn_client.fetch_training_data(kd["api_key"])
+            except Exception as e:
+                logger.warning("fetch_training_data failed for %s: %s", kd["player_id"], e)
+                return kd, None
+
+    training_results = await asyncio.gather(*(_fetch_training(kd) for kd in all_keys))
+
     # Map company_id -> {members: [...], company_name_from_job: str}
     members_by_company: dict[int, dict[str, Any]] = {}
-    for kd in all_keys:
-        try:
-            training = await torn_client.fetch_training_data(kd["api_key"])
-        except Exception as e:
-            logger.warning("fetch_training_data failed for %s: %s", kd["player_id"], e)
-            continue
+    for kd, training in training_results:
         if not training or not isinstance(training.get("job"), dict):
             continue
         job = training["job"]

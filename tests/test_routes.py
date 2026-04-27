@@ -95,6 +95,21 @@ async def test_overview(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_health_endpoint_returns_200(mock_client, mock_store):
+    """Coolify/nginx health probe — confirms DB ping path executes."""
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["db"] == "ok"
+    assert "db_ms" in body
+
+
+@pytest.mark.asyncio
 async def test_serve_frontend_blocks_path_traversal():
     import os
 

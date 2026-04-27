@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
+import { WebVitalsReporter } from "@/components/WebVitalsReporter";
 
 export const metadata: Metadata = {
   title: "TM Hub",
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en" className="h-full dark">
       <body className="min-h-full bg-bg-primary text-text-primary">
         <AppShell>{children}</AppShell>
+        <WebVitalsReporter />
         {/* F-12: SRI hash pinned. Recompute on Umami upgrade:
             curl -fsSL https://analityka.tri.ovh/script.js | openssl dgst -sha384 -binary | openssl base64 -A */}
         <Script

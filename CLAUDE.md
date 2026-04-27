@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (FastAPI) + `frontend/` (Next.js 15 + React 19 + Tailwind v4).
+TM Hub — Torn.com faction toolkit for The Masters [TM]. Monorepo: `api/` (FastAPI) + `frontend/` (Next.js 16 + React 19 + Tailwind v4).
 
 ## Commands
 
 ```bash
-# Backend tests (427 tests, async)
+# Backend tests (~498 tests, async)
 uv run pytest tests/ -v
 uv run pytest tests/test_threat.py -v          # single file
 uv run pytest tests/test_routes.py -k "enemy"  # by keyword
@@ -38,7 +38,7 @@ FastAPI app in `api/main.py` with module-level globals (`torn_client`, `key_stor
 - **`api/armoury.py`** — armoury competition logic: item category sets, `matches_competition()` for deposit filtering, `parse_deposit_news()` for Torn news parsing
 - **`api/routers/market.py`** has `ensure_items_cache()` — shared async function that populates/returns the Torn items cache (all ~1600 items). Reusable from other routers (e.g. armoury item search).
 - **`api/admin.py`** — admin panel router (JWT-based admin auth, separate from member auth)
-- **`api/scheduler/`** — APScheduler 4.x background jobs (data refresh every 30s, stat collection every 15min, spy refresh every 30min, circulation every 15min)
+- **`api/scheduler/`** — APScheduler 4.x background jobs (11 total: data refresh 30s, stat collection 15min, spy refresh 30min, circulation 15min, armoury 5min, revive 10min, avatars 12h, company snapshots/discovery/trains 24h, encrypted DB backup 24h)
 - **`api/threat.py`** — threat scoring: relative (stat-based via spy estimates) or absolute (personalstats ratios)
 
 All data lives in `data/keys.db` (created at runtime, gitignored).
