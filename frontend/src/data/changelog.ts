@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.0";
+export const CURRENT_VERSION = "1.16.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.1",
+    date: "2026-04-27",
+    title: "Multi-worker startup is race-safe",
+    changes: [
+      { type: "fix", text: "Migration runner is now safe under multi-worker boot — previously two gunicorn workers could race on a fresh migration and crash startup with a UNIQUE constraint error; now a file lock serializes them so only one applies" },
+    ],
+  },
   {
     version: "1.16.0",
     date: "2026-04-27",
