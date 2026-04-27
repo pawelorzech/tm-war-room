@@ -38,7 +38,7 @@ const LEVEL_BG = ['', 'bg-text-muted/10', 'bg-torn-blue/10', 'bg-torn-green/10',
 
 // Shared clock so all Countdown instances use one setInterval instead of N
 let _nowSec = Date.now() / 1000;
-let _listeners = new Set<() => void>();
+const _listeners = new Set<() => void>();
 let _timer: ReturnType<typeof setInterval> | null = null;
 
 function _subscribe(cb: () => void) {

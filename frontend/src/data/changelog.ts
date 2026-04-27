@@ -12,9 +12,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.5";
+export const CURRENT_VERSION = "1.14.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.14.0",
+    date: "2026-04-27",
+    title: "Performance audit Sprint 1 — observability + quick wins",
+    changes: [
+      { type: "improve", text: "Director faction view now fans out training-data fetches in parallel — pages with many keys load 5-10× faster" },
+      { type: "improve", text: "Web Vitals (LCP, INP, CLS, TTFB, FCP) shipped to Umami so we can see real-user performance instead of guessing" },
+      { type: "improve", text: "Backend logs each /api/ request as a single JSON line — p50/p95/p99 latency analysis is now one jq command away" },
+      { type: "improve", text: "New /health endpoint reports DB connectivity for Coolify probes" },
+      { type: "improve", text: "nginx now actually caches private-Cache-Control responses (keyed per player) — was previously skipping them, hit ratio jumps from ~0% to expected baseline" },
+      { type: "improve", text: "nginx access log includes upstream cache status so hit ratio is observable from logs" },
+      { type: "improve", text: "Smaller Docker build context via .dockerignore (skips .git, node_modules, plans, tests)" },
+    ],
+  },
   {
     version: "1.13.5",
     date: "2026-04-27",

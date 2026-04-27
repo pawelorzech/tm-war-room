@@ -1,0 +1,56 @@
+# Version control
+.git/
+.gitignore
+.github/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Frontend build artifacts (rebuilt inside Docker)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+
+# Runtime data (volume mounted at runtime)
+data/
+
+# Tests
+tests/
+test_*.py
+
+# Plans & docs
+Plans/
+docs/
+*.md
+!CLAUDE.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Debug
+*.png
+*.jpeg
+*.log
+firebase-debug.log
+.playwright-mcp/
+
+# Local config
+.env
+.env.local
+.mcp.json
+.superpowers/
+
+# Project-internal exclusions
+NOTES.md
+PENTEST_PLAN.md
