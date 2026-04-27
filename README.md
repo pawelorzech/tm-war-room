@@ -12,10 +12,10 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.12-blue?logo=python&logoColor=white" alt="Python 3.12" />
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white" alt="Next.js 15" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React 19" />
   <img src="https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwindcss&logoColor=white" alt="Tailwind v4" />
-  <img src="https://img.shields.io/badge/tests-426-green?logo=pytest&logoColor=white" alt="426 tests" />
+  <img src="https://img.shields.io/badge/tests-516-green?logo=pytest&logoColor=white" alt="516 tests" />
 </p>
 
 ---
@@ -122,11 +122,12 @@ TM Hub is a self-hosted web application built for [Torn.com](https://www.torn.co
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | Python 3.12, FastAPI, SQLite (WAL mode), httpx, APScheduler 4 |
-| **Frontend** | Next.js 15 (static export), React 19, TypeScript, Tailwind CSS v4, Chart.js |
-| **Auth** | Torn API key validation → Fernet encryption → `X-Player-Id` header |
+| **Frontend** | Next.js 16 (static export), React 19, TypeScript, Tailwind CSS v4, Chart.js |
+| **Auth** | Torn API key validation → Fernet encryption → `X-Player-Id` header (HttpOnly cookie session) |
 | **Integrations** | Torn API v1/v2, TornStats API, YATA API |
+| **Runtime** | gunicorn + 2 uvicorn workers behind nginx; Redis for chat pub/sub, scheduler leader-election, shared rate limits |
 | **Deploy** | Docker (multi-stage) → GitHub Actions → Coolify → VPS |
-| **Testing** | 426 pytest tests (async), static export build verification |
+| **Testing** | 516 pytest tests (async), static export build verification |
 
 ---
 
@@ -142,14 +143,14 @@ api/
 ├── admin.py                # Admin panel router
 ├── db/
 │   ├── __init__.py         # KeyStore facade
-│   ├── migrations/         # 35 versioned SQL migrations
+│   ├── migrations/         # 41 versioned SQL migrations
 │   └── repos/              # SQLite repositories (BaseRepository pattern)
 ├── services/               # Business logic (SpyService, etc.)
 ├── routers/                # Feature routers (22 route modules)
-└── scheduler/              # APScheduler 4 background jobs
+└── scheduler/              # APScheduler 4 background jobs (Redis leader-election)
 
 frontend/src/
-├── app/                    # Next.js pages (32 routes)
+├── app/                    # Next.js pages (36 routes)
 ├── components/             # React components organized by domain
 ├── data/changelog.ts       # Version history + CURRENT_VERSION (semver)
 ├── hooks/                  # Data-fetching hooks (useAuth, useWarData, etc.)
@@ -234,12 +235,18 @@ cd frontend && npm run lint
 |----------|----------|---------|-------------|
 | `TORN_API_KEY` | Yes | — | Torn API key for server-side requests |
 | `ENCRYPTION_KEY` | Yes* | auto-generated | Fernet key for encrypting stored API keys |
+| `JWT_SECRET` | Yes* | auto-generated | JWT signing key for admin auth |
 | `TORNSTATS_API_KEY` | No | — | TornStats API access |
 | `FACTION_ID` | No | `11559` | Target faction ID |
-| `CACHE_TTL` | No | `60` | API cache TTL in seconds |
-| `JWT_SECRET` | No* | auto-generated | JWT signing key for admin auth |
+| `CACHE_TTL` | No | `60` | Torn API cache TTL in seconds |
+| `SUPERADMIN_IDS` | No | `2362436` | Comma-separated allowlist of superadmin player IDs (break-glass) |
+| `REDIS_URL` | Recommended (prod) | — | `redis://...`. Enables cross-worker chat pub/sub, scheduler leader-election, shared rate limits |
+| `WEB_CONCURRENCY` | No | `2` | gunicorn worker count. Multi-worker requires `REDIS_URL` |
+| `BACKUP_ENCRYPTION_KEY` | Recommended (prod) | — | Fernet key for daily encrypted `keys.db` backups (store outside Coolify) |
+| `BACKUP_RETENTION_DAYS` | No | `30` | Days of encrypted backups to retain |
+| `B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` / `B2_PUBLIC_URL` | No | — | Backblaze B2 credentials for avatar refresh and encrypted DB backups |
 
-\* Auto-generated if missing (ephemeral — keys reset on restart).
+\* Auto-generated if missing in dev/test (ephemeral — keys reset on restart). **Fails fast in production** (`APP_VERSION != "dev"`).
 
 ---
 
