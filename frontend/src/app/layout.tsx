@@ -34,6 +34,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full dark">
+      <head>
+        {/* Sprint 2: warm up the TLS handshake to Umami before lazyOnload fires the script.
+            Saves ~100-300 ms on first analytics ping per session for users on long-RTT links. */}
+        <link rel="preconnect" href="https://analityka.tri.ovh" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://analityka.tri.ovh" />
+      </head>
       <body className="min-h-full bg-bg-primary text-text-primary">
         <AppShell>{children}</AppShell>
         <WebVitalsReporter />

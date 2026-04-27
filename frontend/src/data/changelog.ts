@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.15.1";
+export const CURRENT_VERSION = "1.15.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.2",
+    date: "2026-04-27",
+    title: "Sprint 2 #8 + warmup polish",
+    changes: [
+      { type: "improve", text: "All chart components share a single Chart.js plugin registration — fewer duplicate registrations and one consolidated chart chunk used across stocks, awards, training, stats, and company trends" },
+      { type: "improve", text: "Browser warms up the TLS handshake to the analytics server before the lazy-loaded analytics script fires — first-page analytics ping is faster on slow connections" },
+    ],
+  },
   {
     version: "1.15.1",
     date: "2026-04-27",
