@@ -227,6 +227,15 @@ async def demote_admin(player_id: int, admin: dict = Depends(require_superadmin)
     return {"status": "ok", "demoted": player_id}
 
 
+@router.post("/backup-keys-now")
+async def backup_keys_now(admin: dict = Depends(require_superadmin)):
+    """F-18: manual trigger for keys.db backup. Superadmin only."""
+    from api.scheduler.jobs.backup_keys_db import run_backup_keys_db
+    result = await run_backup_keys_db()
+    logger.info("Manual keys.db backup triggered by superadmin %d: %s", admin["sub"], result)
+    return result
+
+
 @router.post("/stats/collect-now")
 async def collect_stats_now(admin: dict = Depends(require_admin)):
     """Trigger immediate stat snapshot collection for all registered members."""

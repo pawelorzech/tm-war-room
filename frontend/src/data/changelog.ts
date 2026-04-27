@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.4";
+export const CURRENT_VERSION = "1.13.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.5",
+    date: "2026-04-27",
+    title: "Daily encrypted backups for keys.db",
+    changes: [
+      { type: "improve", text: "Daily encrypted backups of the API key database to B2 with 30-day retention — losing the volume no longer means everyone re-registers their key" },
+      { type: "improve", text: "Restore tooling + runbook + quarterly drill log so we know the backups actually work" },
+    ],
+  },
   {
     version: "1.13.4",
     date: "2026-04-27",

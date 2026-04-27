@@ -44,6 +44,11 @@ if not _jwt_secret:
 JWT_SECRET: str = _jwt_secret
 APP_VERSION: str = os.environ.get("APP_VERSION", "dev")
 
+# F-18: separate key for backup encryption (defense-in-depth — leak of one key
+# does not automatically leak the other). Optional in dev; warned-and-skipped if missing in prod.
+BACKUP_ENCRYPTION_KEY: str = os.environ.get("BACKUP_ENCRYPTION_KEY", "")
+BACKUP_RETENTION_DAYS: int = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
+
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY")
 VAPID_MAILTO = os.environ.get("VAPID_MAILTO", "mailto:admin@tri.ovh")
