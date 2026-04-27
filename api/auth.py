@@ -70,6 +70,14 @@ def require_bearer_token(
 
 
 class RateLimiter:
+    """In-memory rate limiter (per-worker).
+
+    F-17: evicts dead keys every 5 min to bound memory growth.
+    Multi-worker note: this is per-worker, so effective limits scale with worker
+    count (e.g. max=10 with 2 workers = up to 20 across cluster). Use
+    :class:`RedisRateLimiter` for shared state when correctness matters.
+    """
+
     def __init__(self) -> None:
         self._requests: dict[str, list[float]] = {}
         self._last_evict: float = time.time()
@@ -77,7 +85,6 @@ class RateLimiter:
     def check(self, key: str, max_requests: int, window_seconds: int = 60) -> bool:
         now = time.time()
         cutoff = now - window_seconds
-        # F-17: evict dead keys every 5 minutes to bound memory growth.
         if now - self._last_evict > 300:
             self._requests = {
                 k: [t for t in v if t > cutoff]
@@ -95,4 +102,34 @@ class RateLimiter:
         return True
 
 
-rate_limiter = RateLimiter()
+class HybridRateLimiter:
+    """Rate limiter that prefers Redis (shared) and falls back to in-memory per-worker.
+
+    Sync ``check()`` uses in-memory only (existing call sites are sync). Use
+    ``check_async()`` to opt into the Redis-backed shared limit when available.
+    Both paths use the same key/limit semantics: max N actions per window seconds.
+    """
+
+    def __init__(self) -> None:
+        self._local = RateLimiter()
+
+    def check(self, key: str, max_requests: int, window_seconds: int = 60) -> bool:
+        return self._local.check(key, max_requests, window_seconds)
+
+    async def check_async(self, key: str, max_requests: int, window_seconds: int = 60) -> bool:
+        from api.redis_client import get_redis
+        r = get_redis()
+        if r is None:
+            return self._local.check(key, max_requests, window_seconds)
+        rkey = f"tm:ratelimit:{key}"
+        try:
+            pipe = r.pipeline()
+            pipe.incr(rkey, 1)
+            pipe.expire(rkey, window_seconds, nx=True)
+            count, _ = await pipe.execute()
+            return int(count) <= max_requests
+        except Exception:
+            return self._local.check(key, max_requests, window_seconds)
+
+
+rate_limiter = HybridRateLimiter()

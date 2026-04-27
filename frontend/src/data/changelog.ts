@@ -12,9 +12,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.14.0";
+export const CURRENT_VERSION = "1.15.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.15.0",
+    date: "2026-04-27",
+    title: "Sprint 2 #1+#19 — Redis + multi-worker backend",
+    changes: [
+      { type: "improve", text: "Backend now runs 2 worker processes behind nginx — roughly double the API throughput, especially on the dashboard and parallel data fetches" },
+      { type: "improve", text: "Chat broadcasts (messages, edits, deletes, threads, pins) now fan out cross-worker via Redis pub/sub — no more missed messages when you and your peer happen to land on different workers" },
+      { type: "improve", text: "Online presence is shared across workers via Redis with a 60s TTL — the green dot list is finally accurate cluster-wide" },
+      { type: "improve", text: "Scheduler leader-election prevents duplicate background jobs — only one worker runs scrapers, scheduling 30s data refresh, 5min armoury polls, etc." },
+      { type: "improve", text: "Rate limits are now shared across workers (Redis INCR) when shared state matters — a single user can't bypass a limit by spreading requests across workers" },
+      { type: "improve", text: "Graceful Redis fallback — if Redis is unreachable, app keeps running with per-worker state and chat narrows to single-worker behaviour rather than failing" },
+    ],
+  },
   {
     version: "1.14.0",
     date: "2026-04-27",

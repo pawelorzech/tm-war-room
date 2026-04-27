@@ -586,7 +586,7 @@ async def get_online(x_player_id: int = Header()):
     _verify_member(x_player_id)
     if presence_repo:
         return {"online": presence_repo.get_online(ttl_seconds=120)}
-    return {"online": chat_manager.get_online_players()}
+    return {"online": await chat_manager.get_online_players()}
 
 
 # ── Traveling members ─────────────────────────────────────────
