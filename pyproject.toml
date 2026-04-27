@@ -15,6 +15,7 @@ dependencies = [
     "fastmcp>=3.0.0",
     "redis>=5.0.0",
     "gunicorn>=23.0.0",
+    "sentry-sdk[fastapi]>=2.20.0",
 ]
 
 [project.optional-dependencies]

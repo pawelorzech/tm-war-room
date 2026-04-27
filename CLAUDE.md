@@ -84,6 +84,9 @@ Push to `master` → GitHub Actions runs tests + build → triggers Coolify depl
 | `B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` / `B2_PUBLIC_URL` | no | Backblaze B2 credentials (used by avatar refresh + F-18 backups). |
 | `REDIS_URL` | recommended (prod) | — | `redis://default:<pw>@<host>:6379/0`. When set: chat broadcasts go cross-worker via pub/sub, scheduler picks one leader cluster-wide, rate limits are shared. When unset: falls back to per-worker state (works for `WEB_CONCURRENCY=1`). |
 | `WEB_CONCURRENCY` | no | `2` | gunicorn worker count. Multi-worker requires `REDIS_URL` for chat to fan out cross-worker. |
+| `SENTRY_DSN` | no | — | Sentry/Glitchtip DSN. When set: error events + 5% trace sampling go to the observability backend. When unset: no-op (`api/observability.py`). PII filter scrubs Torn API keys, `Authorization` headers, cookies, and any secret-named field before transmission (tests in `tests/test_observability.py`). |
+| `SENTRY_TRACES_SAMPLE_RATE` | no | `0.05` | Trace sample rate. `0` disables performance traces; errors still go through. |
+| `NEXT_PUBLIC_SENTRY_DSN` | build-time | — | Browser-side DSN. Same scrubber as backend (`frontend/src/lib/sentry-browser.ts`). When set the SDK chunk (~20 KB gzip) is dynamically imported after page load. |
 
 ## Versioning
 
