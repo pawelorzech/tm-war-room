@@ -35,12 +35,13 @@ jobs:
           echo "$RESPONSE" | jq .
           DEPLOY_UUID=$(echo "$RESPONSE" | jq -r '.deployments[0].deployment_uuid')
           echo "Deployment queued: $DEPLOY_UUID"
-          for i in $(seq 1 24); do
-            sleep 5
+          # Coolify build typically takes 3-4 min — poll for up to 8 min before giving up.
+          for i in $(seq 1 80); do
+            sleep 6
             STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
               "${{ secrets.COOLIFY_URL }}/api/v1/deployments/$DEPLOY_UUID" | jq -r '.status')
             echo "Status: $STATUS"
             if [ "$STATUS" = "finished" ]; then echo "Deploy successful!"; exit 0; fi
             if [ "$STATUS" = "failed" ]; then echo "Deploy failed!"; exit 1; fi
           done
-          echo "Deploy timed out"; exit 1
+          echo "Deploy timed out (8 min)"; exit 1
