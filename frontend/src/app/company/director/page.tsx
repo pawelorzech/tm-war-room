@@ -344,7 +344,6 @@ function EmployeesTab({ employees }: { employees: [string, CompanyEmployee][] })
                   <a
                     href={`https://www.torn.com/profiles.php?XID=${id}`}
                     target="_blank" rel="noopener noreferrer"
-                    rel="noopener"
                     className="text-text-primary hover:text-torn-green"
                   >
                     {e.name}
@@ -454,7 +453,6 @@ function ApplicationsTab({
                   <a
                     href={`https://www.torn.com/profiles.php?XID=${a.userID}`}
                     target="_blank" rel="noopener noreferrer"
-                    rel="noopener"
                     className="font-semibold hover:text-torn-green"
                   >
                     {a.name}
@@ -857,7 +855,6 @@ function DirectorTeaser({
             <a
               href="https://wiki.torn.com/wiki/Company"
               target="_blank" rel="noopener noreferrer"
-              rel="noopener"
               className="text-torn-green hover:underline"
             >
               Torn Wiki: Companies
@@ -1020,7 +1017,6 @@ function FactionTab({ companies }: { companies: import('@/types/company-director
                 <a
                   href={`https://www.torn.com/joblist.php#!p=corpinfo&ID=${c.company_id}`}
                   target="_blank" rel="noopener noreferrer"
-                  rel="noopener"
                   className="font-semibold text-text-primary hover:text-torn-green"
                 >
                   {p?.name ?? c.company_name}
@@ -1053,7 +1049,6 @@ function FactionTab({ companies }: { companies: import('@/types/company-director
                   key={m.player_id}
                   href={`https://www.torn.com/profiles.php?XID=${m.player_id}`}
                   target="_blank" rel="noopener noreferrer"
-                  rel="noopener"
                   className="px-2 py-0.5 text-[10px] rounded-full bg-bg-elevated text-text-secondary hover:text-torn-green"
                 >
                   {m.player_name} <span className="text-text-muted">({m.position})</span>

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from api.auth import decode_jwt, rate_limiter
 from api.chat_manager import ChatManager
-from api.config import SUPERADMIN_ID, JWT_SECRET
+from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
 logger = logging.getLogger("tm-hub.chat")
 
@@ -45,7 +45,7 @@ def _verify_member(player_id: int):
 
 
 def _is_admin(player_id: int) -> bool:
-    if player_id == SUPERADMIN_ID:
+    if player_id in SUPERADMIN_IDS:
         return True
     return key_store.is_admin(player_id) if key_store else False
 
@@ -436,8 +436,9 @@ async def get_admin_ids(x_player_id: int = Header()):
     _verify_member(x_player_id)
     admins = key_store.get_admins() if key_store else []
     admin_ids = [a["player_id"] for a in admins]
-    if SUPERADMIN_ID not in admin_ids:
-        admin_ids.append(SUPERADMIN_ID)
+    for sid in SUPERADMIN_IDS:
+        if sid not in admin_ids:
+            admin_ids.append(sid)
     return {"admin_ids": admin_ids}
 
 

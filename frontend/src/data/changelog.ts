@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.13.2";
+export const CURRENT_VERSION = "1.13.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.13.3",
+    date: "2026-04-27",
+    title: "Auth hardening (HttpOnly cookies)",
+    changes: [
+      { type: "improve", text: "Login tokens now travel as HttpOnly cookies (tm_session, tm_admin) instead of being readable from JavaScript — XSS can no longer steal a session" },
+      { type: "improve", text: "Content-Security-Policy hardened: dropped 'unsafe-inline' from script-src so injected scripts cannot run in the browser" },
+      { type: "improve", text: "SUPERADMIN_IDS env var enables a backup superadmin without code changes (break-glass recovery)" },
+    ],
+  },
   {
     version: "1.13.2",
     date: "2026-04-27",

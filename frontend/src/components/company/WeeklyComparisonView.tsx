@@ -313,7 +313,6 @@ export function WeeklyComparisonView({
                         <a
                           href={`https://www.torn.com/joblist.php#!p=corpinfo&ID=${r.company_id}`}
                           target="_blank" rel="noopener noreferrer"
-                          rel="noopener"
                           className={`hover:text-torn-green ${
                             isSelf ? 'font-semibold text-torn-green' : 'text-text-primary'
                           }`}

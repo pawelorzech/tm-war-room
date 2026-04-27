@@ -2,10 +2,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AUTH_EVENT_NAME, getSessionToken } from "@/lib/api-client";
 
-async function createAdminSession(sessionToken: string): Promise<string | null> {
+async function createAdminSession(sessionToken: string | null): Promise<string | null> {
+  // F-03: rely on HttpOnly tm_session cookie via credentials:"include"; Authorization
+  // header stays as legacy fallback for users still on a header-only session.
+  const headers: Record<string, string> = {};
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
   const response = await fetch("/api/admin/session", {
     method: "POST",
-    headers: { Authorization: `Bearer ${sessionToken}` },
+    headers,
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -37,11 +42,10 @@ export function useAdminSession() {
         return;
       }
 
+      // With cookies (F-03), tm_session is HttpOnly so getSessionToken() may return null
+      // even though the user is logged in. We still attempt admin session creation —
+      // the cookie travels via credentials:"include".
       const sessionToken = getSessionToken();
-      if (!sessionToken) {
-        setLoading(false);
-        return;
-      }
 
       try {
         const adminToken = await createAdminSession(sessionToken);
@@ -91,24 +95,22 @@ export function useAdminSession() {
             Authorization: `Bearer ${t}`,
             ...(pid ? { "X-Player-Id": pid } : {}),
           },
+          // F-03: tm_admin HttpOnly cookie auto-attaches; Authorization stays as legacy fallback.
+          credentials: "include",
         });
       };
 
-      const currentToken = tokenRef.current;
-      if (!currentToken) throw new Error("Not authenticated");
-
+      const currentToken = tokenRef.current ?? "";
       let res = await doFetch(currentToken);
-      // Auto-refresh on 401 (expired token)
+      // Auto-refresh on 401 (expired admin token / cookie)
       if (res.status === 401) {
         const sessionToken = getSessionToken();
-        if (sessionToken) {
-          const refreshedToken = await createAdminSession(sessionToken);
-          if (refreshedToken) {
-            localStorage.setItem("adminToken", refreshedToken);
-            tokenRef.current = refreshedToken;
-            setToken(refreshedToken);
-            res = await doFetch(refreshedToken);
-          }
+        const refreshedToken = await createAdminSession(sessionToken);
+        if (refreshedToken) {
+          localStorage.setItem("adminToken", refreshedToken);
+          tokenRef.current = refreshedToken;
+          setToken(refreshedToken);
+          res = await doFetch(refreshedToken);
         }
       }
       if (!res.ok) {

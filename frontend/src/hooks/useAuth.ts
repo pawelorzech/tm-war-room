@@ -196,6 +196,8 @@ function useProvideAuth(): AuthContextValue {
   }, []);
 
   const logout = useCallback(() => {
+    // F-03: also clear HttpOnly cookies server-side (best-effort).
+    void fetch("/api/logout", { method: "POST", credentials: "include" }).catch(() => {});
     clearStoredAuth();
     setLoggedOut();
     notifyAuthStateChanged(false);

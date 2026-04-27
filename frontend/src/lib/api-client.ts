@@ -109,7 +109,14 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
     init?.includeAuth !== false,
   );
 
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(path, {
+    ...init,
+    headers,
+    // F-03: send HttpOnly tm_session/tm_admin cookies on every same-origin request.
+    // Authorization header is still attached as a legacy fallback for sessions that
+    // logged in before cookies were rolled out.
+    credentials: "include",
+  });
   if (res.status === 401) {
     clearStoredAuth();
     notifyAuthStateChanged(false);

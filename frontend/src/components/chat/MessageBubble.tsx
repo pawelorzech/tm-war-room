@@ -50,7 +50,7 @@ function renderContent(
             key={i}
             href={`https://www.torn.com/profiles.php?XID=${pid}`}
             target="_blank" rel="noopener noreferrer"
-            rel="noopener noreferrer"
+            
             className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded hover:underline cursor-pointer"
           >
             {part}
@@ -139,7 +139,7 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
           <a
             href={isBot ? undefined : `https://www.torn.com/profiles.php?XID=${message.player_id}`}
             target="_blank" rel="noopener noreferrer"
-            rel="noopener noreferrer"
+            
             className={`text-sm font-medium ${isBot ? "text-torn-blue" : "text-torn-green"} hover:underline`}
           >
             {message.player_name}

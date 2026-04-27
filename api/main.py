@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("tm-hub")
 
 from api.analytics import AnalyticsStore
-from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, JWT_SECRET
+from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 from api.torn_client import TornClient
 from api.auth import create_jwt, rate_limiter, require_bearer_token, TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN
 from api.db import KeyStore
@@ -349,6 +349,7 @@ app.mount("/mcp", _mcp_app)
 PUBLIC_API_PATHS = {
     "/api/keys",
     "/api/settings/public",
+    "/api/logout",
 }
 
 @app.get("/api/settings/public")
@@ -521,13 +522,54 @@ async def redirect_old_domains(request: Request, call_next):
     return await call_next(request)
 
 
+SESSION_COOKIE_NAME = "tm_session"
+ADMIN_COOKIE_NAME = "tm_admin"
+COOKIE_MAX_AGE = 86400  # 24h, matches JWT expiry
+
+
+def _is_secure_cookie() -> bool:
+    """Cookies must be Secure in prod; in dev (HTTP localhost) Secure would block them."""
+    from api.config import APP_VERSION
+    return APP_VERSION != "dev"
+
+
+def _set_session_cookie(response: JSONResponse, token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME, value=token, max_age=COOKIE_MAX_AGE,
+        httponly=True, secure=_is_secure_cookie(), samesite="strict", path="/",
+    )
+
+
+def _set_admin_cookie(response: JSONResponse, token: str) -> None:
+    response.set_cookie(
+        key=ADMIN_COOKIE_NAME, value=token, max_age=COOKIE_MAX_AGE,
+        httponly=True, secure=_is_secure_cookie(), samesite="strict", path="/",
+    )
+
+
+def _clear_auth_cookies(response: JSONResponse) -> None:
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(ADMIN_COOKIE_NAME, path="/")
+
+
+def _bearer_or_cookie(request: Request, cookie_name: str) -> str:
+    """Return 'Bearer <token>' string from Authorization header OR named cookie."""
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        return auth
+    cookie_token = request.cookies.get(cookie_name)
+    if cookie_token:
+        return f"Bearer {cookie_token}"
+    return ""
+
+
 @app.middleware("http")
 async def enforce_api_auth(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api/") and path not in PUBLIC_API_PATHS and not path.startswith("/api/admin/"):
         try:
             payload = require_bearer_token(
-                request.headers.get("authorization", ""),
+                _bearer_or_cookie(request, SESSION_COOKIE_NAME),
                 JWT_SECRET,
                 allowed_token_types=(TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN),
             )
@@ -548,7 +590,9 @@ async def enforce_api_auth(request: Request, call_next):
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://analityka.tri.ovh; "
+        # F-07: dropped 'unsafe-inline' from script-src — Next.js static export emits only external <script src=...>
+        "script-src 'self' https://analityka.tri.ovh; "
+        # style-src keeps 'unsafe-inline' for Tailwind utilities + React inline style attributes
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https://www.torn.com https://*.backblazeb2.com; "
         "connect-src 'self' wss://hub.tri.ovh https://analityka.tri.ovh; "
@@ -638,7 +682,7 @@ async def log_requests(request: Request, call_next):
 
 
 def get_role(player_id: int) -> str:
-    if player_id == SUPERADMIN_ID:
+    if player_id in SUPERADMIN_IDS:
         return "superadmin"
     if key_store.is_admin(player_id):
         return "admin"
@@ -960,10 +1004,21 @@ async def register_key(body: KeyRegister, request: Request):
     except Exception:
         pass
 
-    return {
+    body_payload = {
         "status": "ok", "player_id": raw["player_id"], "name": raw["name"], "role": role,
         "access_level": access_level, "limited_features": limited_features, "token": token,
     }
+    response = JSONResponse(content=body_payload)
+    _set_session_cookie(response, token)
+    return response
+
+
+@app.post("/api/logout")
+async def logout(request: Request):
+    """Clear session/admin cookies (server-side)."""
+    response = JSONResponse(content={"status": "ok"})
+    _clear_auth_cookies(response)
+    return response
 
 
 @app.get("/api/announcements")
