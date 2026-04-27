@@ -82,14 +82,17 @@ export function useAdminSession() {
 
   const adminFetch = useCallback(
     async <T>(path: string, init?: RequestInit): Promise<T> => {
-      const doFetch = async (t: string) =>
-        fetch(path, {
+      const doFetch = async (t: string) => {
+        const pid = typeof window !== "undefined" ? localStorage.getItem("myKeyPlayer") : null;
+        return fetch(path, {
           ...init,
           headers: {
             ...((init?.headers as Record<string, string>) || {}),
             Authorization: `Bearer ${t}`,
+            ...(pid ? { "X-Player-Id": pid } : {}),
           },
         });
+      };
 
       const currentToken = tokenRef.current;
       if (!currentToken) throw new Error("Not authenticated");
