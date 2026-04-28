@@ -28,6 +28,9 @@ firebase-debug.log
 docs/superpowers/handover-*.md
 PENTEST_PLAN.md
 
+# Lighthouse CI local reports
+.lighthouseci/
+
 # Keep docs screenshots
 !docs/screenshots/*.png
 
