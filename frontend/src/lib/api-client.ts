@@ -96,7 +96,14 @@ async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
   const promise = _apiFetchInner<T>(path, init);
   if (isGet) {
     _inflight.set(path, promise);
-    promise.finally(() => _inflight.delete(path));
+    // Cleanup must not create a floating unhandled-rejection chain: `.finally()`
+    // returns a new promise that re-rejects when the source rejects, and that
+    // new promise has no handler — Sentry sees it as `unhandledrejection` even
+    // when every external caller has `.catch()` (the caller's catch is on
+    // `promise`, not on the finally-chained promise). Use `.then(ok, err)` so
+    // the cleanup branch resolves, swallowing the chained rejection.
+    const cleanup = () => _inflight.delete(path);
+    promise.then(cleanup, cleanup);
   }
   return promise;
 }
