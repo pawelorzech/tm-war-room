@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import time
 
+from api.scheduler.jobs._log_helpers import log_job_error
+
 logger = logging.getLogger("tm-hub.scheduler.armoury")
 
 
@@ -47,7 +49,7 @@ async def run_armoury_poll() -> None:
         try:
             entries = await torn_client.fetch_armoury_deposits(from_ts, to_ts, api_key=api_key)
         except Exception as e:
-            logger.error("Armoury poll failed for competition %d: %s", comp["id"], e)
+            log_job_error(logger, f"Armoury poll failed for competition {comp['id']}: %s", e)
             continue
 
         inserted = 0

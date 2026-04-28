@@ -9,6 +9,8 @@ import asyncio
 import logging
 import time
 
+from api.scheduler.jobs._log_helpers import log_job_error
+
 logger = logging.getLogger("tm-hub.jobs.refresh_data")
 
 # Global state for adaptive polling
@@ -73,7 +75,7 @@ async def run_refresh_data() -> None:
         war_active = war is not None
         refreshed.append("war_check")
     except Exception as e:
-        logger.error("War check failed: %s", e)
+        log_job_error(logger, "War check failed: %s", e)
 
     # Notify on war state change
     prev_war = state.get("_prev_war_active", None)
@@ -105,7 +107,7 @@ async def run_refresh_data() -> None:
             await torn_client.fetch_members()
             refreshed.append("members")
         except Exception as e:
-            logger.error("Background members refresh failed: %s", e)
+            log_job_error(logger, "Background members refresh failed: %s", e)
 
     # 1b. Record activity snapshot (daily, on full cycles)
     if is_full_cycle:
@@ -122,7 +124,7 @@ async def run_refresh_data() -> None:
                                 hasattr(m.status, 'state') and m.status.state in ('Traveling', 'Abroad'))
                 history_repo.record_activity_snapshot(total, online, hospital, traveling)
         except Exception as e:
-            logger.error("Activity snapshot failed: %s", e)
+            log_job_error(logger, "Activity snapshot failed: %s", e)
 
     # 2. Attacks — always during war, every 2nd cycle peacetime
     if attack_repo and (war_active or _cycle % 2 == 0):
@@ -158,7 +160,7 @@ async def run_refresh_data() -> None:
             await torn_client.fetch_war_history()
             refreshed.append("wars")
         except Exception as e:
-            logger.error("Background war refresh failed: %s", e)
+            log_job_error(logger, "Background war refresh failed: %s", e)
 
     # 4. Revives — during war or full cycle
     if war_active or is_full_cycle:
@@ -166,7 +168,7 @@ async def run_refresh_data() -> None:
             await torn_client.fetch_faction_revives()
             refreshed.append("revives")
         except Exception as e:
-            logger.error("Background revive refresh failed: %s", e)
+            log_job_error(logger, "Background revive refresh failed: %s", e)
 
     # 5. Stocks — full cycle only (every 2min) + record history
     if is_full_cycle:
