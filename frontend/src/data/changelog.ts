@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.1";
+export const CURRENT_VERSION = "1.16.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.2",
+    date: "2026-04-28",
+    title: "No more phantom errors after a 4xx",
+    changes: [
+      { type: "fix", text: "API client request deduplication no longer leaks an unhandled promise rejection when a request fails — previously every 4xx (e.g. opening another member's stats page) bubbled a duplicate error to the browser's onunhandledrejection handler and into Sentry, even though every caller had a .catch(). Cleanup now uses .then(ok, err) instead of .finally() so the chained promise resolves cleanly" },
+    ],
+  },
   {
     version: "1.16.1",
     date: "2026-04-27",
