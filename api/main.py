@@ -338,6 +338,20 @@ async def lifespan(app: FastAPI):
                 logger.warning("Startup avatar refresh failed: %s", e)
         asyncio.create_task(_startup_avatar_refresh())
 
+    # If we booted as follower because the previous deploy left a stale lease,
+    # the watchdog inside LeaderElection retries acquire every TTL+5s. When it
+    # finally wins, we still need to actually start the scheduler — otherwise
+    # the registered jobs never run. Without this, `collect_stats` (and every
+    # other interval job) silently never fires for the rest of the process
+    # lifetime, which is exactly how Stat Growth went stale.
+    if not is_leader:
+        async def _promote_to_leader():
+            await app_scheduler.start_in_background()
+            logger.warning(
+                "Scheduler started after late leader promotion — interval jobs now running."
+            )
+        leader_election.set_promotion_callback(_promote_to_leader)
+
     logger.info(
         "TM Hub started — superadmin=%d, faction=%d, scheduler %s",
         SUPERADMIN_ID, FACTION_ID, "leader" if is_leader else "follower",

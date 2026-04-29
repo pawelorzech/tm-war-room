@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
+import { reportError } from '@/lib/sentry-browser';
 import dynamic from 'next/dynamic';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
@@ -86,11 +87,20 @@ export default function StatsPage() {
     const pid = selectedPlayer || playerId;
     if (!pid) return;
     setLoading(true);
+    // Don't silently swallow API failures — a 5xx here is exactly the signal
+    // that "Stat Growth shows stale data" (e.g. scheduler died upstream). We
+    // still resolve to a default value so the page renders, but we report the
+    // actual failure so it shows up in Sentry rather than vanishing.
+    const onFail = (endpoint: string, fallback: unknown) => (e: unknown) => {
+      console.warn(`stats: ${endpoint} failed`, e);
+      reportError(e, { endpoint, page: 'stats' });
+      return fallback;
+    };
     Promise.all([
-      api.statSnapshots(pid).catch(() => ({ snapshots: [] })),
-      api.statGrowth(pid, 30).catch(() => null),
-      api.statLeaderboard().catch(() => ({ members: [] })),
-      api.statGrowthLeaderboard(growthDays).catch(() => ({ members: [] })),
+      api.statSnapshots(pid).catch(onFail('statSnapshots', { snapshots: [] })),
+      api.statGrowth(pid, 30).catch(onFail('statGrowth', null)),
+      api.statLeaderboard().catch(onFail('statLeaderboard', { members: [] })),
+      api.statGrowthLeaderboard(growthDays).catch(onFail('statGrowthLeaderboard', { members: [] })),
     ]).then(([snapsRes, growthRes, lbRes, glbRes]) => {
       setSnapshots((snapsRes as { snapshots: Snapshot[] }).snapshots || []);
       setGrowth(growthRes as GrowthData | null);
@@ -102,6 +112,18 @@ export default function StatsPage() {
   useEffect(() => { loadStats(); }, [loadStats]);
 
   const currentPid = selectedPlayer || playerId;
+
+  // Surface scheduler health to the user: when was the most recent snapshot
+  // taken? Snapshots arrive at most once per UTC day, so >36h means the
+  // 15-min collector probably hasn't fired since yesterday.
+  const freshness = useMemo(() => {
+    if (!snapshots.length) return null;
+    const latest = snapshots[snapshots.length - 1];
+    if (!latest?.snapshot_date) return null;
+    const ageMs = Date.now() - new Date(`${latest.snapshot_date}T00:00:00Z`).getTime();
+    const ageHours = Math.max(0, ageMs / 3_600_000);
+    return { latestDate: latest.snapshot_date, ageHours, stale: ageHours > 36 };
+  }, [snapshots]);
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -127,6 +149,27 @@ export default function StatsPage() {
           "Switzerland rehab (level 15+) restores happiness to maximum in a single rehab — cheapest way to refill.",
           "Candy + Ecstasy combo: eat candies first (booster cooldown), then use Ecstasy to double your current happiness.",
         ]} dataSources={["Stat snapshots collected automatically every 15 minutes", "Personalstats from Torn API via player keys", "Historical data stored in local database"]} links={[["Torn Wiki: Gym", "https://wiki.torn.com/wiki/Gym"], ["Torn Wiki: Battle Stats", "https://wiki.torn.com/wiki/Battle_Stats"], ["Torn Wiki: Properties", "https://wiki.torn.com/wiki/Properties"]]} />
+
+        {freshness && (
+          <div
+            className={
+              freshness.stale
+                ? 'rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200'
+                : 'rounded-lg border border-text-secondary/10 bg-bg-card/40 px-3 py-2 text-xs text-text-muted'
+            }
+          >
+            {freshness.stale ? (
+              <>
+                <span className="font-semibold">Data may be stale.</span>{' '}
+                Latest snapshot is from <span className="font-mono">{freshness.latestDate}</span>{' '}
+                ({Math.round(freshness.ageHours)}h ago). The collector usually runs every 15 minutes —
+                if this doesn&apos;t change after a refresh, ping an admin.
+              </>
+            ) : (
+              <>Latest snapshot: <span className="font-mono">{freshness.latestDate}</span> · refreshed every 15 min.</>
+            )}
+          </div>
+        )}
 
         {loading && !snapshots.length ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading stat data...</div>

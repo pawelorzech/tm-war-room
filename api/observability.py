@@ -126,3 +126,24 @@ def init_sentry() -> bool:
     )
     logger.info("Sentry/Glitchtip enabled (env=%s, traces=5%%).", env)
     return True
+
+
+def capture_exception(exc: BaseException, *, tags: dict | None = None) -> None:
+    """Send an exception to Sentry if the SDK was initialised, otherwise no-op.
+
+    Used by background jobs where ``logger.exception`` alone isn't enough — we
+    also want the failure to surface as a Sentry issue with optional tags
+    (job name, player id, etc) so we can answer "why did stats stop updating?"
+    from the dashboard instead of grepping container logs.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        with sentry_sdk.push_scope() as scope:
+            for k, v in (tags or {}).items():
+                scope.set_tag(k, v)
+            sentry_sdk.capture_exception(exc)
+    except Exception as e:  # never let observability break the caller
+        logger.warning("Sentry capture_exception failed (%s) — swallowing.", e)

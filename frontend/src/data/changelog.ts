@@ -12,15 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.2";
+export const CURRENT_VERSION = "1.16.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "1.16.2",
-    date: "2026-04-28",
-    title: "No more phantom errors after a 4xx",
+    version: "1.16.3",
+    date: "2026-04-29",
+    title: "Stat Growth keeps collecting after a deploy",
     changes: [
-      { type: "fix", text: "API client request deduplication no longer leaks an unhandled promise rejection when a request fails — previously every 4xx (e.g. opening another member's stats page) bubbled a duplicate error to the browser's onunhandledrejection handler and into Sentry, even though every caller had a .catch(). Cleanup now uses .then(ok, err) instead of .finally() so the chained promise resolves cleanly" },
+      { type: "fix", text: "Scheduler leader election now retries when the previous deploy left a stale Redis lease — previously, if both new workers booted into the 30s TTL window, both became followers forever and the 15-min stat collector never fired. Followers now run a watchdog that retries acquire and starts the scheduler once the stale lease expires" },
+      { type: "improve", text: "Stat snapshots collector now logs a per-status breakdown (success / fetch_none / exceptions / total) every cycle and reports per-player Torn errors to Sentry — the 'why is Stat Growth stale?' question is now answerable from the dashboard instead of grepping logs" },
+      { type: "improve", text: "Stats endpoints log INFO with player id, snapshot count, baseline/latest dates and live-fetch fallback flag; the leaderboard endpoint logs WARNING when the table is empty (canary that the scheduler isn't running)" },
+      { type: "improve", text: "Stat Growth page shows a small 'Latest snapshot: …' banner so it's obvious whether you're looking at fresh data or a >36h gap" },
     ],
   },
   {

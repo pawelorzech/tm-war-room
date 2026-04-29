@@ -4,18 +4,31 @@ import logging
 from datetime import date
 from api.db.repos.stats import StatSnapshotRepository
 from api.db.repos.keys import KeyRepository
+from api.observability import capture_exception
 
 logger = logging.getLogger("tm-hub.jobs.collect_stats")
 
 BATCH_SIZE = 10
 
+# Sentinel return values from _collect_one so the orchestrator can produce a
+# per-status breakdown (success / fetch_none / exception) instead of just
+# "X/Y collected" — the latter masks "Y/Y because every fetch returned None".
+_OK = "ok"
+_FETCH_NONE = "fetch_none"
 
-async def _collect_one(entry: dict, today: str, stats_repo: StatSnapshotRepository, torn_client) -> bool:
-    """Fetch and store stats for a single member. Returns True on success."""
+
+async def _collect_one(entry: dict, today: str, stats_repo: StatSnapshotRepository, torn_client) -> str:
+    """Fetch and store stats for a single member.
+
+    Returns a status string (`_OK` / `_FETCH_NONE`); raises on any other error
+    so the orchestrator can count + capture it via Sentry. Wrapping in
+    try/except *here* would lose the stack trace before the orchestrator can
+    capture it — keep it raising.
+    """
     data = await torn_client.fetch_training_data(entry["api_key"])
     if data is None:
         logger.warning("Failed to fetch stats for player %d", entry["player_id"])
-        return False
+        return _FETCH_NONE
     bs = data["battlestats"]
     ps = data.get("personalstats", {})
     total = bs["strength"] + bs["defense"] + bs["speed"] + bs["dexterity"]
@@ -37,7 +50,7 @@ async def _collect_one(entry: dict, today: str, stats_repo: StatSnapshotReposito
         easter_eggs=ext_ps.get("eastereggs"),
         gym_energy=gym_energy or None,
     )
-    return True
+    return _OK
 
 
 async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapshotRepository, torn_client) -> None:
@@ -50,7 +63,9 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
         logger.warning("collect_stat_snapshots: no keys in member_keys — nothing to collect")
         return
     logger.info("collect_stat_snapshots: starting for %d members on %s", len(all_keys), today)
-    collected = 0
+    success = 0
+    fetch_none = 0
+    exception_count = 0
     # Process in batches to respect Torn API rate limits
     for i in range(0, len(all_keys), BATCH_SIZE):
         batch = all_keys[i:i + BATCH_SIZE]
@@ -60,10 +75,21 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
         )
         for entry, result in zip(batch, results):
             if isinstance(result, Exception):
-                logger.error("Error collecting stats for player %d: %s", entry["player_id"], result)
-            elif result:
-                collected += 1
-    logger.info("Collected stat snapshots: %d/%d members", collected, len(all_keys))
+                exception_count += 1
+                logger.exception(
+                    "collect_stat_snapshots: player %d raised — %s",
+                    entry["player_id"], result, exc_info=result,
+                )
+                capture_exception(result, tags={"job": "collect_stats", "player_id": entry["player_id"]})
+            elif result == _OK:
+                success += 1
+            elif result == _FETCH_NONE:
+                fetch_none += 1
+    total = len(all_keys)
+    logger.info(
+        "collect_stat_snapshots: done — success=%d fetch_none=%d exceptions=%d total=%d",
+        success, fetch_none, exception_count, total,
+    )
 
 
 async def _fetch_extended_personalstats(torn_client, api_key: str) -> dict:

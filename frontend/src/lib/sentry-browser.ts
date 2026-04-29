@@ -67,4 +67,15 @@ export async function initSentry(): Promise<void> {
   });
 }
 
+export async function reportError(error: unknown, context?: Record<string, unknown>): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+  try {
+    const Sentry = await import("@sentry/browser");
+    Sentry.captureException(error, context ? { extra: context } : undefined);
+  } catch {
+    // Sentry SDK unavailable or scrub failed — silently drop. The console
+    // warning at the call site is the user-visible signal.
+  }
+}
+
 export const __test_only_scrubValue = scrubValue;
