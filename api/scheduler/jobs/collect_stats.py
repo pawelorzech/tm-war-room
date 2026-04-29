@@ -10,21 +10,13 @@ logger = logging.getLogger("tm-hub.jobs.collect_stats")
 
 BATCH_SIZE = 10
 
-# Sentinel return values from _collect_one so the orchestrator can produce a
-# per-status breakdown (success / fetch_none / exception) instead of just
-# "X/Y collected" — the latter masks "Y/Y because every fetch returned None".
 _OK = "ok"
 _FETCH_NONE = "fetch_none"
 
 
 async def _collect_one(entry: dict, today: str, stats_repo: StatSnapshotRepository, torn_client) -> str:
-    """Fetch and store stats for a single member.
-
-    Returns a status string (`_OK` / `_FETCH_NONE`); raises on any other error
-    so the orchestrator can count + capture it via Sentry. Wrapping in
-    try/except *here* would lose the stack trace before the orchestrator can
-    capture it — keep it raising.
-    """
+    """Fetch + persist one member's snapshot. Raises on error so the orchestrator
+    can capture the stack trace via Sentry — handling here would lose it."""
     data = await torn_client.fetch_training_data(entry["api_key"])
     if data is None:
         logger.warning("Failed to fetch stats for player %d", entry["player_id"])

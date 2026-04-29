@@ -16,6 +16,7 @@ import contextlib
 import logging
 import os
 import socket
+from typing import Any, Callable
 
 logger = logging.getLogger("tm-hub.scheduler.leader")
 
@@ -38,35 +39,25 @@ class LeaderElection:
         self._watchdog_task: asyncio.Task | None = None
         self._file_lock_fd: int | None = None
         self._stopped = False
-        self._promotion_callback = None  # type: ignore[var-annotated]
+        self._promotion_callback: Callable[[], Any] | None = None
 
-    def set_promotion_callback(self, callback) -> None:
-        """Register a callback fired when a follower is later promoted to leader.
+    def set_promotion_callback(self, callback: Callable[[], Any]) -> None:
+        """Fires once when a follower is later promoted via the watchdog.
 
-        The callback may be sync or async (coroutine returned). It runs at most
-        once per process lifetime — after a successful late acquire.
+        Callback may be sync or async — coroutines are awaited.
         """
         self._promotion_callback = callback
 
     async def acquire(self) -> bool:
-        """Try to become leader. Returns True if acquired (caller starts scheduler).
-
-        On failure, spawns a background watchdog that keeps retrying every
-        ~LEADER_FOLLOWER_RETRY_SECONDS so a stale lease left by a crashed
-        previous deploy is eventually picked up. Without this, a deploy in
-        which both new workers race the not-yet-expired old key leaves the
-        whole instance with no scheduler leader until the next restart.
-        """
+        """Try to become leader. Returns True if acquired."""
         ok = await self._try_acquire_redis()
         if ok is True:
             return True
         if ok is False:
-            # Redis is reachable but key is held — keep retrying.
             self._watchdog_task = asyncio.create_task(
                 self._follower_watchdog(), name="scheduler-leader-watchdog",
             )
             return False
-        # Redis unreachable — fall back to file lock (dev/single-host).
         return self._acquire_file_lock()
 
     async def _try_acquire_redis(self) -> bool | None:
