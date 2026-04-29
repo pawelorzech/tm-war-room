@@ -87,10 +87,7 @@ export default function StatsPage() {
     const pid = selectedPlayer || playerId;
     if (!pid) return;
     setLoading(true);
-    // Don't silently swallow API failures — a 5xx here is exactly the signal
-    // that "Stat Growth shows stale data" (e.g. scheduler died upstream). We
-    // still resolve to a default value so the page renders, but we report the
-    // actual failure so it shows up in Sentry rather than vanishing.
+    // Report fallbacks to Sentry — a 5xx here is the signal that data went stale.
     const onFail = (endpoint: string, fallback: unknown) => (e: unknown) => {
       console.warn(`stats: ${endpoint} failed`, e);
       reportError(e, { endpoint, page: 'stats' });
@@ -113,9 +110,7 @@ export default function StatsPage() {
 
   const currentPid = selectedPlayer || playerId;
 
-  // Surface scheduler health to the user: when was the most recent snapshot
-  // taken? Snapshots arrive at most once per UTC day, so >36h means the
-  // 15-min collector probably hasn't fired since yesterday.
+  // Snapshots arrive at most once per UTC day, so >36h ≈ collector skipped ≥1 cycle.
   const freshness = useMemo(() => {
     if (!snapshots.length) return null;
     const latest = snapshots[snapshots.length - 1];
@@ -152,11 +147,11 @@ export default function StatsPage() {
 
         {freshness && (
           <div
-            className={
+            className={`rounded-lg border px-3 py-2 text-xs ${
               freshness.stale
-                ? 'rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200'
-                : 'rounded-lg border border-text-secondary/10 bg-bg-card/40 px-3 py-2 text-xs text-text-muted'
-            }
+                ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+                : 'border-text-secondary/10 bg-bg-card/40 text-text-muted'
+            }`}
           >
             {freshness.stale ? (
               <>

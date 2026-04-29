@@ -1,18 +1,4 @@
-"""Regression tests for the scheduler leader-election watchdog.
-
-Background: a previous deploy could leave a stale ``tm:scheduler:leader`` key
-in Redis (TTL 30s). When new workers booted into that window, all of them
-saw 'held by another worker' and became followers. The original code never
-retried, so ``collect_stats`` and every other interval job stopped firing
-for the rest of the process lifetime. ``Stat Growth`` going stale was the
-visible symptom.
-
-These tests pin the recovery contract:
-1. A follower spawns a watchdog task on failed acquire.
-2. The watchdog re-attempts acquire periodically.
-3. On a successful late acquire the promotion callback fires (which is
-   what actually starts the scheduler in main.py).
-"""
+"""Watchdog contract: failed acquire → retries → promotes on stale-lease expiry."""
 from __future__ import annotations
 
 import asyncio

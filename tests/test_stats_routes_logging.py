@@ -1,10 +1,4 @@
-"""Logging contract tests for /api/stats endpoints.
-
-Stats routes used to log nothing — making it impossible to tell from
-container output whether 'Stat Growth shows stale data' was caused by
-empty DB, missing live-fetch, or a 5xx upstream. These tests pin the
-INFO/WARNING lines in place so a future refactor can't quietly drop them.
-"""
+"""Logging contract for /api/stats endpoints — pin INFO/WARNING shape."""
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 

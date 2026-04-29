@@ -1,9 +1,4 @@
-"""Edge cases for StatSnapshotRepository.get_growth + get_all_growth.
-
-The growth math used to silently produce zero/garbage when a player only had
-one snapshot, or when none of their snapshots predated the cutoff. These
-tests pin the current expected behaviour so a refactor can't reintroduce it.
-"""
+"""Edge cases for StatSnapshotRepository.get_growth + get_all_growth."""
 import os
 from datetime import date, timedelta
 
