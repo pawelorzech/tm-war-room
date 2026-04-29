@@ -6,6 +6,7 @@ import time
 from api.db.repos.companies import CompanySnapshotRepository
 from api.db.repos.company_alerts import CompanyAlertConfigRepository
 from api.db.repos.notifications import NotificationRepository
+from api.scheduler.jobs._log_helpers import with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.check_trains_stagnation")
 
@@ -113,6 +114,7 @@ def check_trains_stagnation(
     )
 
 
+@with_sentry_capture("check_trains_stagnation")
 async def run_check_trains_stagnation() -> None:
     """Top-level entry point for APScheduler."""
     from api.scheduler.engine import get_state

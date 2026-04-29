@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from datetime import datetime, timezone
+from api.scheduler.jobs._log_helpers import with_sentry_capture
 from api.services.spy import SpyService
 
 logger = logging.getLogger("tm-hub.jobs.refresh_spies")
@@ -41,6 +42,7 @@ async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key:
         logger.error("Spy refresh failed: %s", e)
 
 
+@with_sentry_capture("refresh_spies")
 async def run_refresh_spies() -> None:
     """Top-level entry point for APScheduler (must be importable, not nested)."""
     from api.scheduler.engine import get_state

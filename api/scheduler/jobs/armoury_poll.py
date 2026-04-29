@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import time
 
-from api.scheduler.jobs._log_helpers import log_job_error
+from api.scheduler.jobs._log_helpers import log_job_error, with_sentry_capture
 
 logger = logging.getLogger("tm-hub.scheduler.armoury")
 
 
+@with_sentry_capture("armoury_poll")
 async def run_armoury_poll() -> None:
     from api.scheduler.engine import get_state
     from api.armoury import parse_deposit_news, matches_competition

@@ -3,11 +3,14 @@ import asyncio
 import logging
 import time
 
+from api.scheduler.jobs._log_helpers import with_sentry_capture
+
 logger = logging.getLogger("tm-hub.scheduler.avatars")
 
 REFETCH_INTERVAL = 11 * 3600  # 11h — skip if fetched less than this ago
 
 
+@with_sentry_capture("refresh_avatars")
 async def run_refresh_avatars() -> None:
     """Fetch Torn profile images for all registered members and upload to B2."""
     from api.scheduler.engine import get_state

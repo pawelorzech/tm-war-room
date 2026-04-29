@@ -1,8 +1,14 @@
 import type { Announcement } from "@/types/admin";
 import type { SpyEstimate, SpySubmitResponse } from "@/types/spy";
 import type { Bot, Channel, Message, Thread, UnreadCounts } from "@/types/chat";
+import { reportError } from "@/lib/sentry-browser";
 
 export const AUTH_EVENT_NAME = "tmhub:auth-changed";
+
+// 401/403/404 are routine app states (logged out, viewing other player, no
+// data yet) — we still throw, but skip Sentry. Anything 5xx + unexpected 4xx
+// is reportable.
+const _EXPECTED_STATUSES = new Set([401, 403, 404]);
 
 function getPlayerId(): string | null {
   if (typeof window === "undefined") return null;
@@ -116,14 +122,24 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
     init?.includeAuth !== false,
   );
 
-  const res = await fetch(path, {
-    ...init,
-    headers,
-    // F-03: send HttpOnly tm_session/tm_admin cookies on every same-origin request.
-    // Authorization header is still attached as a legacy fallback for sessions that
-    // logged in before cookies were rolled out.
-    credentials: "include",
-  });
+  const method = init?.method?.toUpperCase() ?? "GET";
+
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      headers,
+      // F-03: send HttpOnly tm_session/tm_admin cookies on every same-origin request.
+      // Authorization header is still attached as a legacy fallback for sessions that
+      // logged in before cookies were rolled out.
+      credentials: "include",
+    });
+  } catch (networkErr) {
+    // Connection refused, DNS, CORS, offline — `.catch(() => {})` on the call
+    // site would have swallowed this without a peep before. Funnel through Sentry.
+    reportError(networkErr, { endpoint: path, method, network: true });
+    throw networkErr;
+  }
   if (res.status === 401) {
     clearStoredAuth();
     notifyAuthStateChanged(false);
@@ -132,7 +148,13 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
   if (!res.ok) {
     const body = await readResponseBody(res);
     const detail = typeof body === "object" && body && "detail" in body ? body.detail : null;
-    throw new Error(typeof detail === "string" ? detail : `HTTP ${res.status}`);
+    const message = typeof detail === "string" ? detail : `HTTP ${res.status}`;
+    if (!_EXPECTED_STATUSES.has(res.status)) {
+      reportError(new Error(`${res.status} ${message}`), {
+        endpoint: path, method, status: res.status,
+      });
+    }
+    throw new Error(message);
   }
   return (await readResponseBody(res)) as T;
 }

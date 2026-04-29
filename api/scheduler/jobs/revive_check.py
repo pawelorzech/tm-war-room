@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 
+from api.scheduler.jobs._log_helpers import with_sentry_capture
+
 logger = logging.getLogger("tm-hub.scheduler.revive")
 
 
+@with_sentry_capture("revive_check")
 async def run_revive_check() -> None:
     """Scheduler entry point for revive monitor. Runs every 10 minutes."""
     from api.scheduler.engine import get_state

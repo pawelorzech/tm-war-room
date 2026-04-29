@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from api.db.repos.circulation import CirculationRepository
+from api.scheduler.jobs._log_helpers import with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.collect_circulation")
 
@@ -33,6 +34,7 @@ async def collect_award_circulation(torn_client, db_path: str = "data/keys.db") 
         logger.info("Recorded circulation for %d awards", len(records))
 
 
+@with_sentry_capture("collect_circulation")
 async def run_collect_circulation() -> None:
     """Top-level entry point for APScheduler."""
     from api.scheduler.engine import get_state

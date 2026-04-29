@@ -5,6 +5,8 @@ import logging
 
 from api.db.repos.keys import KeyRepository
 from api.db.repos.tracked_companies import TrackedCompaniesRepository
+from api.observability import capture_exception
+from api.scheduler.jobs._log_helpers import with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.discover_companies")
 
@@ -83,6 +85,9 @@ async def discover_companies(
         ),
         return_exceptions=True,
     )
+    for cid, r in zip(range(start, end), results):
+        if isinstance(r, BaseException):
+            capture_exception(r, tags={"job": "discover_companies", "company_id": cid})
     hits = sum(1 for r in results if r is True)
     errors = sum(1 for r in results if isinstance(r, BaseException))
     tracked_repo.set_discovery_cursor(end - 1)
@@ -92,6 +97,7 @@ async def discover_companies(
     )
 
 
+@with_sentry_capture("discover_companies")
 async def run_discover_companies() -> None:
     """Top-level entry point for APScheduler."""
     from api.scheduler.engine import get_state
