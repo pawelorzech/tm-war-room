@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
-import { reportError } from '@/lib/sentry-browser';
 import dynamic from 'next/dynamic';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
@@ -87,17 +86,12 @@ export default function StatsPage() {
     const pid = selectedPlayer || playerId;
     if (!pid) return;
     setLoading(true);
-    // Report fallbacks to Sentry — a 5xx here is the signal that data went stale.
-    const onFail = (endpoint: string, fallback: unknown) => (e: unknown) => {
-      console.warn(`stats: ${endpoint} failed`, e);
-      reportError(e, { endpoint, page: 'stats' });
-      return fallback;
-    };
+    // apiFetch already reports unexpected failures to Sentry — callsite just falls back.
     Promise.all([
-      api.statSnapshots(pid).catch(onFail('statSnapshots', { snapshots: [] })),
-      api.statGrowth(pid, 30).catch(onFail('statGrowth', null)),
-      api.statLeaderboard().catch(onFail('statLeaderboard', { members: [] })),
-      api.statGrowthLeaderboard(growthDays).catch(onFail('statGrowthLeaderboard', { members: [] })),
+      api.statSnapshots(pid).catch(() => ({ snapshots: [] })),
+      api.statGrowth(pid, 30).catch(() => null),
+      api.statLeaderboard().catch(() => ({ members: [] })),
+      api.statGrowthLeaderboard(growthDays).catch(() => ({ members: [] })),
     ]).then(([snapsRes, growthRes, lbRes, glbRes]) => {
       setSnapshots((snapsRes as { snapshots: Snapshot[] }).snapshots || []);
       setGrowth(growthRes as GrowthData | null);

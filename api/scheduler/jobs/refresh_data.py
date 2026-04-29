@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 
-from api.scheduler.jobs._log_helpers import log_job_error
+from api.scheduler.jobs._log_helpers import log_job_error, with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.refresh_data")
 
@@ -53,6 +53,7 @@ def _check_loot_push(npcs: list[dict], push_service, dispatcher=None) -> None:
         _prev_npc_levels[npc_id] = level
 
 
+@with_sentry_capture("refresh_data")
 async def run_refresh_data() -> None:
     """Top-level entry for APScheduler. Runs every 30s."""
     global war_active, last_full_refresh, _cycle

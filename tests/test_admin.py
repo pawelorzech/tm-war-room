@@ -375,3 +375,61 @@ async def test_create_session_rejects_key_with_wrong_player_id(mock_client, mock
                 headers={"Authorization": f"Bearer {session_token}"},
             )
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_scheduler_status_requires_admin(mock_client, mock_store, mock_analytics):
+    """Anonymous / non-admin tokens must not see the scheduler health snapshot."""
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            anon = await ac.get("/api/admin/scheduler/status")
+            session_token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="session")
+            wrong_type = await ac.get(
+                "/api/admin/scheduler/status",
+                headers={"Authorization": f"Bearer {session_token}"},
+            )
+    assert anon.status_code == 401
+    assert wrong_type.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_scheduler_status_returns_payload_shape(mock_client, mock_store, mock_analytics):
+    from api.scheduler import engine as engine_mod
+    engine_mod._last_run_at.clear()
+    engine_mod._last_run_at["collect_stats"] = {
+        "finished_at": "2026-04-29T07:42:40.123456+00:00",
+        "outcome": "ok",
+    }
+    engine_mod._last_run_at["refresh_data"] = {
+        "finished_at": "2026-04-29T07:48:00.000000+00:00",
+        "outcome": "error",
+    }
+
+    with _setup_app(mock_client, mock_store, mock_analytics):
+        from api.main import app
+
+        class FakeLE:
+            is_leader = True
+            _owner_id = "test-host:42"
+
+        app.state.leader_election = FakeLE()
+        app.state.is_scheduler_leader = True
+
+        token = create_jwt(ADMIN_ID, "Bombla", TEST_JWT_SECRET, token_type="admin")
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/api/admin/scheduler/status",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_leader"] is True
+    assert data["owner_id"] == "test-host:42"
+    assert "collect_stats" in data["last_run_at"]
+    assert data["last_run_at"]["collect_stats"]["outcome"] == "ok"
+    assert data["last_run_at"]["refresh_data"]["outcome"] == "error"
+    engine_mod._last_run_at.clear()

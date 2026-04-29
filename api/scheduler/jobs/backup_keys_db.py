@@ -19,6 +19,8 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 
+from api.scheduler.jobs._log_helpers import with_sentry_capture
+
 logger = logging.getLogger("tm-hub.scheduler.backup")
 
 BACKUP_PREFIX = "backups/keys-db/"
@@ -70,6 +72,7 @@ def _backup_filename(now: datetime | None = None) -> str:
     return f"{BACKUP_PREFIX}{now.strftime('%Y-%m-%d-%H%M%S')}.db.gz.enc"
 
 
+@with_sentry_capture("backup_keys_db")
 async def run_backup_keys_db() -> dict:
     """Scheduler entry point. Returns a dict with status / details for logging."""
     from api import b2_client

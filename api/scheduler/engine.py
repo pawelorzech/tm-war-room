@@ -7,9 +7,17 @@ logger = logging.getLogger("tm-hub.scheduler")
 # Module-level state for scheduler jobs to access
 _state: dict = {}
 
+# Per-task last-run tracker, populated by the JobReleased event listener.
+# Shape: {"task_id": {"finished_at": "ISO-8601", "outcome": "ok"|"error"}}
+_last_run_at: dict[str, dict] = {}
+
 
 def get_state() -> dict:
     return _state
+
+
+def get_last_run_at() -> dict[str, dict]:
+    return dict(_last_run_at)
 
 
 async def create_and_start_scheduler(app_state: dict, leader_election=None):
@@ -118,6 +126,24 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         IntervalTrigger(hours=24, start_time=datetime.now(timezone.utc) + timedelta(seconds=60)),
         id="backup_keys_db_schedule",
     )
+
+    # Track every completed job so /api/admin/scheduler/status can answer
+    # "is the collector still running?" without grepping container logs.
+    try:
+        from apscheduler import JobReleased, JobOutcome
+
+        async def _track_job_completion(event: JobReleased) -> None:
+            ts = getattr(event, "finished_at", None) or datetime.now(timezone.utc)
+            _last_run_at[event.task_id] = {
+                "finished_at": ts.isoformat() if hasattr(ts, "isoformat") else str(ts),
+                "outcome": "ok" if event.outcome == JobOutcome.success else "error",
+            }
+
+        scheduler.event_broker.subscribe(
+            _track_job_completion, event_types={JobReleased}, is_async=True,
+        )
+    except Exception as e:
+        logger.warning("Could not subscribe to JobReleased events (%s) — last_run_at won't update.", e)
 
     if leader_election is None or leader_election.is_leader:
         await scheduler.start_in_background()

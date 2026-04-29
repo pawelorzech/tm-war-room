@@ -361,3 +361,23 @@ async def update_revive_monitor_settings(request: Request, admin: dict = Depends
         updated["war_interval"] = val
     logger.info("Revive monitor settings updated by admin %d: %s", admin["sub"], updated)
     return {"ok": True, **updated}
+
+
+@router.get("/scheduler/status")
+async def scheduler_status(request: Request, admin: dict = Depends(require_admin)):
+    """Health snapshot of the background scheduler.
+
+    Returns leadership state of *this* worker plus per-task last-run timestamps
+    populated from APScheduler's JobReleased event. Use as a curl/cron canary
+    to detect "scheduler died and nothing fires anymore" without DM from users.
+    """
+    from api.scheduler.engine import get_last_run_at
+    le = getattr(request.app.state, "leader_election", None)
+    is_leader = bool(le.is_leader) if le is not None else bool(
+        getattr(request.app.state, "is_scheduler_leader", False)
+    )
+    return {
+        "is_leader": is_leader,
+        "owner_id": le._owner_id if le is not None else None,
+        "last_run_at": get_last_run_at(),
+    }

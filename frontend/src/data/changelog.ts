@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.3";
+export const CURRENT_VERSION = "1.16.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.4",
+    date: "2026-04-29",
+    title: "End-to-end observability for background work",
+    changes: [
+      { type: "improve", text: "All 11 scheduler jobs now report exceptions to Sentry with a job tag — previously only stat collection did, so a silent failure in armoury polling, company snapshots, revive checks, etc. was invisible until a user noticed missing data" },
+      { type: "improve", text: "Two jobs that ran tasks in parallel (collect_company_snapshots, discover_companies) used to swallow per-task stack traces inside asyncio.gather — every individual failure now hits Sentry with the company id" },
+      { type: "feat", text: "New admin-only endpoint /api/admin/scheduler/status returns leadership state plus per-task last finished_at and outcome — curl/cron canary for 'is anything still running?' without grepping container logs" },
+      { type: "improve", text: "API client now reports unexpected fetch failures to Sentry centrally instead of relying on each page to remember — 401/403/404 stay quiet (expected app states), 5xx and unexpected 4xx fan out automatically" },
+    ],
+  },
   {
     version: "1.16.3",
     date: "2026-04-29",

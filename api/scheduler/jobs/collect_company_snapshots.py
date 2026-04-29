@@ -7,6 +7,8 @@ from datetime import date
 from api.db.repos.companies import CompanySnapshotRepository
 from api.db.repos.keys import KeyRepository
 from api.db.repos.tracked_companies import TrackedCompaniesRepository
+from api.observability import capture_exception
+from api.scheduler.jobs._log_helpers import with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.collect_company_snapshots")
 
@@ -171,6 +173,9 @@ async def collect_company_snapshots(
         ),
         return_exceptions=True,
     )
+    for t, r in zip(to_fetch, results):
+        if isinstance(r, BaseException):
+            capture_exception(r, tags={"job": "collect_company_snapshots", "company_id": t["company_id"]})
     public_ok = sum(1 for r in results if r is True)
     public_fail = sum(1 for r in results if isinstance(r, BaseException) or r is False)
     logger.info(
@@ -179,6 +184,7 @@ async def collect_company_snapshots(
     )
 
 
+@with_sentry_capture("collect_company_snapshots")
 async def run_collect_company_snapshots() -> None:
     """Top-level entry point for APScheduler."""
     from api.scheduler.engine import get_state
