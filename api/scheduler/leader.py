@@ -22,6 +22,9 @@ logger = logging.getLogger("tm-hub.scheduler.leader")
 LEADER_KEY = "tm:scheduler:leader"
 LEADER_TTL_SECONDS = 30
 LEADER_RENEW_INTERVAL_SECONDS = 10
+# Followers retry acquire after the lease should have expired. +5s gives the
+# previous owner a chance to actually let go before we try.
+LEADER_FOLLOWER_RETRY_SECONDS = LEADER_TTL_SECONDS + 5
 FILE_LOCK_PATH = "data/scheduler.leader.lock"
 
 
@@ -32,32 +35,104 @@ class LeaderElection:
         self.is_leader: bool = False
         self._owner_id: str = f"{socket.gethostname()}:{os.getpid()}"
         self._renew_task: asyncio.Task | None = None
+        self._watchdog_task: asyncio.Task | None = None
         self._file_lock_fd: int | None = None
         self._stopped = False
+        self._promotion_callback = None  # type: ignore[var-annotated]
+
+    def set_promotion_callback(self, callback) -> None:
+        """Register a callback fired when a follower is later promoted to leader.
+
+        The callback may be sync or async (coroutine returned). It runs at most
+        once per process lifetime — after a successful late acquire.
+        """
+        self._promotion_callback = callback
 
     async def acquire(self) -> bool:
-        """Try to become leader. Returns True if acquired (caller starts scheduler)."""
+        """Try to become leader. Returns True if acquired (caller starts scheduler).
+
+        On failure, spawns a background watchdog that keeps retrying every
+        ~LEADER_FOLLOWER_RETRY_SECONDS so a stale lease left by a crashed
+        previous deploy is eventually picked up. Without this, a deploy in
+        which both new workers race the not-yet-expired old key leaves the
+        whole instance with no scheduler leader until the next restart.
+        """
+        ok = await self._try_acquire_redis()
+        if ok is True:
+            return True
+        if ok is False:
+            # Redis is reachable but key is held — keep retrying.
+            self._watchdog_task = asyncio.create_task(
+                self._follower_watchdog(), name="scheduler-leader-watchdog",
+            )
+            return False
+        # Redis unreachable — fall back to file lock (dev/single-host).
+        return self._acquire_file_lock()
+
+    async def _try_acquire_redis(self) -> bool | None:
+        """Single Redis acquire attempt. True=leader, False=follower, None=Redis unavailable."""
         from api.redis_client import get_redis
         r = get_redis()
-        if r is not None:
+        if r is None:
+            return None
+        try:
+            ok = await r.set(LEADER_KEY, self._owner_id, nx=True, ex=LEADER_TTL_SECONDS)
+        except Exception as e:
+            logger.warning("Redis leader-election failed (%s) — falling back to file lock.", e)
+            return None
+        if ok:
+            self.is_leader = True
+            logger.info("Scheduler leadership acquired via Redis (owner=%s).", self._owner_id)
+            self._renew_task = asyncio.create_task(
+                self._renew_loop(), name="scheduler-leader-renew",
+            )
+            return True
+        try:
+            current = await r.get(LEADER_KEY)
+        except Exception:
+            current = "?"
+        logger.info("Scheduler leadership held by another worker (%s) — this worker is follower.", current)
+        return False
+
+    async def _follower_watchdog(self) -> None:
+        """Periodically retry acquire. When a stale lease expires we promote ourselves."""
+        while not self._stopped:
+            try:
+                await asyncio.sleep(LEADER_FOLLOWER_RETRY_SECONDS)
+            except asyncio.CancelledError:
+                return
+            if self._stopped or self.is_leader:
+                return
+            from api.redis_client import get_redis
+            r = get_redis()
+            if r is None:
+                continue
             try:
                 ok = await r.set(LEADER_KEY, self._owner_id, nx=True, ex=LEADER_TTL_SECONDS)
-                if ok:
-                    self.is_leader = True
-                    logger.info("Scheduler leadership acquired via Redis (owner=%s).", self._owner_id)
-                    self._renew_task = asyncio.create_task(
-                        self._renew_loop(), name="scheduler-leader-renew",
-                    )
-                    return True
-                else:
-                    current = await r.get(LEADER_KEY)
-                    logger.info("Scheduler leadership held by another worker (%s) — this worker is follower.", current)
-                    return False
             except Exception as e:
-                logger.warning("Redis leader-election failed (%s) — falling back to file lock.", e)
-
-        # Fallback: POSIX advisory file lock.
-        return self._acquire_file_lock()
+                logger.warning("Watchdog acquire attempt failed (%s) — will retry.", e)
+                continue
+            if not ok:
+                continue
+            # Promoted!
+            self.is_leader = True
+            logger.warning(
+                "Scheduler leadership ACQUIRED LATE by follower watchdog (owner=%s) — "
+                "previous lease likely expired after a crashed deploy. Promoting.",
+                self._owner_id,
+            )
+            self._renew_task = asyncio.create_task(
+                self._renew_loop(), name="scheduler-leader-renew",
+            )
+            cb = self._promotion_callback
+            if cb is not None:
+                try:
+                    result = cb()
+                    if asyncio.iscoroutine(result):
+                        await result
+                except Exception:
+                    logger.exception("Promotion callback failed")
+            return
 
     def _acquire_file_lock(self) -> bool:
         try:
@@ -113,10 +188,11 @@ class LeaderElection:
 
     async def release(self) -> None:
         self._stopped = True
-        if self._renew_task and not self._renew_task.done():
-            self._renew_task.cancel()
-            with contextlib.suppress(Exception, asyncio.CancelledError):
-                await self._renew_task
+        for task in (self._renew_task, self._watchdog_task):
+            if task and not task.done():
+                task.cancel()
+                with contextlib.suppress(Exception, asyncio.CancelledError):
+                    await task
         from api.redis_client import get_redis
         r = get_redis()
         if r is not None and self.is_leader:

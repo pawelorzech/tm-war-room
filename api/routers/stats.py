@@ -1,9 +1,12 @@
 from __future__ import annotations
+import logging
 from datetime import date
 from fastapi import APIRouter, HTTPException, Query, Header
 from api.config import SUPERADMIN_IDS
 from api.db.repos.stats import StatSnapshotRepository
 from api.db.repos.keys import KeyRepository
+
+logger = logging.getLogger("tm-hub.routes.stats")
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 stats_repo: StatSnapshotRepository | None = None  # Set by main.py
@@ -72,11 +75,18 @@ async def get_snapshots(
         raise HTTPException(status_code=503, detail="Stats not initialized")
     _require_self_or_admin(player_id, x_player_id)
     snaps = stats_repo.get_snapshots(player_id, limit=limit)
+    live_fetched = False
     if not snaps:
         await _ensure_snapshot(player_id)
         snaps = stats_repo.get_snapshots(player_id, limit=limit)
+        live_fetched = True
     if not snaps:
+        logger.info("snapshots player=%d count=0 limit=%d live_fetch=%s -> 404", player_id, limit, live_fetched)
         raise HTTPException(status_code=404, detail="No stat snapshots for this player")
+    logger.info(
+        "snapshots player=%d count=%d limit=%d live_fetch=%s newest=%s",
+        player_id, len(snaps), limit, live_fetched, snaps[-1].get("snapshot_date"),
+    )
     return {"player_id": player_id, "snapshots": snaps, "count": len(snaps)}
 
 
@@ -94,7 +104,12 @@ async def get_growth(
         await _ensure_snapshot(player_id)
         growth = stats_repo.get_growth(player_id, days=days)
     if not growth:
+        logger.info("growth player=%d days=%d -> 404 (no snapshots)", player_id, days)
         raise HTTPException(status_code=404, detail="No stat snapshots for this player")
+    logger.info(
+        "growth player=%d days=%d baseline=%s latest=%s actual_days=%d",
+        player_id, days, growth.get("from_date"), growth.get("to_date"), growth.get("days", 0),
+    )
     return growth
 
 
@@ -105,6 +120,10 @@ async def get_leaderboard():
     latest = stats_repo.get_all_latest()
     # If empty, try collecting for all registered members now
     if not latest and key_repo and torn_client:
+        logger.warning(
+            "leaderboard: stat_snapshots is empty — triggering ad-hoc collect_stat_snapshots. "
+            "This usually means the scheduler isn't running (check leader election)."
+        )
         from api.scheduler.jobs.collect_stats import collect_stat_snapshots
         await collect_stat_snapshots(key_repo, stats_repo, torn_client)
         latest = stats_repo.get_all_latest()
