@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.4";
+export const CURRENT_VERSION = "1.16.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.5",
+    date: "2026-04-30",
+    title: "Sentry stops drowning in upstream Torn 504s",
+    changes: [
+      { type: "improve", text: "Scheduler jobs no longer flood Sentry with errors when Torn API returns 504 / times out — those are upstream hiccups the scheduler already retries next cycle, not bugs. They're now warnings (still in logs) so real bugs aren't buried in noise" },
+      { type: "fix", text: "collect_stats was double-reporting per-member Torn failures (logger.exception + manual capture_exception); refresh_data sub-jobs (loot/stock/market/awards/attack/bars/OC/stakeout) and refresh_spies were also leaking upstream noise as Sentry errors. All routed through one demote helper now" },
+    ],
+  },
   {
     version: "1.16.4",
     date: "2026-04-29",
