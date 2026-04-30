@@ -73,7 +73,11 @@ async def test_collect_one_swallows_torn_error_and_continues(db_path, stats_repo
     mock_client.fetch_training_data = fake_fetch
 
     captured = []
-    with patch("api.scheduler.jobs.collect_stats.capture_exception", side_effect=lambda exc, tags=None: captured.append((exc, tags))):
+    # Sentry capture now flows through the shared `_log_helpers.report_job_error`
+    # helper (which demotes httpx 5xx/timeout to warning + skips Sentry, and
+    # captures real bugs). RuntimeError is "real bug" path so it still reaches
+    # capture_exception with the same tags.
+    with patch("api.scheduler.jobs._log_helpers.capture_exception", side_effect=lambda exc, tags=None: captured.append((exc, tags))):
         with caplog.at_level(logging.INFO, logger="tm-hub.jobs.collect_stats"):
             await collect_stat_snapshots(repo, stats_repo, mock_client)
 

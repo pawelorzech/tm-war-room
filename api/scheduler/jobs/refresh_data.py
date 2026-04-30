@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 
-from api.scheduler.jobs._log_helpers import log_job_error, with_sentry_capture
+from api.scheduler.jobs._log_helpers import log_job_error, report_job_error, with_sentry_capture
 
 logger = logging.getLogger("tm-hub.jobs.refresh_data")
 
@@ -153,7 +153,7 @@ async def run_refresh_data() -> None:
             if total > 0:
                 refreshed.append(f"attacks:{total}")
         except Exception as e:
-            logger.error("Background attack refresh failed: %s", e)
+            report_job_error(logger, "Background attack refresh failed: %s", e, job="refresh_data:attack")
 
     # 3. War history — during war or full cycle
     if war_active or is_full_cycle:
@@ -189,7 +189,7 @@ async def run_refresh_data() -> None:
                     history_repo.record_stock_prices_bulk(prices)
                     refreshed.append(f"stock_hist:{len(prices)}")
         except Exception as e:
-            logger.error("Background stock refresh failed: %s", e)
+            report_job_error(logger, "Background stock refresh failed: %s", e, job="refresh_data:stock")
 
     # 5b. Market items — every 8th cycle (~4min, cached 5min in router)
     if _cycle % 8 == 1:
@@ -202,7 +202,7 @@ async def run_refresh_data() -> None:
             resp.raise_for_status()
             refreshed.append("market_items")
         except Exception as e:
-            logger.error("Background market refresh failed: %s", e)
+            report_job_error(logger, "Background market refresh failed: %s", e, job="refresh_data:market")
 
     # 6. Awards catalog — every 8th cycle (~4min)
     if _cycle % 8 == 0:
@@ -210,7 +210,7 @@ async def run_refresh_data() -> None:
             await torn_client.fetch_honor_catalog()
             refreshed.append("awards")
         except Exception as e:
-            logger.error("Background awards refresh failed: %s", e)
+            report_job_error(logger, "Background awards refresh failed: %s", e, job="refresh_data:awards")
 
     # 7. NPC loot — every 2nd cycle (~1min) + auto-reset reservations
     if tornstats_key and _cycle % 2 == 0:
@@ -256,7 +256,7 @@ async def run_refresh_data() -> None:
                     _check_loot_push(npc_parsed, push_svc, dispatcher=dispatcher)
                 refreshed.append(f"loot:{len(npcs)}")
         except Exception as e:
-            logger.error("Background loot refresh failed: %s", e)
+            report_job_error(logger, "Background loot refresh failed: %s", e, job="refresh_data:loot")
 
     # 7b. Member bars — every cycle during war, every 2nd peacetime
     if war_active or _cycle % 2 == 0:
@@ -288,7 +288,7 @@ async def run_refresh_data() -> None:
                 _main_mod._bars_cache_ts = _t.time()
                 refreshed.append(f"bars:{sum(1 for _, d in results if d)}/{len(pairs)}")
         except Exception as e:
-            logger.error("Background bars refresh failed: %s", e)
+            report_job_error(logger, "Background bars refresh failed: %s", e, job="refresh_data:bars")
 
     # 8. OC — full cycle only
     if is_full_cycle:
@@ -296,7 +296,7 @@ async def run_refresh_data() -> None:
             await torn_client.fetch_faction_crimes(cat="planning")
             refreshed.append("oc")
         except Exception as e:
-            logger.error("Background OC refresh failed: %s", e)
+            report_job_error(logger, "Background OC refresh failed: %s", e, job="refresh_data:oc")
 
     # 9. Stakeouts — check watched players every cycle during war, every 4th peacetime
     if war_active or _cycle % 4 == 0:
@@ -349,7 +349,7 @@ async def run_refresh_data() -> None:
                     elif watched:
                         refreshed.append(f"stakeouts:{len(watched)}checked")
         except Exception as e:
-            logger.error("Background stakeout check failed: %s", e)
+            report_job_error(logger, "Background stakeout check failed: %s", e, job="refresh_data:stakeout")
 
     elapsed = (time.time() - start) * 1000
     last_full_refresh = time.time()
