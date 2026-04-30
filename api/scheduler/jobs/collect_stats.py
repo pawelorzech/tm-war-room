@@ -4,7 +4,7 @@ import logging
 from datetime import date
 from api.db.repos.stats import StatSnapshotRepository
 from api.db.repos.keys import KeyRepository
-from api.observability import capture_exception
+from api.scheduler.jobs._log_helpers import report_job_error
 
 logger = logging.getLogger("tm-hub.jobs.collect_stats")
 
@@ -68,11 +68,13 @@ async def collect_stat_snapshots(key_repo: KeyRepository, stats_repo: StatSnapsh
         for entry, result in zip(batch, results):
             if isinstance(result, Exception):
                 exception_count += 1
-                logger.exception(
-                    "collect_stat_snapshots: player %d raised — %s",
-                    entry["player_id"], result, exc_info=result,
+                report_job_error(
+                    logger,
+                    f"collect_stat_snapshots: player {entry['player_id']} raised — %s",
+                    result,
+                    job="collect_stats",
+                    extra_tags={"player_id": entry["player_id"]},
                 )
-                capture_exception(result, tags={"job": "collect_stats", "player_id": entry["player_id"]})
             elif result == _OK:
                 success += 1
             elif result == _FETCH_NONE:

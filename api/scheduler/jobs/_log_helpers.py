@@ -17,16 +17,49 @@ import httpx
 from api.observability import capture_exception
 
 
-def log_job_error(logger: logging.Logger, msg: str, exc: BaseException) -> None:
+def _is_upstream_noise(exc: BaseException) -> bool:
+    """True for transient Torn API failures we don't want as Sentry errors."""
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         if 500 <= status < 600:
-            logger.warning(msg, exc)
-            return
+            return True
     if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError)):
+        return True
+    return False
+
+
+def log_job_error(logger: logging.Logger, msg: str, exc: BaseException) -> None:
+    if _is_upstream_noise(exc):
         logger.warning(msg, exc)
         return
     logger.error(msg, exc)
+
+
+def report_job_error(
+    logger: logging.Logger,
+    msg: str,
+    exc: BaseException,
+    *,
+    job: str,
+    extra_tags: dict | None = None,
+) -> None:
+    """Job-aware error reporter.
+
+    Upstream Torn API noise (httpx 5xx, timeouts, connect/read errors) is
+    demoted to ``logger.warning`` and NEVER forwarded to Sentry — Sentry's
+    LoggingIntegration would otherwise turn every ``logger.error`` into an
+    issue, drowning real bugs in upstream-flake noise.
+
+    Genuine bugs go through ``logger.error`` (with ``exc_info``) AND
+    ``capture_exception`` so we get both a stack trace in logs and a tagged
+    Sentry event with ``{"job": job, **extra_tags}``.
+    """
+    if _is_upstream_noise(exc):
+        logger.warning(msg, exc)
+        return
+    logger.error(msg, exc, exc_info=exc)
+    tags = {"job": job, **(extra_tags or {})}
+    capture_exception(exc, tags=tags)
 
 
 F = TypeVar("F", bound=Callable[..., Awaitable[Any]])

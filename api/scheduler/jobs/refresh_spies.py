@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 from datetime import datetime, timezone
-from api.scheduler.jobs._log_helpers import with_sentry_capture
+from api.scheduler.jobs._log_helpers import report_job_error, with_sentry_capture
 from api.services.spy import SpyService
 
 logger = logging.getLogger("tm-hub.jobs.refresh_spies")
@@ -39,7 +39,7 @@ async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key:
             spy_service.refresh_estimate(pid)
         logger.info("Refreshed spy data for %d players from TornStats", len(updated_players))
     except Exception as e:
-        logger.error("Spy refresh failed: %s", e)
+        report_job_error(logger, "Spy refresh failed: %s", e, job="refresh_spies")
 
 
 @with_sentry_capture("refresh_spies")
