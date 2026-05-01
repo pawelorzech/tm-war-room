@@ -27,6 +27,8 @@ import os
 import re
 from typing import Any
 
+import httpx
+
 logger = logging.getLogger("tm-hub.observability")
 
 # Torn API keys are 16-char alphanumerics. We use a strict regex so generic
@@ -74,8 +76,36 @@ def _scrub_dict_value(key: Any, value: Any) -> Any:
     return _scrub_value(value)
 
 
-def _before_send(event: dict, _hint: dict) -> dict | None:
-    """Sentry SDK hook: scrub PII before transmitting any event."""
+def _is_upstream_noise(exc: BaseException) -> bool:
+    """True for transient upstream Torn API failures we don't want as Sentry errors.
+
+    Single source of truth — also imported by
+    ``api/scheduler/jobs/_log_helpers.py`` for the scheduler's per-job demote
+    logic. The AsyncioIntegration patches the asyncio task factory and
+    captures EVERY task exception, so per-call demote logic in scheduler jobs
+    is bypassed. Filtering here in ``before_send`` catches any
+    integration-level capture path without touching individual job files.
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        if 500 <= status < 600:
+            return True
+    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError)):
+        return True
+    return False
+
+
+def _before_send(event: dict, hint: dict | None) -> dict | None:
+    """Sentry SDK hook: drop upstream noise + scrub PII before transmitting any event."""
+    # Drop upstream Torn API noise (httpx 5xx, timeouts, connect/read errors)
+    # before anything else. AsyncioIntegration captures these from
+    # asyncio.gather tasks even when the outer code handles them via
+    # `return_exceptions=True`, so the only reliable place to filter is here.
+    exc_info = (hint or {}).get("exc_info")
+    if exc_info:
+        exc = exc_info[1] if len(exc_info) >= 2 else None
+        if exc is not None and _is_upstream_noise(exc):
+            return None
     try:
         return _scrub_value(event)
     except Exception as e:

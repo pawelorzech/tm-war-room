@@ -7,9 +7,21 @@ slip past CI.
 """
 from __future__ import annotations
 
+import httpx
 import pytest
 
-from api.observability import _before_send, _scrub_value
+from api.observability import _before_send, _is_upstream_noise, _scrub_value
+
+
+def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    """Build a real httpx.HTTPStatusError with the given upstream status."""
+    request = httpx.Request("GET", "https://api.torn.com/user/")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"Server error '{status_code}' for url '{request.url}'",
+        request=request,
+        response=response,
+    )
 
 
 # A realistic Torn-shaped key (16 alphanumerics) and the redaction marker.
@@ -123,3 +135,87 @@ def test_init_sentry_no_dsn_returns_false(monkeypatch):
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     from api.observability import init_sentry
     assert init_sentry() is False
+
+
+# --- Upstream-noise filter (PYTHON-FASTAPI-D regression) -------------------
+#
+# Sentry's AsyncioIntegration patches the asyncio task factory and captures
+# every exception that escapes a task — independently of whether
+# ``asyncio.gather(return_exceptions=True)`` later retrieves it. The scheduler's
+# per-job demote logic is therefore bypassed, and Torn API 504s flood Sentry as
+# unhandled errors. ``_before_send`` now drops these centrally; these tests
+# pin that behaviour.
+
+
+def test_before_send_drops_504_status_error():
+    exc = _http_status_error(504)
+    event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
+
+
+def test_before_send_drops_500_status_error():
+    exc = _http_status_error(500)
+    event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
+
+
+def test_before_send_drops_timeout_exception():
+    exc = httpx.TimeoutException("connect timed out")
+    event = {"exception": {"values": [{"type": "TimeoutException"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
+
+
+def test_before_send_drops_connect_error():
+    exc = httpx.ConnectError("name resolution failed")
+    event = {"exception": {"values": [{"type": "ConnectError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
+
+
+def test_before_send_drops_read_error():
+    exc = httpx.ReadError("upstream closed the connection")
+    event = {"exception": {"values": [{"type": "ReadError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
+
+
+def test_before_send_keeps_4xx_status_error():
+    # 4xx may indicate a real bug (bad params, expired key handling) — must
+    # NOT be dropped silently.
+    exc = _http_status_error(404)
+    event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    out = _before_send(event, hint)
+    assert out is not None
+    assert out == event
+
+
+def test_before_send_keeps_legit_value_error():
+    exc = ValueError("legit bug")
+    event = {"exception": {"values": [{"type": "ValueError", "value": "legit bug"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    out = _before_send(event, hint)
+    assert out is not None
+    # Scrub still ran — payload preserved unchanged for a non-secret value.
+    assert out["exception"]["values"][0]["value"] == "legit bug"
+
+
+def test_before_send_handles_missing_hint():
+    # No hint at all (some integrations call before_send without one) — the
+    # filter must not crash and must fall through to scrubbing.
+    event = {"message": "hello"}
+    out = _before_send(event, None)
+    assert out == {"message": "hello"}
+
+
+def test_is_upstream_noise_predicate():
+    assert _is_upstream_noise(_http_status_error(503)) is True
+    assert _is_upstream_noise(_http_status_error(599)) is True
+    assert _is_upstream_noise(_http_status_error(404)) is False
+    assert _is_upstream_noise(httpx.TimeoutException("x")) is True
+    assert _is_upstream_noise(httpx.ConnectError("x")) is True
+    assert _is_upstream_noise(httpx.ReadError("x")) is True
+    assert _is_upstream_noise(ValueError("real bug")) is False

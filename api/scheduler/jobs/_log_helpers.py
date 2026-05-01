@@ -12,20 +12,7 @@ import logging
 from functools import wraps
 from typing import Any, Awaitable, Callable, TypeVar
 
-import httpx
-
-from api.observability import capture_exception
-
-
-def _is_upstream_noise(exc: BaseException) -> bool:
-    """True for transient Torn API failures we don't want as Sentry errors."""
-    if isinstance(exc, httpx.HTTPStatusError):
-        status = exc.response.status_code
-        if 500 <= status < 600:
-            return True
-    if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError)):
-        return True
-    return False
+from api.observability import _is_upstream_noise, capture_exception
 
 
 def log_job_error(logger: logging.Logger, msg: str, exc: BaseException) -> None:
