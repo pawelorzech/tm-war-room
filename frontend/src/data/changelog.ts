@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.5";
+export const CURRENT_VERSION = "1.16.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.16.6",
+    date: "2026-05-01",
+    title: "Sentry 504 silencer — finishing the job",
+    changes: [
+      { type: "fix", text: "The 1.16.5 cleanup wasn't actually silencing Torn 504s — Sentry's asyncio integration was independently grabbing every parallel scheduler task exception before our demote helper could see it. Now filtered at the SDK level (before_send), so upstream 5xx / timeouts / connection errors genuinely stop becoming Sentry issues regardless of which job hits them" },
+    ],
+  },
   {
     version: "1.16.5",
     date: "2026-04-30",
