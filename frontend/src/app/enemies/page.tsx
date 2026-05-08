@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useEnemyData } from "@/hooks/useEnemyData";
 import { WarBanner } from "@/components/war/WarBanner";
 import { ChainStatus } from "@/components/war/ChainStatus";
@@ -44,7 +45,13 @@ export default function EnemiesPage() {
         </div>
       )}
 
-      <EnemyTable data={enemy} onLoadEnemy={loadEnemy} />
+      <Suspense
+        fallback={
+          <div className="text-text-muted text-sm">Loading filters…</div>
+        }
+      >
+        <EnemyTable data={enemy} onLoadEnemy={loadEnemy} />
+      </Suspense>
 
       <div className="flex items-center justify-between text-xs text-text-muted pt-2 border-t border-border">
         <span>
