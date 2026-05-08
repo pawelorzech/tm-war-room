@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { fmtCD, fmtNum } from "@/lib/format";
 import { EnemyCard } from "./EnemyCard";
-import { EnemyFilter, applyEnemyFilter } from "./EnemyFilter";
-import type { EnemyFilterValue } from "./EnemyFilter";
+import {
+  EnemyFilter,
+  applyEnemyFilter,
+  filterFromSearchParams,
+  filterToSearchParams,
+  describeFilter,
+} from "./EnemyFilter";
+import type { EnemyFilterState } from "./EnemyFilter";
 import type { EnemyResponse, EnemyMember } from "@/types/war";
 
 type EnemySortCol =
@@ -65,7 +72,20 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
     col: "threat_score",
     asc: true,
   });
-  const [filter, setFilter] = useState<EnemyFilterValue>("all");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filter = useMemo<EnemyFilterState>(
+    () => filterFromSearchParams(new URLSearchParams(searchParams.toString())),
+    [searchParams],
+  );
+  const setFilter = useCallback(
+    (next: EnemyFilterState) => {
+      const qs = filterToSearchParams(next).toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname],
+  );
   const [factionInput, setFactionInput] = useState("");
 
   const now = Math.floor(Date.now() / 1000);
@@ -147,10 +167,10 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
       </span>
     ) : null;
 
-  const filterNote =
-    filter !== "all"
-      ? ` (showing ${filtered.length} ${filter})`
-      : "";
+  const filterDescription = describeFilter(filter);
+  const filterNote = filterDescription
+    ? ` (showing ${filtered.length} — ${filterDescription})`
+    : "";
 
   const threatInfo =
     data.threat_mode === "relative"

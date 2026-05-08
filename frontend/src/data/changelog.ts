@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.17.0";
+export const CURRENT_VERSION = "1.18.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.18.0",
+    date: "2026-05-08",
+    title: "Combine filters on the Enemies page",
+    changes: [
+      { type: "feat", text: "Enemy filters are now multi-select chips split into two groups — Status (Okay, Hospital) and Activity (Online, Idle, Offline). Pick any combination: 'Okay + Offline' shows sleeping attackable targets (the request that started this), 'Okay + Online + Idle' is the old Attackable preset, etc. Empty group = no constraint. Active filters sync to the URL (?status=okay&activity=offline) so you can bookmark or share a view" },
+      { type: "improve", text: "The old single 'Attackable' filter quietly excluded offline players — fine for fast hits, but it meant you couldn't surface easy sleeping targets at all. Splitting Status from Activity makes that combination expressible and removes a hidden assumption" },
+    ],
+  },
   {
     version: "1.17.0",
     date: "2026-05-08",
