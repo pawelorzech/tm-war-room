@@ -28,7 +28,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (apiKey: string) => Promise<{
+  login: (apiKey: string, remember?: boolean) => Promise<{
     player_id: number;
     name: string;
     role: Role;
@@ -166,8 +166,8 @@ function useProvideAuth(): AuthContextValue {
     };
   }, [refresh, setLoggedOut]);
 
-  const login = useCallback(async (apiKey: string) => {
-    const result = await api.registerKey(apiKey);
+  const login = useCallback(async (apiKey: string, remember: boolean = true) => {
+    const result = await api.registerKey(apiKey, remember);
     const role = result.role || "member";
 
     localStorage.setItem("myKeyPlayer", String(result.player_id));

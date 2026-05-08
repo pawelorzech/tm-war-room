@@ -1193,6 +1193,129 @@ async def test_session_cookie_authenticates_member_endpoints(mock_client, mock_s
 
 
 @pytest.mark.asyncio
+async def test_register_key_remember_true_sets_long_cookie(mock_client, mock_store):
+    """remember=true → 90d cookie + remember claim in JWT."""
+    import jwt as _jwt
+    validate_resp = AsyncMock()
+    validate_resp.json.return_value = {"player_id": 555, "name": "NewMember", "faction": {"faction_id": 11559}}
+    validate_resp.raise_for_status = lambda: None
+    stocks_resp = AsyncMock()
+    stocks_resp.json.return_value = {}
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(side_effect=[validate_resp, stocks_resp])
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.main.FACTION_ID", 11559):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/keys", json={"api_key": "newkey", "remember": True})
+    assert resp.status_code == 200
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert "tm_session=" in set_cookie
+    # 90 days = 7776000s
+    assert "max-age=7776000" in set_cookie.lower()
+
+    # Token in body carries remember=True with 90d TTL
+    token = resp.json()["token"]
+    payload = _jwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])
+    assert payload["remember"] is True
+    assert payload["exp"] - payload["iat"] == 90 * 24 * 3600
+
+
+@pytest.mark.asyncio
+async def test_register_key_remember_false_keeps_short_cookie(mock_client, mock_store):
+    """remember omitted/false → 24h cookie + remember=False claim."""
+    import jwt as _jwt
+    validate_resp = AsyncMock()
+    validate_resp.json.return_value = {"player_id": 556, "name": "ShortSession", "faction": {"faction_id": 11559}}
+    validate_resp.raise_for_status = lambda: None
+    stocks_resp = AsyncMock()
+    stocks_resp.json.return_value = {}
+    mock_client._http = AsyncMock()
+    mock_client._http.get = AsyncMock(side_effect=[validate_resp, stocks_resp])
+
+    with patch("api.main.torn_client", mock_client), \
+         patch("api.main.key_store", mock_store), \
+         patch("api.main.FACTION_ID", 11559):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/keys", json={"api_key": "newkey"})
+    assert resp.status_code == 200
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert "max-age=86400" in set_cookie.lower()
+
+    token = resp.json()["token"]
+    payload = _jwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])
+    assert payload["remember"] is False
+
+
+@pytest.mark.asyncio
+async def test_middleware_renews_remember_token_past_threshold(mock_client, mock_store):
+    """Authenticated request with an aged remember-token gets X-Renewed-Token + new cookie."""
+    import time as _time
+    import jwt as _jwt
+    now = int(_time.time())
+    ttl_sec = 90 * 24 * 3600
+    aged_payload = {
+        "sub": "123", "name": "Test", "token_type": "session",
+        "iat": now - int(ttl_sec * 0.8),  # 80% elapsed → past 50% threshold
+        "exp": now + int(ttl_sec * 0.2),
+        "jti": "aged-jti",
+        "remember": True,
+    }
+    aged_token = _jwt.encode(aged_payload, TEST_JWT_SECRET, algorithm="HS256")
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/api/me",
+                headers={"X-Player-Id": "123", "Authorization": f"Bearer {aged_token}"},
+            )
+    assert resp.status_code == 200
+    renewed = resp.headers.get("x-renewed-token")
+    assert renewed, "expected X-Renewed-Token header"
+    new_payload = _jwt.decode(renewed, TEST_JWT_SECRET, algorithms=["HS256"])
+    assert new_payload["remember"] is True
+    assert new_payload["exp"] - new_payload["iat"] == ttl_sec
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert "tm_session=" in set_cookie
+    assert "max-age=7776000" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_middleware_does_not_renew_short_token(mock_client, mock_store):
+    """24h token without remember flag never renews — even when near expiry."""
+    import time as _time
+    import jwt as _jwt
+    now = int(_time.time())
+    ttl_sec = 24 * 3600
+    aged_payload = {
+        "sub": "123", "name": "Test", "token_type": "session",
+        "iat": now - int(ttl_sec * 0.9),
+        "exp": now + int(ttl_sec * 0.1),
+        "jti": "short-jti",
+        "remember": False,
+    }
+    aged_token = _jwt.encode(aged_payload, TEST_JWT_SECRET, algorithm="HS256")
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/api/me",
+                headers={"X-Player-Id": "123", "Authorization": f"Bearer {aged_token}"},
+            )
+    assert resp.status_code == 200
+    assert resp.headers.get("x-renewed-token") is None
+
+
+@pytest.mark.asyncio
 async def test_logout_clears_cookies():
     """F-03 regression: POST /api/logout returns Set-Cookie clearing both auth cookies."""
     from api.main import app

@@ -10,6 +10,10 @@ from fastapi import HTTPException
 TOKEN_TYPE_SESSION = "session"
 TOKEN_TYPE_ADMIN = "admin"
 
+DEFAULT_TTL_HOURS = 24
+REMEMBER_TTL_HOURS = 24 * 90  # 90 days
+RENEW_THRESHOLD = 0.5  # renew when more than 50% of lifetime has elapsed
+
 
 # F-16: pluggable revocation predicate. Set at startup from main.py to point at
 # RevokedJwtRepository.is_revoked. Default: never revoked (no DB, dev / tests).
@@ -25,8 +29,9 @@ def create_jwt(
     player_id: int,
     player_name: str,
     secret: str,
-    expires_hours: int = 24,
+    expires_hours: int = DEFAULT_TTL_HOURS,
     token_type: str = TOKEN_TYPE_SESSION,
+    remember: bool = False,
 ) -> str:
     now = int(time.time())
     payload = {
@@ -37,8 +42,48 @@ def create_jwt(
         "exp": now + expires_hours * 3600,
         # F-16: per-token unique ID enables targeted revocation.
         "jti": _secrets.token_urlsafe(12),
+        "remember": bool(remember),
     }
     return jwt.encode(payload, secret, algorithm="HS256")
+
+
+def maybe_renew_jwt(payload: dict, secret: str) -> str | None:
+    """Return a fresh long-lived token if the current one is past the renewal threshold.
+
+    Returns None when:
+      * payload is not a remember-me token (only session tokens with remember=True slide),
+      * less than RENEW_THRESHOLD of the lifetime has elapsed,
+      * payload is missing iat/exp (defensive — shouldn't happen for tokens we mint).
+
+    The old token is intentionally NOT revoked so concurrent in-flight requests
+    that already attached it as Authorization header keep working until natural
+    expiry.
+    """
+    if not payload.get("remember"):
+        return None
+    if payload.get("token_type") != TOKEN_TYPE_SESSION:
+        return None
+    iat = payload.get("iat")
+    exp = payload.get("exp")
+    if not isinstance(iat, int) or not isinstance(exp, int) or exp <= iat:
+        return None
+    now = int(time.time())
+    elapsed = now - iat
+    lifetime = exp - iat
+    if elapsed / lifetime < RENEW_THRESHOLD:
+        return None
+    sub = payload.get("sub")
+    name = payload.get("name", "")
+    if sub is None:
+        return None
+    return create_jwt(
+        player_id=int(sub),
+        player_name=str(name),
+        secret=secret,
+        expires_hours=REMEMBER_TTL_HOURS,
+        token_type=TOKEN_TYPE_SESSION,
+        remember=True,
+    )
 
 
 def decode_jwt(token: str, secret: str) -> dict | None:

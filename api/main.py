@@ -22,7 +22,16 @@ logger = logging.getLogger("tm-hub")
 from api.analytics import AnalyticsStore
 from api.config import TORN_API_KEY, FACTION_ID, CACHE_TTL, ENCRYPTION_KEY, TORNSTATS_API_KEY, SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 from api.torn_client import TornClient
-from api.auth import create_jwt, rate_limiter, require_bearer_token, TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN
+from api.auth import (
+    create_jwt,
+    maybe_renew_jwt,
+    rate_limiter,
+    require_bearer_token,
+    DEFAULT_TTL_HOURS,
+    REMEMBER_TTL_HOURS,
+    TOKEN_TYPE_SESSION,
+    TOKEN_TYPE_ADMIN,
+)
 from api.db import KeyStore
 from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
@@ -601,7 +610,8 @@ async def redirect_old_domains(request: Request, call_next):
 
 SESSION_COOKIE_NAME = "tm_session"
 ADMIN_COOKIE_NAME = "tm_admin"
-COOKIE_MAX_AGE = 86400  # 24h, matches JWT expiry
+COOKIE_MAX_AGE = 86400  # 24h, matches default JWT expiry
+REMEMBER_COOKIE_MAX_AGE = 90 * 86400  # 90d, matches REMEMBER_TTL_HOURS
 
 
 def _is_secure_cookie() -> bool:
@@ -610,9 +620,9 @@ def _is_secure_cookie() -> bool:
     return APP_VERSION != "dev"
 
 
-def _set_session_cookie(response: JSONResponse, token: str) -> None:
+def _set_session_cookie(response: Response, token: str, max_age: int = COOKIE_MAX_AGE) -> None:
     response.set_cookie(
-        key=SESSION_COOKIE_NAME, value=token, max_age=COOKIE_MAX_AGE,
+        key=SESSION_COOKIE_NAME, value=token, max_age=max_age,
         httponly=True, secure=_is_secure_cookie(), samesite="strict", path="/",
     )
 
@@ -643,6 +653,7 @@ def _bearer_or_cookie(request: Request, cookie_name: str) -> str:
 @app.middleware("http")
 async def enforce_api_auth(request: Request, call_next):
     path = request.url.path
+    renewed_token: str | None = None
     if path.startswith("/api/") and path not in PUBLIC_API_PATHS and not path.startswith("/api/admin/"):
         try:
             payload = require_bearer_token(
@@ -662,8 +673,15 @@ async def enforce_api_auth(request: Request, call_next):
             return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
 
         request.state.auth = payload
+        renewed_token = maybe_renew_jwt(payload, JWT_SECRET)
 
     response = await call_next(request)
+    if renewed_token is not None:
+        # Sliding expiry: refresh the long-lived session token + cookie.
+        # The old token stays valid until natural expiry so concurrent in-flight
+        # requests don't break.
+        response.headers["X-Renewed-Token"] = renewed_token
+        _set_session_cookie(response, renewed_token, max_age=REMEMBER_COOKIE_MAX_AGE)
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; "
@@ -1051,6 +1069,7 @@ async def training_stats(x_player_id: int = Header()):
 
 class KeyRegister(BaseModel):
     api_key: str
+    remember: bool = False
 
 
 @app.post("/api/keys")
@@ -1079,8 +1098,12 @@ async def register_key(body: KeyRegister, request: Request):
         raise HTTPException(status_code=403, detail="You must be a member of The Masters to use this tool")
     key_store.save_key(player_id=raw["player_id"], player_name=raw["name"], api_key=body.api_key)
     role = get_role(raw["player_id"])
-    token = create_jwt(raw["player_id"], raw["name"], JWT_SECRET)
-    logger.info("Key registered: %s [%d] role=%s", raw["name"], raw["player_id"], role)
+    ttl_hours = REMEMBER_TTL_HOURS if body.remember else DEFAULT_TTL_HOURS
+    token = create_jwt(
+        raw["player_id"], raw["name"], JWT_SECRET,
+        expires_hours=ttl_hours, remember=body.remember,
+    )
+    logger.info("Key registered: %s [%d] role=%s remember=%s", raw["name"], raw["player_id"], role, body.remember)
 
     # Test key access level — check if stocks/battlestats work
     access_level = "full"
@@ -1104,7 +1127,8 @@ async def register_key(body: KeyRegister, request: Request):
         "access_level": access_level, "limited_features": limited_features, "token": token,
     }
     response = JSONResponse(content=body_payload)
-    _set_session_cookie(response, token)
+    cookie_max_age = REMEMBER_COOKIE_MAX_AGE if body.remember else COOKIE_MAX_AGE
+    _set_session_cookie(response, token, max_age=cookie_max_age)
     return response
 
 
