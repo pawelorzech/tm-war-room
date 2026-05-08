@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading, login } = useAuth();
   const [apiKey, setApiKey] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +63,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 setError("");
                 setSubmitting(true);
                 try {
-                  const result = await login(apiKey);
+                  const result = await login(apiKey, rememberMe);
                   if (result?.access_level === "limited") {
                     setWarning(`Your API key has limited access. Some features (${result.limited_features?.join(", ") || "stocks, etc"}) may not work. Use a Full Access key for all features.`);
                   }
@@ -90,6 +91,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 className="w-full px-3 py-2.5 bg-bg-primary border border-border rounded-lg text-text-primary text-sm placeholder:text-text-muted/60 focus:border-torn-green focus:outline-none transition-all duration-200 focus:[animation:tm-focus-ring_0.3s_ease-out_forwards] disabled:opacity-50 disabled:cursor-not-allowed"
                 autoFocus
               />
+              <label className="flex items-center gap-2 mt-3 cursor-pointer group select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={submitting}
+                  className="w-4 h-4 rounded border-text-secondary/30 text-torn-green focus:ring-torn-green/50 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span className="text-xs text-text-secondary group-hover:text-torn-green transition-colors">
+                  Stay logged in <span className="text-text-muted">(90 days, refreshes with use)</span>
+                </span>
+              </label>
               <button
                 type="submit"
                 disabled={submitting || !apiKey}

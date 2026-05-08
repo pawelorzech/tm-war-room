@@ -145,6 +145,11 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
     notifyAuthStateChanged(false);
     throw new Error("Unauthorized");
   }
+  // Sliding session: server may issue a fresh long-lived token mid-request.
+  const renewed = res.headers.get("X-Renewed-Token");
+  if (renewed) {
+    storeSessionToken(renewed);
+  }
   if (!res.ok) {
     const body = await readResponseBody(res);
     const detail = typeof body === "object" && body && "detail" in body ? body.detail : null;
@@ -488,7 +493,7 @@ export const api = {
 
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
-  registerKey: (apiKey: string) =>
+  registerKey: (apiKey: string, remember: boolean = true) =>
     apiPostJson<{
       player_id: number;
       name: string;
@@ -498,7 +503,7 @@ export const api = {
       token?: string;
     }>(
       "/api/keys",
-      { api_key: apiKey },
+      { api_key: apiKey, remember },
       { includeAuth: false },
     ),
 };

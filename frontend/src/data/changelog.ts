@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.16.6";
+export const CURRENT_VERSION = "1.17.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.17.0",
+    date: "2026-05-08",
+    title: "Stay logged in — no more daily API key paste",
+    changes: [
+      { type: "feat", text: "New 'Stay logged in' checkbox on the login screen (on by default). Tick it and your session lasts 90 days — the token auto-refreshes every time you use the app, so an active player never sees the login wall again. Untick it on a shared computer and the session reverts to the previous 24h behaviour" },
+    ],
+  },
   {
     version: "1.16.6",
     date: "2026-05-01",
