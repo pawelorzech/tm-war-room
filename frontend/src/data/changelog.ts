@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.39.2";
+export const CURRENT_VERSION = "1.39.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.39.3",
+    date: "2026-05-15",
+    title: "Companion v0.17.3 — userscript bundle 19% smaller",
+    changes: [
+      {
+        type: "improve",
+        summary: "Companion userscript dropped from ~155 KB to ~126 KB on disk and over the wire",
+        detail: "Build now ships with whitespace + syntax minification on. Identifier names are kept readable so stack traces in bug reports are still useful. Smaller bundle = faster first paint on torn.com and quicker Tampermonkey self-updates.",
+      },
+    ],
+  },
   {
     version: "1.39.2",
     date: "2026-05-15",
