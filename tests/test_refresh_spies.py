@@ -67,6 +67,7 @@ async def test_refresh_spy_cache_writes_battle_stats(service, monkeypatch):
             "total": 6_972_123_937, "timestamp": 1778547896,
         },
     })
+    torn.fetch_yata_faction_spies = AsyncMock(return_value={})
 
     await refresh_spy_cache(service, torn, tornstats_key="fake_ts_key")
 
@@ -103,6 +104,7 @@ async def test_refresh_spy_cache_skips_zero_total(service, monkeypatch):
     torn.fetch_tornstats_faction_battle_stats = AsyncMock(return_value={
         45367: {"strength": 0, "defense": 0, "speed": 0, "dexterity": 0, "total": 0, "timestamp": 0},
     })
+    torn.fetch_yata_faction_spies = AsyncMock(return_value={})
 
     await refresh_spy_cache(service, torn, tornstats_key="fake_ts_key")
 
@@ -121,21 +123,79 @@ async def test_refresh_spy_cache_no_war_skips(service, monkeypatch):
     torn = MagicMock()
     torn.fetch_war = AsyncMock(return_value=None)
     torn.fetch_tornstats_faction_battle_stats = AsyncMock()
+    torn.fetch_yata_faction_spies = AsyncMock()
 
     await refresh_spy_cache(service, torn, tornstats_key="fake_ts_key")
 
     torn.fetch_tornstats_faction_battle_stats.assert_not_called()
+    torn.fetch_yata_faction_spies.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_refresh_spy_cache_no_ts_key_skips(service, monkeypatch):
+async def test_refresh_spy_cache_yata_only_when_no_ts_key(service, monkeypatch):
+    """When TornStats key is missing, the job still fetches YATA. The bot Torn
+    API key is always present, so YATA (which authenticates with any registered
+    Torn key) remains a viable source.
+    """
     monkeypatch.setattr("api.config.FACTION_ID", 11559)
 
     torn = MagicMock()
-    torn.fetch_war = AsyncMock()
+    torn.fetch_war = AsyncMock(return_value=_war_with_enemy(37537))
     torn.fetch_tornstats_faction_battle_stats = AsyncMock()
+    torn.fetch_yata_faction_spies = AsyncMock(return_value={
+        45367: {
+            "name": "Achilleus",
+            "strength": 2.3e9, "defense": 2.3e9, "speed": 2.3e9, "dexterity": 2.3e9,
+            "total": 9.2e9, "timestamp": 1778547896,
+        },
+    })
 
     await refresh_spy_cache(service, torn, tornstats_key="")
 
-    torn.fetch_war.assert_not_called()
     torn.fetch_tornstats_faction_battle_stats.assert_not_called()
+    reports = service.repo.get_reports(45367)
+    assert len(reports) == 1
+    assert reports[0]["source"] == "yata"
+    assert reports[0]["total"] == 9.2e9
+
+
+@pytest.mark.asyncio
+async def test_refresh_spy_cache_prefers_freshest_across_sources(service, monkeypatch):
+    """The point of adding YATA: when TornStats has an old spy and YATA has a
+    fresh one (or vice versa), the estimate ends up reflecting whichever is
+    most recent — regardless of source. This is the regression that prompted
+    the dual-source rewrite (player 348794: 2.67B on TornStats, ~9B on YATA).
+    """
+    monkeypatch.setattr("api.config.FACTION_ID", 11559)
+
+    # TornStats reports a stale 2.67B (timestamp = 2025-05-15 epoch)
+    # YATA reports a fresh 9B (timestamp = 2026-05-14 epoch)
+    torn = MagicMock()
+    torn.fetch_war = AsyncMock(return_value=_war_with_enemy(37537))
+    torn.fetch_tornstats_faction_battle_stats = AsyncMock(return_value={
+        348794: {
+            "name": "Ziomek",
+            "strength": 0.7e9, "defense": 0.6e9, "speed": 0.7e9, "dexterity": 0.67e9,
+            "total": 2.67e9, "timestamp": 1747008000,  # 2025-05-12
+        },
+    })
+    torn.fetch_yata_faction_spies = AsyncMock(return_value={
+        348794: {
+            "name": "Ziomek",
+            "strength": 2.25e9, "defense": 2.25e9, "speed": 2.25e9, "dexterity": 2.25e9,
+            "total": 9e9, "timestamp": 1778544000,  # 2026-05-15
+        },
+    })
+
+    await refresh_spy_cache(service, torn, tornstats_key="fake_ts_key")
+
+    # Both reports written
+    reports = service.repo.get_reports(348794)
+    assert len(reports) == 2
+    sources = {r["source"] for r in reports}
+    assert sources == {"tornstats", "yata"}
+    # Estimate reflects the fresher YATA spy, not the year-old TornStats one
+    est = service.repo.get_estimate(348794)
+    assert est is not None
+    assert est["total"] == 9e9
+    assert est["source"] == "yata"

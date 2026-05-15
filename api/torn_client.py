@@ -1037,3 +1037,128 @@ class TornClient:
         }
         self._set_cached(cache_key, result)
         return result
+
+    async def fetch_yata_spy_user(self, player_id: int, api_key: str | None = None) -> dict | None:
+        """Fetch estimated battle stats for a single player from YATA.
+
+        YATA's spy network is independent of TornStats — adding it as a second
+        source closes the gap where TornStats has a stale spy (e.g. from a year
+        ago, before the player grew) while YATA has a recent one.
+
+        Endpoint: ``/api/v1/spy/{player_id}?key={api_key}``.
+        Response shape: ``{"spies": {"{player_id}": {strength, defense, speed,
+        dexterity, total, *_timestamp, update, target_name, ...}}}``.
+
+        Returns dict with strength/defense/speed/dexterity/total/timestamp
+        (epoch int from YATA's ``update`` field — the most recent of the per-stat
+        timestamps) plus ``player_name``. None on error or empty response.
+
+        Negative-caches the YATA-down state for 60s (matches fetch_yata_members)
+        to avoid hammering when YATA is offline. Successful results cached for
+        1 hour (matches YATA's own cache so we don't waste their bandwidth).
+        """
+        cache_key = f"yspy_user_{player_id}"
+        cached = self._get_cached(cache_key, ttl=YATA_CACHE_TTL)
+        if cached is not None:
+            return cached if cached != "_yata_down" else None
+        if self._get_cached("yata_down", ttl=60) is not None:
+            return None
+
+        key = api_key or self._api_key
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{YATA_BASE}/spy/{player_id}/",
+                params={"key": key},
+                timeout=8.0,
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            if "error" in raw:
+                self._log_integration("yata", f"/api/v1/spy/{player_id}", False, (time.time() - start) * 1000, "API error response")
+                self._set_cached(cache_key, "_yata_down")
+                return None
+            self._log_integration("yata", f"/api/v1/spy/{player_id}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("yata", f"/api/v1/spy/{player_id}", False, (time.time() - start) * 1000, str(e))
+            self._set_cached("yata_down", True)
+            return None
+
+        spies = raw.get("spies", {})
+        # YATA keys by stringified target_id. Also tolerate int-keyed responses.
+        spy = spies.get(str(player_id)) or spies.get(player_id)
+        if not spy:
+            self._set_cached(cache_key, "_yata_down")
+            return None
+
+        result = {
+            "player_id": player_id,
+            "player_name": spy.get("target_name"),
+            "strength": spy.get("strength", 0) or 0,
+            "defense": spy.get("defense", 0) or 0,
+            "speed": spy.get("speed", 0) or 0,
+            "dexterity": spy.get("dexterity", 0) or 0,
+            "total": spy.get("total", 0) or 0,
+            # ``update`` = max of per-stat timestamps — closest thing YATA has to
+            # a single "when was this spy taken" answer.
+            "timestamp": spy.get("update"),
+        }
+        self._set_cached(cache_key, result)
+        return result
+
+    async def fetch_yata_faction_spies(self, faction_id: int, api_key: str | None = None) -> dict[int, dict]:
+        """Fetch all spies YATA has on a given faction.
+
+        Endpoint: ``/api/v1/spies/?key={key}&faction={faction_id}``.
+        Rate-limited by YATA to 1 call/hour, so the result is cached for an hour.
+
+        Returns ``dict[player_id, {strength, defense, speed, dexterity, total,
+        timestamp, name}]``. Empty dict on error or no data.
+        """
+        cache_key = f"yspy_faction_{faction_id}"
+        cached = self._get_cached(cache_key, ttl=YATA_CACHE_TTL)
+        if cached is not None:
+            return cached if cached != "_yata_down" else {}
+        if self._get_cached("yata_down", ttl=60) is not None:
+            return {}
+
+        key = api_key or self._api_key
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{YATA_BASE}/spies/",
+                params={"key": key, "faction": faction_id},
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            if "error" in raw:
+                self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", False, (time.time() - start) * 1000, "API error response")
+                self._set_cached(cache_key, "_yata_down")
+                return {}
+            self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", False, (time.time() - start) * 1000, str(e))
+            self._set_cached("yata_down", True)
+            return {}
+
+        result: dict[int, dict] = {}
+        spies = raw.get("spies", {})
+        for pid_str, spy in spies.items():
+            if not spy:
+                continue
+            try:
+                pid = int(pid_str)
+            except (TypeError, ValueError):
+                continue
+            result[pid] = {
+                "name": spy.get("target_name"),
+                "strength": spy.get("strength", 0) or 0,
+                "defense": spy.get("defense", 0) or 0,
+                "speed": spy.get("speed", 0) or 0,
+                "dexterity": spy.get("dexterity", 0) or 0,
+                "total": spy.get("total", 0) or 0,
+                "timestamp": spy.get("update"),
+            }
+        self._set_cached(cache_key, result)
+        return result
