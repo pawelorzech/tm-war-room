@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from api.db.repos.spies import SpyRepository
 
-SOURCE_PRIORITY = {"member_submit": 0, "tornstats": 1, "yata": 2}
+SOURCE_PRIORITY = {"member_submit": 0, "tornstats": 1, "yata": 1}
 
 
 def _parse_dt(s: str) -> datetime:
@@ -11,6 +11,32 @@ def _parse_dt(s: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def spy_reported_at(timestamp, fallback_iso: str) -> str:
+    """Convert a spy source's ``timestamp`` (epoch seconds) to an ISO string.
+
+    Both TornStats and YATA return the time the actual spy was performed as
+    a Unix epoch int. We use that as ``reported_at`` so our staleness logic
+    reflects when the spy *happened*, not when we last queried the source —
+    otherwise a year-old spy on TornStats keeps looking fresh because we
+    keep re-fetching the same row.
+
+    Falls back to ``fallback_iso`` (usually fetch-time) if the source
+    omitted the timestamp or returned a non-positive value.
+    """
+    if not timestamp:
+        return fallback_iso
+    try:
+        ts = int(timestamp)
+    except (TypeError, ValueError):
+        return fallback_iso
+    if ts <= 0:
+        return fallback_iso
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    except (OverflowError, OSError, ValueError):
+        return fallback_iso
 EXACT_MAX_AGE_DAYS = 7
 FRESH_MAX_AGE_DAYS = 30
 

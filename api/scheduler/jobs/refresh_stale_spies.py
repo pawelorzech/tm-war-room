@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from api.scheduler.jobs._log_helpers import report_job_error, with_sentry_capture
-from api.services.spy import SpyService
+from api.services.spy import SpyService, spy_reported_at
 
 logger = logging.getLogger("tm-hub.jobs.refresh_stale_spies")
 
@@ -40,10 +40,6 @@ async def refresh_stale_estimates(
     Returns a dict ``{"refreshed": int, "attempted": int}`` so admin-triggered
     callers can surface progress in the UI.
     """
-    if not tornstats_key:
-        logger.debug("No TornStats API key configured, skipping stale spy refresh")
-        return {"refreshed": 0, "attempted": 0}
-
     stale = spy_service.repo.get_stale_estimates(
         max_age_days=STALE_THRESHOLD_DAYS, limit=max_per_run
     )
@@ -55,24 +51,42 @@ async def refresh_stale_estimates(
     for row in stale:
         player_id = row["player_id"]
         try:
-            ts_data = await torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
-            if not ts_data or ts_data.get("total", 0) <= 0:
-                continue
-            now = datetime.now(timezone.utc).isoformat()
-            spy_service.repo.upsert_report(
-                player_id=player_id,
-                player_name=ts_data.get("player_name") or row.get("player_name"),
-                source="tornstats",
-                strength=ts_data["strength"],
-                defense=ts_data["defense"],
-                speed=ts_data["speed"],
-                dexterity=ts_data["dexterity"],
-                total=ts_data["total"],
-                confidence="estimate",
-                reported_at=now,
+            # Hit both spy networks in parallel. Either one alone might still be
+            # serving a year-old spy; we want whichever has the most recent one.
+            ts_task = (
+                torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
+                if tornstats_key
+                else asyncio.sleep(0, result=None)
             )
-            spy_service.refresh_estimate(player_id)
-            refreshed += 1
+            yata_task = torn_client.fetch_yata_spy_user(player_id)
+            ts_data, yata_data = await asyncio.gather(ts_task, yata_task, return_exceptions=True)
+            now = datetime.now(timezone.utc).isoformat()
+            touched = False
+            if not isinstance(ts_data, Exception) and ts_data and ts_data.get("total", 0) > 0:
+                spy_service.repo.upsert_report(
+                    player_id=player_id,
+                    player_name=ts_data.get("player_name") or row.get("player_name"),
+                    source="tornstats",
+                    strength=ts_data["strength"], defense=ts_data["defense"],
+                    speed=ts_data["speed"], dexterity=ts_data["dexterity"],
+                    total=ts_data["total"], confidence="estimate",
+                    reported_at=spy_reported_at(ts_data.get("timestamp"), now),
+                )
+                touched = True
+            if not isinstance(yata_data, Exception) and yata_data and yata_data.get("total", 0) > 0:
+                spy_service.repo.upsert_report(
+                    player_id=player_id,
+                    player_name=yata_data.get("player_name") or row.get("player_name"),
+                    source="yata",
+                    strength=yata_data["strength"], defense=yata_data["defense"],
+                    speed=yata_data["speed"], dexterity=yata_data["dexterity"],
+                    total=yata_data["total"], confidence="estimate",
+                    reported_at=spy_reported_at(yata_data.get("timestamp"), now),
+                )
+                touched = True
+            if touched:
+                spy_service.refresh_estimate(player_id)
+                refreshed += 1
         except Exception as e:
             report_job_error(
                 logger, f"stale spy refresh failed for player {player_id}: %s", e,

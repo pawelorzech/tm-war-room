@@ -59,27 +59,45 @@ def _make_ts_response(total: float = 5e9) -> dict:
     }
 
 
-async def test_no_key_skips(service):
-    """Empty tornstats_key → never call torn_client."""
-    _seed_estimate(service, 1, age_days=30)
+def _make_torn(ts_response=None, yata_response=None, ts_side_effect=None):
+    """Build a torn_client mock with both spy sources set up.
+
+    Both fetch_tornstats_spy_user and fetch_yata_spy_user must be awaitable
+    even when a test doesn't care about one of them — the production job
+    gathers both in parallel.
+    """
     torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock()
+    if ts_side_effect is not None:
+        torn.fetch_tornstats_spy_user = AsyncMock(side_effect=ts_side_effect)
+    else:
+        torn.fetch_tornstats_spy_user = AsyncMock(return_value=ts_response)
+    torn.fetch_yata_spy_user = AsyncMock(return_value=yata_response)
+    return torn
+
+
+async def test_no_ts_key_still_tries_yata(service):
+    """Empty tornstats_key → skip TS but still query YATA. YATA uses the bot's
+    Torn API key, which is always set, so it's a viable standalone source.
+    """
+    _seed_estimate(service, 1, age_days=30)
+    torn = _make_torn()
 
     result = await refresh_stale_estimates(service, torn, tornstats_key="")
 
     torn.fetch_tornstats_spy_user.assert_not_called()
-    assert result == {"refreshed": 0, "attempted": 0}
+    torn.fetch_yata_spy_user.assert_awaited_once_with(1)
+    assert result == {"refreshed": 0, "attempted": 1}
 
 
 async def test_no_stale_returns_early(service):
     """All estimates fresh → no fetches."""
     _seed_estimate(service, 1, age_days=2)  # within threshold
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock()
+    torn = _make_torn()
 
     result = await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
 
     torn.fetch_tornstats_spy_user.assert_not_called()
+    torn.fetch_yata_spy_user.assert_not_called()
     assert result == {"refreshed": 0, "attempted": 0}
 
 
@@ -88,8 +106,7 @@ async def test_refreshes_oldest_first(service):
     # Ages: 50, 40, 30, 20, 10 — all >7d threshold
     for pid, age in [(1, 50), (2, 40), (3, 30), (4, 20), (5, 10)]:
         _seed_estimate(service, pid, age_days=age)
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(return_value=_make_ts_response())
+    torn = _make_torn(ts_response=_make_ts_response())
 
     await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=3)
 
@@ -109,8 +126,7 @@ async def test_per_player_error_isolation(service):
             raise RuntimeError("simulated TornStats outage")
         return _make_ts_response()
 
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(side_effect=side_effect)
+    torn = _make_torn(ts_side_effect=side_effect)
 
     await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
 
@@ -125,8 +141,7 @@ async def test_per_player_error_isolation(service):
 async def test_zero_total_skipped(service):
     """TornStats returning total=0 means it has no spy data → don't upsert garbage."""
     _seed_estimate(service, 1, age_days=30)
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(return_value={"total": 0, "strength": 0, "defense": 0, "speed": 0, "dexterity": 0})
+    torn = _make_torn(ts_response={"total": 0, "strength": 0, "defense": 0, "speed": 0, "dexterity": 0})
 
     await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
 
@@ -138,8 +153,7 @@ async def test_zero_total_skipped(service):
 async def test_writes_with_correct_source_and_confidence(service):
     """Fresh report goes in as source=tornstats / confidence=estimate."""
     _seed_estimate(service, 1, age_days=30)
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(return_value=_make_ts_response(total=8e9))
+    torn = _make_torn(ts_response=_make_ts_response(total=8e9))
 
     result = await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
     assert result == {"refreshed": 1, "attempted": 1}
@@ -155,11 +169,38 @@ async def test_writes_with_correct_source_and_confidence(service):
     assert est["confidence"] == "estimate"  # within 30d
 
 
+async def test_yata_fills_in_when_tornstats_is_stale(service):
+    """YATA stat wins when TornStats holds an older spy. Both sources are
+    queried; refresh_estimate picks the one with the most recent timestamp.
+    Mirrors the 348794 case (2.67B on TornStats, ~9B on YATA).
+    """
+    _seed_estimate(service, 348794, age_days=30)
+    # TornStats returns a year-old spy (epoch 2025-05-15)
+    ts_resp = {
+        "player_name": "Ziomek",
+        "strength": 6.7e8, "defense": 6.7e8, "speed": 6.7e8, "dexterity": 6.7e8,
+        "total": 2.67e9, "timestamp": 1747008000,
+    }
+    # YATA returns a fresh spy (epoch 2026-05-14)
+    yata_resp = {
+        "player_name": "Ziomek",
+        "strength": 2.25e9, "defense": 2.25e9, "speed": 2.25e9, "dexterity": 2.25e9,
+        "total": 9e9, "timestamp": 1778544000,
+    }
+    torn = _make_torn(ts_response=ts_resp, yata_response=yata_resp)
+
+    await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
+
+    est = service.repo.get_estimate(348794)
+    assert est is not None
+    assert est["total"] == 9e9
+    assert est["source"] == "yata"
+
+
 async def test_none_response_skipped(service):
     """TornStats returning None (e.g. status=false) → don't crash, don't upsert."""
     _seed_estimate(service, 1, age_days=30)
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(return_value=None)
+    torn = _make_torn(ts_response=None)
 
     await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
 
@@ -171,8 +212,7 @@ async def test_respects_stale_threshold(service):
     """Only rows older than STALE_THRESHOLD_DAYS get refreshed."""
     _seed_estimate(service, 1, age_days=STALE_THRESHOLD_DAYS + 1)  # stale
     _seed_estimate(service, 2, age_days=STALE_THRESHOLD_DAYS - 1)  # fresh
-    torn = MagicMock()
-    torn.fetch_tornstats_spy_user = AsyncMock(return_value=_make_ts_response())
+    torn = _make_torn(ts_response=_make_ts_response())
 
     await refresh_stale_estimates(service, torn, tornstats_key="k", max_per_run=10)
 
