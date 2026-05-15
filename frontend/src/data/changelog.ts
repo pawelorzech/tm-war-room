@@ -52,9 +52,42 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.1";
+export const CURRENT_VERSION = "1.40.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.2",
+    date: "2026-05-15",
+    title: "Spy deep-link URLs + fewer 500s when Torn's API hiccups",
+    changes: [
+      {
+        type: "feat",
+        summary: "/spy/<player_id> is now a real linkable URL",
+        detail: "You can paste or bookmark hub.tri.ovh/spy/2362436 and land directly on that player's spy card. Previously the same URL 404'd and you had to type the ID into the search box first.",
+      },
+      {
+        type: "fix",
+        summary: "/api/overview no longer 500s when Torn returns a malformed members payload",
+        before: "When Torn's faction members endpoint returned a 200 with a payload missing the 'members' key (their occasional shape drift), the overview endpoint crashed with KeyError and TM Hub's main page failed to load.",
+        after: "The fetch now treats a missing 'members' key the same as a network blip — logged as an integration failure, no 500 to the user, retries on the next poll.",
+        cause: "We were bare-indexing raw['members'] instead of defending against the upstream sometimes omitting the key.",
+      },
+      {
+        type: "fix",
+        summary: "/api/stocks/portfolio no longer 500s when Torn returns a list instead of a dict",
+        before: "When Torn's user/stocks selection returned an array shape (which happens for some keys and some empty-portfolio cases), the route crashed with AttributeError trying to iterate it as a dict.",
+        after: "Non-dict shapes now fall through to the same 'No stock data' 403 the route already used for empty portfolios — no 500.",
+        cause: "The route assumed the Torn payload was always a dict; reality is the shape sometimes drifts to a list.",
+      },
+      {
+        type: "fix",
+        summary: "Honor circulation scheduler job stopped crashing on a list-shaped Torn response",
+        before: "Once every few days the background job that snapshots faction honor circulation crashed with AttributeError, leaving a gap in the circulation history graph.",
+        after: "The Torn client now normalizes the honor/medal payloads to dicts keyed by id before returning them, so the job iterates a stable shape.",
+        cause: "Same shape drift class as the overview and stocks bugs — fix is in one place at the Torn client boundary.",
+      },
+    ],
+  },
   {
     version: "1.40.1",
     date: "2026-05-15",
