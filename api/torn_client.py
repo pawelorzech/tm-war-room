@@ -946,6 +946,57 @@ class TornClient:
         self._set_cached(cache_key, result)
         return result
 
+    async def fetch_tornstats_faction_battle_stats(
+        self, faction_id: int, ts_key: str
+    ) -> dict[int, dict]:
+        """Battle stats per member from TornStats faction spy endpoint.
+
+        TornStats `/spy/faction/{id}` returns each member with both
+        ``personalstats`` (xanax/attacks/networth/...) and ``spy`` (strength/
+        defense/speed/dexterity/total). This method extracts the ``spy`` block
+        — the battle stats — for use by ``refresh_spy_cache`` (which writes
+        them into ``spy_reports`` for threat scoring).
+
+        Returns dict[player_id, {strength, defense, speed, dexterity, total, timestamp}].
+        Players without a ``spy`` block (no spy data available) are skipped.
+        """
+        cache_key = f"tspy_battle_{faction_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"https://www.tornstats.com/api/v2/{ts_key}/spy/faction/{faction_id}",
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("tornstats", f"/api/v2/spy/faction/{faction_id}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("tornstats", f"/api/v2/spy/faction/{faction_id}", False, (time.time() - start) * 1000, str(e))
+            raise
+
+        result: dict[int, dict] = {}
+        if not raw.get("status"):
+            self._set_cached(cache_key, result)
+            return result
+        members_data = raw.get("faction", {}).get("members", {})
+        for pid_str, member_data in members_data.items():
+            spy_raw = member_data.get("spy") or {}
+            if not spy_raw:
+                continue
+            result[int(pid_str)] = {
+                "strength": spy_raw.get("strength", 0) or 0,
+                "defense": spy_raw.get("defense", 0) or 0,
+                "speed": spy_raw.get("speed", 0) or 0,
+                "dexterity": spy_raw.get("dexterity", 0) or 0,
+                "total": spy_raw.get("total", 0) or 0,
+                "timestamp": spy_raw.get("timestamp"),
+            }
+        self._set_cached(cache_key, result)
+        return result
+
     async def fetch_tornstats_spy_user(self, player_id: int, ts_key: str) -> dict | None:
         """Fetch estimated battle stats for a single player from TornStats.
         Returns dict with strength/defense/speed/dexterity/total or None."""

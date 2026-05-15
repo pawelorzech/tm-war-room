@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.4";
+export const CURRENT_VERSION = "1.31.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.5",
+    date: "2026-05-15",
+    title: "Fix — spy estimates no longer wiped to zeros every 30 min",
+    changes: [
+      { type: "fix", text: "The 30-min `refresh_spies` scheduler job was overwriting real battle-stat estimates with zeros for months. Root cause: it called `fetch_tornstats_spy` (which returns PersonalStats — xanax/attacks/networth/...) and read `strength/defense/speed/dexterity/total` off those objects via `getattr(..., 0)`. Those attributes do not exist on PersonalStats, so every refresh wrote zeros to `spy_reports`. Empirical evidence in prod: 87% of spy_estimates had total=0, 99.86% of spy_reports had all stats=0, 162 zero-only inserts every hour. TornStats `/spy/faction/{id}` response actually has BOTH `personalstats` and `spy` blocks per member — the `spy` block holds the battle stats, and we were never reading it. Added `fetch_tornstats_faction_battle_stats` that parses the correct field, switched the scheduler to it, and added a `total <= 0 → skip upsert` guard so an empty TornStats response can never poison existing data again. Estimates will refill over the next 30-60 min as the scheduler runs with the corrected parser. Related to 1.31.3 — that was a downstream band-aid for the same root cause" },
+    ],
+  },
   {
     version: "1.31.4",
     date: "2026-05-15",

@@ -139,6 +139,9 @@ FAKE_FACTION_INFO = {
 FAKE_TORNSTATS_SPY = {
     "status": True,
     "faction": {"members": {"183527": {"name": "DarkMagic", "level": 82, "id": 183527,
+        "spy": {"strength": 1_500_000_000, "defense": 1_500_000_000,
+                "speed": 1_500_000_000, "dexterity": 1_500_000_000,
+                "total": 6_000_000_000, "timestamp": 1778500000},
         "personalstats": {"Xanax Taken": 2002, "Refills": 934, "Stat Enhancers Used": 0,
             "Attacks Won": 4742, "Attacks Lost": 257, "Defends Won": 264, "Defends Lost": 2630,
             "Damage Done": 13808654, "Networth": 5900149236, "Highest Level Beaten": 100,
@@ -177,6 +180,55 @@ async def test_fetch_tornstats_spy(client):
         spy = await client.fetch_tornstats_spy(9420, "fake_key")
     assert 183527 in spy
     assert spy[183527].xanax_taken == 2002
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_faction_battle_stats(client):
+    """Battle stats come from member_data["spy"], NOT member_data["personalstats"]."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_TORNSTATS_SPY
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        battle = await client.fetch_tornstats_faction_battle_stats(9420, "fake_key")
+    assert 183527 in battle
+    assert battle[183527]["strength"] == 1_500_000_000
+    assert battle[183527]["total"] == 6_000_000_000
+    assert battle[183527]["timestamp"] == 1778500000
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_faction_battle_stats_skips_members_without_spy(client):
+    """Members without a 'spy' block (no spy data available) must be skipped,
+    not written as zeros. The previous bug overwrote real data with zeros
+    every 30 min."""
+    response = {
+        "status": True,
+        "faction": {"members": {
+            "111": {"name": "WithSpy", "id": 111,
+                    "spy": {"strength": 1e9, "defense": 1e9, "speed": 1e9, "dexterity": 1e9, "total": 4e9}},
+            "222": {"name": "NoSpy", "id": 222},  # No 'spy' key at all
+            "333": {"name": "EmptySpy", "id": 333, "spy": {}},  # Empty spy block
+        }}
+    }
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = response
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        battle = await client.fetch_tornstats_faction_battle_stats(9420, "fake_key")
+    assert 111 in battle
+    assert 222 not in battle
+    assert 333 not in battle
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_faction_battle_stats_status_false(client):
+    """status=False (e.g. TornStats error / no data) returns empty dict, not raise."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {"status": False, "message": "No spies."}
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        battle = await client.fetch_tornstats_faction_battle_stats(9420, "fake_key")
+    assert battle == {}
 
 
 FAKE_YATA_MEMBERS = {
