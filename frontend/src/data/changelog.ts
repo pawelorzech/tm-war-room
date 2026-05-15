@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.36.1";
+export const CURRENT_VERSION = "1.37.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.37.0",
+    date: "2026-05-15",
+    title: "Companion v0.15 — armoury competition card on Torn",
+    changes: [
+      {
+        type: "feat",
+        summary: "Active armoury competitions now show inline on Torn's armoury page",
+        detail: "Open /factions.php?step=armoury (or step=your&type=1) and you get a card with every active competition, a top-5 mini leaderboard with you highlighted if you've contributed, time-remaining countdown, and a link to TM Hub for the full view.",
+      },
+      {
+        type: "feat",
+        summary: "Your rank in the competition shows even if you're outside the top 5",
+        detail: "If you've contributed but didn't make the top 5, your row is appended at the bottom with your real rank — so you always know where you stand without opening TM Hub.",
+      },
+    ],
+  },
   {
     version: "1.36.1",
     date: "2026-05-15",
