@@ -238,16 +238,92 @@ async def backup_keys_now(admin: dict = Depends(require_superadmin)):
 
 @router.post("/stats/collect-now")
 async def collect_stats_now(admin: dict = Depends(require_admin)):
-    """Trigger immediate stat snapshot collection for all registered members."""
+    """Trigger immediate stat snapshot collection + background spy estimate refresh.
+
+    Stats collection is awaited (fast — Torn API direct, members in parallel).
+    Spy estimate refresh runs in the background because it's TornStats-paced
+    (~1.1s/call) and may take minutes for a full backlog. Admin sees the
+    member count immediately; the spy refresh trickles in async.
+    """
+    import asyncio
     from api.scheduler.engine import get_state
     from api.scheduler.jobs.collect_stats import collect_stat_snapshots
+    from api.scheduler.jobs.refresh_stale_spies import (
+        refresh_stale_estimates,
+        MAX_PER_BULK,
+    )
     state = get_state()
     if not state.get("key_repo") or not state.get("stats_repo") or not state.get("torn_client"):
         raise HTTPException(status_code=503, detail="Scheduler not initialized yet")
     await collect_stat_snapshots(state["key_repo"], state["stats_repo"], state["torn_client"])
     count = len(state["key_repo"].get_all_keys())
     logger.info("Manual stat collection triggered by admin %d", admin["sub"])
-    return {"status": "ok", "message": f"Collected stats for {count} members"}
+
+    # Fire-and-forget spy refresh so the admin doesn't wait minutes for the response.
+    spy_service = state.get("spy_service")
+    tornstats_key = state.get("tornstats_key", "")
+    if spy_service and tornstats_key:
+        async def _bg():
+            try:
+                result = await refresh_stale_estimates(
+                    spy_service, state["torn_client"], tornstats_key,
+                    max_per_run=MAX_PER_BULK,
+                )
+                logger.info(
+                    "Background spy refresh after collect-now: refreshed=%d attempted=%d",
+                    result["refreshed"], result["attempted"],
+                )
+            except Exception as e:
+                logger.exception("Background spy refresh failed: %s", e)
+        asyncio.create_task(_bg())
+        return {
+            "status": "ok",
+            "message": f"Collected stats for {count} members; spy refresh started in background",
+            "spy_refresh_started": True,
+        }
+    return {
+        "status": "ok",
+        "message": f"Collected stats for {count} members",
+        "spy_refresh_started": False,
+    }
+
+
+@router.post("/spy/refresh-stale-now")
+async def refresh_stale_spies_now(admin: dict = Depends(require_admin)):
+    """Trigger an immediate bulk refresh of stale spy estimates.
+
+    Awaits the refresh so the admin sees real counts back. With MAX_PER_BULK=500
+    and 1.1s pacing this can take up to ~9 minutes — but most runs finish much
+    faster because most rows are already fresh.
+    """
+    from api.scheduler.engine import get_state
+    from api.scheduler.jobs.refresh_stale_spies import (
+        refresh_stale_estimates,
+        MAX_PER_BULK,
+    )
+    state = get_state()
+    spy_service = state.get("spy_service")
+    if not spy_service or not state.get("torn_client"):
+        raise HTTPException(status_code=503, detail="Spy service not initialized yet")
+    tornstats_key = state.get("tornstats_key", "")
+    if not tornstats_key:
+        raise HTTPException(status_code=503, detail="TORNSTATS_API_KEY not configured")
+    result = await refresh_stale_estimates(
+        spy_service, state["torn_client"], tornstats_key, max_per_run=MAX_PER_BULK,
+    )
+    logger.info(
+        "Manual spy refresh by admin %d: refreshed=%d attempted=%d",
+        admin["sub"], result["refreshed"], result["attempted"],
+    )
+    return {
+        "status": "ok",
+        "refreshed": result["refreshed"],
+        "attempted": result["attempted"],
+        "message": (
+            f"Refreshed {result['refreshed']}/{result['attempted']} stale spy estimates"
+            if result["attempted"] else "No stale spy estimates to refresh"
+        ),
+    }
 
 
 class AnnouncementCreateBody(PydanticBaseModel):

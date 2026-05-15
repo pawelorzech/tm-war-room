@@ -124,8 +124,24 @@ export function AnalyticsDashboard({ adminFetch }: { adminFetch: AdminFetch }) {
             } catch (e) { alert("Failed: " + (e instanceof Error ? e.message : "unknown error")); }
           }}
           className="px-3 py-1 rounded text-sm bg-torn-green/20 border border-torn-green/30 text-torn-green hover:bg-torn-green/30"
+          title="Collect own-faction stat snapshots from Torn API + kick off background spy estimate refresh"
         >
           Collect Stats Now
+        </button>
+        <button
+          onClick={async () => {
+            try {
+              const res = await adminFetch<{ message: string; refreshed?: number; attempted?: number }>(
+                "/api/admin/spy/refresh-stale-now",
+                { method: "POST" },
+              );
+              alert(res.message || "Spy estimates refreshed!");
+            } catch (e) { alert("Failed: " + (e instanceof Error ? e.message : "unknown error")); }
+          }}
+          className="px-3 py-1 rounded text-sm bg-torn-green/20 border border-torn-green/30 text-torn-green hover:bg-torn-green/30"
+          title="Bulk refresh all stale spy estimates (>7d old) from TornStats. May take several minutes for a large backlog."
+        >
+          Refresh Spy Estimates
         </button>
         <button
           onClick={load}
