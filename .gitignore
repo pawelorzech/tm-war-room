@@ -6,6 +6,8 @@ data/
 NOTES.md
 .superpowers/
 .claude/
+.codex/
+Plans/
 
 frontend/node_modules/
 frontend/out/
