@@ -50,7 +50,14 @@ export function clearAuth(): void {
  * torn.com and re-tap Connect in the chip if they need to.
  */
 export function openAuthPage(hubOrigin: string): void {
-  const url = `${hubOrigin}/extension-auth`;
+  // Pass the current torn.com URL as ?returnTo so the hub side can bounce
+  // PDA users (and direct-nav fallbacks) back here after a successful
+  // connect. Desktop popups close themselves via window.close(); returnTo
+  // is harmless there but keeps the logic uniform.
+  const returnTo =
+    typeof window !== 'undefined' && window.location ? window.location.href : '';
+  const params = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+  const url = `${hubOrigin}/extension-auth${params}`;
   const isPDA =
     typeof navigator !== 'undefined' &&
     (/TornPDA/i.test(navigator.userAgent || '') ||

@@ -12,9 +12,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.5";
+export const CURRENT_VERSION = "1.32.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.32.0",
+    date: "2026-05-15",
+    title: "Companion v0.11 — friendlier first connect + smaller attack-page footprint",
+    changes: [
+      { type: "feat", text: "Companion launch button now has two states. Disconnected = yellow plug icon with a gentle pulse + tooltip 'Connect TM Hub Companion'; connected = the usual green chat bubble. The button heartbeats every 5s so it flips state without a page reload after the user finishes the connect flow." },
+      { type: "feat", text: "First-run onboarding popover anchored to the launch button. Auto-shows ~1.5s after page load on torn.com when the companion is installed but not yet connected, with copy '👋 TM Hub Companion is installed — Connect with your Torn API key to enable chat, attack overlay, bounty hints…' and [Connect now] / [Later] buttons. Stored as `seen-onboard-popover` so it doesn't pester returning users. Clicking the disconnected launch button always shows the popover as a 'what's about to happen' gate before the auth window opens." },
+      { type: "feat", text: "Return-to-Torn after companion auth. `openAuthPage` now passes `?returnTo=<current torn url>` to the hub. On desktop the popup auto-closes itself ~1s after success; on Torn PDA / direct-nav the page redirects back to the original Torn URL after ~1.5s. Manual '← Back to Torn' fallback link is always present. ReturnTo is origin-whitelisted to www.torn.com / torn.com so it can't be turned into an open-redirect." },
+      { type: "improve", text: "Slimmer AuthGate variant on /extension-auth — instead of the full 'TM Hub — The Masters Faction Toolkit' branding card, the connect handoff shows 'Connect Companion — One step — we'll wire up the userscript and bring you back to Torn'. Less context-switch, no double-login feel." },
+      { type: "fix", text: "Companion status chip showed 'v0.0.0' instead of the real version. Root cause: every constant declaration used `typeof process !== 'undefined' && process.env && process.env.X` as a runtime guard. esbuild substituted the literal correctly during build, but in the userscript runtime (Tampermonkey / PDA / Violentmonkey) there's no global `process`, so the guard short-circuited to false and the fallback won. Fix: new `extension/src/env.ts` with clean `process.env.X` reads — guarded only at the type level — and refactored 10 inject/lib files to import from there. Same bug silently affected `HUB_ORIGIN` everywhere too, but its fallback happened to match prod." },
+      { type: "fix", text: "Removed the Intel card from the attack page (`page.php?sid=attack`). It was getting injected above the page header and pushing the attack button down, breaking muscle memory on quick rotations. The OFF-LIMITS badge + attack intercept modal still render on the attack page when relevant; the full intel (spy estimate, target tag, stakeout) remains on the player's profile page where there's no attack button to shove around." },
+    ],
+  },
   {
     version: "1.31.5",
     date: "2026-05-15",

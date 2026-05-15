@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { usePDA } from "@/contexts/PDAContext";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading, login } = useAuth();
   const { isPDA } = usePDA();
+  const pathname = usePathname();
+  // /extension-auth is the connect-from-userscript handoff page. Strip the
+  // full TM Hub branding card down to a focused "Connect TM Hub Companion"
+  // copy so the flow feels like one step, not "log into hub + then mint a
+  // token for the extension".
+  const isCompanionHandoff = pathname === "/extension-auth";
   const [apiKey, setApiKey] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
@@ -49,10 +56,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 className="text-2xl font-extrabold tracking-tight text-torn-green"
                 style={{ animation: "tm-glow-pulse 3s ease-in-out infinite" }}
               >
-                TM Hub
+                {isCompanionHandoff ? "Connect Companion" : "TM Hub"}
               </h1>
               <p className="text-text-secondary text-xs mt-1 tracking-wide">
-                The Masters Faction Toolkit
+                {isCompanionHandoff
+                  ? "One step — we'll wire up the userscript and bring you back to Torn."
+                  : "The Masters Faction Toolkit"}
               </p>
             </div>
 
@@ -170,11 +179,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               to access this tool.
             </p>
 
-            <p className="mt-3 text-text-muted text-[10px] text-center leading-relaxed">
-              Closed this by accident? Open any torn.com page and tap the{" "}
-              <span className="text-text-secondary">⚡ TM Hub Companion</span>{" "}
-              chip at the bottom-left → <span className="text-text-secondary">Connect</span>.
-            </p>
+            {!isCompanionHandoff && (
+              <p className="mt-3 text-text-muted text-[10px] text-center leading-relaxed">
+                Closed this by accident? Open any torn.com page and tap the{" "}
+                <span className="text-text-secondary">⚡ TM Hub Companion</span>{" "}
+                chip at the bottom-left → <span className="text-text-secondary">Connect</span>.
+              </p>
+            )}
           </div>
         </div>
       </div>

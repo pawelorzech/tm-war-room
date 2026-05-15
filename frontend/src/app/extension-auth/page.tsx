@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -9,16 +10,43 @@ import { useAuth } from '@/hooks/useAuth';
  *
  * Flow:
  *   1. User clicks "Connect to TM Hub" in the userscript/extension on torn.com
- *   2. Userscript opens this page in a new window (window.open)
+ *   2. Userscript opens this page in a new window (window.open) with
+ *      ?returnTo=<original torn url>
  *   3. AuthGate forces a login if the user isn't already logged into TM Hub
+ *      (slim variant — branding stripped, says "Connect TM Hub Companion")
  *   4. On mount, we POST /api/extension/issue-token to mint a long-lived token
  *   5. window.opener.postMessage({type, token, player_id, ...}, "*") hands it
  *      to the userscript, which stores it in GM_setValue / chrome.storage
- *   6. Manual fallback: token is also rendered in a copy-friendly code block
+ *   6. On desktop popups (window.opener live) — auto window.close() after
+ *      a short success blink. On Torn PDA / direct nav — bounce back to the
+ *      returnTo URL (whitelisted to torn.com to prevent open-redirect).
+ *   7. Manual fallback: token is also rendered in a copy-friendly code block
  *      (in case the user opened the link directly, or postMessage failed)
  */
+
+// Only allow returnTo URLs pointing back to torn.com — anything else is
+// either a phishing attempt or a misconfigured caller. Both www. and the
+// bare apex are valid landing surfaces.
+function sanitizeReturnTo(raw: string | null): string {
+  if (!raw) return 'https://www.torn.com/';
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return 'https://www.torn.com/';
+    if (u.hostname === 'www.torn.com' || u.hostname === 'torn.com') return u.href;
+    return 'https://www.torn.com/';
+  } catch {
+    return 'https://www.torn.com/';
+  }
+}
+
 export default function ExtensionAuthPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const returnTo = useMemo(
+    () => sanitizeReturnTo(searchParams?.get('returnTo') ?? null),
+    [searchParams],
+  );
+
   const [token, setToken] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<number | null>(null);
   const [playerName, setPlayerName] = useState<string | null>(null);
@@ -26,6 +54,7 @@ export default function ExtensionAuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [postedToOpener, setPostedToOpener] = useState(false);
+  const [autoActionLabel, setAutoActionLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !isLoggedIn || token) return;
@@ -47,9 +76,11 @@ export default function ExtensionAuthPage() {
           expires_hours: res.expires_hours,
         };
 
+        let didPost = false;
         if (window.opener) {
           try {
             window.opener.postMessage(payload, '*');
+            didPost = true;
             setPostedToOpener(true);
           } catch {
             // opener is on a different origin and rejected the post — that's
@@ -60,11 +91,33 @@ export default function ExtensionAuthPage() {
         // tab (e.g. opened via location.assign rather than window.open) can
         // intercept.
         window.postMessage(payload, window.location.origin);
+
+        // Auto-finish: popup closes itself; new-tab redirects back to Torn.
+        // Both branches give the user ~1s of "✓ connected" feedback before
+        // disappearing, so the success state is visible, not a flash.
+        const hasLiveOpener =
+          didPost && window.opener && !window.opener.closed;
+        if (hasLiveOpener) {
+          setAutoActionLabel('Closing this window…');
+          setTimeout(() => {
+            try {
+              window.close();
+            } catch {
+              // some browsers block window.close() — leave the page; the
+              // manual "Back to Torn" button below covers this.
+            }
+          }, 1000);
+        } else {
+          setAutoActionLabel('Returning to Torn…');
+          setTimeout(() => {
+            window.location.href = returnTo;
+          }, 1500);
+        }
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : 'Failed to issue token');
       });
-  }, [authLoading, isLoggedIn, token]);
+  }, [authLoading, isLoggedIn, token, returnTo]);
 
   const handleCopy = async () => {
     if (!token) return;
@@ -115,8 +168,11 @@ export default function ExtensionAuthPage() {
                   </p>
                   <p className="text-text-secondary text-sm mt-1">
                     {postedToOpener
-                      ? 'The userscript / extension has received your token. You can close this tab.'
+                      ? 'The userscript has received your token.'
                       : 'Copy the token below into the extension if it did not pick it up automatically.'}
+                    {autoActionLabel && (
+                      <span className="block text-text-muted text-xs mt-1">{autoActionLabel}</span>
+                    )}
                   </p>
                   <ul className="text-text-muted text-xs mt-3 space-y-1">
                     <li>Player: <span className="text-text-primary">{playerName} [{playerId}]</span></li>
@@ -124,6 +180,12 @@ export default function ExtensionAuthPage() {
                       <li>Valid for: <span className="text-text-primary">{Math.round(expiresHours / 24)} days</span></li>
                     )}
                   </ul>
+                  <a
+                    href={returnTo}
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-torn-green hover:text-torn-green-dim transition-colors"
+                  >
+                    ← Back to Torn
+                  </a>
                 </div>
               </div>
             </div>

@@ -27,11 +27,19 @@ import type { ChatChannel, ChatMessage } from '../types';
 declare const GM_getValue: <T>(key: string, def?: T) => T;
 declare const GM_setValue: (key: string, value: unknown) => void;
 
+import { HUB_ORIGIN } from '../env';
+
 const HOST_KIND = 'chat-dock';
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
 const STATE_KEY = 'tm-hub-companion-chat-dock-state';
+const ONBOARD_SEEN_KEY = 'seen-onboard-popover';
+
+function getOnboardSeen(): boolean {
+  return Boolean(GM_getValue<boolean>(ONBOARD_SEEN_KEY, false));
+}
+
+function setOnboardSeen(): void {
+  GM_setValue(ONBOARD_SEEN_KEY, true);
+}
 
 interface DockState {
   open: boolean;
@@ -77,6 +85,76 @@ const STYLES = `
   }
   .btn-launch:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
   .btn-launch svg { width: 20px; height: 20px; fill: #fff; }
+
+  /* Disconnected state — yellow ring, plug icon, gentle pulse so first-time
+     visitors don't mistake it for a passive UI element. */
+  .btn-launch.disconnected {
+    background: #161b22;
+    border: 2px solid #d29922;
+    color: #d29922;
+    animation: tm-pulse-ring 2s ease-in-out infinite;
+  }
+  .btn-launch.disconnected svg { fill: #d29922; width: 18px; height: 18px; }
+  .btn-launch.disconnected:hover { background: #21262d; }
+  @keyframes tm-pulse-ring {
+    0%, 100% { box-shadow: 0 6px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(210,153,34,0.45); }
+    50%      { box-shadow: 0 6px 16px rgba(0,0,0,0.4), 0 0 0 8px rgba(210,153,34,0); }
+  }
+
+  /* Onboarding popover — anchored above the launch button. */
+  .onboard {
+    position: fixed;
+    right: 12px;
+    bottom: 108px;
+    width: 280px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+    padding: 14px 14px 12px;
+    z-index: 999903;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .onboard::after {
+    content: '';
+    position: absolute;
+    right: 22px;
+    bottom: -7px;
+    width: 12px;
+    height: 12px;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    border-bottom: 1px solid #30363d;
+    transform: rotate(45deg);
+  }
+  .onboard .head {
+    color: #f0f6fc;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .onboard .body {
+    color: #8b949e;
+    margin-bottom: 12px;
+  }
+  .onboard .actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  .onboard .obtn {
+    border: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .onboard .obtn.secondary { background: transparent; color: #8b949e; }
+  .onboard .obtn.secondary:hover { background: #21262d; color: #c9d1d9; }
+  .onboard .obtn.primary { background: #d29922; color: #fff; }
+  .onboard .obtn.primary:hover { background: #e3b34d; }
   .badge {
     position: absolute;
     top: -2px;
@@ -296,6 +374,23 @@ export function startChatDock(): DockController {
     immediate: true,
   });
 
+  // Heartbeat: flip the launch-button between connected (green chat) and
+  // disconnected (yellow plug) variants without requiring a page reload.
+  // Cheap — single getAuth() + maybe a node swap. Matches the cadence of
+  // the status chip so the two stay in sync visually.
+  setInterval(() => renderLaunchButton(shadow), 5_000);
+
+  // First-run nudge: if the user is not connected AND has never seen the
+  // popover, surface it ~1.5s after page load (gives Torn time to paint
+  // its own chrome so our popover doesn't fight for attention).
+  if (!getAuth() && !getOnboardSeen()) {
+    setTimeout(() => {
+      if (!getAuth() && !getOnboardSeen()) {
+        showOnboardPopover(shadow);
+      }
+    }, 1500);
+  }
+
   applyState(shadow);
 
   return {
@@ -476,24 +571,75 @@ function stopMessagePolling(): void {
 // ── Rendering ───────────────────────────────────────────────
 
 function renderLaunchButton(shadow: ShadowRoot): void {
+  // Idempotent — re-renders flip the visual state when auth flips. Triggered
+  // by the 5s heartbeat in startChatDock plus by the auth-listener handoff.
+  shadow.querySelectorAll('.btn-launch').forEach((n) => n.remove());
+
+  const auth = getAuth();
   const btn = document.createElement('button');
-  btn.className = 'btn-launch';
-  btn.title = 'TM Hub chat';
-  btn.innerHTML = `
-    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-    <span class="badge hidden">0</span>
-  `;
+  btn.className = auth ? 'btn-launch' : 'btn-launch disconnected';
+  btn.title = auth ? 'TM Hub chat' : 'Connect TM Hub Companion';
+  btn.innerHTML = auth
+    ? `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+       <span class="badge hidden">0</span>`
+    // Plug icon — visual cue that something needs to be plugged in.
+    : `<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4H6c-1.1 0-2 .9-2 2v5.5c0 1.93 1.57 3.5 3.5 3.5V21h2v-3h5v3h2v-3.01c1.93 0 3.5-1.56 3.5-3.49V9c0-1.1-.9-2-2-2h-2z"/></svg>`;
   shadow.appendChild(btn);
+
   btn.addEventListener('click', () => {
-    const auth = getAuth();
-    if (!auth) {
-      // Friendly nudge — same flow as the chip's Connect button.
-      openAuthPage(HUB_ORIGIN);
+    const a = getAuth();
+    if (!a) {
+      // Always show the popover-monit on click — it acts as a gate that
+      // explains what's about to happen. Even users who dismissed the
+      // auto-shown variant get this on the next click.
+      showOnboardPopover(shadow);
       return;
     }
     if (_state.open) closeDock(shadow);
     else openDock(shadow);
   });
+}
+
+function showOnboardPopover(shadow: ShadowRoot): void {
+  // Remove any prior popover so successive triggers don't stack.
+  shadow.querySelectorAll('.onboard').forEach((n) => n.remove());
+
+  const pop = document.createElement('div');
+  pop.className = 'onboard';
+  pop.innerHTML = `
+    <div class="head">👋 TM Hub Companion is installed</div>
+    <div class="body">
+      Connect with your Torn API key to enable chat, attack overlay,
+      bounty hints and more. The form opens in a window — we'll bring
+      you right back here when it's done.
+    </div>
+    <div class="actions">
+      <button class="obtn secondary" data-act="later">Later</button>
+      <button class="obtn primary" data-act="connect">Connect now</button>
+    </div>
+  `;
+  shadow.appendChild(pop);
+
+  const cleanup = () => {
+    pop.remove();
+    setOnboardSeen();
+    document.removeEventListener('click', outsideHandler);
+  };
+
+  // Outside click dismisses. Defer attaching the listener so the click that
+  // opened the popover (when it came from the launch button) doesn't
+  // immediately close it.
+  function outsideHandler(e: MouseEvent): void {
+    const target = e.target as Node;
+    if (!shadow.host.contains(target)) cleanup();
+  }
+  setTimeout(() => document.addEventListener('click', outsideHandler), 100);
+
+  pop.querySelector('[data-act="connect"]')?.addEventListener('click', () => {
+    cleanup();
+    openAuthPage(HUB_ORIGIN);
+  });
+  pop.querySelector('[data-act="later"]')?.addEventListener('click', cleanup);
 }
 
 function setBadge(shadow: ShadowRoot, count: number): void {
