@@ -15,6 +15,9 @@ import type {
   ChatChannel,
   ChatMessage,
   ChatUnreadResponse,
+  SpyEstimate,
+  TargetsResponse,
+  StakeoutsResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -214,6 +217,20 @@ export function markChatRead(
     { channel_id: channelId, message_id: messageId, thread_id: 0 },
     auth,
   );
+}
+
+// ── Intel (Phase 3) ─────────────────────────────────────────
+
+export function fetchSpyEstimate(auth: CompanionAuth, playerId: number): Promise<SpyEstimate> {
+  return get<SpyEstimate>(`/api/spy/${playerId}`, auth);
+}
+
+export function fetchTargets(auth: CompanionAuth): Promise<TargetsResponse> {
+  return get<TargetsResponse>('/api/targets', auth);
+}
+
+export function fetchStakeouts(auth: CompanionAuth): Promise<StakeoutsResponse> {
+  return get<StakeoutsResponse>('/api/stakeout', auth);
 }
 
 export { ApiError };

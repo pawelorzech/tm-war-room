@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.25.0";
+export const CURRENT_VERSION = "1.26.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.26.0",
+    date: "2026-05-15",
+    title: "Companion v0.6 — spy + targets + stakeout intel on profile pages",
+    changes: [
+      { type: "feat", text: "TM Hub intel card on every enemy profile page and the attack screen. Combines three pieces of data into one stack: spy estimate (strength / defense / speed / dexterity grid + total + how stale + which source), your personal target list status (tag + difficulty + notes), and faction-shared stakeout flag (who's watching this player). Empty sections hide automatically — the card only renders if there's at least one piece of intel to show" },
+      { type: "feat", text: "Difficulty pills color-coded — green for easy, amber for medium, red for hard — so you can pattern-match at a glance instead of reading the word. Spy stats formatted as 12.4M / 850k for fast reading. 'Open in TM Hub →' deep-link in the card header for jumping into the full spy detail page when needed" },
+      { type: "improve", text: "10-min per-player intel cache so flicking between attack and profile pages doesn't re-hit the backend each time. Targets and stakeout lists cached 5 min faction-wide" },
+      { type: "improve", text: "Removed the duplicate 'not connected' banner on profile/attack pages — the persistent status chip in the corner is now the single source of truth for connection state. Less screen real estate burned on the same warning" },
+    ],
+  },
   {
     version: "1.25.0",
     date: "2026-05-15",
