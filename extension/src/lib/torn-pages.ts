@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -35,6 +35,9 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
     if (sid === 'bounties') {
       return { kind: 'bounties', player_id: null };
     }
+    if (sid === 'stocks') {
+      return { kind: 'stocks', player_id: null };
+    }
   }
   if (path === '/bounties.php') {
     return { kind: 'bounties', player_id: null };
@@ -55,6 +58,12 @@ export const ATTACK_BUTTON_SELECTORS = [
   'a[href*="loader.php?sid=attack"]',
   'button[class*="attack"]',
   '#mainContainer button:not([class*="cancel"])',
+];
+
+export const STOCKS_ANCHOR_SELECTORS = [
+  '#stockmarketroot',
+  '#mainContainer .content-wrapper',
+  '#mainContainer',
 ];
 
 /**

@@ -187,3 +187,59 @@ export interface LootResponse {
   count: number;
   fetched_at: number;
 }
+
+export interface StockHolding {
+  stock_id: number;
+  name: string;
+  acronym: string;
+  total_shares: number;
+  current_price: number;
+  current_value: number;
+  cost_basis: number;
+  profit: number;
+  profit_pct: number;
+  benefit_ready: boolean;
+  benefit_progress: number;
+  benefit_frequency: number;
+  dividend_ready: boolean;
+  dividend_progress: number;
+  dividend_frequency: number;
+}
+
+export interface StockPortfolioResponse {
+  holdings: StockHolding[];
+  count: number;
+  total_value: number;
+  total_cost: number;
+  total_profit: number;
+  total_profit_pct: number;
+}
+
+export interface StockRoiRecommendation {
+  stock_id: number;
+  acronym: string;
+  name: string;
+  benefit_desc: string;
+  increment: number;
+  shares_required: number;
+  shares_this_block: number;
+  cost_total: number;
+  cost_this_block: number;
+  payout_value: number;
+  payout_freq_days: number;
+  daily_value: number;
+  days_to_breakeven: number;
+  roi_annual_pct: number;
+  marginal_payback_days: number;
+  marginal_roi_pct: number;
+  owned_shares: number;
+  shares_needed: number;
+  cost_remaining: number;
+  is_active: boolean;
+  price_is_live: boolean;
+}
+
+export interface StockRoiResponse {
+  recommendations: StockRoiRecommendation[];
+  count: number;
+}
