@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/spy", tags=["spy"])
 spy_service: SpyService | None = None
 torn_client = None  # Set by main.py
 tornstats_key: str = ""  # Set by main.py
+stats_repo = None  # Set by main.py — StatSnapshotRepository for faction-member fallback
 
 
 def _require_service() -> SpyService:
@@ -42,6 +43,93 @@ def _is_stale(est: dict, now: datetime, max_age_days: int = STALE_REFRESH_DAYS) 
     if reported.tzinfo is None:
         reported = reported.replace(tzinfo=timezone.utc)
     return (now - reported).days > max_age_days
+
+
+async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | None:
+    """Return a synthesized SpyEstimate when no spy network has data.
+
+    Preference order:
+    1. ``stat_snapshots`` (the player's own API key, exact) — only available
+       for TM Hub-registered teammates, but it's the most accurate source we
+       can ever get.
+    2. Our heuristic estimator over ``personalstats`` (xanax / refills / etc.).
+       Works for any player but is a coarse single-number guess.
+
+    Not persisted to spy_estimates — these are derived views over data we
+    already store. Persisting would duplicate and risk drift.
+    """
+    now = datetime.now(timezone.utc)
+
+    # 1. faction_snapshot — exact stats from the player's own API key
+    if stats_repo:
+        snap = stats_repo.get_latest_snapshot(player_id)
+        if snap and (snap.get("total") or 0) > 0:
+            snap_date = snap["snapshot_date"]  # "YYYY-MM-DD"
+            reported = datetime.fromisoformat(snap_date + "T00:00:00+00:00")
+            age_days = max(0, (now - reported).days)
+            # The snapshot itself is exact — but it ages. After EXACT_MAX_AGE_DAYS
+            # we step down to "estimate" so the UI shows a reasonable confidence.
+            confidence = "exact" if age_days <= 7 else ("estimate" if age_days <= 30 else "stale")
+            name = svc.repo.get_names_for_ids([player_id]).get(player_id)
+            return {
+                "player_id": player_id,
+                "player_name": name,
+                "strength": snap["strength"],
+                "defense": snap["defense"],
+                "speed": snap["speed"],
+                "dexterity": snap["dexterity"],
+                "total": snap["total"],
+                "confidence": confidence,
+                "source": "faction_snapshot",
+                "reported_at": reported.isoformat(),
+                "age_days": age_days,
+            }
+
+    # 2. Heuristic estimator from personalstats (xanax + refills + level + ...)
+    if torn_client is None:
+        return None
+    try:
+        from api.stat_estimator import estimate_stats
+        from api.torn_client import _json
+        resp = await torn_client._http.get(
+            "https://api.torn.com/user/",
+            params={
+                "selections": "personalstats,profile",
+                "key": torn_client._api_key,
+                "id": player_id,
+            },
+        )
+        if resp.status_code != 200:
+            return None
+        raw = await _json(resp)
+        ps_raw = raw.get("personalstats", {})
+        level = raw.get("level", 0)
+        age = raw.get("age", 0)
+        est_data = estimate_stats(ps_raw, level, age)
+        total = int(est_data.get("estimated_total") or 0)
+        if total <= 0:
+            return None
+        per_stat = total // 4
+        name = raw.get("name") or svc.repo.get_names_for_ids([player_id]).get(player_id)
+        return {
+            "player_id": player_id,
+            "player_name": name,
+            # We can't split the heuristic total across the four stats, so we
+            # divide evenly. The UI should show this with low confidence so
+            # users know the per-stat breakdown is a guess.
+            "strength": per_stat,
+            "defense": per_stat,
+            "speed": per_stat,
+            "dexterity": per_stat,
+            "total": total,
+            "confidence": "estimate",
+            "source": "estimated",
+            "reported_at": now.isoformat(),
+            "age_days": 0,
+            "stat_estimate": est_data,
+        }
+    except Exception:
+        return None
 
 
 class SpySubmitBody(BaseModel):
@@ -223,15 +311,14 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
             svc.refresh_estimate(player_id)
             est = svc.repo.get_estimate(player_id)
     if not est:
-        # Fallback: try personalstats-based estimation
-        if torn_client:
-            try:
-                ps = await torn_client.fetch_personalstats(torn_client._api_key)
-                # We can only estimate for players we can fetch personalstats for
-                # For now, just return 404 — estimation needs the target's personalstats
-                pass
-            except Exception:
-                pass
+        # Faction-member fallback: TornStats and YATA almost never have spy data
+        # on our own teammates (you don't spy your own faction), so a teammate
+        # would show "no spy estimate available" forever. If the player has
+        # registered an API key with TM Hub we have their EXACT stats in
+        # stat_snapshots — much better than any external estimate.
+        fallback = await _build_fallback_estimate(player_id, svc)
+        if fallback:
+            return fallback
         raise HTTPException(status_code=404, detail="No spy data available for this player")
     result = _fmt_estimate(est, datetime.now(timezone.utc))
     if not (result.get("player_name") or "").strip():

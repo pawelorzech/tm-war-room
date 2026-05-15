@@ -141,6 +141,9 @@ async def lifespan(app: FastAPI):
     stats_mod.stats_repo = stats_repo
     stats_mod.key_repo = key_store._keys
     stats_mod.torn_client = torn_client
+    # Spy router uses stat_snapshots as a fallback for faction members
+    # who never get spied (since teammates don't spy each other).
+    spy_mod.stats_repo = stats_repo
     market_mod.torn_client = torn_client
 
     from api.db.repos.attacks import AttackRepository
