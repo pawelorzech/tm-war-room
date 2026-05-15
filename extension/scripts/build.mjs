@@ -49,7 +49,14 @@ const options = {
   bundle: true,
   format: 'iife',
   target: ['chrome100', 'firefox100', 'safari15'],
-  minify: false,
+  // Minify whitespace + syntax but keep identifier names. Userscript managers
+  // (Tampermonkey, Violentmonkey, Torn PDA) work fine with minified IIFEs.
+  // We keep readable identifiers so the rare bug report with a stack trace
+  // is still useful — the size win comes mostly from whitespace + syntax
+  // shrinking anyway (~155KB → ~85KB observed).
+  minifyWhitespace: true,
+  minifySyntax: true,
+  minifyIdentifiers: false,
   sourcemap: false,
   banner: { js: banner },
   define: {
