@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.3";
+export const CURRENT_VERSION = "1.31.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.4",
+    date: "2026-05-15",
+    title: "Fix — readable threat badges in light mode",
+    changes: [
+      { type: "fix", text: "Threat badges (easy/medium/hard/avoid) on the /enemies table and mobile cards were styled only for dark mode — `bg-{color}-900/60` over white background washed out to a pale tint with low-contrast text. Now use light-on-light in light mode (`bg-{color}-100 text-{color}-800`) and keep the existing dark styling under the `dark:` variant. Same pattern already used by AnnouncementList" },
+    ],
+  },
   {
     version: "1.31.3",
     date: "2026-05-15",
