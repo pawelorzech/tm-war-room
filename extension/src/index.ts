@@ -88,6 +88,12 @@ async function refresh(): Promise<void> {
 }
 
 // One-time "connect to TM Hub" banner shown when no token is present.
+//
+// IMPORTANT: we open the auth page with window.open() rather than a plain
+// `<a target="_blank">` link. Modern browsers null out `window.opener` for
+// cross-origin _blank links (and `rel="noopener"` does it explicitly), which
+// would break the postMessage handoff back to this tab. Programmatic
+// window.open with a named target keeps opener intact.
 let _promptShown = false;
 function promptConnect(): void {
   if (_promptShown) return;
@@ -98,17 +104,29 @@ function promptConnect(): void {
   div.className = 'card warn';
   div.innerHTML = `
     <span class="icon">⚡</span>
-    <div>
+    <div style="flex:1">
       <div class="title warn">TM Hub Companion — not connected</div>
-      <div class="reason">Click below to authorize this browser session.</div>
+      <div class="reason">Click to authorize this browser session.</div>
       <div class="meta" style="margin-top:8px;">
-        <a href="${HUB_ORIGIN}/extension-auth" target="_blank" rel="noopener"
-           style="color:#58a6ff;text-decoration:underline;">Connect to TM Hub →</a>
+        <button class="btn btn-attack" data-act="connect">Connect to TM Hub →</button>
       </div>
     </div>
   `;
   shadow.appendChild(div);
   if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
+
+  shadow.querySelector('[data-act="connect"]')?.addEventListener('click', () => {
+    const popup = window.open(
+      `${HUB_ORIGIN}/extension-auth`,
+      'tm-hub-companion-auth',
+      'width=520,height=720,resizable=yes,scrollbars=yes',
+    );
+    // If the popup blocker shoots us down, fall back to a normal navigation
+    // in a new tab — the user can then copy the token manually.
+    if (!popup) {
+      window.open(`${HUB_ORIGIN}/extension-auth`, '_blank');
+    }
+  });
 }
 
 function dismissConnectPrompt(): void {
