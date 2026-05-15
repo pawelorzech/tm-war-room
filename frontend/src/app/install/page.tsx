@@ -23,19 +23,42 @@ export default function InstallPage() {
           </p>
         </header>
 
-        <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-6 space-y-4">
-          <h2 className="text-lg font-semibold">What it does</h2>
-          <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
-            <li>
-              <span className="text-text-primary font-semibold">OFF-LIMITS badges</span> on enemy profiles and the attack page during war,
-              so you never accidentally break a med-out / dip agreement set by a faction member.
-            </li>
-            <li>
-              Attack confirmation modal when a target is flagged off-limits — gives you a chance to think
-              before you click.
-            </li>
-            <li>More overlays coming soon (notification toasts, @mention alerts, persistent chat dock).</li>
-          </ul>
+        <section className="grid md:grid-cols-2 gap-4">
+          {/* Shipped features */}
+          <div className="bg-bg-card border border-torn-green/30 rounded-xl p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="bg-torn-green/20 text-torn-green text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">Live</span>
+              <h2 className="text-lg font-semibold">What works today</h2>
+            </div>
+            <ul className="space-y-2 text-sm text-text-secondary">
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">OFF-LIMITS badges</span> on enemy profile + attack page during war (med-out / dip tracker)</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Attack confirmation modal</span> when a target is flagged off-limits</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Notification toasts</span> for TM Hub inbox items, surfaced on torn.com</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">@Mention alerts</span> from TM Hub chat, with native browser notifications when the tab is hidden</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Presence heartbeat</span> — show as online on /team while you have torn.com open</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Status chip + settings</span> bottom-right, with mute timers and disconnect</span></li>
+            </ul>
+          </div>
+
+          {/* Roadmap */}
+          <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="bg-text-secondary/15 text-text-secondary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">Next</span>
+              <h2 className="text-lg font-semibold">Coming up</h2>
+            </div>
+            <ul className="space-y-2 text-sm text-text-secondary">
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Persistent chat dock</span> — read + reply to TM Hub chat without leaving torn.com</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Spy estimate badges</span> on enemy profile + attack page (str/def/spd/dex from TornStats + faction submits)</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Targets + stakeout flags</span> on profile pages — faction-shared tags and notes</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">"Mark off-limits" inline button</span> on enemy profiles — flag without opening TM Hub</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Bounties threat coloring</span> on /bounties.php — red for whales, green for easy picks</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Loot NPC timers + reservations</span> on Duke / Leslie / etc</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Stocks portfolio + ROI overlay</span> on the stock market page</span></li>
+            </ul>
+            <p className="text-text-muted text-[11px] pt-2">
+              Suggestions? Ping <span className="text-text-secondary">@Bombel</span> in #general or the GitHub issues.
+            </p>
+          </div>
         </section>
 
         <section className="grid md:grid-cols-2 gap-4">

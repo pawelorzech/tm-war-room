@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.23.0";
+export const CURRENT_VERSION = "1.24.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.24.0",
+    date: "2026-05-15",
+    title: "Companion v0.4 — status chip + roadmap on /install",
+    changes: [
+      { type: "feat", text: "New persistent status chip in the bottom-right corner of every torn.com page. Always visible so you can tell at a glance whether the TM Hub Companion is loaded, which version (e.g. v0.4.0), and which player you're connected as. When not connected, the chip prompts with a 'Connect' button. Replaces the standalone settings gear — the chip now hosts the settings popover too" },
+      { type: "feat", text: "/install page now has two side-by-side cards: 'What works today' (live features the userscript ships) and 'Coming up' (roadmap of what's next — chat dock, spy badges, targets, bounties threat coloring, loot timers, stocks ROI). Faction members get a clear view of where the project is and where it's going" },
+      { type: "improve", text: "Settings popover redesigned — instead of confusing toggle-row clicks, separate sections for channel enable/disable, quick mute timers (with remaining-time badge), and disconnect. Open via the gear icon embedded in the status chip" },
+    ],
+  },
   {
     version: "1.23.0",
     date: "2026-05-15",
