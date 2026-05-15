@@ -338,13 +338,11 @@ async function pollMessages(shadow: ShadowRoot): Promise<void> {
     renderMessages(shadow);
     if (_atBottom) {
       scrollToBottom(shadow);
-      // Mark as read since user is actively at bottom.
-      void markChatRead(auth, _state.channelId, _lastMsgId).catch(() => {});
+      // Mark as read since user is actively at bottom — sync local state.
+      void doMarkRead(shadow, auth, _state.channelId, _lastMsgId);
     } else {
       showNewPill(shadow);
     }
-    // Refresh unread badge state on the channel switcher too.
-    pollUnread(shadow).catch(() => {});
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
       clearAuth();
@@ -422,11 +420,40 @@ async function loadChannelInitial(shadow: ShadowRoot, channelId: number): Promis
     renderMessages(shadow);
     scrollToBottom(shadow);
     if (_lastMsgId > 0) {
-      void markChatRead(auth, channelId, _lastMsgId).catch(() => {});
+      await doMarkRead(shadow, auth, channelId, _lastMsgId);
     }
   } catch (err) {
     showError(shadow, 'Could not load messages.');
   }
+}
+
+/**
+ * Mark a channel as read AND keep the in-memory unread state in sync so the
+ * badge / dropdown numbers update before the next pollUnread tick. We zero
+ * out the channel locally first (optimistic), then fire the server call,
+ * then poke the unread poller for confirmation.
+ */
+async function doMarkRead(
+  shadow: ShadowRoot,
+  auth: ReturnType<typeof getAuth>,
+  channelId: number,
+  messageId: number,
+): Promise<void> {
+  if (!auth) return;
+  // Optimistic local update — UI feels instant.
+  _unreadByChannel[channelId] = 0;
+  _unreadTotal = Object.values(_unreadByChannel).reduce((a, b) => a + b, 0);
+  setBadge(shadow, _unreadTotal);
+  populateChannelSelect(shadow);
+  try {
+    await markChatRead(auth, channelId, messageId);
+  } catch {
+    // Server failed — next pollUnread will reconcile.
+  }
+  // Force an unread refresh so we catch any backend reconciliation (and the
+  // case where a new message landed between the mark and our optimistic
+  // zero-out).
+  if (_unreadPoller) _unreadPoller.poke();
 }
 
 function startMessagePolling(shadow: ShadowRoot): void {
@@ -522,6 +549,10 @@ function renderPanel(shadow: ShadowRoot): void {
   panel.querySelector('[data-act="scroll-new"]')?.addEventListener('click', () => {
     scrollToBottom(shadow);
     hideNewPill(shadow);
+    const auth = getAuth();
+    if (auth && _state.channelId && _lastMsgId > 0) {
+      void doMarkRead(shadow, auth, _state.channelId, _lastMsgId);
+    }
   });
 
   // Composer
@@ -540,12 +571,23 @@ function renderPanel(shadow: ShadowRoot): void {
   });
   sendBtn.addEventListener('click', () => void doSend(shadow, ta, sendBtn));
 
-  // Scroll tracking
+  // Scroll tracking — when user scrolls to bottom, hide the "new messages"
+  // pill AND mark the channel read since they've now seen everything.
   const messages = panel.querySelector<HTMLElement>('.messages')!;
+  let _wasAtBottom = _atBottom;
   messages.addEventListener('scroll', () => {
     const distFromBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight;
     _atBottom = distFromBottom < 80;
-    if (_atBottom) hideNewPill(shadow);
+    if (_atBottom) {
+      hideNewPill(shadow);
+      if (!_wasAtBottom) {
+        const auth = getAuth();
+        if (auth && _state.channelId && _lastMsgId > 0) {
+          void doMarkRead(shadow, auth, _state.channelId, _lastMsgId);
+        }
+      }
+    }
+    _wasAtBottom = _atBottom;
   });
 }
 

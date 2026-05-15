@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.26.0";
+export const CURRENT_VERSION = "1.26.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.26.1",
+    date: "2026-05-15",
+    title: "Companion v0.6.1 — status chip moved left, chat unread sync fix",
+    changes: [
+      { type: "fix", text: "Status chip was rendering bottom-right where Torn's own footer chat widgets live, so on many pages it got hidden behind them. Moved to bottom-left so it's always visible regardless of which Torn page you're on" },
+      { type: "fix", text: "Chat dock unread badge was sticking on the old count even after you opened a channel and read everything — the local in-memory state didn't update when mark-as-read fired. Now the badge optimistically zeroes the channel locally the moment you scroll to bottom (or open the channel for the first time), then pokes the unread poller to confirm with the backend. Counts on the channel dropdown also refresh immediately" },
+      { type: "fix", text: "Scrolling back down to the bottom of a channel now marks it as read — previously the auto-mark only triggered on poll receipts, so a user scrolling up to look at history and then scrolling down didn't actually clear the unread state until 5s of new poll" },
+    ],
+  },
   {
     version: "1.26.0",
     date: "2026-05-15",
