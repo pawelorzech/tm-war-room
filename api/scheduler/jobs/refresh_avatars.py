@@ -57,8 +57,9 @@ async def run_refresh_avatars() -> None:
             continue
 
         try:
+            # v1 profile (consumer reads flat profile_image field)
             resp = await torn_client._http.get(
-                f"https://api.torn.com/v2/user/{player_id}",
+                f"https://api.torn.com/user/{player_id}",
                 params={"selections": "profile", "key": api_key},
             )
             resp.raise_for_status()

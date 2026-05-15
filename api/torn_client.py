@@ -9,7 +9,7 @@ import httpx
 from api.models import FactionMember, WarStatus, MemberBars, PersonalStats
 
 
-V1_BASE = "https://api.torn.com"  # Kept for selections with v2-incompatible shape: personalstats (categorized in v2) and company director endpoints
+V1_BASE = "https://api.torn.com"  # v1 is frozen by Torn but functional — we use it for selections whose v2 shape breaks our consumers (most user/*, torn/stocks, torn/items, torn/honors, torn/rankedwars, personalstats, company director). v1→v2 migration tracked as backlog.
 V2_BASE = "https://api.torn.com/v2"
 YATA_BASE = "https://yata.yt/api/v1"
 YATA_CACHE_TTL = 3600
@@ -140,15 +140,17 @@ class TornClient:
     async def fetch_member_bars(self, member_key: str) -> MemberBars:
         start = time.time()
         try:
+            # NB: v2 nests these under a "bars" key (v1 had top-level energy/nerve/happy/life).
+            # Staying on v1 until consumers read the nested shape.
             resp = await self._http.get(
-                f"{V2_BASE}/user/",
+                f"{V1_BASE}/user/",
                 params={"selections": "bars,cooldowns", "key": member_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v2/user/bars", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v1/user/bars", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v2/user/bars", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v1/user/bars", False, (time.time() - start) * 1000, str(e))
             raise
         return MemberBars(
             energy=raw["energy"],
@@ -539,15 +541,18 @@ class TornClient:
             return cached
         start = time.time()
         try:
+            # NB: v2 returns user stocks as a LIST with shape {id, shares, transactions[]} —
+            # v1 is a dict keyed by stock_id with {total_shares, dividend, transactions{}}.
+            # Our portfolio router reads the v1 shape, so stay on v1 here.
             resp = await self._http.get(
-                f"{V2_BASE}/user/",
+                f"{V1_BASE}/user/",
                 params={"selections": "stocks", "key": api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v2/user/stocks", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v1/user/stocks", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v2/user/stocks", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v1/user/stocks", False, (time.time() - start) * 1000, str(e))
             raise
         stocks = raw.get("stocks", {})
         self._set_cached(cache_key, stocks)

@@ -310,8 +310,9 @@ async def run_refresh_data() -> None:
                     changes = 0
                     for w in watched[:20]:  # Max 20 per cycle to save API calls
                         try:
+                            # v1 profile (consumer reads flat last_action/status/name fields)
                             resp = await torn_client._http.get(
-                                "https://api.torn.com/v2/user/",
+                                "https://api.torn.com/user/",
                                 params={"selections": "profile", "key": torn_client._api_key, "id": w["player_id"]},
                             )
                             if resp.status_code == 200:

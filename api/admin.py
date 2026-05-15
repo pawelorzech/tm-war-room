@@ -89,8 +89,9 @@ async def _verify_torn_key_still_valid(player_id: int, api_key: str) -> bool:
     if _torn_client is None:
         return False
     try:
+        # v1 profile (v2 nests under "profile" key; consumer below reads flat shape)
         resp = await _torn_client._http.get(
-            "https://api.torn.com/v2/user/",
+            "https://api.torn.com/user/",
             params={"selections": "profile", "key": api_key},
         )
         resp.raise_for_status()
