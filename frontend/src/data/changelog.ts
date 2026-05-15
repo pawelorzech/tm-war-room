@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.34.0";
+export const CURRENT_VERSION = "1.34.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.34.1",
+    date: "2026-05-15",
+    title: "Companion v0.13.1 — profile intel layout no longer breaks on narrow columns",
+    changes: [
+      {
+        type: "fix",
+        summary: "Profile intel card stopped breaking layout in Torn's narrow profile column and on Torn PDA",
+        before: "The card jammed total, pills, stats and action buttons into one row that overflowed past the card edge — buttons spilled onto the right-side Actions panel on desktop and got cut off on Torn PDA.",
+        after: "The card now stacks vertically in narrow columns and only switches to a horizontal action row when the card itself is wide enough — independent of browser window width.",
+        cause: "The card was reacting to browser width instead of its own column, and reused a style name that another overlay set to a horizontal row.",
+      },
+    ],
+  },
   {
     version: "1.34.0",
     date: "2026-05-15",

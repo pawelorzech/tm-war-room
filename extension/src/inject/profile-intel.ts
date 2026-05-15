@@ -123,7 +123,11 @@ const HOST_KIND = 'profile-intel';
 const STYLES = `
   :host { all: initial; }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .card {
+  /* .intel-card (not .card) — avoids collision with BASE_STYLES in lib/shadow.ts
+     which sets .card { display: flex } for the other attack/bounty overlays. */
+  .intel-card {
+    display: block;
+    container-type: inline-size;
     background: #161b22;
     border: 1px solid #30363d;
     border-radius: 8px;
@@ -135,14 +139,14 @@ const STYLES = `
   }
 
   /* Header: title + link, both nowrap so they never break vertically */
-  .card-header {
+  .intel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 10px;
   }
-  .card-title {
+  .intel-title {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -153,7 +157,7 @@ const STYLES = `
     letter-spacing: 0.08em;
     white-space: nowrap;
   }
-  .card-link {
+  .intel-link {
     color: #6e7681;
     font-size: 12px;
     text-decoration: none;
@@ -162,11 +166,12 @@ const STYLES = `
     align-items: center;
     gap: 4px;
   }
-  .card-link:hover { color: #58a6ff; }
-  .card-link .link-icon { font-size: 14px; }
-  /* Mobile: hide the text portion of the link, show only the arrow icon. */
-  @media (max-width: 480px) {
-    .card-link .link-text { display: none; }
+  .intel-link:hover { color: #58a6ff; }
+  .intel-link .link-icon { font-size: 14px; }
+  /* Narrow container: hide the text portion of the link, show only the arrow icon. */
+  .intel-link .link-text { display: none; }
+  @container (min-width: 481px) {
+    .intel-link .link-text { display: inline; }
   }
 
   /* Spy block: hero total + meta tags + stat grid + inline rows */
@@ -214,13 +219,13 @@ const STYLES = `
   .meta-tag.age-stale { background: rgba(210,153,34,0.18); color: #e8b339; }
   .meta-tag.age-old { background: rgba(248,81,73,0.18); color: #f85149; }
 
-  /* Stat grid: 2 cols mobile, 4 cols desktop */
+  /* Stat grid: 2 cols default (narrow), 4 cols when container is wide enough */
   .stat-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
   }
-  @media (min-width: 481px) {
+  @container (min-width: 481px) {
     .stat-grid { grid-template-columns: repeat(4, 1fr); }
   }
   .stat {
@@ -254,7 +259,7 @@ const STYLES = `
     gap: 6px;
     font-size: 12px;
   }
-  @media (min-width: 481px) {
+  @container (min-width: 481px) {
     .inline-rows { flex-direction: row; gap: 16px; flex-wrap: wrap; }
   }
   .inline-row {
@@ -282,7 +287,7 @@ const STYLES = `
   .tag-pill.difficulty-medium { background: rgba(210,153,34,0.18); color: #e8b339; }
   .tag-pill.difficulty-hard { background: rgba(248,81,73,0.18); color: #f85149; }
 
-  /* Actions: primary CTA + secondary grid (mobile col, desktop row) */
+  /* Actions: primary CTA + secondary grid (column when narrow, row when wide) */
   .actions {
     margin-top: 12px;
     padding-top: 10px;
@@ -291,19 +296,15 @@ const STYLES = `
     flex-direction: column;
     gap: 8px;
   }
-  @media (min-width: 481px) {
-    .actions { flex-direction: row; align-items: stretch; }
-  }
   .action-primary { width: 100%; }
-  @media (min-width: 481px) {
-    .action-primary { width: auto; flex: 1; }
-  }
   .action-secondary-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  @media (min-width: 481px) {
+  @container (min-width: 481px) {
+    .actions { flex-direction: row; align-items: stretch; }
+    .action-primary { width: auto; flex: 1; }
     .action-secondary-grid { display: flex; flex: 1; }
     .action-secondary-grid .action-btn { flex: 1; }
   }
@@ -362,10 +363,11 @@ const STYLES = `
     font-weight: 500;
     opacity: 0.75;
     margin-left: 4px;
+    display: none;
   }
-  /* On mobile, hide the hint to save space */
-  @media (max-width: 480px) {
-    .action-btn .hint { display: none; }
+  /* Show hint only when container is wide enough */
+  @container (min-width: 481px) {
+    .action-btn .hint { display: inline; }
   }
 `;
 
@@ -719,7 +721,7 @@ export async function renderProfileIntel(
   const { host, shadow } = ensureHost('profile-intel');
   applyBaseStyles(shadow);
 
-  shadow.querySelectorAll('.card, style[data-tm-intel]').forEach((n) => n.remove());
+  shadow.querySelectorAll('.intel-card, style[data-tm-intel]').forEach((n) => n.remove());
 
   const style = document.createElement('style');
   style.setAttribute('data-tm-intel', '1');
@@ -727,11 +729,11 @@ export async function renderProfileIntel(
   shadow.appendChild(style);
 
   const card = document.createElement('div');
-  card.className = 'card';
+  card.className = 'intel-card';
   card.innerHTML = `
-    <div class="card-header">
-      <div class="card-title">⚡ TM HUB INTEL</div>
-      <a class="card-link" href="${HUB_ORIGIN}/spy?id=${playerId}" target="_blank">
+    <div class="intel-header">
+      <div class="intel-title">⚡ TM HUB INTEL</div>
+      <a class="intel-link" href="${HUB_ORIGIN}/spy?id=${playerId}" target="_blank">
         <span class="link-icon">↗</span><span class="link-text">Open in TM Hub</span>
       </a>
     </div>
