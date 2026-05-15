@@ -93,7 +93,10 @@ async def stock_portfolio(x_player_id: int = Header()):
             )
         raise HTTPException(status_code=502, detail="Torn API temporarily unavailable")
 
-    if not portfolio:
+    # Torn occasionally returns `"stocks": []` (list) instead of `{}` (dict) — typically when
+    # the user holds no stocks or the key is partial-access. Treat any non-dict shape as
+    # "no stock data" so we never crash on `.items()` (Sentry PYTHON-FASTAPI-H).
+    if not portfolio or not isinstance(portfolio, dict):
         raise HTTPException(
             status_code=403,
             detail="No stock data returned. Your API key may be limited. Use a Full Access key."
