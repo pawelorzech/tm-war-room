@@ -18,7 +18,7 @@ import { renderAttackOverlay } from './inject/attack-overlay';
 import { applyBaseStyles, ensureHost } from './lib/shadow';
 import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
-import { startSettingsButton } from './inject/settings-button';
+import { startStatusChip } from './inject/status-chip';
 import { startMentionAlerts } from './inject/mention-alerts';
 import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
@@ -164,10 +164,10 @@ function bootstrap(): void {
   // Communication channels — independent polling loops with Page Visibility
   // awareness. Each runs as long as we have an auth token; they self-skip
   // when getAuth() returns null.
+  startStatusChip();
   startNotificationToasts();
   startMentionAlerts();
   startHeartbeat();
-  startSettingsButton();
 }
 
 if (document.readyState === 'loading') {
