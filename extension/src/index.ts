@@ -20,6 +20,7 @@ import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
+import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -107,6 +108,15 @@ async function refresh(): Promise<void> {
   if (match.kind === 'armoury') {
     if (getAuth()) {
       void renderArmouryOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'retals') {
+    const auth = getAuth();
+    if (auth) {
+      const warId = await getWarId(auth);
+      void applyRetalsOverlay({ warId });
     }
     return;
   }

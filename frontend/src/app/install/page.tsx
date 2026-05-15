@@ -46,6 +46,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Faction roster intel overlay</span> on enemy faction profiles — every member row tinted by threat tier with OFF-LIMITS, target tag, stakeout, and spy-age pills</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Hospital list intel</span> on /hospitalview.php — TM mate (green) / war enemy (red) / OFF-LIMITS / target pills inline on each row</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Armoury competition card</span> on /factions.php?step=armoury — active competitions with top-5 leaderboard, your rank highlighted, time remaining</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Retal queue intel</span> on /factions.php?step=retals — OFF-LIMITS, target tag, and spy total pills on attackers we know</span></li>
             </ul>
           </div>
 

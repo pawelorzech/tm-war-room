@@ -322,3 +322,8 @@ export interface ArmouryLeaderboardResponse {
   total_deposited: number;
   participants: number;
 }
+
+export interface KnownSpiesResponse {
+  estimates: SpyEstimate[];
+  count: number;
+}
