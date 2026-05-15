@@ -17,6 +17,7 @@ import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
+import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -79,6 +80,15 @@ async function refresh(): Promise<void> {
   if (match.kind === 'stocks') {
     if (getAuth()) {
       void renderStocksOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'faction') {
+    const auth = getAuth();
+    if (auth && match.faction_id) {
+      const warId = await getWarId(auth);
+      void applyFactionRosterOverlay({ factionId: match.faction_id, warId });
     }
     return;
   }

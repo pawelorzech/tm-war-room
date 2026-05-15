@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.33.0";
+export const CURRENT_VERSION = "1.34.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.34.0",
+    date: "2026-05-15",
+    title: "Companion v0.13 — faction roster intel overlay",
+    changes: [
+      {
+        type: "feat",
+        summary: "Enemy faction member rows now show TM Hub intel inline on torn.com",
+        detail: "Open any faction profile on Torn and every member row gets a tint by threat tier plus pills for OFF-LIMITS, your saved target tag, stakeout watches, and spy coverage age — no clicking through to TM Hub.",
+      },
+      {
+        type: "feat",
+        summary: "Faster scan of who is safe to attack and who is flagged",
+        detail: "OFF-LIMITS pills appear when you are at war and a teammate has flagged the player. Members without spy data show a 'no spy' chip so you know we are guessing only from level.",
+      },
+    ],
+  },
   {
     version: "1.33.0",
     date: "2026-05-15",

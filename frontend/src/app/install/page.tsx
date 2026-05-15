@@ -43,6 +43,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Bounties threat coloring</span> on /bounties.php — rows tinted + TM threat badge with score and source</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Loot NPC overlay</span> on Duke / Leslie / Jimmy / Bruno / Easter Bunny — current level, countdown grid, faction reservations, reserve inline</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Stocks portfolio + ROI overlay</span> on the stock market page — total value, P/L %, ready-to-collect benefits, top 3 marginal-ROI moves with cost + payback days</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Faction roster intel overlay</span> on enemy faction profiles — every member row tinted by threat tier with OFF-LIMITS, target tag, stakeout, and spy-age pills</span></li>
             </ul>
           </div>
 
