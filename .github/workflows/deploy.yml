@@ -32,12 +32,12 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" \
-            python:3.12-slim sh -c "
+            debian:bookworm sh -c "
               apt-get update -qq &&
-              apt-get install -y -qq --no-install-recommends \
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
                 nginx-full \
                 libnginx-mod-http-brotli-filter \
-                libnginx-mod-http-brotli-static &&
+                libnginx-mod-http-brotli-static 2>&1 | tail -5 &&
               nginx -t
             "
 
