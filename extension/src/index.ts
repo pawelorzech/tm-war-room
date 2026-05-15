@@ -21,6 +21,7 @@ import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
+import { renderTravelOverlay } from './inject/travel-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -117,6 +118,13 @@ async function refresh(): Promise<void> {
     if (auth) {
       const warId = await getWarId(auth);
       void applyRetalsOverlay({ warId });
+    }
+    return;
+  }
+
+  if (match.kind === 'travel') {
+    if (getAuth()) {
+      void renderTravelOverlay();
     }
     return;
   }

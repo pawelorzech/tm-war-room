@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.38.0";
+export const CURRENT_VERSION = "1.39.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.39.0",
+    date: "2026-05-15",
+    title: "Companion v0.17 — travel arbitrage card",
+    changes: [
+      {
+        type: "feat",
+        summary: "Top-3 most profitable destinations now show inline on Torn's travel agency",
+        detail: "Open /travelagency.php and a card with the three best-profit countries appears above the destination picker — best item per destination, abroad cost, sell value, profit per item, one-way travel time. Picks the country for you instead of cross-referencing TM Hub.",
+      },
+    ],
+  },
   {
     version: "1.38.0",
     date: "2026-05-15",
