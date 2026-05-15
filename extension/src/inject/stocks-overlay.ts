@@ -96,7 +96,7 @@ function escapeHtml(s: string): string {
 }
 
 const STYLES = `
-  :host { all: initial; }
+  :host { all: initial; display: block; width: 100%; }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   .card {
     background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
@@ -108,15 +108,19 @@ const STYLES = `
     color: #c9d1d9;
     font-size: 12px;
     line-height: 1.45;
+    width: 100%;
+    display: block;
   }
   .head {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 8px;
   }
-  .title { font-weight: 700; color: #58a6ff; font-size: 13px; }
-  .link { color: #6e7681; font-size: 11px; text-decoration: none; }
+  .title { font-weight: 700; color: #58a6ff; font-size: 13px; white-space: nowrap; min-width: 0; }
+  .link { color: #6e7681; font-size: 11px; text-decoration: none; white-space: nowrap; }
   .link:hover { color: #58a6ff; text-decoration: underline; }
   .summary {
     display: grid;
@@ -295,6 +299,11 @@ export async function renderStocksOverlay(): Promise<void> {
   }
   const data = await getStocksData();
   const { host, shadow } = ensureHost('stocks-overlay');
+  // Force the host to be a full-width block — Torn pages put their main
+  // container in flex/grid layouts that otherwise squeeze the host into
+  // a narrow column and the card content wraps awkwardly.
+  host.style.display = 'block';
+  host.style.width = '100%';
   applyBaseStyles(shadow);
 
   shadow.querySelectorAll('.card, style[data-tm-stocks]').forEach((n) => n.remove());

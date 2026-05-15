@@ -56,7 +56,7 @@ function escapeHtml(s: string): string {
 }
 
 const STYLES = `
-  :host { all: initial; }
+  :host { all: initial; display: block; width: 100%; }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   .card {
     background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
@@ -68,15 +68,19 @@ const STYLES = `
     color: #c9d1d9;
     font-size: 12px;
     line-height: 1.45;
+    width: 100%;
+    display: block;
   }
   .head {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 8px;
   }
-  .title { font-weight: 700; color: #3fb950; font-size: 13px; }
-  .link { color: #6e7681; font-size: 11px; text-decoration: none; }
+  .title { font-weight: 700; color: #3fb950; font-size: 13px; white-space: nowrap; min-width: 0; }
+  .link { color: #6e7681; font-size: 11px; text-decoration: none; white-space: nowrap; }
   .link:hover { color: #3fb950; text-decoration: underline; }
   .dest {
     background: #0d1117;
@@ -197,6 +201,11 @@ export async function renderTravelOverlay(): Promise<void> {
   }
   const data = await getTravelData();
   const { host, shadow } = ensureHost('travel-overlay');
+  // Force the host to be a full-width block — Torn pages put their main
+  // container in flex/grid layouts that otherwise squeeze the host into
+  // a narrow column and the card content wraps awkwardly.
+  host.style.display = 'block';
+  host.style.width = '100%';
   applyBaseStyles(shadow);
 
   shadow.querySelectorAll('.card, style[data-tm-travel]').forEach((n) => n.remove());

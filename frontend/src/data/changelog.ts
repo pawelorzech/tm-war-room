@@ -70,6 +70,52 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    version: "1.39.4",
+    date: "2026-05-15",
+    title: "Companion v0.17.4 — Connect now works on Torn PDA",
+    changes: [
+      {
+        type: "fix",
+        summary: "Connect now button on Torn PDA finally opens the auth page",
+        before: "On Torn PDA, tapping Connect now in the companion popover did nothing — no navigation, no window.",
+        after: "PDA users are sent straight to the auth page; once they sign in, they get bounced back to where they came from with the connection live.",
+        cause: "Torn PDA's in-app browser ignores requests to open a new tab — the companion now navigates in place instead.",
+      },
+      {
+        type: "fix",
+        summary: "Companion popover no longer reappears every time you change pages",
+        before: "While not connected, the install nudge could pop up on every profile or page navigation until you tapped a button.",
+        after: "The nudge appears at most once per device. If you ignore it and navigate away, it stays away.",
+      },
+    ],
+  },
+  {
+    version: "1.39.3",
+    date: "2026-05-15",
+    title: "Companion v0.17.3 — userscript bundle 19% smaller",
+    changes: [
+      {
+        type: "improve",
+        summary: "Companion userscript dropped from ~155 KB to ~126 KB on disk and over the wire",
+        detail: "Build now ships with whitespace + syntax minification on. Identifier names are kept readable so stack traces in bug reports are still useful. Smaller bundle = faster first paint on torn.com and quicker Tampermonkey self-updates.",
+      },
+    ],
+  },
+  {
+    version: "1.39.2",
+    date: "2026-05-15",
+    title: "Companion v0.17.2 — same width fix for stocks and travel cards",
+    changes: [
+      {
+        type: "fix",
+        summary: "Stocks and travel cards on Torn now always take the full content width",
+        before: "On Torn pages with a flex main container (notably PDA / narrow viewports) the stocks and travel cards could end up squeezed into a thin column with the header text wrapping awkwardly, the same shape as the armoury bug fixed in v0.17.1.",
+        after: "Both cards now force their Shadow DOM host to display block + width 100%, and their header rows wrap gracefully on small screens instead of breaking words.",
+        cause: "The same Shadow DOM host wasn't pinned to block + full width — the armoury fix wasn't applied to its two siblings.",
+      },
+    ],
+  },
+  {
     version: "1.39.1",
     date: "2026-05-15",
     title: "Companion v0.17.1 — armoury card no longer wraps letter-by-letter on mobile",
