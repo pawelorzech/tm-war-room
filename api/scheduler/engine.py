@@ -32,6 +32,7 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
     from apscheduler.triggers.interval import IntervalTrigger
     from api.scheduler.jobs.collect_stats import run_collect_stats
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
+    from api.scheduler.jobs.refresh_stale_spies import run_refresh_stale_spies
     from api.scheduler.jobs.refresh_data import run_refresh_data
     from api.scheduler.jobs.collect_circulation import run_collect_circulation
     from api.scheduler.jobs.revive_check import run_revive_check
@@ -63,6 +64,12 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         "refresh_spies",
         IntervalTrigger(minutes=30),
         id="refresh_spies_schedule",
+    )
+    await scheduler.configure_task("refresh_stale_spies", func=run_refresh_stale_spies)
+    await scheduler.add_schedule(
+        "refresh_stale_spies",
+        IntervalTrigger(hours=1),
+        id="refresh_stale_spies_schedule",
     )
     await scheduler.add_schedule(
         "refresh_data",
@@ -149,9 +156,9 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         await scheduler.start_in_background()
         logger.info(
             "Scheduler started (leader): collect_stats (15min), circulation (15min), refresh_spies (30min), "
-            "refresh_data (30s), revive_check (10min), refresh_avatars (12h), armoury_poll (5min), "
-            "collect_company_snapshots (24h), discover_companies (24h), check_trains_stagnation (24h), "
-            "backup_keys_db (24h)"
+            "refresh_stale_spies (1h), refresh_data (30s), revive_check (10min), refresh_avatars (12h), "
+            "armoury_poll (5min), collect_company_snapshots (24h), discover_companies (24h), "
+            "check_trains_stagnation (24h), backup_keys_db (24h)"
         )
     else:
         logger.info("Scheduler not started — this worker is a follower (leader runs jobs).")

@@ -32,6 +32,18 @@ def _fmt_estimate(est: dict, now: datetime) -> dict:
     }
 
 
+# After this many days an existing estimate triggers an on-demand TornStats refresh
+# when the user actually views the player. Matches refresh_stale_spies job threshold.
+STALE_REFRESH_DAYS = 7
+
+
+def _is_stale(est: dict, now: datetime, max_age_days: int = STALE_REFRESH_DAYS) -> bool:
+    reported = datetime.fromisoformat(est["reported_at"])
+    if reported.tzinfo is None:
+        reported = reported.replace(tzinfo=timezone.utc)
+    return (now - reported).days > max_age_days
+
+
 class SpySubmitBody(BaseModel):
     player_id: int
     strength: float
@@ -65,7 +77,13 @@ async def list_known_estimates(svc: SpyService = Depends(_require_service)):
     estimates = svc.repo.get_all_estimates()
     hidden = svc.repo.get_hidden_ids()
     now = datetime.now(timezone.utc)
-    result = [_fmt_estimate(e, now) for e in estimates if e["player_id"] not in hidden]
+    # Skip placeholder rows (total<=0) — they hold no actionable stat info,
+    # and rendering them as "0/0/0/0" misleads the UI.
+    result = [
+        _fmt_estimate(e, now)
+        for e in estimates
+        if e["player_id"] not in hidden and (e.get("total") or 0) > 0
+    ]
     return {"estimates": result, "count": len(result)}
 
 
@@ -84,9 +102,14 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
     member_ids = [m.id for m in members if m.id not in blocked_ids]
     all_estimates = svc.repo.get_estimates_bulk(member_ids)
 
-    # Collect members needing TornStats lookup
-    to_lookup = [m for m in members if m.id not in blocked_ids
-                 and m.id not in all_estimates and tornstats_key][:20]
+    # Collect members needing TornStats lookup — either no estimate yet, or stale (>7d).
+    # Capped at 20 to keep the request fast; remaining stale rows get caught by
+    # the refresh_stale_spies scheduler job (every 6h).
+    to_lookup = [
+        m for m in members
+        if m.id not in blocked_ids and tornstats_key
+        and (m.id not in all_estimates or _is_stale(all_estimates[m.id], now))
+    ][:20]
 
     # Parallel TornStats lookups
     async def _ts_lookup(m):
@@ -138,7 +161,14 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
     if svc.repo.is_blocked(player_id):
         raise HTTPException(status_code=403, detail="This player is blocked from spy lookups")
     est = svc.repo.get_estimate(player_id)
-    if not est and torn_client and tornstats_key:
+    # A row with total<=0 is just a placeholder — no real spy data. Treat it as missing
+    # so the on-demand TornStats fetch below has a chance to fill it in (instead of
+    # returning 0/0/0/0 to the UI, which is meaningless to the user).
+    if est and (est.get("total") or 0) <= 0:
+        est = None
+    now_dt = datetime.now(timezone.utc)
+    needs_refresh = (not est) or _is_stale(est, now_dt)
+    if needs_refresh and torn_client and tornstats_key:
         ts_data = await torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
         if ts_data and ts_data.get("total", 0) > 0:
             now = datetime.now(timezone.utc).isoformat()

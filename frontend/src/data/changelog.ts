@@ -12,9 +12,34 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.29.0";
+export const CURRENT_VERSION = "1.30.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.2",
+    date: "2026-05-15",
+    title: "'No spy estimate' instead of fake 0/0/0/0 stats",
+    changes: [
+      { type: "fix", text: "When we don't actually have spy data for a player, the spy result card no longer renders '0 / 0 / 0 / 0' as if those were real stats — it now shows a clear 'No spy estimate available' message with a hint that a member-submit or the hourly TornStats refresh will fill it in. The Known Stats list and Faction Lookup also render '—' for any zero-value cell instead of a literal '0'. Backend hardening: /api/spy/{id} treats a stored estimate with total<=0 as missing (giving the on-demand TornStats fetch a chance to populate it instead of returning the placeholder), and /api/spy/known filters out zero-total rows so the Known Stats table only shows actionable data" },
+    ],
+  },
+  {
+    version: "1.30.1",
+    date: "2026-05-15",
+    title: "Companion v0.10.1 — Enter sends in chat dock",
+    changes: [
+      { type: "fix", text: "In the chat dock embedded on torn.com, pressing Enter now sends the message immediately (the way every other chat works). Shift+Enter still inserts a newline if you want a multi-line message. Previously Enter just inserted a newline and you had to hit Cmd/Ctrl+Enter to actually send — a confusing default that didn't match the main TM Hub chat. IME composition (e.g. Polish autocomplete) is respected: Enter during composition confirms the candidate without sending" },
+    ],
+  },
+  {
+    version: "1.30.0",
+    date: "2026-05-15",
+    title: "Always-fresh spy estimates — admin bulk refresh + hourly background loop",
+    changes: [
+      { type: "feat", text: "New admin button 'Refresh Spy Estimates Now' in the Analytics Dashboard runs a bulk pass through every stale row in spy_estimates (up to 500 per click), fetching fresh data from TornStats one player at a time at ~55 req/min (well under the API limit). 'Collect Stats Now' also fires the same refresh in the background, so a single click brings BOTH own-faction stat snapshots and enemy/known-player spy estimates back up to date. Backend: POST /api/admin/spy/refresh-stale-now" },
+      { type: "improve", text: "Bumped the background refresh_stale_spies job from every 6h to every 1h and the per-run cap from 30 to 50 — at this rate the entire known-player set (typically 500-1000 rows) cycles through TornStats in well under a day instead of taking a week. Pacing increased from 0.5s to 1.1s between calls to stay safely under the TornStats 60/min ceiling. Result: any player whose estimate ages past 7 days gets refreshed automatically in the next ~hour without anyone clicking anything" },
+    ],
+  },
   {
     version: "1.29.0",
     date: "2026-05-15",
@@ -30,7 +55,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-05-15",
     title: "Spy estimates stay fresh between wars",
     changes: [
-      { type: "fix", text: "TornStats spy estimates were going stale and never refreshing — the 30-min refresh_spies job only batch-fetches the current enemy faction during a war, so your own faction and anyone else with an existing estimate would silently age past 30 days and get marked 'stale'. New scheduler job refresh_stale_spies walks the oldest rows every 6h and re-fetches them via the single-player TornStats endpoint, paced at 2 req/s to stay well under the API limit. On top of that, the /api/spy/{player_id} and /api/spy/faction/{id} endpoints now re-fetch on demand when a stored estimate is older than 7 days (previously they only fetched if no estimate existed at all)" },
+      { type: "fix", text: "TornStats spy estimates were going stale and never refreshing — the 30-min refresh_spies job only batch-fetches the current enemy faction during a war, so your own faction and anyone else with an existing estimate would silently age past 30 days and get marked 'stale'. New scheduler job refresh_stale_spies walks the oldest rows every hour and re-fetches them via the single-player TornStats endpoint, paced under the API limit. On top of that, the /api/spy/{player_id} and /api/spy/faction/{id} endpoints now re-fetch on demand when a stored estimate is older than 7 days (previously they only fetched if no estimate existed at all). See 1.30.0 for the admin bulk-refresh button" },
     ],
   },
   {

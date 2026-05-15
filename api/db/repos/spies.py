@@ -55,6 +55,16 @@ class SpyRepository(BaseRepository):
         rows = self.execute("SELECT * FROM spy_estimates ORDER BY total DESC")
         return [dict(r) for r in rows]
 
+    def get_stale_estimates(self, max_age_days: int, limit: int) -> list[dict]:
+        cutoff = f"-{max_age_days} days"
+        rows = self.execute(
+            """SELECT player_id, player_name, reported_at FROM spy_estimates
+               WHERE reported_at < datetime('now', ?)
+               ORDER BY reported_at ASC LIMIT ?""",
+            (cutoff, limit),
+        )
+        return [dict(r) for r in rows]
+
     def delete_estimate(self, player_id: int) -> bool:
         conn = self._conn()
         c1 = conn.execute("DELETE FROM spy_estimates WHERE player_id = ?", (player_id,))

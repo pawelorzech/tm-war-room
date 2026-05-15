@@ -564,7 +564,7 @@ function renderPanel(shadow: ShadowRoot): void {
     sendBtn.disabled = ta.value.trim().length === 0;
   });
   ta.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       void doSend(shadow, ta, sendBtn);
     }
