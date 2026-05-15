@@ -1146,8 +1146,10 @@ async def register_key(body: KeyRegister, request: Request):
     if not rate_limiter.check(f"register:{client_ip}", max_requests=10):
         raise HTTPException(status_code=429, detail="Too many registration attempts, try again later")
     try:
+        # NB: v1 profile selection — v2 nests fields under "profile" but our consumer below
+        # reads raw["faction"], raw["name"], raw["player_id"] flat. Sticking with v1.
         resp = await torn_client._http.get(
-            "https://api.torn.com/v2/user/",
+            "https://api.torn.com/user/",
             params={"selections": "profile", "key": body.api_key},
         )
         resp.raise_for_status()
@@ -1177,8 +1179,9 @@ async def register_key(body: KeyRegister, request: Request):
     access_level = "full"
     limited_features: list[str] = []
     try:
+        # v1 stocks (see fetch_user_stocks comment) — shape consumer reads is v1 dict.
         test_resp = await torn_client._http.get(
-            "https://api.torn.com/v2/user/",
+            "https://api.torn.com/user/",
             params={"selections": "stocks", "key": body.api_key},
         )
         test_raw = test_resp.json()
@@ -1251,8 +1254,9 @@ async def profile_me(x_player_id: int = Header()):
     user_key = key_store.get_key(x_player_id)
     if not user_key:
         raise HTTPException(status_code=404, detail="Key not found")
+    # v1 (profile + bars nest differently in v2 — both consumers below read flat shape)
     resp = await torn_client._http.get(
-        "https://api.torn.com/v2/user/",
+        "https://api.torn.com/user/",
         params={"selections": "profile,bars", "key": user_key["api_key"]},
     )
     resp.raise_for_status()

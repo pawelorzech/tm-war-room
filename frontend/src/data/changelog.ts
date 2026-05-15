@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.1";
+export const CURRENT_VERSION = "1.31.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.2",
+    date: "2026-05-15",
+    title: "Hotfix 2 — roll back ALL user/* v2 selections (more shape mismatches found)",
+    changes: [
+      { type: "fix", text: "1.31.1 rolled back four torn/* selections but missed user/*. Playwright walkthrough showed /api/stocks/portfolio returning 500. Empirical probes confirmed: /v2/user/?selections=bars,cooldowns nests fields under a 'bars' object (v1 had top-level energy/nerve/happy/life), /v2/user/?selections=profile nests under 'profile' (v1 had top-level name/player_id/faction/status/last_action), /v2/user/?selections=stocks returns a LIST with shape {id, shares, transactions[]} (v1 was a dict keyed by stock_id with transactions{}). Rolled back fetch_member_bars, fetch_user_stocks, plus the 5 direct /user/ httpx calls in main.py, admin.py, scheduler/refresh_data, scheduler/refresh_avatars. v1 is frozen but stable. Proper v2 migration here needs reading the nested shape — tracked as backlog" },
+      { type: "improve", text: "Updated V1_BASE comment in torn_client.py to enumerate which selections stay on v1 and why (so the next migration attempt has the breaking-shape list inline)" },
+    ],
+  },
   {
     version: "1.31.1",
     date: "2026-05-15",
