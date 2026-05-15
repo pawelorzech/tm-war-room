@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePDA } from "@/contexts/PDAContext";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading, login } = useAuth();
+  const { isPDA } = usePDA();
   const [apiKey, setApiKey] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
@@ -57,6 +59,33 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             {/* Divider */}
             <div className="w-12 h-px bg-torn-green/30 mx-auto mb-6" />
 
+            {/* API-key onboarding — visible BEFORE the input so first-timers
+                (especially in Torn PDA) don't get stuck with no key copied. */}
+            <div className="mb-5 rounded-lg border border-torn-green/30 bg-bg-primary p-4">
+              <p className="text-text-primary text-sm font-semibold">Need a Torn API key?</p>
+              <p className="text-text-muted text-xs mt-1 leading-relaxed">
+                TM Hub needs a <span className="text-torn-green font-semibold">Full Access</span> key from torn.com. Limited / Minimal keys will show incomplete data.
+              </p>
+              <a
+                href="https://www.torn.com/preferences.php#tab=api"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block w-full text-center py-2.5 rounded-lg border border-torn-green/40 bg-bg-surface text-torn-green text-sm font-semibold hover:bg-torn-green/10 transition-colors"
+              >
+                Open Torn → API Keys ↗
+              </a>
+              <ol className="mt-3 text-text-muted text-[11px] space-y-0.5 list-decimal list-inside leading-relaxed">
+                <li>Tap to open Torn → API Keys.</li>
+                <li>Create a key with <span className="text-text-secondary">Full Access</span>.</li>
+                <li>Come back here and paste it below.</li>
+              </ol>
+              {isPDA && (
+                <p className="mt-2 text-text-muted text-[11px] leading-relaxed">
+                  Tip: in Torn PDA, long-press the generated key on the API page → Copy.
+                </p>
+              )}
+            </div>
+
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -75,13 +104,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               }}
             >
               <label className="block text-text-secondary text-[11px] uppercase tracking-wider font-medium mb-1.5">
-                Torn API Key
+                Paste your Torn API key
               </label>
-              <p className="text-text-muted text-[10px] mb-2 leading-relaxed">
-                Use a <span className="text-torn-green font-semibold">Full Access</span> key for all features.
-                Get it from <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline underline-offset-2">Torn Settings → API Keys</a>.
-                Limited/Minimal keys will show incomplete data.
-              </p>
               <input
                 type="password"
                 value={apiKey}
@@ -144,6 +168,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               Faction members only — you must be in{" "}
               <span className="text-text-secondary font-medium">The Masters</span>{" "}
               to access this tool.
+            </p>
+
+            <p className="mt-3 text-text-muted text-[10px] text-center leading-relaxed">
+              Closed this by accident? Open any torn.com page and tap the{" "}
+              <span className="text-text-secondary">⚡ TM Hub Companion</span>{" "}
+              chip at the bottom-left → <span className="text-text-secondary">Connect</span>.
             </p>
           </div>
         </div>
