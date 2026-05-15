@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -32,6 +32,12 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
       const uid = url.searchParams.get('user2ID');
       return { kind: 'attack', player_id: uid ? parseInt(uid, 10) : null };
     }
+    if (sid === 'bounties') {
+      return { kind: 'bounties', player_id: null };
+    }
+  }
+  if (path === '/bounties.php') {
+    return { kind: 'bounties', player_id: null };
   }
   return { kind: 'unknown', player_id: null };
 }

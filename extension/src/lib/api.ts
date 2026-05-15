@@ -18,6 +18,8 @@ import type {
   SpyEstimate,
   TargetsResponse,
   StakeoutsResponse,
+  BountiesResponse,
+  LootResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -231,6 +233,28 @@ export function fetchTargets(auth: CompanionAuth): Promise<TargetsResponse> {
 
 export function fetchStakeouts(auth: CompanionAuth): Promise<StakeoutsResponse> {
   return get<StakeoutsResponse>('/api/stakeout', auth);
+}
+
+export function fetchBounties(auth: CompanionAuth): Promise<BountiesResponse> {
+  return get<BountiesResponse>('/api/bounties', auth);
+}
+
+export function fetchLoot(auth: CompanionAuth): Promise<LootResponse> {
+  return get<LootResponse>('/api/loot', auth);
+}
+
+export function reserveLoot(
+  auth: CompanionAuth,
+  body: { npc_id: number; npc_name: string; target_level: number },
+): Promise<{ status: string }> {
+  return post<{ status: string }>('/api/loot/reserve', body, auth);
+}
+
+export function cancelLootReservation(
+  auth: CompanionAuth,
+  npcId: number,
+): Promise<{ status: string }> {
+  return del<{ status: string }>(`/api/loot/reserve/${npcId}`, auth);
 }
 
 // ── Write-back actions ──────────────────────────────────────

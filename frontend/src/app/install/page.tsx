@@ -40,6 +40,8 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Persistent chat dock</span> — read + reply to TM Hub chat without leaving torn.com</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">TM Hub intel card</span> on profile + attack pages — spy estimates, your target tags, faction stakeout flags</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Inline write-back actions</span> — flag off-limits, save target with tag/difficulty/notes, watch/unwatch stakeout — all from the torn.com profile</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Bounties threat coloring</span> on /bounties.php — rows tinted + TM threat badge with score and source</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Loot NPC overlay</span> on Duke / Leslie / Jimmy / Bruno / Easter Bunny — current level, countdown grid, faction reservations, reserve inline</span></li>
             </ul>
           </div>
 
@@ -50,8 +52,6 @@ export default function InstallPage() {
               <h2 className="text-lg font-semibold">Coming up</h2>
             </div>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Bounties threat coloring</span> on /bounties.php — red for whales, green for easy picks</span></li>
-              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Loot NPC timers + reservations</span> on Duke / Leslie / etc</span></li>
               <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Stocks portfolio + ROI overlay</span> on the stock market page</span></li>
             </ul>
             <p className="text-text-muted text-[11px] pt-2">
