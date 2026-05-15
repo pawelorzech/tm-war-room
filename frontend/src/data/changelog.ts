@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.18.0";
+export const CURRENT_VERSION = "1.19.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.19.0",
+    date: "2026-05-15",
+    title: "Icon refresh, mobile card layouts, and real error states",
+    changes: [
+      { type: "fix", text: "Redrew the TM Hub app icon with a proper safe-area inset so it doesn't get clipped on home screens. New Apple touch icon, dedicated monochrome push notification badge, and the install prompt + offline page now use the rendered PNG instead of an inline glow SVG (no more inconsistent login-screen icon)" },
+      { type: "feat", text: "New shared <AppIcon> component replaces inline emoji across the navigation and key pages. Nav, sidebar, browse sheet, search bar, inbox badge, theme toggle, and admin link now render crisp SVG icons that scale, match the dark/light theme, and stop drifting across operating systems" },
+      { type: "improve", text: "Most data pages (activity, analytics, awards, bounties, chain, dashboard, market, notifications, revives, stocks, targets, travel) now show a real error banner with a Retry button when an API call fails instead of silently rendering empty. You'll always know whether 'no data' means 'no data' or 'something broke'" },
+      { type: "improve", text: "Mobile-first card layouts on activity, awards, bounties, and stocks — no more horizontal-scroll tables on phone. Each row becomes a tappable card with the important columns surfaced. Desktop keeps the dense table view" },
+    ],
+  },
   {
     version: "1.18.0",
     date: "2026-05-08",
