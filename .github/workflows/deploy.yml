@@ -28,18 +28,23 @@ jobs:
       # Uses the same base image + nginx packages as the production Dockerfile
       # (Stage 2: python:3.12-slim + nginx-full + brotli dynamic modules) so
       # `brotli on;` and friends resolve, not an unknown-directive emerg.
+      - name: Build nginx validator image
+        run: |
+          cat > /tmp/Dockerfile.nginx-validator <<'EOF'
+          FROM debian:bookworm
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              nginx-full \
+              libnginx-mod-http-brotli-filter \
+              libnginx-mod-http-brotli-static \
+              && rm -rf /var/lib/apt/lists/* \
+              && rm -f /etc/nginx/sites-enabled/default
+          EOF
+          docker build -f /tmp/Dockerfile.nginx-validator -t nginx-validator /tmp
       - name: Validate nginx.conf
         run: |
           docker run --rm \
             -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" \
-            debian:bookworm sh -c "
-              apt-get update -qq &&
-              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-                nginx-full \
-                libnginx-mod-http-brotli-filter \
-                libnginx-mod-http-brotli-static 2>&1 | tail -5 &&
-              nginx -t
-            "
+            nginx-validator nginx -t
 
   deploy:
     needs: test
