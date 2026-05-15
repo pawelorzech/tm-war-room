@@ -52,9 +52,29 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.39.3";
+export const CURRENT_VERSION = "1.39.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.39.4",
+    date: "2026-05-15",
+    title: "Companion v0.17.4 — Connect now works on Torn PDA",
+    changes: [
+      {
+        type: "fix",
+        summary: "Connect now button on Torn PDA finally opens the auth page",
+        before: "On Torn PDA, tapping Connect now in the companion popover did nothing — no navigation, no window.",
+        after: "PDA users are sent straight to the auth page; once they sign in, they get bounced back to where they came from with the connection live.",
+        cause: "Torn PDA's in-app browser ignores requests to open a new tab — the companion now navigates in place instead.",
+      },
+      {
+        type: "fix",
+        summary: "Companion popover no longer reappears every time you change pages",
+        before: "While not connected, the install nudge could pop up on every profile or page navigation until you tapped a button.",
+        after: "The nudge appears at most once per device. If you ignore it and navigate away, it stays away.",
+      },
+    ],
+  },
   {
     version: "1.39.3",
     date: "2026-05-15",

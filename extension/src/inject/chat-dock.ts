@@ -426,6 +426,11 @@ export function startChatDock(): DockController {
   if (!getAuth() && !getOnboardSeen()) {
     setTimeout(() => {
       if (!getAuth() && !getOnboardSeen()) {
+        // Persist "seen" the moment the auto-popover renders, not on
+        // dismiss. Otherwise a user who navigates away (or whose first
+        // tap on Connect didn't navigate, like on PDA pre-fix) sees the
+        // same prompt on every page load.
+        setOnboardSeen();
         showOnboardPopover(shadow);
       }
     }, 1500);
