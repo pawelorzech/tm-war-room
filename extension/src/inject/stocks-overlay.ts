@@ -1,4 +1,4 @@
-// Stocks portfolio + ROI overlay on /loader.php?sid=stocks.
+// Stocks portfolio + ROI overlay on /page.php?sid=stocks (or legacy /loader.php?sid=stocks).
 //
 // Pulls /api/stocks/portfolio (holdings, P/L, benefit/dividend readiness)
 // and /api/stocks/roi (ranked next-best marginal ROI recommendations) and

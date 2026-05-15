@@ -35,6 +35,7 @@ def _parse_attack(a: dict) -> dict:
         "chain": a.get("chain", 0),
         "is_ranked_war": a.get("is_ranked_war", False),
         "is_raid": a.get("is_raid", False),
+        "is_interrupted": a.get("is_interrupted", False),
         "started": a.get("started", 0),
         "ended": a.get("ended", 0),
         "fair_fight": mods.get("fair_fight", 1),

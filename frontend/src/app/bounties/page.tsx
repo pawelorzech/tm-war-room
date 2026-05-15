@@ -9,6 +9,7 @@ import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
 import { AppIcon } from '@/components/ui/AppIcon';
+import { tornAttack } from '@/lib/torn-urls';
 
 interface Bounty {
   target_id: number;
@@ -265,7 +266,7 @@ export default function BountiesPage() {
                 return (
                   <a
                     key={g.target_id}
-                    href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`}
+                    href={tornAttack(g.target_id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`block p-3 hover:bg-bg-elevated/50 transition-colors ${unavailable ? 'opacity-45' : ''}`}
@@ -325,7 +326,7 @@ export default function BountiesPage() {
                           )}
                         </td>
                         <td className="py-2 px-3">
-                          <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`} target="_blank" rel="noopener noreferrer"
+                          <a href={tornAttack(g.target_id)} target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             className="font-medium text-text-primary hover:text-torn-green transition-colors">
                             {g.target_name || `#${g.target_id}`}

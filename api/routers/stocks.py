@@ -27,7 +27,7 @@ async def _get_item_prices() -> dict[int, float]:
     try:
         from api.torn_client import _json
         resp = await torn_client._http.get(
-            "https://api.torn.com/torn/",
+            "https://api.torn.com/v2/torn/",
             params={"selections": "items", "key": torn_client._api_key},
         )
         resp.raise_for_status()

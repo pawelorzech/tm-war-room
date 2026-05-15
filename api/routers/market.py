@@ -59,7 +59,7 @@ async def ensure_items_cache(tc=None) -> list[dict]:
 
     try:
         resp = await client._http.get(
-            "https://api.torn.com/torn/",
+            "https://api.torn.com/v2/torn/",
             params={"selections": "items", "key": client._api_key},
         )
         resp.raise_for_status()
@@ -129,3 +129,15 @@ async def get_all_items():
     if not items:
         raise HTTPException(status_code=502, detail="Failed to fetch item data")
     return {"items": items, "count": len(items)}
+
+
+@router.get("/items/{item_id}/stats")
+async def get_item_stats(item_id: int):
+    """Historical circulation + market value for a single item (v2 torn/itemstats).
+    Use this to spot inflation/deflation trends or rare item availability shifts."""
+    if not torn_client:
+        raise HTTPException(status_code=503, detail="Market not initialized")
+    stats = await torn_client.fetch_item_stats(item_id)
+    if not stats:
+        raise HTTPException(status_code=404, detail="Item stats unavailable")
+    return {"item_id": item_id, "stats": stats}

@@ -196,7 +196,7 @@ async def run_refresh_data() -> None:
         try:
             from api.torn_client import _json
             resp = await torn_client._http.get(
-                "https://api.torn.com/torn/",
+                "https://api.torn.com/v2/torn/",
                 params={"selections": "items", "key": torn_client._api_key},
             )
             resp.raise_for_status()
@@ -310,7 +310,7 @@ async def run_refresh_data() -> None:
                     for w in watched[:20]:  # Max 20 per cycle to save API calls
                         try:
                             resp = await torn_client._http.get(
-                                "https://api.torn.com/user/",
+                                "https://api.torn.com/v2/user/",
                                 params={"selections": "profile", "key": torn_client._api_key, "id": w["player_id"]},
                             )
                             if resp.status_code == 200:

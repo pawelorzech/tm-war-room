@@ -49,7 +49,7 @@ async def travel_info():
     else:
         try:
             resp = await torn_client._http.get(
-                "https://api.torn.com/torn/",
+                "https://api.torn.com/v2/torn/",
                 params={"selections": "items", "key": torn_client._api_key},
             )
             resp.raise_for_status()

@@ -65,6 +65,7 @@ interface RecentAttack {
   respect_gain: number;
   chain: number;
   started: number;
+  is_interrupted?: boolean;
 }
 
 /* ── Helpers ── */
@@ -575,7 +576,10 @@ function AttackTable({ attacks, factionId = 0 }: { attacks: RecentAttack[]; fact
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`font-medium ${RESULT_COLOR[a.result] || 'text-text-muted'}`}>{a.result}</p>
+                  <p className={`font-medium ${RESULT_COLOR[a.result] || 'text-text-muted'}`}>
+                    {a.result}
+                    {a.is_interrupted && <span title="Interrupted — defender escaped mid-attack, may not count toward chain respect" className="ml-1 text-torn-yellow">⚠</span>}
+                  </p>
                   <p className="text-[10px] text-text-muted">{timeAgo(a.started)}</p>
                 </div>
               </div>
@@ -611,7 +615,10 @@ function AttackTable({ attacks, factionId = 0 }: { attacks: RecentAttack[]; fact
                     {a.defender_name || '?'}
                     {a.defender_faction_name && <span className="ml-1 text-xs text-text-muted">[{a.defender_faction_name}]</span>}
                   </td>
-                  <td className={`py-1.5 px-3 font-medium ${RESULT_COLOR[a.result] || 'text-text-muted'}`}>{a.result}</td>
+                  <td className={`py-1.5 px-3 font-medium ${RESULT_COLOR[a.result] || 'text-text-muted'}`}>
+                    {a.result}
+                    {a.is_interrupted && <span title="Interrupted — defender escaped mid-attack, may not count toward chain respect" className="ml-1 text-torn-yellow">⚠</span>}
+                  </td>
                   <td className="py-1.5 px-3 text-torn-green">{a.respect_gain > 0 ? `+${a.respect_gain.toFixed(2)}` : '—'}</td>
                   <td className="py-1.5 px-3 text-text-muted">{a.chain || '—'}</td>
                   <td className="py-1.5 px-3 text-text-muted text-xs">{timeAgo(a.started)}</td>

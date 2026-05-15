@@ -1,4 +1,4 @@
-// Intercepts the Attack button on /loader.php?sid=attack&user2ID=<id> when
+// Intercepts the Attack button on /page.php?sid=attack&user2ID=<id> (or legacy /loader.php) when
 // the target is OFF-LIMITS. Renders a confirmation modal — the user can
 // still proceed (we don't physically block the attack), but they have to
 // click "Attack anyway" explicitly.

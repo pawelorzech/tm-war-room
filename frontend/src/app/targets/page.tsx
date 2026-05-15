@@ -6,6 +6,7 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { tornAttack, tornProfile } from '@/lib/torn-urls';
 
 interface Target {
   id: number;
@@ -34,14 +35,6 @@ const DIFF_COLORS: Record<string, string> = {
   impossible: 'text-text-muted',
   unknown: 'text-text-muted',
 };
-
-function tornProfile(id: number) {
-  return `https://www.torn.com/profiles.php?XID=${id}`;
-}
-
-function tornAttack(id: number) {
-  return `https://www.torn.com/loader.php?sid=attack&user2ID=${id}`;
-}
 
 export default function TargetsPage() {
   const [data, setData] = useState<TargetsData | null>(null);

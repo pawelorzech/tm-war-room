@@ -8,8 +8,8 @@ class AttackRepository(BaseRepository):
         conn.execute("""
             INSERT INTO attack_log (id, attacker_id, attacker_name, defender_id, defender_name,
                 defender_faction_id, defender_faction_name, result, respect_gain, chain,
-                is_ranked_war, is_raid, started, ended, fair_fight, war_modifier, chain_modifier)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_ranked_war, is_raid, is_interrupted, started, ended, fair_fight, war_modifier, chain_modifier)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO NOTHING
         """, (
             attack["id"], attack["attacker_id"], attack.get("attacker_name"),
@@ -17,6 +17,7 @@ class AttackRepository(BaseRepository):
             attack.get("defender_faction_id"), attack.get("defender_faction_name"),
             attack["result"], attack.get("respect_gain", 0), attack.get("chain", 0),
             int(attack.get("is_ranked_war", False)), int(attack.get("is_raid", False)),
+            int(attack.get("is_interrupted", False)),
             attack["started"], attack["ended"],
             attack.get("fair_fight", 1), attack.get("war_modifier", 1), attack.get("chain_modifier", 1),
         ))
@@ -29,8 +30,8 @@ class AttackRepository(BaseRepository):
             c = conn.execute("""
                 INSERT INTO attack_log (id, attacker_id, attacker_name, defender_id, defender_name,
                     defender_faction_id, defender_faction_name, result, respect_gain, chain,
-                    is_ranked_war, is_raid, started, ended, fair_fight, war_modifier, chain_modifier)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_ranked_war, is_raid, is_interrupted, started, ended, fair_fight, war_modifier, chain_modifier)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO NOTHING
             """, (
                 a["id"], a["attacker_id"], a.get("attacker_name"),
@@ -38,6 +39,7 @@ class AttackRepository(BaseRepository):
                 a.get("defender_faction_id"), a.get("defender_faction_name"),
                 a["result"], a.get("respect_gain", 0), a.get("chain", 0),
                 int(a.get("is_ranked_war", False)), int(a.get("is_raid", False)),
+                int(a.get("is_interrupted", False)),
                 a["started"], a["ended"],
                 a.get("fair_fight", 1), a.get("war_modifier", 1), a.get("chain_modifier", 1),
             ))

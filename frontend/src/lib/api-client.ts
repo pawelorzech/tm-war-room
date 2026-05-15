@@ -468,6 +468,20 @@ export const api = {
       status: { description: string } | null;
     }>('/api/profile/me'),
 
+  keyInfo: () =>
+    apiFetch<{
+      access_level: number;
+      access_type: string;
+      selections: Record<string, string[]>;
+    }>('/api/key/info'),
+
+  factionNews: (cat: string, limit = 50) =>
+    apiFetch<{
+      category: string;
+      count: number;
+      entries: { id: number | string; timestamp?: number; text?: string; news?: string }[];
+    }>(`/api/faction/news?cat=${encodeURIComponent(cat)}&limit=${limit}`),
+
   // ── Armoury Competitions ────────────────────────────
   armouryCompetitions: () => apiFetch<{
     competitions: {

@@ -8,6 +8,7 @@ import { useSort } from '@/hooks/useSort';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { tornAttack } from '@/lib/torn-urls';
 
 interface Reservation {
   player_id: number;
@@ -182,7 +183,7 @@ export default function LootPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${npc.id}`}
+                        <a href={tornAttack(npc.id)}
                           target="_blank" rel="noopener noreferrer"
                           className="text-base font-semibold text-text-primary hover:text-torn-green transition-colors">
                           {npc.name}

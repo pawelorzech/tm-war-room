@@ -18,7 +18,8 @@ export interface PageMatch {
  *
  * - `/profile.php?XID=123` → profile, player_id=123
  * - `/profiles.php?XID=123` → profile (older URL form)
- * - `/loader.php?sid=attack&user2ID=123` → attack, player_id=123
+ * - `/page.php?sid=attack&user2ID=123` → attack (current router, post-2026-05)
+ * - `/loader.php?sid=attack&user2ID=123` → attack (legacy router, kept for old tabs)
  */
 export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   const path = url.pathname.toLowerCase();
@@ -26,7 +27,7 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
     const xid = url.searchParams.get('XID') || url.searchParams.get('xid');
     return { kind: 'profile', player_id: xid ? parseInt(xid, 10) : null };
   }
-  if (path === '/loader.php') {
+  if (path === '/loader.php' || path === '/page.php') {
     const sid = url.searchParams.get('sid');
     if (sid === 'attack' || sid === 'getInAttack') {
       const uid = url.searchParams.get('user2ID');
@@ -55,6 +56,7 @@ export const PROFILE_ANCHOR_SELECTORS = [
 ];
 
 export const ATTACK_BUTTON_SELECTORS = [
+  'a[href*="page.php?sid=attack"]',
   'a[href*="loader.php?sid=attack"]',
   'button[class*="attack"]',
   '#mainContainer button:not([class*="cancel"])',
@@ -69,7 +71,7 @@ export const STOCKS_ANCHOR_SELECTORS = [
 /**
  * Watch for SPA-style URL changes on torn.com.
  *
- * Torn loads some pages (like /loader.php?sid=...) inline without a full
+ * Torn loads some pages (like /page.php?sid=... or legacy /loader.php?sid=...) inline without a full
  * navigation. history.pushState / popstate fire, but pages also re-render
  * the main container via XHR — we observe both signals and fire `onChange`
  * with the new URL so the router can re-inject.

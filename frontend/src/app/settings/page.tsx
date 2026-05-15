@@ -19,6 +19,12 @@ interface ProfileData {
   status: { description: string } | null;
 }
 
+interface KeyInfoData {
+  access_level: number;
+  access_type: string;
+  selections: Record<string, string[]>;
+}
+
 export default function SettingsPage() {
   const { playerId, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -28,6 +34,9 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState(false);
+
+  const [keyInfo, setKeyInfo] = useState<KeyInfoData | null>(null);
+  const [keyInfoError, setKeyInfoError] = useState(false);
 
   const loadProfile = () => {
     setProfileLoading(true);
@@ -39,6 +48,11 @@ export default function SettingsPage() {
   };
 
   useEffect(() => { loadProfile(); }, []);
+  useEffect(() => {
+    api.keyInfo()
+      .then(d => setKeyInfo(d))
+      .catch(() => setKeyInfoError(true));
+  }, []);
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -89,6 +103,31 @@ export default function SettingsPage() {
             </div>
           ) : null}
         </div>
+
+        {/* API Key Info Section */}
+        {keyInfo && !keyInfoError && (
+          <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5">
+            <p className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">API Key</p>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">{keyInfo.access_type}</h2>
+                <p className="text-[10px] text-text-muted mt-0.5">
+                  Access level {keyInfo.access_level} · {Object.keys(keyInfo.selections || {}).length} section{Object.keys(keyInfo.selections || {}).length === 1 ? '' : 's'} unlocked
+                </p>
+              </div>
+              <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${
+                keyInfo.access_level >= 4 ? 'bg-torn-green/15 text-torn-green'
+                : keyInfo.access_level >= 3 ? 'bg-torn-yellow/15 text-torn-yellow'
+                : 'bg-torn-red/15 text-torn-red'
+              }`}>
+                {keyInfo.access_level >= 4 ? 'Full Access' : keyInfo.access_level >= 3 ? 'Limited' : 'Minimal'}
+              </span>
+            </div>
+            <p className="text-[10px] text-text-muted mt-3">
+              TM Hub needs Full Access to load all features. If you're missing data, generate a new key at <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green hover:underline">Torn → Preferences → API Keys</a>.
+            </p>
+          </div>
+        )}
 
         {/* Push Notifications Section */}
         <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5">

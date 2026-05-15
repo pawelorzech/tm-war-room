@@ -90,7 +90,7 @@ async def _verify_torn_key_still_valid(player_id: int, api_key: str) -> bool:
         return False
     try:
         resp = await _torn_client._http.get(
-            "https://api.torn.com/user/",
+            "https://api.torn.com/v2/user/",
             params={"selections": "profile", "key": api_key},
         )
         resp.raise_for_status()

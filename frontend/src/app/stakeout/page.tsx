@@ -7,6 +7,7 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 import { Avatar } from '@/components/ui/Avatar';
+import { tornAttack } from '@/lib/torn-urls';
 
 interface Stakeout {
   player_id: number;
@@ -161,7 +162,7 @@ export default function StakeoutPage() {
                     {s.notes && <p className="text-xs text-text-muted mt-1">{s.notes}</p>}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <a href={`https://www.torn.com/loader.php?sid=attack&user2ID=${s.player_id}`} target="_blank" rel="noopener noreferrer"
+                    <a href={tornAttack(s.player_id)} target="_blank" rel="noopener noreferrer"
                       className="px-2 py-1 text-xs rounded-md bg-torn-red/15 text-torn-red hover:bg-torn-red/25 transition-colors font-medium">
                       Attack
                     </a>
