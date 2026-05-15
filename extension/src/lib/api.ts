@@ -22,6 +22,7 @@ import type {
   ArmouryCompetitionsResponse,
   ArmouryLeaderboardResponse,
   KnownSpiesResponse,
+  TravelResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -292,6 +293,10 @@ export function fetchArmouryLeaderboard(
   compId: number,
 ): Promise<ArmouryLeaderboardResponse> {
   return get<ArmouryLeaderboardResponse>(`/api/armoury/competitions/${compId}/leaderboard`, auth);
+}
+
+export function fetchTravel(auth: CompanionAuth): Promise<TravelResponse> {
+  return get<TravelResponse>('/api/travel', auth);
 }
 
 export function reserveLoot(

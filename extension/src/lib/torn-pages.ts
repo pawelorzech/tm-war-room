@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -51,6 +51,12 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   if (path === '/hospitalview.php') {
     return { kind: 'hospital', player_id: null };
   }
+  if (path === '/travelagency.php') {
+    return { kind: 'travel', player_id: null };
+  }
+  if (path === '/index.php' && url.searchParams.get('page') === 'travel') {
+    return { kind: 'travel', player_id: null };
+  }
   if (path === '/factions.php') {
     const step = url.searchParams.get('step');
     const id = url.searchParams.get('ID') || url.searchParams.get('id');
@@ -92,6 +98,12 @@ export const STOCKS_ANCHOR_SELECTORS = [
 
 export const ARMOURY_ANCHOR_SELECTORS = [
   '#faction-armoury-root',
+  '#mainContainer .content-wrapper',
+  '#mainContainer',
+];
+
+export const TRAVEL_ANCHOR_SELECTORS = [
+  '#travel-root',
   '#mainContainer .content-wrapper',
   '#mainContainer',
 ];

@@ -327,3 +327,29 @@ export interface KnownSpiesResponse {
   estimates: SpyEstimate[];
   count: number;
 }
+
+export interface TravelItem {
+  name: string;
+  item_id: number;
+  abroad_cost: number;
+  market_value: number;
+  quantity: number;
+  source: string;
+  profit: number;
+}
+
+export interface TravelCountry {
+  id: string;
+  name: string;
+  flag?: string;
+  travel_min?: number;
+  items: TravelItem[];
+  last_update: number;
+  data_source: 'yata' | 'none' | string;
+  best_profit: number;
+}
+
+export interface TravelResponse {
+  countries: TravelCountry[];
+  count: number;
+}
