@@ -36,7 +36,7 @@ const STYLES = `
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #c9d1d9; }
   .chip {
     position: fixed;
-    right: 12px;
+    left: 12px;
     bottom: 12px;
     display: flex;
     align-items: center;
@@ -92,7 +92,7 @@ const STYLES = `
   /* Settings popover */
   .menu {
     position: fixed;
-    right: 12px;
+    left: 12px;
     bottom: 48px;
     background: #161b22;
     border: 1px solid #30363d;
