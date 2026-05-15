@@ -1,0 +1,2168 @@
+{
+  "members": [
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Leader",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Leadership",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Council",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Leadership",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Helper",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Banker",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Council",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "state": "Abroad",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Co-leader",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": true,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "Everyone",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "plane_image_type": "test description",
+        "state": "Traveling",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "plane_image_type": "test description",
+        "state": "Traveling",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": true,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "Everyone",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Helper",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Idle",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": true,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "Everyone",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "state": "Abroad",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": true,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "Everyone",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "test description",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "plane_image_type": "test description",
+        "state": "Traveling",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": true,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 2",
+      "revive_setting": "test description",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 3",
+      "revive_setting": "No one",
+      "status": {
+        "color": "green",
+        "description": "test description",
+        "details": null,
+        "state": "Okay",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "blue",
+        "description": "test description",
+        "details": null,
+        "plane_image_type": "airliner",
+        "state": "Traveling",
+        "until": null
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": false,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Online",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Team 1",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    },
+    {
+      "days_in_faction": 100,
+      "has_early_discharge": false,
+      "id": 100,
+      "is_in_oc": true,
+      "is_on_wall": false,
+      "is_revivable": false,
+      "last_action": {
+        "relative": "test description",
+        "status": "Offline",
+        "timestamp": 100
+      },
+      "level": 100,
+      "name": "TestPlayer",
+      "position": "Member",
+      "revive_setting": "No one",
+      "status": {
+        "color": "red",
+        "description": "test description",
+        "details": "test description",
+        "state": "Hospital",
+        "until": 100
+      }
+    }
+  ]
+}

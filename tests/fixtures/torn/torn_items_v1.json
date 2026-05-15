@@ -1,0 +1,74 @@
+{
+  "items": {
+    "1": {
+      "buy_price": 100,
+      "circulation": 100,
+      "description": "test description",
+      "effect": "",
+      "image": "https://www.torn.com/images/items/1/large.png",
+      "market_value": 100,
+      "name": "TestPlayer",
+      "requirement": "",
+      "sell_price": 100,
+      "tradeable": true,
+      "type": "Melee",
+      "weapon_type": "Clubbing"
+    },
+    "2": {
+      "buy_price": 100,
+      "circulation": 100,
+      "description": "test description",
+      "effect": "",
+      "image": "https://www.torn.com/images/items/2/large.png",
+      "market_value": 100,
+      "name": "TestPlayer",
+      "requirement": "",
+      "sell_price": 100,
+      "tradeable": true,
+      "type": "Melee",
+      "weapon_type": "Clubbing"
+    },
+    "3": {
+      "buy_price": 100,
+      "circulation": 100,
+      "description": "test description",
+      "effect": "",
+      "image": "https://www.torn.com/images/items/3/large.png",
+      "market_value": 100,
+      "name": "TestPlayer",
+      "requirement": "",
+      "sell_price": 100,
+      "tradeable": true,
+      "type": "Melee",
+      "weapon_type": "Clubbing"
+    },
+    "4": {
+      "buy_price": 100,
+      "circulation": 100,
+      "description": "test description",
+      "effect": "",
+      "image": "https://www.torn.com/images/items/4/large.png",
+      "market_value": 100,
+      "name": "TestPlayer",
+      "requirement": "",
+      "sell_price": 100,
+      "tradeable": true,
+      "type": "Melee",
+      "weapon_type": "Clubbing"
+    },
+    "5": {
+      "buy_price": 100,
+      "circulation": 100,
+      "description": "test description",
+      "effect": "",
+      "image": "https://www.torn.com/images/items/5/large.png",
+      "market_value": 100,
+      "name": "TestPlayer",
+      "requirement": "",
+      "sell_price": 100,
+      "tradeable": true,
+      "type": "Melee",
+      "weapon_type": "Piercing"
+    }
+  }
+}

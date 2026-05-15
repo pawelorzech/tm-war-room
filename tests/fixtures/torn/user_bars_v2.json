@@ -1,0 +1,51 @@
+{
+  "bars": {
+    "chain": {
+      "cooldown": 100,
+      "current": 100,
+      "end": 100,
+      "id": 100,
+      "max": 100,
+      "modifier": 100,
+      "start": 100,
+      "timeout": 100
+    },
+    "energy": {
+      "current": 100,
+      "full_time": 100,
+      "increment": 100,
+      "interval": 100,
+      "maximum": 100,
+      "tick_time": 100
+    },
+    "happy": {
+      "current": 100,
+      "full_time": 100,
+      "increment": 100,
+      "interval": 100,
+      "maximum": 100,
+      "tick_time": 100
+    },
+    "life": {
+      "current": 100,
+      "full_time": 100,
+      "increment": 100,
+      "interval": 100,
+      "maximum": 100,
+      "tick_time": 100
+    },
+    "nerve": {
+      "current": 100,
+      "full_time": 100,
+      "increment": 100,
+      "interval": 100,
+      "maximum": 100,
+      "tick_time": 100
+    }
+  },
+  "cooldowns": {
+    "booster": 100,
+    "drug": 100,
+    "medical": 100
+  }
+}

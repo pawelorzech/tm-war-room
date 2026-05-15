@@ -1,0 +1,47 @@
+{
+  "chain": {
+    "cooldown": 100,
+    "current": 100,
+    "maximum": 100,
+    "modifier": 100,
+    "timeout": 100
+  },
+  "cooldowns": {
+    "booster": 100,
+    "drug": 100,
+    "medical": 100
+  },
+  "energy": {
+    "current": 100,
+    "fulltime": 100,
+    "increment": 100,
+    "interval": 100,
+    "maximum": 100,
+    "ticktime": 100
+  },
+  "happy": {
+    "current": 100,
+    "fulltime": 100,
+    "increment": 100,
+    "interval": 100,
+    "maximum": 100,
+    "ticktime": 100
+  },
+  "life": {
+    "current": 100,
+    "fulltime": 100,
+    "increment": 100,
+    "interval": 100,
+    "maximum": 100,
+    "ticktime": 100
+  },
+  "nerve": {
+    "current": 100,
+    "fulltime": 100,
+    "increment": 100,
+    "interval": 100,
+    "maximum": 100,
+    "ticktime": 100
+  },
+  "server_time": 100
+}

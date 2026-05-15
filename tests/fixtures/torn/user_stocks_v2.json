@@ -1,0 +1,406 @@
+{
+  "stocks": [
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": true,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": null,
+        "increment": null,
+        "progress": null
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": null,
+        "increment": null,
+        "progress": null
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    },
+    {
+      "bonus": {
+        "available": false,
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100
+      },
+      "id": 100,
+      "shares": 100,
+      "transactions": [
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        },
+        {
+          "id": 100,
+          "price": 100.0,
+          "shares": 100,
+          "timestamp": 100
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "companies": {
+    "1": {
+      "cost": 100,
+      "default_employees": 100,
+      "name": "TestPlayer",
+      "positions": {
+        "Aesthetician": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Apprentice": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Colorist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Nail Technician": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Receptionist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Secretary"
+        },
+        "Senior Stylist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Manager"
+        },
+        "Shampooist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Cleaner"
+        },
+        "Stylist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Trainer": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Trainer"
+        }
+      },
+      "specials": {
+        "Cutting Corners": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Debate": {
+          "cost": 100,
+          "effect": "Experience",
+          "rating_required": 100
+        },
+        "Gossip": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Rumors": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Sweeney's Revenge": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        }
+      },
+      "stock": {
+        "Full Treatment": {
+          "cost": "",
+          "rrp": 100
+        },
+        "Luxury Treatment": {
+          "cost": "",
+          "rrp": 100
+        },
+        "Standard Treatment": {
+          "cost": "",
+          "rrp": 100
+        }
+      }
+    },
+    "2": {
+      "cost": 100,
+      "default_employees": 100,
+      "name": "TestPlayer",
+      "positions": {
+        "Assistant": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Attorney": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Cleaner": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Cleaner"
+        },
+        "Consultant": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Trainer"
+        },
+        "Marketer": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Marketer"
+        },
+        "Secretary": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Secretary"
+        }
+      },
+      "specials": {
+        "Background Check": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Bail Bondsman": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Closing Argument": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Educated Decisions": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Loophole": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        }
+      },
+      "stock": {
+        "Per Hour": {
+          "cost": "",
+          "rrp": 100
+        }
+      }
+    },
+    "3": {
+      "cost": 100,
+      "default_employees": 100,
+      "name": "TestPlayer",
+      "positions": {
+        "Accountant": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Secretary"
+        },
+        "Apprentice": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Arranger": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Cleaner": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Cleaner"
+        },
+        "Florist": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "None"
+        },
+        "Manager": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Manager"
+        },
+        "Marketer": {
+          "description": "test description",
+          "end_gain": 100,
+          "end_required": 100,
+          "int_gain": 100,
+          "int_required": 100,
+          "man_gain": 100,
+          "man_required": 100,
+          "special_ability": "Marketer"
+        }
+      },
+      "specials": {
+        "Floral Contacts": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Herbal Cleansing": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Over Capacity": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        },
+        "Rare Import": {
+          "cost": 100,
+          "effect": "test description",
+          "rating_required": 100
+        }
+      },
+      "stock": {
+        "Bouquet": {
+          "cost": 100,
+          "rrp": 100
+        },
+        "Box of Chocolates": {
+          "cost": 100,
+          "rrp": 100
+        },
+        "Card": {
+          "cost": 100,
+          "rrp": 100
+        },
+        "Hamper": {
+          "cost": 100,
+          "rrp": 100
+        },
+        "Luxury Bouquet": {
+          "cost": 100,
+          "rrp": 100
+        },
+        "Vase": {
+          "cost": 100,
+          "rrp": 100
+        }
+      }
+    }
+  }
+}
