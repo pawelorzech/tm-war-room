@@ -99,6 +99,7 @@ export function usePushNotifications() {
     await reg.showNotification('TM Hub Test', {
       body: 'Push notifications are working!',
       icon: '/icons/icon-192.png',
+      badge: '/icons/notification-badge.png',
     });
   }, []);
 

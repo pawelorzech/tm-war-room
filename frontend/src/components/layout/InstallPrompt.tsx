@@ -77,22 +77,11 @@ export function InstallPrompt() {
     >
       <div className="bg-bg-surface border border-border rounded-xl p-4 shadow-lg shadow-black/40 flex items-start gap-3">
         {/* TM icon */}
-        <div className="shrink-0 w-10 h-10 rounded-lg bg-bg-primary flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="pwa-glow">
-                <feGaussianBlur stdDeviation="8" result="blur"/>
-                <feMerge>
-                  <feMergeNode in="blur"/>
-                  <feMergeNode in="blur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
-            <rect width="512" height="512" rx="96" fill="#0d1117"/>
-            <text x="256" y="310" textAnchor="middle" fontFamily="system-ui,sans-serif" fontWeight="800" fontSize="180" fill="#3fb950" filter="url(#pwa-glow)" letterSpacing="-8">TM</text>
-          </svg>
-        </div>
+        <div
+          className="shrink-0 w-10 h-10 rounded-lg bg-bg-primary bg-cover bg-center overflow-hidden"
+          style={{ backgroundImage: "url('/icons/icon-192.png')" }}
+          aria-hidden="true"
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0">
