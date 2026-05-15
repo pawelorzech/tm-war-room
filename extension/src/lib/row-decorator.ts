@@ -80,7 +80,12 @@ export async function decorateRows<T>(cfg: RowDecoratorConfig<T>): Promise<void>
   const badgeAttr = `data-tm-${cfg.featureId}-badge`;
   const anchorSelector = cfg.anchorSelector ?? DEFAULT_ANCHOR_SELECTOR;
 
-  const anchors = document.querySelectorAll<HTMLAnchorElement>(anchorSelector);
+  // Scope to #mainContainer so we don't decorate profile links in the sidebar
+  // user-info widget, the header bar, or other persistent chrome — those
+  // anchors point at the viewer's own profile and would always match
+  // "TM mate" / target / spy data, painting the chrome on every page.
+  const scope = document.getElementById('mainContainer') ?? document;
+  const anchors = scope.querySelectorAll<HTMLAnchorElement>(anchorSelector);
   anchors.forEach((anchor) => {
     const m = anchor.href.match(/XID=(\d+)/);
     if (!m) return;

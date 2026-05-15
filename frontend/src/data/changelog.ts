@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.36.0";
+export const CURRENT_VERSION = "1.36.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.36.1",
+    date: "2026-05-15",
+    title: "Companion v0.14.1 — TM Hub pills no longer leak onto the Torn sidebar",
+    changes: [
+      {
+        type: "fix",
+        summary: "Hospital and faction-roster pills stopped painting the persistent sidebar Information widget",
+        before: "Your own profile link in the left-side Information widget got painted with a green 'TM MATE' pill and tint on every page, because the row decorator walked every profile link on the page including the sidebar.",
+        after: "The decorator now only looks at links inside Torn's main container, so the sidebar, header, and other chrome are left alone — pills only appear in the hospital list / faction roster / bounty board where they're meant to.",
+        cause: "The row-decorator helper queried the whole document for profile links instead of scoping to the page's main content area.",
+      },
+    ],
+  },
   {
     version: "1.36.0",
     date: "2026-05-15",
