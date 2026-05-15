@@ -98,6 +98,24 @@ On each deploy with user-facing changes:
 3. Version rules: patch (1.0.X) = bugfix, minor (1.X.0) = new feature, major (X.0.0) = breaking change
 4. Change types: `feat` = new feature, `fix` = bugfix, `improve` = enhancement to existing feature
 
+### Change format (English only)
+
+Each change uses a discriminated union — TypeScript will reject the wrong shape:
+
+- **fix** → `{ type: "fix", summary, before, after, cause? }`
+  - `before`: what was broken in user terms (the symptom)
+  - `after`: how it works now
+  - `cause`: optional, one line in plain English (e.g. "TornStats response shape changed"); omit if you can't infer it
+- **feat / improve** → `{ type: "feat" | "improve", summary, detail? }`
+  - `detail`: optional 1-2 sentences explaining why a player would care
+
+**Style rules (the file's top comment is the full guide):**
+- One sentence per field. If it runs longer, it belongs in the git log.
+- Describe symptoms, not implementations. "Spy estimates showed 0 for most enemies" beats "scheduler called wrong getattr".
+- No code identifiers in user-facing fields: no function names, file paths, commit refs, schema field names.
+- `cause` is for a curious player, not an engineer — plain English, no internals.
+- Split compound entries: if one original `text` had two distinct fixes, write two `fix` changes.
+
 ## Workflow
 
 After each commit:
