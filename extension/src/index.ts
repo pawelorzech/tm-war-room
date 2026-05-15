@@ -77,30 +77,44 @@ async function refresh(): Promise<void> {
     return;
   }
 
-  // Profile intel (spy + targets + stakeout) runs unconditionally — it
-  // doesn't need an active war. Fire-and-forget; renders only when there's
-  // something to show.
-  if (match.kind === 'profile' || match.kind === 'attack') {
-    void renderProfileIntel(match.player_id);
-  }
-
+  // War + off-limits are needed both for the OFF-LIMITS badge AND as
+  // context for the intel card's action buttons. Fetch both before
+  // rendering so the action row knows whether to show "Flag" or "Edit
+  // off-limits".
   const warId = await getWarId(auth);
-  if (!warId) {
-    renderProfileBadge(null);
-    return;
+  let off: WarOffLimits | null = null;
+  if (warId) {
+    const map = await getOffLimitsMap(auth, warId);
+    off = map.get(match.player_id) || null;
   }
-
-  const map = await getOffLimitsMap(auth, warId);
-  const off = map.get(match.player_id) || null;
 
   if (match.kind === 'profile') {
     renderProfileBadge(off);
   } else if (match.kind === 'attack') {
     renderAttackOverlay(off);
   }
+
+  if (match.kind === 'profile' || match.kind === 'attack') {
+    void renderProfileIntel(match.player_id, { warId, offLimits: off });
+  }
+}
+
+/** Clear server-data caches so the next refresh() pulls fresh state.
+ * Fired from inject modules after successful write-back actions
+ * (flag off-limits, save target, etc) so the UI reflects reality
+ * without waiting for the regular 30s poll.
+ */
+function invalidateAndRefresh(): void {
+  warIdCache = { value: null, until: 0 };
+  offLimitsCache = null;
+  void refresh();
 }
 
 function bootstrap(): void {
+  // Inject modules trigger this when they mutate server state, so the main
+  // refresh loop re-fetches before its next interval tick.
+  window.addEventListener('tm-companion-refresh', () => invalidateAndRefresh());
+
   // Listen for token handoff from hub.tri.ovh/extension-auth.
   installAuthListener(() => {
     // Re-run refresh with the fresh token.

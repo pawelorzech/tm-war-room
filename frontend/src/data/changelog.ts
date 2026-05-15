@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.26.2";
+export const CURRENT_VERSION = "1.27.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.27.0",
+    date: "2026-05-15",
+    title: "Companion v0.7 — inline write-back: flag off-limits / save target / watch from torn.com",
+    changes: [
+      { type: "feat", text: "TM Hub intel card on enemy profiles now has action buttons at the bottom: 🚫 Flag off-limits (during war), 🎯 Save to targets / Edit target, 🔍 Watch / Stop watching. Each opens a small modal with the relevant fields (reason / tag / difficulty / notes), POSTs to the backend, and refreshes the card optimistically. No more bouncing to hub.tri.ovh just to flag a med-out you noticed while attacking" },
+      { type: "feat", text: "Flagging off-limits from torn.com auto-busts the main companion refresh cache, so the red OFF-LIMITS badge appears on the profile page within ~1s of you clicking 'Flag' — no waiting for the next poll cycle. Same fast-path for target / stakeout writes" },
+      { type: "feat", text: "Edit target modal also surfaces a destructive 'Remove from targets' button so you can manage your hit list straight from torn.com. Stakeout removal uses a native confirm dialog because it's a faction-shared list and a misclick would affect everyone" },
+      { type: "improve", text: "New generic modal helper (lib/modal.ts) for any future inline form action. Escape / backdrop click / Cancel all close. First field gets autofocus. Field types supported: text, textarea, select. Reusable for v0.8 bounties triage, v0.9 loot reservations, etc" },
+    ],
+  },
   {
     version: "1.26.2",
     date: "2026-05-15",
