@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel
-from api.services.spy import SpyService
+from api.services.spy import SpyService, spy_reported_at
 from api.admin import require_admin
 
 router = APIRouter(prefix="/api/spy", tags=["spy"])
@@ -120,21 +120,41 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
         and (m.id not in all_estimates or _is_stale(all_estimates[m.id], now))
     ][:20]
 
-    # Parallel TornStats lookups
-    async def _ts_lookup(m):
-        return m, await torn_client.fetch_tornstats_spy_user(m.id, tornstats_key)
-    ts_results = await asyncio.gather(*[_ts_lookup(m) for m in to_lookup], return_exceptions=True)
-    for result in ts_results:
+    # Parallel TornStats + YATA lookups per member. Both spy networks are
+    # consulted because TornStats can hold a year-old spy while YATA has a
+    # recent one (or vice versa); refresh_estimate picks whichever report
+    # has the most recent actual spy timestamp.
+    async def _lookup(m):
+        ts_task = torn_client.fetch_tornstats_spy_user(m.id, tornstats_key)
+        yata_task = torn_client.fetch_yata_spy_user(m.id)
+        ts_data, yata_data = await asyncio.gather(ts_task, yata_task, return_exceptions=True)
+        return m, ts_data, yata_data
+    results_raw = await asyncio.gather(*[_lookup(m) for m in to_lookup], return_exceptions=True)
+    now_iso = now.isoformat()
+    for result in results_raw:
         if isinstance(result, Exception):
             continue
-        m, ts_data = result
-        if ts_data and ts_data.get("total", 0) > 0:
+        m, ts_data, yata_data = result
+        touched = False
+        if not isinstance(ts_data, Exception) and ts_data and ts_data.get("total", 0) > 0:
             svc.repo.upsert_report(
                 player_id=m.id, player_name=ts_data.get("player_name") or m.name,
                 source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
                 speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
-                confidence="estimate", reported_at=now.isoformat(),
+                confidence="estimate",
+                reported_at=spy_reported_at(ts_data.get("timestamp"), now_iso),
             )
+            touched = True
+        if not isinstance(yata_data, Exception) and yata_data and yata_data.get("total", 0) > 0:
+            svc.repo.upsert_report(
+                player_id=m.id, player_name=yata_data.get("player_name") or m.name,
+                source="yata", strength=yata_data["strength"], defense=yata_data["defense"],
+                speed=yata_data["speed"], dexterity=yata_data["dexterity"], total=yata_data["total"],
+                confidence="estimate",
+                reported_at=spy_reported_at(yata_data.get("timestamp"), now_iso),
+            )
+            touched = True
+        if touched:
             svc.refresh_estimate(m.id)
             all_estimates[m.id] = svc.repo.get_estimate(m.id)
 
@@ -177,16 +197,29 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
         est = None
     now_dt = datetime.now(timezone.utc)
     needs_refresh = (not est) or _is_stale(est, now_dt)
-    if needs_refresh and torn_client and tornstats_key:
-        ts_data = await torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)
-        if ts_data and ts_data.get("total", 0) > 0:
-            now = datetime.now(timezone.utc).isoformat()
+    if needs_refresh and torn_client:
+        # Query TornStats and YATA in parallel. They're independent spy networks
+        # — one can be stale while the other is fresh. refresh_estimate picks
+        # whichever report has the most recent actual spy timestamp.
+        tasks = []
+        if tornstats_key:
+            tasks.append(("tornstats", torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)))
+        tasks.append(("yata", torn_client.fetch_yata_spy_user(player_id)))
+        results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        touched = False
+        for (source, _), data in zip(tasks, results):
+            if isinstance(data, Exception) or not data or data.get("total", 0) <= 0:
+                continue
             svc.repo.upsert_report(
-                player_id=player_id, player_name=ts_data.get("player_name"),
-                source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
-                speed=ts_data["speed"], dexterity=ts_data["dexterity"], total=ts_data["total"],
-                confidence="estimate", reported_at=now,
+                player_id=player_id, player_name=data.get("player_name"),
+                source=source, strength=data["strength"], defense=data["defense"],
+                speed=data["speed"], dexterity=data["dexterity"], total=data["total"],
+                confidence="estimate",
+                reported_at=spy_reported_at(data.get("timestamp"), now_iso),
             )
+            touched = True
+        if touched:
             svc.refresh_estimate(player_id)
             est = svc.repo.get_estimate(player_id)
     if not est:

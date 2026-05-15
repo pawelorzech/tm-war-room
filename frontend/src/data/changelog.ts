@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.39.1";
+export const CURRENT_VERSION = "1.40.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.0",
+    date: "2026-05-15",
+    title: "Battle stat estimates now pull from YATA too — no more year-old spy data",
+    changes: [
+      {
+        type: "fix",
+        summary: "Player total battle stats showed a fraction of the real value when TornStats held a stale spy",
+        before: "If TornStats's spy on a player was outdated (e.g. from a year ago when they had 2.67B), we showed 2.67B even though YATA had a fresh 9B spy on the same player.",
+        after: "Every spy lookup now queries TornStats and YATA in parallel and picks the most recent actual spy. The age shown is the real spy date, not when we last refreshed.",
+        cause: "We only ever read TornStats, and we stamped each fetch with 'now' so the cached row always looked fresh even when the underlying spy was a year old.",
+      },
+    ],
+  },
   {
     version: "1.39.1",
     date: "2026-05-15",

@@ -1,15 +1,36 @@
 from __future__ import annotations
+import asyncio
 import logging
 from datetime import datetime, timezone
 from api.scheduler.jobs._log_helpers import report_job_error, with_sentry_capture
-from api.services.spy import SpyService
+from api.services.spy import SpyService, spy_reported_at
 
 logger = logging.getLogger("tm-hub.jobs.refresh_spies")
 
+
+def _upsert_report(spy_service, player_id, stats, source, now_iso):
+    """Upsert one source's spy report for a player. Returns True if written.
+
+    Skips empty (total<=0) responses so a missing spy in one source can't
+    overwrite a real estimate built from the other.
+    """
+    total = stats.get("total", 0) or 0
+    if total <= 0:
+        return False
+    spy_service.repo.upsert_report(
+        player_id=player_id, player_name=stats.get("name"), source=source,
+        strength=stats.get("strength", 0) or 0,
+        defense=stats.get("defense", 0) or 0,
+        speed=stats.get("speed", 0) or 0,
+        dexterity=stats.get("dexterity", 0) or 0,
+        total=total,
+        confidence="estimate",
+        reported_at=spy_reported_at(stats.get("timestamp"), now_iso),
+    )
+    return True
+
+
 async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key: str = "") -> None:
-    if not tornstats_key:
-        logger.debug("No TornStats API key configured, skipping spy refresh")
-        return
     try:
         war = await torn_client.fetch_war()
         if not war or not war.factions:
@@ -19,41 +40,42 @@ async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key:
         enemy_faction = next((f for f in war.factions if f.id != FACTION_ID), None)
         if not enemy_faction:
             return
+        # Pull from both spy networks in parallel. TornStats and YATA are
+        # independent — neither has full coverage, so we merge per-player.
         # NB: must use the dedicated battle-stats fetcher. fetch_tornstats_spy
         # returns PersonalStats (xanax/attacks/networth/...) — no strength/
         # defense/speed/dexterity/total. Until 2026-05-15 this job called the
         # wrong fetcher and getattr'd nonexistent fields, writing zeros every
         # 30 min and slowly overwriting real estimates. See test_refresh_spies.py.
-        spy_data = await torn_client.fetch_tornstats_faction_battle_stats(enemy_faction.id, tornstats_key)
-        if not spy_data:
+        ts_task = (
+            torn_client.fetch_tornstats_faction_battle_stats(enemy_faction.id, tornstats_key)
+            if tornstats_key
+            else asyncio.sleep(0, result={})
+        )
+        yata_task = torn_client.fetch_yata_faction_spies(enemy_faction.id)
+        ts_result, yata_result = await asyncio.gather(ts_task, yata_task, return_exceptions=True)
+        ts_data = ts_result if not isinstance(ts_result, Exception) and ts_result else {}
+        yata_data = yata_result if not isinstance(yata_result, Exception) and yata_result else {}
+        if not ts_data and not yata_data:
+            logger.debug("No spy data returned from either source")
             return
         now = datetime.now(timezone.utc).isoformat()
-        updated_players = []
-        skipped_empty = 0
-        for player_id, stats in spy_data.items():
-            total = stats.get("total", 0) or 0
-            # Defense in depth: never let an empty TornStats response (total=0)
-            # poison existing real data. Refresh_estimate keeps prior reports,
-            # but writing a fresh zero report would make this player's latest
-            # report = 0, breaking compute_stat_threat downstream.
-            if total <= 0:
-                skipped_empty += 1
-                continue
-            spy_service.repo.upsert_report(
-                player_id=player_id, player_name=stats.get("name"), source="tornstats",
-                strength=stats.get("strength", 0) or 0,
-                defense=stats.get("defense", 0) or 0,
-                speed=stats.get("speed", 0) or 0,
-                dexterity=stats.get("dexterity", 0) or 0,
-                total=total,
-                confidence="estimate", reported_at=now,
-            )
-            updated_players.append(player_id)
+        updated_players: set[int] = set()
+        ts_written = 0
+        yata_written = 0
+        for player_id, stats in ts_data.items():
+            if _upsert_report(spy_service, player_id, stats, "tornstats", now):
+                updated_players.add(player_id)
+                ts_written += 1
+        for player_id, stats in yata_data.items():
+            if _upsert_report(spy_service, player_id, stats, "yata", now):
+                updated_players.add(player_id)
+                yata_written += 1
         for pid in updated_players:
             spy_service.refresh_estimate(pid)
         logger.info(
-            "Refreshed spy data for %d players from TornStats (skipped %d empty)",
-            len(updated_players), skipped_empty,
+            "Refreshed spy data for %d players (tornstats=%d yata=%d)",
+            len(updated_players), ts_written, yata_written,
         )
     except Exception as e:
         report_job_error(logger, "Spy refresh failed: %s", e, job="refresh_spies")
