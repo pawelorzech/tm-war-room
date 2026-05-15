@@ -18,6 +18,7 @@ import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
+import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
 import { startStatusChip } from './inject/status-chip';
@@ -71,6 +72,13 @@ async function refresh(): Promise<void> {
   if (match.kind === 'bounties') {
     if (getAuth()) {
       void applyBountiesOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'stocks') {
+    if (getAuth()) {
+      void renderStocksOverlay();
     }
     return;
   }

@@ -12,9 +12,27 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.28.0";
+export const CURRENT_VERSION = "1.29.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.29.0",
+    date: "2026-05-15",
+    title: "Companion v0.10 — stocks portfolio + ROI overlay on the stock market",
+    changes: [
+      { type: "feat", text: "Opening Torn's stock market (/loader.php?sid=stocks) now injects a TM Hub stocks card at the top of the page with: portfolio aggregates (total value, profit/loss in dollars, P/L %), 'Ready to collect' pills for any stock whose benefit or dividend is ripe right now, and the top 3 best marginal-ROI next-best moves with the dollar cost to buy in and rough days-to-break-even. Each recommendation reuses the same scoring logic as /stocks in TM Hub, so what you see on torn.com matches what you see in the hub" },
+      { type: "feat", text: "ROI numbers prefer live item market prices when the benefit pays out a tradeable item (Lawyer Business Cards, Feathery Hotel Coupons, Erotic DVDs, etc — refreshed every 10 min server-side) and fall back to a hardcoded payout estimate otherwise. The card surfaces a small 'live price' hint on rows where the live market value drove the calculation" },
+      { type: "improve", text: "When the linked API key doesn't have stock access (limited keys block /user/?selections=stocks) the card explains the situation and points at Torn → Preferences → API Keys to mint a Full Access key — instead of silently showing zeros. 60s cache so refreshing the stock page doesn't re-hit the Torn API" },
+    ],
+  },
+  {
+    version: "1.28.1",
+    date: "2026-05-15",
+    title: "Spy estimates stay fresh between wars",
+    changes: [
+      { type: "fix", text: "TornStats spy estimates were going stale and never refreshing — the 30-min refresh_spies job only batch-fetches the current enemy faction during a war, so your own faction and anyone else with an existing estimate would silently age past 30 days and get marked 'stale'. New scheduler job refresh_stale_spies walks the oldest rows every 6h and re-fetches them via the single-player TornStats endpoint, paced at 2 req/s to stay well under the API limit. On top of that, the /api/spy/{player_id} and /api/spy/faction/{id} endpoints now re-fetch on demand when a stored estimate is older than 7 days (previously they only fetched if no estimate existed at all)" },
+    ],
+  },
   {
     version: "1.28.0",
     date: "2026-05-15",

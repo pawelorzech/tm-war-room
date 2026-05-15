@@ -42,6 +42,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Inline write-back actions</span> — flag off-limits, save target with tag/difficulty/notes, watch/unwatch stakeout — all from the torn.com profile</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Bounties threat coloring</span> on /bounties.php — rows tinted + TM threat badge with score and source</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Loot NPC overlay</span> on Duke / Leslie / Jimmy / Bruno / Easter Bunny — current level, countdown grid, faction reservations, reserve inline</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Stocks portfolio + ROI overlay</span> on the stock market page — total value, P/L %, ready-to-collect benefits, top 3 marginal-ROI moves with cost + payback days</span></li>
             </ul>
           </div>
 
@@ -52,7 +53,7 @@ export default function InstallPage() {
               <h2 className="text-lg font-semibold">Coming up</h2>
             </div>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Stocks portfolio + ROI overlay</span> on the stock market page</span></li>
+              <li className="flex gap-2"><span className="text-text-muted">○</span><span>Tell Bombel what you'd like to see next.</span></li>
             </ul>
             <p className="text-text-muted text-[11px] pt-2">
               Suggestions? Ping <span className="text-text-secondary">@Bombel</span> in #general or the GitHub issues.

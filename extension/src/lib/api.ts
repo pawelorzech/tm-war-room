@@ -20,6 +20,8 @@ import type {
   StakeoutsResponse,
   BountiesResponse,
   LootResponse,
+  StockPortfolioResponse,
+  StockRoiResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -241,6 +243,14 @@ export function fetchBounties(auth: CompanionAuth): Promise<BountiesResponse> {
 
 export function fetchLoot(auth: CompanionAuth): Promise<LootResponse> {
   return get<LootResponse>('/api/loot', auth);
+}
+
+export function fetchStockPortfolio(auth: CompanionAuth): Promise<StockPortfolioResponse> {
+  return get<StockPortfolioResponse>('/api/stocks/portfolio', auth);
+}
+
+export function fetchStockRoi(auth: CompanionAuth): Promise<StockRoiResponse> {
+  return get<StockRoiResponse>('/api/stocks/roi', auth);
 }
 
 export function reserveLoot(
