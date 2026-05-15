@@ -15,11 +15,24 @@ import {
   fetchSpyEstimate,
   fetchTargets,
   fetchStakeouts,
+  flagOffLimits,
+  saveTarget,
+  removeTarget,
+  addStakeout,
+  removeStakeout,
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
-import type { SpyEstimate, Stakeout, Target } from '../types';
+import { showFormModal } from '../lib/modal';
+import { showToast } from '../lib/notifications';
+import type { SpyEstimate, Stakeout, Target, WarOffLimits } from '../types';
+
+export interface ProfileIntelContext {
+  warId: number | null;
+  offLimits: WarOffLimits | null;
+  playerName?: string;
+}
 
 const HUB_ORIGIN: string =
   (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
@@ -181,6 +194,29 @@ const STYLES = `
   .tag-pill.difficulty-easy { background: rgba(63,185,80,0.2); color: #3fb950; }
   .tag-pill.difficulty-medium { background: rgba(210,153,34,0.2); color: #d29922; }
   .tag-pill.difficulty-hard { background: rgba(248,81,73,0.2); color: #f85149; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #21262d;
+  }
+  .action-btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .action-btn:hover { background: #30363d; border-color: #58a6ff; color: #f0f6fc; }
+  .action-btn.danger { color: #f85149; border-color: #f85149; }
+  .action-btn.danger:hover { background: rgba(248,81,73,0.1); }
+  .action-btn:disabled { opacity: 0.5; cursor: wait; }
 `;
 
 function escapeHtml(s: string): string {
@@ -253,7 +289,241 @@ function stakeoutRow(s: Stakeout): string {
   `;
 }
 
-export async function renderProfileIntel(playerId: number): Promise<void> {
+function detectPlayerNameFromDom(): string | null {
+  // Best-effort: Torn profile pages set <title>Player Name | Torn</title>.
+  const title = document.title.split('|')[0].trim();
+  if (title && title.toLowerCase() !== 'profile' && title.toLowerCase() !== 'torn') {
+    return title;
+  }
+  // Fallback: <h4 class="user-information-name"> or similar — Torn changes
+  // these constantly so we accept a null answer and ask the user instead.
+  const candidates = ['.user-information-name', '#profileroot h4', '.profile-name'];
+  for (const sel of candidates) {
+    const el = document.querySelector<HTMLElement>(sel);
+    if (el?.textContent?.trim()) return el.textContent.trim();
+  }
+  return null;
+}
+
+function actionsRow(
+  _playerId: number,
+  ctx: ProfileIntelContext,
+  intel: CachedIntel,
+): string {
+  const buttons: string[] = [];
+  // OFF-LIMITS: only show "Flag" when in an active war and not already flagged.
+  if (ctx.warId && !ctx.offLimits) {
+    buttons.push(`<button class="action-btn" data-act="flag-off">🚫 Flag off-limits</button>`);
+  }
+  // Target list toggle.
+  if (intel.target) {
+    buttons.push(`<button class="action-btn" data-act="edit-target">🎯 Edit target</button>`);
+  } else {
+    buttons.push(`<button class="action-btn" data-act="save-target">🎯 Save to targets</button>`);
+  }
+  // Stakeout toggle.
+  if (intel.stakeout) {
+    buttons.push(`<button class="action-btn danger" data-act="remove-stakeout">🔍 Stop watching</button>`);
+  } else {
+    buttons.push(`<button class="action-btn" data-act="add-stakeout">🔍 Watch (stakeout)</button>`);
+  }
+  if (buttons.length === 0) return '';
+  return `<div class="actions">${buttons.join('')}</div>`;
+}
+
+function bindActions(
+  shadow: ShadowRoot,
+  playerId: number,
+  ctx: ProfileIntelContext,
+  intel: CachedIntel,
+  rerender: () => void,
+): void {
+  const auth = getAuth();
+  if (!auth) return;
+
+  const resolveName = (): string =>
+    ctx.playerName ||
+    intel.spy?.player_name ||
+    intel.target?.player_name ||
+    intel.stakeout?.player_name ||
+    detectPlayerNameFromDom() ||
+    `#${playerId}`;
+
+  shadow.querySelector('[data-act="flag-off"]')?.addEventListener('click', async () => {
+    if (!ctx.warId) return;
+    const result = await showFormModal({
+      title: '🚫 Flag off-limits',
+      description:
+        'Mark this player as off-limits for the current war. Faction members will see a warning before attacking.',
+      fields: [
+        {
+          name: 'reason',
+          label: 'Reason (optional)',
+          type: 'textarea',
+          placeholder: 'e.g. med-out for chain leader, dip with [Bombla]',
+        },
+      ],
+      submitLabel: 'Flag',
+    });
+    if (!result || result.kind !== 'submit') return;
+    try {
+      await flagOffLimits(auth, ctx.warId, {
+        player_id: playerId,
+        player_name: resolveName(),
+        reason: result.values.reason || '',
+      });
+      showToast({
+        title: 'Flagged off-limits',
+        body: `${resolveName()} is now off-limits faction-wide.`,
+        icon: '🚫',
+        tone: 'info',
+      });
+      // Bust local caches AND broadcast so the main refresh loop reloads
+      // the off-limits map — the OFF-LIMITS badge needs to appear without
+      // waiting for the 30s poll cycle.
+      _intelCache.delete(playerId);
+      window.dispatchEvent(new CustomEvent('tm-companion-refresh'));
+      rerender();
+    } catch (err) {
+      showToast({
+        title: 'Could not flag',
+        body: err instanceof ApiError && err.status === 409 ? 'Already flagged.' : 'Backend error.',
+        icon: '⚠️',
+        tone: 'warn',
+      });
+    }
+  });
+
+  shadow.querySelector('[data-act="save-target"]')?.addEventListener('click', async () => {
+    const result = await showFormModal({
+      title: '🎯 Save to your targets',
+      description: 'Persists with a tag + optional notes. Visible only to you.',
+      fields: [
+        { name: 'tag', label: 'Tag', placeholder: 'e.g. farm, war-enemy, avoid' },
+        {
+          name: 'difficulty',
+          label: 'Difficulty',
+          type: 'select',
+          options: [
+            { value: '', label: '(unknown)' },
+            { value: 'easy', label: 'Easy' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'hard', label: 'Hard' },
+          ],
+          initialValue: '',
+        },
+        { name: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional context' },
+      ],
+      submitLabel: 'Save',
+    });
+    if (!result || result.kind !== 'submit') return;
+    try {
+      await saveTarget(auth, {
+        player_id: playerId,
+        player_name: resolveName(),
+        tag: result.values.tag || undefined,
+        difficulty: result.values.difficulty || undefined,
+        notes: result.values.notes || undefined,
+      });
+      showToast({ title: 'Saved to targets', body: resolveName(), icon: '🎯', tone: 'info' });
+      _targetsCache = null;
+      _intelCache.delete(playerId);
+      rerender();
+    } catch {
+      showToast({ title: 'Could not save target', body: 'Backend error.', icon: '⚠️', tone: 'warn' });
+    }
+  });
+
+  shadow.querySelector('[data-act="edit-target"]')?.addEventListener('click', async () => {
+    const t = intel.target!;
+    const result = await showFormModal({
+      title: '🎯 Edit target',
+      fields: [
+        { name: 'tag', label: 'Tag', initialValue: t.tag || '' },
+        {
+          name: 'difficulty',
+          label: 'Difficulty',
+          type: 'select',
+          options: [
+            { value: '', label: '(unknown)' },
+            { value: 'easy', label: 'Easy' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'hard', label: 'Hard' },
+          ],
+          initialValue: t.difficulty || '',
+        },
+        { name: 'notes', label: 'Notes', type: 'textarea', initialValue: t.notes || '' },
+      ],
+      submitLabel: 'Save',
+      destructiveAction: { label: 'Remove from targets', value: 'remove' },
+    });
+    if (!result) return;
+    try {
+      if (result.kind === 'destructive') {
+        await removeTarget(auth, playerId);
+        showToast({ title: 'Removed from targets', body: resolveName(), icon: '🎯', tone: 'info' });
+      } else {
+        // PATCH not exposed, re-save acts as upsert via POST (server uses PK).
+        await saveTarget(auth, {
+          player_id: playerId,
+          player_name: resolveName(),
+          tag: result.values.tag || undefined,
+          difficulty: result.values.difficulty || undefined,
+          notes: result.values.notes || undefined,
+        });
+        showToast({ title: 'Target updated', body: resolveName(), icon: '🎯', tone: 'info' });
+      }
+      _targetsCache = null;
+      _intelCache.delete(playerId);
+      rerender();
+    } catch {
+      showToast({ title: 'Could not update target', body: 'Backend error.', icon: '⚠️', tone: 'warn' });
+    }
+  });
+
+  shadow.querySelector('[data-act="add-stakeout"]')?.addEventListener('click', async () => {
+    const result = await showFormModal({
+      title: '🔍 Watch (stakeout)',
+      description: 'Adds the player to the faction-wide stakeout list.',
+      fields: [
+        { name: 'notes', label: 'Notes (optional)', type: 'textarea', placeholder: 'Why are we watching this one?' },
+      ],
+      submitLabel: 'Watch',
+    });
+    if (!result || result.kind !== 'submit') return;
+    try {
+      await addStakeout(auth, {
+        player_id: playerId,
+        player_name: resolveName(),
+        notes: result.values.notes || '',
+      });
+      showToast({ title: 'Added to stakeout', body: resolveName(), icon: '🔍', tone: 'info' });
+      _stakeoutsCache = null;
+      _intelCache.delete(playerId);
+      rerender();
+    } catch {
+      showToast({ title: 'Could not add stakeout', body: 'Backend error.', icon: '⚠️', tone: 'warn' });
+    }
+  });
+
+  shadow.querySelector('[data-act="remove-stakeout"]')?.addEventListener('click', async () => {
+    if (!confirm('Remove from faction stakeout list?')) return;
+    try {
+      await removeStakeout(auth, playerId);
+      showToast({ title: 'Stopped watching', body: resolveName(), icon: '🔍', tone: 'info' });
+      _stakeoutsCache = null;
+      _intelCache.delete(playerId);
+      rerender();
+    } catch {
+      showToast({ title: 'Could not remove', body: 'Backend error.', icon: '⚠️', tone: 'warn' });
+    }
+  });
+}
+
+export async function renderProfileIntel(
+  playerId: number,
+  ctx: ProfileIntelContext = { warId: null, offLimits: null },
+): Promise<void> {
   const existing = document.querySelector('[data-tm-companion="profile-intel"]');
 
   const auth = getAuth();
@@ -271,7 +541,9 @@ export async function renderProfileIntel(playerId: number): Promise<void> {
   }
 
   const { spy, target, stakeout } = intel;
-  if (!spy && !target && !stakeout) {
+  const hasActions = ctx.warId || true; // always show some action (save target / watch)
+
+  if (!spy && !target && !stakeout && !hasActions) {
     existing?.remove();
     return;
   }
@@ -279,7 +551,6 @@ export async function renderProfileIntel(playerId: number): Promise<void> {
   const { host, shadow } = ensureHost('profile-intel');
   applyBaseStyles(shadow);
 
-  // Re-render — single card so we wipe and rebuild.
   shadow.querySelectorAll('.card, style[data-tm-intel]').forEach((n) => n.remove());
 
   const style = document.createElement('style');
@@ -297,10 +568,14 @@ export async function renderProfileIntel(playerId: number): Promise<void> {
     ${spy ? spyRow(spy) : ''}
     ${target ? targetRow(target) : ''}
     ${stakeout ? stakeoutRow(stakeout) : ''}
+    ${actionsRow(playerId, ctx, intel)}
   `;
   shadow.appendChild(card);
 
-  // Anchor under the OFF-LIMITS badge if present, else under profile.
+  bindActions(shadow, playerId, ctx, intel, () => {
+    void renderProfileIntel(playerId, ctx);
+  });
+
   if (!host.parentElement) {
     const offLimitsHost = document.querySelector('[data-tm-companion="profile-badge"]');
     if (offLimitsHost && offLimitsHost.parentElement) {

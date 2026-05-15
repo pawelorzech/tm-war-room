@@ -233,4 +233,56 @@ export function fetchStakeouts(auth: CompanionAuth): Promise<StakeoutsResponse> 
   return get<StakeoutsResponse>('/api/stakeout', auth);
 }
 
+// ── Write-back actions ──────────────────────────────────────
+
+export function flagOffLimits(
+  auth: CompanionAuth,
+  warId: number,
+  body: { player_id: number; player_name: string; reason?: string },
+): Promise<{ status: string }> {
+  return post<{ status: string }>(`/api/war-off-limits/${warId}`, body, auth);
+}
+
+export function removeOffLimits(
+  auth: CompanionAuth,
+  warId: number,
+  playerId: number,
+): Promise<{ status: string }> {
+  return del<{ status: string }>(`/api/war-off-limits/${warId}/${playerId}`, auth);
+}
+
+export function saveTarget(
+  auth: CompanionAuth,
+  body: {
+    player_id: number;
+    player_name?: string;
+    tag?: string;
+    notes?: string;
+    difficulty?: string;
+  },
+): Promise<{ status: string }> {
+  return post<{ status: string }>('/api/targets', body, auth);
+}
+
+export function removeTarget(
+  auth: CompanionAuth,
+  playerId: number,
+): Promise<{ status: string }> {
+  return del<{ status: string }>(`/api/targets/${playerId}`, auth);
+}
+
+export function addStakeout(
+  auth: CompanionAuth,
+  body: { player_id: number; player_name?: string; notes?: string },
+): Promise<{ status: string }> {
+  return post<{ status: string }>('/api/stakeout', body, auth);
+}
+
+export function removeStakeout(
+  auth: CompanionAuth,
+  playerId: number,
+): Promise<{ status: string }> {
+  return del<{ status: string }>(`/api/stakeout/${playerId}`, auth);
+}
+
 export { ApiError };
