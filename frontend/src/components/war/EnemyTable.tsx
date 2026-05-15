@@ -57,10 +57,10 @@ function getEnemySortValue(m: EnemyMember, col: EnemySortCol): string | number {
 }
 
 const THREAT_COLORS: Record<string, string> = {
-  easy: "bg-green-900/60 text-green-400 border-green-700/40",
-  medium: "bg-yellow-900/60 text-yellow-400 border-yellow-700/40",
-  hard: "bg-red-900/60 text-red-400 border-red-700/40",
-  avoid: "bg-purple-900/60 text-purple-400 border-purple-700/40",
+  easy: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/60 dark:text-green-400 dark:border-green-700/40",
+  medium: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/60 dark:text-yellow-400 dark:border-yellow-700/40",
+  hard: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/60 dark:text-red-400 dark:border-red-700/40",
+  avoid: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/60 dark:text-purple-400 dark:border-purple-700/40",
   unknown: "bg-bg-elevated text-text-muted border-border",
 };
 
