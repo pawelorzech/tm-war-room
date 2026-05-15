@@ -5,6 +5,13 @@
  * set at build time. PII filter mirrors the backend (api/observability.py):
  * Torn API keys, auth headers, cookies, and any field whose name looks like a
  * secret get redacted before transmission.
+ *
+ * Upstream-noise filter mirrors api/observability.py:_is_upstream_noise: when
+ * a handled `TypeError: Failed to fetch` (Chrome) / `NetworkError when
+ * attempting to fetch resource` (Firefox) / `Load failed` (Safari) carries no
+ * in-app stack frame, it's the browser-side equivalent of an httpx 5xx —
+ * user lost network or closed the tab mid-poll. Drop it before transmission
+ * so background polls (heartbeat, chat/unread) don't pollute the inbox.
  */
 
 const TORN_KEY_RE = /\b[a-zA-Z0-9]{16}\b/g;
@@ -21,6 +28,41 @@ const SECRET_FIELD_NAMES = new Set([
   "set-cookie",
   "x-mcp-token",
 ]);
+
+interface SentryFrame {
+  in_app?: boolean | null;
+}
+
+interface SentryException {
+  type?: string;
+  value?: string;
+  mechanism?: { handled?: boolean };
+  stacktrace?: { frames?: SentryFrame[] };
+}
+
+interface SentryEvent {
+  exception?: { values?: SentryException[] };
+}
+
+function isUpstreamFetchNoise(event: SentryEvent): boolean {
+  const exc = event.exception?.values?.[0];
+  if (!exc || exc.type !== "TypeError") return false;
+  const value = exc.value || "";
+  const isFetchFail =
+    value === "Failed to fetch" ||
+    value.includes("NetworkError when attempting to fetch") ||
+    value === "Load failed" ||
+    value === "cancelled";
+  if (!isFetchFail) return false;
+  // Only drop explicitly-handled events. An unhandled `Failed to fetch`
+  // might still mark a real bug worth seeing.
+  if (exc.mechanism?.handled !== true) return false;
+  // If any in-app frame is present, keep the event — that means our own
+  // code is on the stack and could legitimately be the cause.
+  const frames = exc.stacktrace?.frames || [];
+  const hasInAppFrame = frames.some((f) => f.in_app === true);
+  return !hasInAppFrame;
+}
 
 function scrubValue(value: unknown): unknown {
   if (typeof value === "string") {
@@ -52,6 +94,7 @@ export async function initSentry(): Promise<void> {
     sendDefaultPii: false,
     beforeSend(event) {
       try {
+        if (isUpstreamFetchNoise(event as SentryEvent)) return null;
         return scrubValue(event) as typeof event;
       } catch {
         return null;
@@ -79,3 +122,4 @@ export async function reportError(error: unknown, context?: Record<string, unkno
 }
 
 export const __test_only_scrubValue = scrubValue;
+export const __test_only_isUpstreamFetchNoise = isUpstreamFetchNoise;
