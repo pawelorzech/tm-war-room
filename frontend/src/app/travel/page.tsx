@@ -6,6 +6,7 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 import { calculateRehabCostPerXanax } from '@/lib/formulas';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface TravelItem {
   name: string;
@@ -70,6 +71,7 @@ export default function TravelPage() {
   const [capacity, setCapacity] = useState(5);
   const [capacityInput, setCapacityInput] = useState('5');
   const [sortBy, setSortBy] = useState<'profit' | 'time' | 'perHour'>('perHour');
+  const [error, setError] = useState<string | null>(null);
 
   // Rehab calculator state
   const [rehabOpen, setRehabOpen] = useState(false);
@@ -81,6 +83,7 @@ export default function TravelPage() {
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     Promise.all([
       api.travelInfo(),
       api.overview().catch(() => null),
@@ -100,7 +103,7 @@ export default function TravelPage() {
           return { id: m.id as number, name: m.name as string, status: desc };
         }));
       }
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(e => setError(e instanceof Error ? e.message : 'Failed to load travel data')).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -237,6 +240,8 @@ export default function TravelPage() {
 
         {loading ? (
           <CardSkeleton count={4} />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : sortedCountries.length > 0 ? (
           <div className="space-y-2">
             {sortedCountries.map((c, rank) => {

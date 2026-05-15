@@ -8,15 +8,15 @@ import { useChatAccess } from "@/hooks/useChatAccess";
 import { usePinnedNav } from "@/hooks/usePinnedNav";
 import { isNavItemActive } from "@/lib/nav-data";
 import { BrowseSheet } from "./BrowseSheet";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface BottomNavBarProps {
   unreadCount?: number;
   chatUnread?: number;
-  role?: string | null;
   showVersionBadge?: boolean;
 }
 
-export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersionBadge = false }: BottomNavBarProps) {
+export function BottomNavBar({ unreadCount = 0, chatUnread = 0, showVersionBadge = false }: BottomNavBarProps) {
   const pathname = usePathname();
   const { canAccess: canAccessChat } = useChatAccess();
   const { pinnedItems, pin, unpin, isPinned, isFull } = usePinnedNav();
@@ -41,7 +41,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
         <div className="flex">
           {/* Home — always first */}
           <Link href="/dashboard" className={tabClass(isActive("/dashboard"))}>
-            <span className="text-lg leading-none">🏠</span>
+            <AppIcon name="home" size={19} />
             <span className="text-[10px] font-medium">Home</span>
           </Link>
 
@@ -49,7 +49,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
           {favSlots.map((item) => (
             <Link key={item.href} href={item.href} className={tabClass(isActive(item.href))}>
               <span className="absolute top-1 right-1/4 text-[7px] text-torn-yellow leading-none">{"\u2605"}</span>
-              <span className="text-lg leading-none">{item.icon}</span>
+              <AppIcon name={item.icon} size={19} />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           ))}
@@ -62,7 +62,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
               className={tabClass(false)}
               type="button"
             >
-              <span className="text-lg leading-none opacity-30">{"\u2606"}</span>
+              <AppIcon name="star" size={19} className="opacity-30" />
               <span className="text-[10px] font-medium opacity-50">Pin</span>
             </button>
           ))}
@@ -78,7 +78,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
                   {chatUnread > 99 ? "99+" : chatUnread}
                 </span>
               )}
-              <span className="text-lg leading-none">💬</span>
+              <AppIcon name="chat" size={19} />
               <span className="text-[10px] font-medium">Chat</span>
             </Link>
           )}
@@ -97,7 +97,7 @@ export function BottomNavBar({ unreadCount = 0, chatUnread = 0, role, showVersio
                 {unreadCount}
               </span>
             )}
-            <span className="text-lg leading-none">{"\u229E"}</span>
+            <AppIcon name="browse" size={19} />
             <span className="text-[10px] font-medium">Browse</span>
           </button>
         </div>

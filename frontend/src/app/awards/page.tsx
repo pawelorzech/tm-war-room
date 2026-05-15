@@ -198,7 +198,31 @@ export default function AwardsPage() {
             {/* ── Table ── */}
             {view.list.length > 0 ? (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="md:hidden divide-y divide-border-light">
+                  {sortedAwards.map(a => (
+                    <button
+                      key={`${a.kind}-${a.id}`}
+                      onClick={() => router.push(`/awards/detail?kind=${a.kind}&id=${a.id}`)}
+                      className={`w-full text-left p-3 transition-colors ${a.earned ? 'hover:bg-bg-elevated/50' : 'opacity-65 hover:opacity-100'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-text-primary truncate">{a.name}</p>
+                          <p className="text-xs text-text-muted line-clamp-2">{a.description}</p>
+                        </div>
+                        <span className={a.earned ? "text-torn-green text-xs font-semibold shrink-0" : "text-danger text-xs font-semibold shrink-0"}>
+                          {a.earned ? "Done" : "Missing"}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-[10px] text-text-muted">
+                        <span>{typeName(a.type)}</span>
+                        <span>·</span>
+                        <span>{a.circulation.toLocaleString()} circulation</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
@@ -273,4 +297,3 @@ function Chip({ active, onClick, children }: {
     </button>
   );
 }
-

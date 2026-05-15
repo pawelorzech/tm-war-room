@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface ReviveMember {
   reviver_id: number;
@@ -51,11 +52,13 @@ export default function RevivesPage() {
   const [data, setData] = useState<ReviveData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('leaderboard');
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = () => {
     setLoading(true);
+    setError(null);
     api.revives().then(d => setData(d as ReviveData))
-      .catch(() => {}).finally(() => setLoading(false));
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load revive data')).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
@@ -93,6 +96,8 @@ export default function RevivesPage() {
             <StatCardsSkeleton count={3} />
             <TableSkeleton rows={8} cols={6} />
           </>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : data ? (
           <>
             {/* Summary */}

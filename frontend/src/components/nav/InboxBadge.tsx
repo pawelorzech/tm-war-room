@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface InboxBadgeProps {
   unreadCount: number;
@@ -22,7 +23,7 @@ export function InboxBadge({ unreadCount }: InboxBadgeProps) {
       }`}
       title="Inbox"
     >
-      <span className="text-base">📨</span>
+      <AppIcon name="inbox" size={17} />
       {unreadCount > 0 && (
         <span
           className="absolute -top-1 -right-1 min-w-[16px] h-4 flex items-center justify-center text-[9px] bg-torn-green/20 text-torn-green px-1 rounded-full font-bold shadow-[0_0_8px_-2px_rgba(63,185,80,0.3)]"

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS, fuzzyMatch, isNavItemActive } from "@/lib/nav-data";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface BrowseSheetProps {
   open: boolean;
@@ -147,7 +148,7 @@ export function BrowseSheet({ open, onClose, isPinned, isFull, onPin, onUnpin, s
                             : "text-text-secondary hover:bg-bg-elevated hover:text-text-primary"
                         }`}
                       >
-                        <span className="text-base w-6 text-center">{item.icon}</span>
+                        <span className="w-6 text-center"><AppIcon name={item.icon} size={17} /></span>
                         <span>{item.label}</span>
                         {showVersionBadge && item.href === "/changelog" && (
                           <span className="text-[9px] font-bold uppercase bg-torn-green/20 text-torn-green px-1.5 py-0.5 rounded-full ml-auto">
@@ -167,7 +168,7 @@ export function BrowseSheet({ open, onClose, isPinned, isFull, onPin, onUnpin, s
                         }`}
                         title={pinned ? "Unpin" : isFull() ? "Max pins reached" : "Pin to favorites"}
                       >
-                        {pinned ? "\u2605" : "\u2606"}
+                        <AppIcon name="star" size={15} className={pinned ? "fill-current" : ""} />
                       </button>
                     </div>
                   );

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ContextMenu } from "./ContextMenu";
 import { isNavItemActive, type NavGroup } from "@/lib/nav-data";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface CollapsibleGroupProps {
   group: NavGroup;
@@ -80,7 +81,7 @@ export function CollapsibleGroup({
                     : "border-l-2 border-transparent hover:bg-bg-elevated hover:text-text-primary hover:border-border text-text-secondary"
                 }`}
               >
-                <span>{item.icon}</span>
+                <AppIcon name={item.icon} size={16} />
                 <span className="flex-1">{item.label}</span>
                 {showVersionBadge && item.href === "/changelog" && (
                   <span className="text-[9px] font-bold uppercase bg-torn-green/20 text-torn-green px-1.5 py-0.5 rounded-full">
@@ -88,11 +89,12 @@ export function CollapsibleGroup({
                   </span>
                 )}
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    pinned ? onUnpin(item.href) : onPin(item.href);
-                  }}
+	                  onClick={(e) => {
+	                    e.preventDefault();
+	                    e.stopPropagation();
+	                    if (pinned) onUnpin(item.href);
+	                    else onPin(item.href);
+	                  }}
                   className={`text-[10px] transition-opacity duration-150 ${
                     pinned
                       ? "opacity-40 hover:opacity-70"
@@ -100,7 +102,7 @@ export function CollapsibleGroup({
                   }`}
                   title={pinned ? "Unpin" : "Pin to top"}
                 >
-                  📌
+                  <AppIcon name="pin" size={13} />
                 </button>
               </Link>
             );

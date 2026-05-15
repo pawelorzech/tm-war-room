@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthGate } from "./AuthGate";
@@ -20,6 +20,7 @@ import { PDAProvider } from '@/contexts/PDAContext';
 import { usePDAPolling } from '@/hooks/usePDAPolling';
 import { AvatarProvider } from '@/contexts/AvatarContext';
 import { usePageVisible } from '@/hooks/usePageVisible';
+import { AppIcon } from "@/components/ui/AppIcon";
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role } = useAuth();
@@ -155,7 +156,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           className="text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200"
           aria-label="Search"
         >
-          <span className="text-base">🔍</span>
+          <AppIcon name="search" size={18} />
         </button>
         {/* Inbox */}
         <Link
@@ -163,7 +164,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           className="relative text-text-secondary hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-all duration-200"
           aria-label="Open inbox"
         >
-          <span className="text-base">📨</span>
+          <AppIcon name="inbox" size={18} />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 flex items-center justify-center text-[8px] bg-torn-green/20 text-torn-green px-1 rounded-full font-bold">
               {unreadCount}
@@ -176,7 +177,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       <MobileSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Mobile bottom nav */}
-      <BottomNavBar unreadCount={unreadCount} chatUnread={chatUnread} role={role} showVersionBadge={showNotice} />
+      <BottomNavBar unreadCount={unreadCount} chatUnread={chatUnread} showVersionBadge={showNotice} />
 
       {/* Main content */}
       <main

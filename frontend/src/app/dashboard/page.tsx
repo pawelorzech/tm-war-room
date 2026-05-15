@@ -6,6 +6,8 @@ import { usePageVisible } from '@/hooks/usePageVisible';
 import Link from 'next/link';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 import { TIPS, type Tip } from '@/data/tips';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 function pickRandomTips(count: number): Tip[] {
   const shuffled = [...TIPS].sort(() => Math.random() - 0.5);
@@ -51,9 +53,11 @@ export default function DashboardPage() {
   const [chatChannelNames, setChatChannelNames] = useState<Record<number, string>>({});
   const [chatBannerDismissed, setChatBannerDismissed] = useState(false);
   const [shownTips, setShownTips] = useState<Tip[]>(() => pickRandomTips(3));
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.dashboard().then((data) => {
       setStatus(data.status);
 
@@ -100,7 +104,9 @@ export default function DashboardPage() {
         nameMap[ch.id] = ch.name;
       }
       setChatChannelNames(nameMap);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((e) => {
+      setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
+    }).finally(() => setLoading(false));
   }, []);
 
   const visible = usePageVisible();
@@ -122,10 +128,11 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-bg-primary text-text-primary">
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <h1 className="text-2xl font-bold">Dashboard</h1>
+        {error && <ErrorBanner message={error} onRetry={load} />}
 
         {chatUnread && chatUnread.total > 0 && !chatBannerDismissed && (
           <div className="flex items-center gap-3 bg-torn-blue/10 border border-torn-blue/30 rounded-xl px-4 py-3">
-            <span className="text-lg">💬</span>
+            <AppIcon name="chat" size={19} className="text-torn-blue" />
             <Link
               href={`/chat?channel=${Object.entries(chatUnread.channels).find(([, v]) => v > 0)?.[0] || ""}`}
               className="flex-1 text-sm"
@@ -200,7 +207,7 @@ export default function DashboardPage() {
                     ${(bountyValue / 1e6).toFixed(1)}M total on board
                   </p>
                 </div>
-                <span className="text-2xl">💰</span>
+                <AppIcon name="cash" size={24} className="text-torn-green" />
               </div>
             </Widget>
           )}
@@ -215,7 +222,7 @@ export default function DashboardPage() {
                     ) : 'none ready yet'}
                   </p>
                 </div>
-                <span className="text-2xl">🕴️</span>
+                <AppIcon name="oc" size={24} className="text-text-secondary" />
               </div>
             </Widget>
           )}
@@ -224,7 +231,7 @@ export default function DashboardPage() {
         <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-lg" aria-hidden="true">💡</span>
+              <AppIcon name="lightbulb" size={18} className="text-torn-yellow" />
               <h3 className="text-xs text-text-muted uppercase tracking-wider font-medium">Quick Tips</h3>
             </div>
             <div className="flex items-center gap-2">
@@ -234,14 +241,14 @@ export default function DashboardPage() {
                 aria-label="Shuffle tips"
                 title="Shuffle tips"
               >
-                🔀
+                <AppIcon name="shuffle" size={16} />
               </button>
               <Link
                 href="/guide"
                 className="text-sm text-text-muted hover:text-torn-green transition-colors"
                 title="Full Guide"
               >
-                📖
+                <AppIcon name="book-open" size={16} />
               </Link>
             </div>
           </div>
@@ -269,7 +276,7 @@ export default function DashboardPage() {
           ].map(link => (
             <Link key={link.href} href={link.href}
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-bg-card border border-text-secondary/10 hover:border-torn-green/30 hover:bg-bg-elevated/50 transition-all text-sm">
-              <span>{link.icon}</span>
+              <AppIcon name={link.icon} size={16} />
               <span className="text-text-primary">{link.label}</span>
             </Link>
           ))}

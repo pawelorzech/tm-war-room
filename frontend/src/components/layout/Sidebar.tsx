@@ -15,6 +15,7 @@ import { SearchBar } from "@/components/nav/SearchBar";
 import { CommandPalette } from "@/components/nav/CommandPalette";
 import { InboxBadge } from "@/components/nav/InboxBadge";
 import { Avatar } from "@/components/ui/Avatar";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface SidebarProps {
   unreadCount?: number;
@@ -102,7 +103,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
                     : "border-l-2 border-transparent hover:bg-bg-elevated hover:text-text-primary hover:border-border text-text-secondary"
                 }`}
               >
-                <span>{item.icon}</span>
+                <AppIcon name={item.icon} size={16} />
                 <span className="flex-1">{item.label}</span>
                 <button
                   onClick={(e) => {
@@ -113,7 +114,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
                   className="text-[10px] opacity-0 group-hover/pin:opacity-40 hover:!opacity-70 transition-opacity duration-150"
                   title="Unpin"
                 >
-                  📌
+                  <AppIcon name="pin" size={13} />
                 </button>
               </Link>
             ))}
@@ -131,7 +132,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
                     : "border-l-2 border-torn-green/40 hover:bg-torn-green/5 hover:text-torn-green text-text-primary"
                 }`}
               >
-                <span className="text-base">💬</span>
+                <AppIcon name="chat" size={17} />
                 <span>Faction Chat</span>
                 {chatUnread > 0 && (
                   <span
@@ -169,7 +170,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
                     : "border-l-2 border-transparent hover:bg-bg-elevated hover:text-text-primary hover:border-border text-text-secondary"
                 }`}
               >
-                <span>⚙️</span>
+                <AppIcon name="settings" size={16} />
                 <span>Admin</span>
               </Link>
             </div>
@@ -196,7 +197,10 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
               className="text-xs text-text-secondary hover:text-text-primary transition-all duration-200 px-2 py-1 rounded hover:bg-bg-elevated"
               title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             >
-              {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+              <span className="inline-flex items-center gap-1">
+                <AppIcon name={theme === "dark" ? "sun" : "moon"} size={13} />
+                {theme === "dark" ? "Light" : "Dark"}
+              </span>
             </button>
             <button
               onClick={logout}
