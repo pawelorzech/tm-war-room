@@ -987,6 +987,9 @@ class TornClient:
             if not spy_raw:
                 continue
             result[int(pid_str)] = {
+                # member_data.name is the TornStats-level player name; spy block has no name.
+                # Without this, scheduler upserts player_name=None and the UI shows "Unknown player".
+                "name": member_data.get("name") or spy_raw.get("player_name"),
                 "strength": spy_raw.get("strength", 0) or 0,
                 "defense": spy_raw.get("defense", 0) or 0,
                 "speed": spy_raw.get("speed", 0) or 0,

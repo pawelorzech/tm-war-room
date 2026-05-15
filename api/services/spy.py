@@ -47,8 +47,17 @@ class SpyService:
             confidence = "estimate"
         else:
             confidence = "stale"
+        # If the chosen (highest-priority) report has no name, salvage one from any
+        # other report for this player — member_submit reports never carry a name,
+        # so without this they overwrite the estimate's name with NULL.
+        chosen_name = best["player_name"]
+        if not chosen_name:
+            for r in reports:
+                if r["player_name"]:
+                    chosen_name = r["player_name"]
+                    break
         self.repo.update_estimate(
-            player_id=player_id, player_name=best["player_name"], source=best["source"],
+            player_id=player_id, player_name=chosen_name, source=best["source"],
             strength=best["strength"], defense=best["defense"], speed=best["speed"],
             dexterity=best["dexterity"], total=best["total"], confidence=confidence,
             reported_at=best["reported_at"],
