@@ -108,9 +108,20 @@ export default function ExtensionAuthPage() {
             }
           }, 1000);
         } else {
+          // No opener — typically Torn PDA (in-app webview can't open new
+          // tabs) or a direct nav. Pack the token into the URL fragment so
+          // the userscript can pick it up after the browser navigates back
+          // to torn.com. Fragments aren't sent to servers, and the
+          // userscript strips it from the URL immediately on load.
           setAutoActionLabel('Returning to Torn…');
           setTimeout(() => {
-            window.location.href = returnTo;
+            try {
+              const u = new URL(returnTo);
+              u.hash = `tm-hub-token=${encodeURIComponent(JSON.stringify(payload))}`;
+              window.location.href = u.href;
+            } catch {
+              window.location.href = returnTo;
+            }
           }, 1500);
         }
       })

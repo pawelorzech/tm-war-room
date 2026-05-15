@@ -11,7 +11,7 @@
 // hot paths still need to be cheap.
 
 import { fetchCurrentWar, fetchOffLimits, ApiError } from './lib/api';
-import { getAuth, installAuthListener, clearAuth } from './lib/auth';
+import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
@@ -190,6 +190,14 @@ function bootstrap(): void {
   // Inject modules trigger this when they mutate server state, so the main
   // refresh loop re-fetches before its next interval tick.
   window.addEventListener('tm-companion-refresh', () => invalidateAndRefresh());
+
+  // PDA round-trip: the hub auth page may have bounced us back here with
+  // the token packed into the URL fragment. Pick it up before the first
+  // render so the launch button paints in the connected state and we don't
+  // re-trigger the "not connected" onboard popover.
+  if (consumeAuthFragment()) {
+    void ensureNativePermission();
+  }
 
   // Listen for token handoff from hub.tri.ovh/extension-auth.
   installAuthListener(() => {
