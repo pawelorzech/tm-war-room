@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.19.0";
+export const CURRENT_VERSION = "1.19.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.19.1",
+    date: "2026-05-15",
+    title: "Browser Sentry stops crying when the network blinks",
+    changes: [
+      { type: "fix", text: "Background polls (heartbeat, chat/unread) used to raise a Sentry event whenever a user's network blinked or the tab was closed mid-fetch — the browser-side equivalent of the upstream Torn 5xx noise the backend already drops. The frontend Sentry beforeSend now filters out handled `TypeError: Failed to fetch` / `NetworkError when attempting to fetch resource` / `Load failed` events that have no in-app stack frame, so the Sentry inbox stops counting closed-tab events as real bugs. Genuine fetch bugs (in-app frame present, or unhandled) still come through" },
+    ],
+  },
   {
     version: "1.19.0",
     date: "2026-05-15",
