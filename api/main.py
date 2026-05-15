@@ -850,6 +850,39 @@ async def me(x_player_id: int = Header()):
     }
 
 
+@app.get("/api/faction/news")
+async def faction_news(
+    cat: str,
+    x_player_id: int = Header(),
+    limit: int = 50,
+):
+    """Stream faction news by category — supports armoryDeposit, attack, chain,
+    cesium, depositFunds, withdraw, revive, crime, retract. Returns one page."""
+    if not key_store.has_key(x_player_id):
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    limit = max(1, min(limit, 200))
+    try:
+        entries = await torn_client.fetch_faction_news(
+            cat, limit=limit, api_key=_get_active_api_key(),
+        )
+    except Exception as e:
+        logger.error("faction/news fetch failed: %s", e)
+        raise HTTPException(status_code=502, detail="Torn API faction/news unavailable")
+    return {"category": cat, "count": len(entries), "entries": entries}
+
+
+@app.get("/api/key/info")
+async def key_info(x_player_id: int = Header()):
+    """Return what the caller's Torn API key unlocks (v2 /key/info)."""
+    entry = key_store.get_key(x_player_id)
+    if not entry:
+        raise HTTPException(status_code=401, detail="Register your API key first")
+    info = await torn_client.fetch_key_info(entry["api_key"])
+    if not info:
+        raise HTTPException(status_code=502, detail="Torn API did not return key info")
+    return info
+
+
 async def verify_member(x_player_id: int = Header()):
     """Check that the requesting player has a registered key."""
     if not key_store.has_key(x_player_id):
@@ -1067,7 +1100,7 @@ async def enemy(
             "personal_stats": ps.model_dump() if ps else None,
             "threat_score": score, "threat_label": label,
             "spy_total": spy_estimates[m.id]["total"] if m.id in spy_estimates else None,
-            "attack_url": f"https://www.torn.com/loader.php?sid=attack&user2ID={m.id}",
+            "attack_url": f"https://www.torn.com/page.php?sid=attack&user2ID={m.id}",
             "profile_url": f"https://www.torn.com/profiles.php?XID={m.id}",
             "stats_url": f"https://www.torn.com/personalstats.php?ID={m.id}",
         })
@@ -1114,7 +1147,7 @@ async def register_key(body: KeyRegister, request: Request):
         raise HTTPException(status_code=429, detail="Too many registration attempts, try again later")
     try:
         resp = await torn_client._http.get(
-            "https://api.torn.com/user/",
+            "https://api.torn.com/v2/user/",
             params={"selections": "profile", "key": body.api_key},
         )
         resp.raise_for_status()
@@ -1145,7 +1178,7 @@ async def register_key(body: KeyRegister, request: Request):
     limited_features: list[str] = []
     try:
         test_resp = await torn_client._http.get(
-            "https://api.torn.com/user/",
+            "https://api.torn.com/v2/user/",
             params={"selections": "stocks", "key": body.api_key},
         )
         test_raw = test_resp.json()
@@ -1219,7 +1252,7 @@ async def profile_me(x_player_id: int = Header()):
     if not user_key:
         raise HTTPException(status_code=404, detail="Key not found")
     resp = await torn_client._http.get(
-        "https://api.torn.com/user/",
+        "https://api.torn.com/v2/user/",
         params={"selections": "profile,bars", "key": user_key["api_key"]},
     )
     resp.raise_for_status()

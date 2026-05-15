@@ -1,6 +1,6 @@
 // Threat-coloring overlay for the Torn bounty board.
 //
-// On /bounties.php (and /loader.php?sid=bounties) we fetch /api/bounties
+// On /bounties.php (and /page.php?sid=bounties or legacy /loader.php?sid=bounties) we fetch /api/bounties
 // once, then walk the page for any anchor pointing at a profile XID. For
 // every matched row we:
 //   1. Tint the row background by threat tier (green easy → red lethal)

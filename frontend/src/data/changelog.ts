@@ -12,9 +12,29 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.30.4";
+export const CURRENT_VERSION = "1.31.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.0",
+    date: "2026-05-15",
+    title: "Torn API v2 sweep + Faction News audit + Key Info widget + chain 'interrupted' marker",
+    changes: [
+      { type: "feat", text: "New /news page surfaces Torn's full faction news log split into 9 audit categories: bank deposits, withdrawals, armoury deposits, armoury retracts, chain hits, attack notices, cesium use, revives, OC results. Pick a category in the chip bar to filter — useful for spotting unauthorized bank withdrawals, post-mortems on broken chains, or auditing armoury discipline. Previously TM Hub only ingested armoryDeposit; the other 8 categories were invisible until now. Backed by /api/faction/news?cat=X (v2 /faction/news, paginated)" },
+      { type: "feat", text: "Settings page now shows what your Torn API key unlocks — access level (Public/Minimal/Limited/Full), how many sections are reachable, and a hint to regenerate the key at torn.com/preferences if you're missing data. Backed by the new /api/key/info endpoint which calls Torn v2 /key/info" },
+      { type: "improve", text: "Chain page recent-attacks table now flags each attack with ⚠ when Torn's new v2 is_interrupted field is set — meaning the defender escaped mid-attack and the hit may not count toward chain respect. Backend schema migration 044 adds is_interrupted to attack_log; future chain audits can filter on it. Old rows backfill as 0 (no info)" },
+      { type: "improve", text: "Backend REST clients migrated from Torn API v1 to v2 for 16 call sites: /torn/stocks, /torn/honors, /torn/companies, /torn/rankedwars, /torn/items (used by market/stocks/travel/scheduler), user/bars, user/stocks, plus the key-registration / auth / stakeout / avatar refresh paths. Torn API v1 is frozen (no new features), v2 is the active surface — this brings us onto the supported path and unlocks future v2-only fields. PersonalStats endpoints stay on v1 for now (v2 rebuilt that selection into a categorized shape we'd need to add a parser for; tracked separately)" },
+      { type: "feat", text: "Plumbing for v2 /torn/itemstats added: new /api/market/items/{id}/stats endpoint returns historical circulation + market value for any item. UI integration on /market is next — for now it's a callable API for scripts and the companion" },
+    ],
+  },
+  {
+    version: "1.30.5",
+    date: "2026-05-15",
+    title: "Attack links work again — migrated from /loader.php to /page.php",
+    changes: [
+      { type: "fix", text: "Clicking Attack from Targets, Stakeout, Loot or Bounties used to open Torn at /loader.php?sid=attack&user2ID=<id> and show 'This endpoint is no longer available. Please use the new endpoints instead (page.php).' — Torn migrated its frontend router from loader.php to page.php. All 6 attack URLs (5 frontend pages + the attack_url field returned by /api/members) now point at the new /page.php?sid=attack form, and the URL builder is centralized in a single helper (frontend/src/lib/torn-urls.ts) so the next router migration is a one-line change. Companion userscript also now matches both URL forms on torn.com tabs so the attack-confirmation overlay keeps working on pinned tabs or stale bookmarks pointing at /loader.php" },
+    ],
+  },
   {
     version: "1.30.4",
     date: "2026-05-15",

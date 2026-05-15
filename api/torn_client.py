@@ -9,7 +9,7 @@ import httpx
 from api.models import FactionMember, WarStatus, MemberBars, PersonalStats
 
 
-V1_BASE = "https://api.torn.com"
+V1_BASE = "https://api.torn.com"  # Kept for selections with v2-incompatible shape: personalstats (categorized in v2) and company director endpoints
 V2_BASE = "https://api.torn.com/v2"
 YATA_BASE = "https://yata.yt/api/v1"
 YATA_CACHE_TTL = 3600
@@ -141,14 +141,14 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/user/",
+                f"{V2_BASE}/user/",
                 params={"selections": "bars,cooldowns", "key": member_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/user/bars", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/user/bars", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/user/bars", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/user/bars", False, (time.time() - start) * 1000, str(e))
             raise
         return MemberBars(
             energy=raw["energy"],
@@ -443,14 +443,14 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/torn/",
+                f"{V2_BASE}/torn/",
                 params={"selections": "rankedwars", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/torn/rankedwars", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/torn/rankedwars", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/torn/rankedwars", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/torn/rankedwars", False, (time.time() - start) * 1000, str(e))
             raise
         wars = raw.get("rankedwars", {})
         if isinstance(wars, dict):
@@ -515,14 +515,14 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/torn/",
+                f"{V2_BASE}/torn/",
                 params={"selections": "stocks", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/torn/stocks", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/torn/stocks", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/torn/stocks", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/torn/stocks", False, (time.time() - start) * 1000, str(e))
             raise
         stocks = raw.get("stocks", {})
         self._set_cached("stocks_market", stocks)
@@ -537,14 +537,14 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/user/",
+                f"{V2_BASE}/user/",
                 params={"selections": "stocks", "key": api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/user/stocks", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/user/stocks", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/user/stocks", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/user/stocks", False, (time.time() - start) * 1000, str(e))
             raise
         stocks = raw.get("stocks", {})
         self._set_cached(cache_key, stocks)
@@ -610,14 +610,14 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/torn/",
+                f"{V2_BASE}/torn/",
                 params={"selections": "honors,medals", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v1/torn/honors", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v2/torn/honors", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v1/torn/honors", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v2/torn/honors", False, (time.time() - start) * 1000, str(e))
             raise
         result = {
             "honors": raw.get("honors", {}),
@@ -625,6 +625,32 @@ class TornClient:
         }
         self._set_cached("honor_catalog", result)
         return result
+
+    async def fetch_item_stats(self, item_id: int) -> dict | None:
+        """Fetch v2 torn/itemstats for a single item: circulation + market value history.
+        Returns None on error. Useful for spotting deflation/inflation in tradeable items.
+        """
+        cache_key = f"itemstats_{item_id}"
+        cached = self._get_cached(cache_key, ttl=900)  # 15 min — circulation/value change slowly
+        if cached is not None:
+            return cached
+        t0 = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/torn/itemstats",
+                params={"id": item_id, "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/torn/itemstats", True, (time.time() - t0) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/torn/itemstats", False, (time.time() - t0) * 1000, str(e))
+            return None
+        stats = raw.get("itemstats") if isinstance(raw, dict) else None
+        if not stats:
+            return None
+        self._set_cached(cache_key, stats)
+        return stats
 
     async def fetch_company_catalog(self) -> dict:
         """Fetch all company type definitions with specials, positions, stock."""
@@ -634,17 +660,17 @@ class TornClient:
         t0 = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/torn/",
+                f"{V2_BASE}/torn/",
                 params={"selections": "companies", "key": self._api_key},
             )
             resp.raise_for_status()
             data = await _json(resp)
             companies = data.get("companies", {})
             self._set_cached("company_catalog", companies)
-            self._log_integration("torn", "torn/companies", True, (time.time() - t0) * 1000)
+            self._log_integration("torn", "v2/torn/companies", True, (time.time() - t0) * 1000)
             return companies
         except Exception as e:
-            self._log_integration("torn", "torn/companies", False, (time.time() - t0) * 1000, str(e))
+            self._log_integration("torn", "v2/torn/companies", False, (time.time() - t0) * 1000, str(e))
             raise
 
     async def _fetch_company_selection(
@@ -735,6 +761,42 @@ class TornClient:
             cache_ttl=300,
         )
 
+    async def fetch_key_info(self, api_key: str) -> dict | None:
+        """Fetch v2 /key/info — access level + which selections this key unlocks.
+        Returns None on error. Result shape:
+        {
+          "access_level": int,  # 0=public, 1=minimal, 2=limited, 3=full, 4=paid (premium)
+          "access_type": str,   # human label e.g. "Full Access"
+          "selections": {section: [selection_name, ...]},  # what each section unlocks
+        }
+        """
+        cache_key = f"key_info_{api_key[:8]}"
+        cached = self._get_cached(cache_key, ttl=3600)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V2_BASE}/key/info",
+                params={"key": api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            self._log_integration("torn_api", "/v2/key/info", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", "/v2/key/info", False, (time.time() - start) * 1000, str(e))
+            return None
+        access = raw.get("access") if isinstance(raw, dict) else None
+        if not isinstance(access, dict):
+            return None
+        result = {
+            "access_level": access.get("level", access.get("access_level", 0)),
+            "access_type": access.get("type") or access.get("access_type") or "Unknown",
+            "selections": access.get("selections", {}),
+        }
+        self._set_cached(cache_key, result)
+        return result
+
     async def fetch_tornstats_efficiency(
         self, ts_key: str, *, manual_labor: int, intelligence: int, endurance: int
     ) -> dict | None:
@@ -761,6 +823,48 @@ class TornClient:
             return None
         self._set_cached(cache_key, raw)
         return raw
+
+    async def fetch_faction_news(
+        self,
+        category: str,
+        *,
+        from_ts: int | None = None,
+        to_ts: int | None = None,
+        limit: int = 100,
+        sort: str = "DESC",
+        api_key: str | None = None,
+    ) -> list[dict]:
+        """Generic faction/news fetcher with pagination. Categories include:
+        armoryDeposit, armorynewsfull, attack, chain, cesium, depositFunds,
+        withdraw, revive, crime, depositArmor, retract — see Torn API v2 docs.
+        Returns list of {id, timestamp, text, ...} entries newest-first by default.
+        """
+        api_key_value = self._resolve_api_key(api_key)
+        all_entries: list[dict] = []
+        url = f"{V2_BASE}/faction/news"
+        params: dict[str, Any] = {
+            "cat": category,
+            "sort": sort,
+            "limit": limit,
+            "key": api_key_value,
+        }
+        if from_ts is not None:
+            params["from"] = from_ts
+        if to_ts is not None:
+            params["to"] = to_ts
+        start = time.time()
+        try:
+            # One page only (caller can re-call with from/to if they want pagination)
+            resp = await self._http.get(url, params=params)
+            resp.raise_for_status()
+            raw = await _json(resp)
+            entries = raw.get("news", [])
+            all_entries.extend(entries)
+            self._log_integration("torn_api", f"/v2/faction/news?cat={category}", True, (time.time() - start) * 1000)
+        except Exception as e:
+            self._log_integration("torn_api", f"/v2/faction/news?cat={category}", False, (time.time() - start) * 1000, str(e))
+            raise
+        return all_entries
 
     async def fetch_armoury_deposits(self, from_ts: int, to_ts: int, api_key: str | None = None) -> list[dict]:
         api_key_value = self._resolve_api_key(api_key)
