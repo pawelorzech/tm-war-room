@@ -617,3 +617,97 @@ async def test_fetch_honor_catalog_uses_v1(client):
     sample_honor = next(iter(catalog["honors"].values()))
     for required in ("circulation", "description", "name", "rarity"):
         assert required in sample_honor, f"v1 honor missing field '{required}'"
+
+
+# ── Regression: defensive handling of malformed Torn responses (Sentry hotfixes) ─────────
+# Both bugs reported via Sentry on 2026-05-15: fetch_members KeyError on missing key
+# (Sentry PYTHON-FASTAPI-J/G/K) and fetch_honor_catalog AttributeError when collect_circulation
+# job iterated .items() on a list (Sentry PYTHON-FASTAPI-E). torn_client now normalizes
+# both shapes so callers see the expected contract regardless of upstream hiccups.
+
+
+@pytest.mark.asyncio
+async def test_fetch_members_missing_key_returns_empty(client):
+    """Torn occasionally returns 200 with payload missing `members` — don't 500."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {}  # no `members` key at all
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        members = await client.fetch_members()
+
+    assert members == [], "missing `members` key must yield empty list, not KeyError"
+
+
+@pytest.mark.asyncio
+async def test_fetch_members_non_list_members_returns_empty(client):
+    """If `members` arrives as the wrong type (e.g. dict on a shape drift) — don't crash."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {"members": {"unexpected": "shape"}}
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        members = await client.fetch_members()
+
+    assert members == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_members_http_error_still_raises(client):
+    """Real HTTP failures must still propagate — only the missing-key case is demoted."""
+    mock_resp = AsyncMock()
+
+    def _raise():
+        raise httpx.HTTPStatusError("boom", request=None, response=None)
+
+    mock_resp.raise_for_status = _raise
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.fetch_members()
+
+
+@pytest.mark.asyncio
+async def test_fetch_honor_catalog_normalizes_list_drift(client):
+    """If Torn ever returns honors/medals as lists (v2 drift leaking into v1 frozen API
+    or an error payload), normalize to dict-keyed-by-id so collect_circulation's
+    .items() iteration doesn't AttributeError."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "honors": [
+            {"id": 1, "name": "First Blood", "circulation": 12345, "rarity": "Common"},
+            {"id": 2, "name": "Hospitalized", "circulation": 8000, "rarity": "Common"},
+        ],
+        "medals": [
+            {"id": 99, "name": "OG Player", "circulation": 50, "rarity": "Legendary"},
+        ],
+    }
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        catalog = await client.fetch_honor_catalog()
+
+    assert isinstance(catalog["honors"], dict), "list shape must be normalized to dict"
+    assert isinstance(catalog["medals"], dict)
+    # Caller (collect_circulation) iterates .items() — must not raise
+    for hid, h in catalog["honors"].items():
+        assert h["circulation"] > 0
+    assert "99" in catalog["medals"]
+    assert catalog["medals"]["99"]["name"] == "OG Player"
+
+
+@pytest.mark.asyncio
+async def test_fetch_honor_catalog_garbage_returns_empty(client):
+    """Garbage shape (neither dict nor list) — return empty dict, not crash."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {"honors": "not_a_collection", "medals": None}
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp):
+        catalog = await client.fetch_honor_catalog()
+
+    assert catalog["honors"] == {}
+    assert catalog["medals"] == {}
+    # collect_circulation pattern: `.items()` must work
+    list(catalog["honors"].items())
+    list(catalog["medals"].items())
