@@ -58,8 +58,11 @@ async def ensure_items_cache(tc=None) -> list[dict]:
         return _items_cache
 
     try:
+        # NB: v2 torn/items returns a LIST with nested value.{buy_price,sell_price,market_price}
+        # vs v1 DICT with flat market_value — our consumers below read raw.items.items() and
+        # item.market_value, so stay on v1 until we refactor item consumers.
         resp = await client._http.get(
-            "https://api.torn.com/v2/torn/",
+            "https://api.torn.com/torn/",
             params={"selections": "items", "key": client._api_key},
         )
         resp.raise_for_status()
