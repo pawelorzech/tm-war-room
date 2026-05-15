@@ -3,16 +3,14 @@
 /**
  * TM Hub Companion install landing.
  *
- * Three install paths (userscript, Chrome extension, Torn PDA) with
- * step-by-step instructions. The userscript path is the recommended option
- * in Phase 1 because it works day-one in Tampermonkey, Violentmonkey, and
- * Torn PDA — the Chrome extension is a placeholder until the Web Store
- * review clears.
+ * Two install paths: Tampermonkey (desktop) and Torn PDA (mobile). Both run
+ * the same userscript hosted at /companion.user.js. A native MV3 browser
+ * extension is not currently on the roadmap — the userscript covers Chrome,
+ * Firefox, Edge, and Safari through Tampermonkey.
  */
 
 const USERSCRIPT_URL = 'https://hub.tri.ovh/companion.user.js';
 const TAMPERMONKEY_URL = 'https://www.tampermonkey.net/';
-const GREASYFORK_URL = '#'; // TODO: set once published to Greasy Fork
 
 export default function InstallPage() {
   return (
@@ -36,27 +34,26 @@ export default function InstallPage() {
               Attack confirmation modal when a target is flagged off-limits — gives you a chance to think
               before you click.
             </li>
-            <li>More overlays coming in Phase 2 (spy estimates, target tags, bounty ranks, market prices).</li>
+            <li>More overlays coming soon (notification toasts, @mention alerts, persistent chat dock).</li>
           </ul>
         </section>
 
-        <section className="grid md:grid-cols-3 gap-4">
-          {/* Userscript path */}
+        <section className="grid md:grid-cols-2 gap-4">
+          {/* Userscript path (desktop) */}
           <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
             <span className="absolute -top-2 right-3 bg-torn-green text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
-              Recommended
+              Desktop
             </span>
-            <h3 className="text-base font-bold">Userscript</h3>
+            <h3 className="text-base font-bold">Tampermonkey</h3>
             <p className="text-text-secondary text-xs">
-              Works in Tampermonkey, Violentmonkey, and Torn PDA. Fastest way to get started.
+              Works in Chrome, Firefox, Edge, and Safari. Fastest way to get started.
             </p>
             <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
               <li>
                 Install{' '}
                 <a href={TAMPERMONKEY_URL} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
                   Tampermonkey
-                </a>{' '}
-                (Chrome / Firefox / Edge / Safari)
+                </a>
               </li>
               <li>
                 Click{' '}
@@ -73,27 +70,12 @@ export default function InstallPage() {
             </p>
           </div>
 
-          {/* Chrome extension path */}
-          <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5 space-y-3 opacity-70">
-            <span className="absolute text-[10px] font-bold uppercase tracking-wide text-text-muted">
-              Coming soon
+          {/* PDA path (mobile) */}
+          <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
+            <span className="absolute -top-2 right-3 bg-torn-green text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
+              Mobile
             </span>
-            <h3 className="text-base font-bold">Chrome / Edge / Firefox</h3>
-            <p className="text-text-secondary text-xs">
-              Native browser extension. Same features as the userscript, plus a popup dashboard.
-            </p>
-            <ol className="text-xs text-text-muted space-y-1.5 list-decimal list-inside">
-              <li>Chrome Web Store — pending review</li>
-              <li>Firefox Add-ons — pending review</li>
-            </ol>
-            <p className="text-text-muted text-[10px] mt-2">
-              Use the userscript in the meantime — it works the same.
-            </p>
-          </div>
-
-          {/* PDA path */}
-          <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5 space-y-3">
-            <h3 className="text-base font-bold">Torn PDA (mobile)</h3>
+            <h3 className="text-base font-bold">Torn PDA</h3>
             <p className="text-text-secondary text-xs">
               Torn PDA on iOS and Android supports userscripts natively.
             </p>
@@ -127,6 +109,10 @@ export default function InstallPage() {
             <li>
               <span className="text-text-primary">No off-limits flags showing</span> — the badges only show during an active war.
               If you are in war and still nothing, check <a href="/war" className="text-torn-green underline">/war</a> in TM Hub to verify war_id detection.
+            </li>
+            <li>
+              <span className="text-text-primary">Popup blocked when clicking Connect</span> — allow popups from www.torn.com in your
+              browser settings, then click the banner again.
             </li>
           </ul>
         </section>

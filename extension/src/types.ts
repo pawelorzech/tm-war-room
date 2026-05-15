@@ -39,3 +39,31 @@ export interface CompanionAuth {
   player_name?: string;
   expires_at?: number;
 }
+
+export interface NotificationItem {
+  id: number;
+  title: string;
+  body: string;
+  url?: string | null;
+  icon?: string | null;
+  created_at?: string;
+}
+
+export interface NotificationsUnread {
+  notifications: NotificationItem[];
+  count: number;
+}
+
+export interface MentionPreview {
+  id: number;
+  channel_id: number;
+  channel_name: string;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface MentionsRecentResponse {
+  mentions: MentionPreview[];
+  count: number;
+}

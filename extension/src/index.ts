@@ -16,6 +16,10 @@ import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { applyBaseStyles, ensureHost } from './lib/shadow';
+import { startNotificationToasts } from './inject/notification-toasts';
+import { startHeartbeat } from './inject/heartbeat';
+import { startSettingsButton } from './inject/settings-button';
+import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
 
 const HUB_ORIGIN: string =
@@ -140,6 +144,10 @@ function bootstrap(): void {
     dismissConnectPrompt();
     // Re-run refresh with the fresh token.
     void refresh();
+    // Ask for native notification permission now that the user just
+    // performed a deliberate "yes, integrate this" action — best moment
+    // for the browser permission prompt.
+    void ensureNativePermission();
   });
 
   // Initial render + URL-change re-trigger.
@@ -151,6 +159,13 @@ function bootstrap(): void {
   // Periodic re-poll for off-limits data so a teammate's flag set in TM Hub
   // becomes visible without the user reloading.
   setInterval(() => void refresh(), OFFLIMITS_TTL_MS);
+
+  // Communication channels — independent polling loops with Page Visibility
+  // awareness. Each runs as long as we have an auth token; they self-skip
+  // when getAuth() returns null.
+  startNotificationToasts();
+  startHeartbeat();
+  startSettingsButton();
 }
 
 if (document.readyState === 'loading') {

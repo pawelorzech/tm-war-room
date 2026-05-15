@@ -12,9 +12,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.21.1";
+export const CURRENT_VERSION = "1.22.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.22.0",
+    date: "2026-05-15",
+    title: "TM Hub Companion v0.2 — notifications and presence inside torn.com",
+    changes: [
+      { type: "feat", text: "TM Hub Companion userscript v0.2.0 surfaces TM Hub inbox notifications as toasts directly on torn.com. Whenever a new notification lands in your TM Hub inbox, a small card slides in from the bottom-right of whatever Torn page you are on. Click to open the inbox, click the × to dismiss. If your tab is backgrounded and you have granted browser notification permission, a native OS-level alert also fires" },
+      { type: "feat", text: "Presence heartbeat — while you have torn.com open, the companion pings TM Hub every 60s. Faction members now see you as online on /team even when you don't have hub.tri.ovh open in another tab. Auto-paused when the torn.com tab is hidden, so background tabs don't keep you 'online' indefinitely" },
+      { type: "feat", text: "Settings gear in the bottom-right corner of torn.com — quick toggles for inbox notifications, @mentions, and presence, plus 'mute for 1h' shortcuts and a one-click 'Disconnect' that clears the companion token" },
+      { type: "feat", text: "TM Hub Companion is now linked from Resources in the main nav (📚 → ⚡ TM Hub Companion). Direct path for faction members to find install instructions" },
+      { type: "improve", text: "Reworked /install landing — removed the 'Chrome extension coming soon' placeholder since a native browser extension is not currently on the roadmap. Two clear paths: Tampermonkey (desktop) and Torn PDA (mobile), both running the same hosted userscript" },
+      { type: "improve", text: "Companion ships with adaptive polling that pauses when the tab is hidden and backs off exponentially on backend errors, so a Coolify outage doesn't get hammered by every open torn.com tab" },
+    ],
+  },
   {
     version: "1.21.1",
     date: "2026-05-15",
