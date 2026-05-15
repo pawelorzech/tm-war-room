@@ -62,8 +62,32 @@ class ChatRepository(BaseRepository):
     # ── Messages ──────────────────────────────────────────────
 
     def get_messages(
-        self, channel_id: int, before_id: int | None = None, limit: int = 50,
+        self,
+        channel_id: int,
+        before_id: int | None = None,
+        after_id: int | None = None,
+        limit: int = 50,
     ) -> list[dict]:
+        """Fetch messages in a channel.
+
+        ``before_id`` is used for pagination (older messages). ``after_id``
+        is used for polling new messages (Companion chat dock). Both are
+        exclusive bounds. If both are given, ``after_id`` wins because the
+        polling case is the load-bearing one — we never page backwards
+        while polling forwards.
+        """
+        if after_id:
+            rows = self.execute(
+                """SELECT * FROM chat_messages
+                   WHERE channel_id = ? AND thread_id IS NULL AND id > ? AND deleted = 0
+                   ORDER BY id ASC LIMIT ?""",
+                (channel_id, after_id, limit),
+            )
+            result = [dict(r) for r in rows]
+            for m in result:
+                m["mentions"] = json.loads(m.get("mentions") or "[]")
+            return result  # already ASC
+
         if before_id:
             rows = self.execute(
                 """SELECT * FROM chat_messages

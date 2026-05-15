@@ -12,9 +12,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.24.0";
+export const CURRENT_VERSION = "1.25.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.25.0",
+    date: "2026-05-15",
+    title: "Companion v0.5 — chat dock inside torn.com",
+    changes: [
+      { type: "feat", text: "Persistent chat dock — floating green chat button above the status chip on every torn.com page. Click to expand into a 360×480 panel with channel selector, message stream, and composer. Switch between channels via the dropdown header. New messages poll every 5s while open; the unread badge on the collapsed button polls every 30s when closed" },
+      { type: "feat", text: "Mentions of you inside the dock are highlighted with an amber background so they stand out in a scrolling channel. Auto-scroll when you're at the bottom; a 'New messages ↓' pill appears if you've scrolled up and new traffic arrives. Cmd/Ctrl+Enter to send" },
+      { type: "feat", text: "Mark-as-read happens automatically when you reach the bottom of the message stream — no more wondering why /team still shows unread after you actually read everything in the dock" },
+      { type: "feat", text: "Backend: GET /api/chat/channels/{id}/messages now accepts ?after=<id> in addition to ?before=<id>. The chat dock polls with ?after to fetch only new messages without re-downloading the whole window" },
+      { type: "improve", text: "Admin-only channels are hidden from the dock's channel switcher for non-admins, so the dropdown stays clean" },
+    ],
+  },
   {
     version: "1.24.0",
     date: "2026-05-15",

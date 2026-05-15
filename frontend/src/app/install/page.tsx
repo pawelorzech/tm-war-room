@@ -37,6 +37,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">@Mention alerts</span> from TM Hub chat, with native browser notifications when the tab is hidden</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Presence heartbeat</span> — show as online on /team while you have torn.com open</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Status chip + settings</span> bottom-right, with mute timers and disconnect</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Persistent chat dock</span> — read + reply to TM Hub chat without leaving torn.com</span></li>
             </ul>
           </div>
 
@@ -47,7 +48,6 @@ export default function InstallPage() {
               <h2 className="text-lg font-semibold">Coming up</h2>
             </div>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Persistent chat dock</span> — read + reply to TM Hub chat without leaving torn.com</span></li>
               <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Spy estimate badges</span> on enemy profile + attack page (str/def/spd/dex from TornStats + faction submits)</span></li>
               <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">Targets + stakeout flags</span> on profile pages — faction-shared tags and notes</span></li>
               <li className="flex gap-2"><span className="text-text-muted">○</span><span><span className="text-text-primary font-semibold">"Mark off-limits" inline button</span> on enemy profiles — flag without opening TM Hub</span></li>

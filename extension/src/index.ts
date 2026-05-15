@@ -20,6 +20,7 @@ import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
 import { startStatusChip } from './inject/status-chip';
 import { startMentionAlerts } from './inject/mention-alerts';
+import { startChatDock } from './inject/chat-dock';
 import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
 
@@ -165,6 +166,7 @@ function bootstrap(): void {
   // awareness. Each runs as long as we have an auth token; they self-skip
   // when getAuth() returns null.
   startStatusChip();
+  startChatDock();
   startNotificationToasts();
   startMentionAlerts();
   startHeartbeat();
