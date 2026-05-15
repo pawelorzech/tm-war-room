@@ -12,9 +12,19 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.30.2";
+export const CURRENT_VERSION = "1.30.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.3",
+    date: "2026-05-15",
+    title: "Spy deep-links work + 'Unknown player' fallback on known stats",
+    changes: [
+      { type: "fix", text: "Clicking 'Open in TM Hub →' from the companion intel card on a torn.com profile now lands on a working Spy Central page that auto-loads the spy estimate for that player (previously /spy/{id} 404'd because the dynamic route wasn't in the static export). Implementation uses /spy?id={id} so it works without dynamic routing — the page reads the query param via useSearchParams, fetches /api/spy/{id} (which triggers a TornStats refresh if the row is stale or missing), and renders the standard SpyResultCard above the regular search UI. Companion v0.10.2 updates the link target. Old /spy/{id} URLs still 404 (one-time pain for anyone with stale tabs), so re-open profiles after the companion auto-updates" },
+      { type: "fix", text: "Known Stats list no longer renders '#2362436 [2362436]' (the same ID duplicated) when the player_name column is null — it now shows 'Unknown player' in muted italic with just [2362436] linking to the Torn profile, and rows with no stats anywhere get a subtle dimmed treatment. Plus the player name now links to /spy?id={id} so you can drill into the deep-link view without leaving TM Hub. As the TornStats refresh sweep fills in missing names (see 1.28.1 / 1.30.0), 'Unknown player' rows will resolve to real names automatically" },
+      { type: "improve", text: "Known Stats table gets a 'Show N rows with no stats' toggle (off by default) so the list of actionable entries isn't drowned out by empty placeholder rows that haven't been backfilled yet. Counter in the header shows how many rows are currently hidden" },
+    ],
+  },
   {
     version: "1.30.2",
     date: "2026-05-15",

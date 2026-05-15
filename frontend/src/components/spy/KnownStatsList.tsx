@@ -12,10 +12,25 @@ const CONFIDENCE_DOT: Record<string, string> = {
 };
 
 function fmt(n: number): string {
+  if (!n || n <= 0) return '—';
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
-  return n > 0 ? String(Math.round(n)) : '—';
+  return String(Math.round(n));
+}
+
+function isEmptyRow(e: SpyEstimate): boolean {
+  return (e.total ?? 0) <= 0
+    && (e.strength ?? 0) <= 0
+    && (e.defense ?? 0) <= 0
+    && (e.speed ?? 0) <= 0
+    && (e.dexterity ?? 0) <= 0;
+}
+
+function renderName(e: SpyEstimate): { display: string; muted: boolean } {
+  const name = e.player_name?.trim();
+  if (name) return { display: name, muted: false };
+  return { display: 'Unknown player', muted: true };
 }
 
 type SortCol = 'total' | 'strength' | 'defense' | 'speed' | 'dexterity' | 'age_days';
@@ -26,6 +41,7 @@ export function KnownStatsList() {
   const [sortCol, setSortCol] = useState<SortCol>('total');
   const [sortAsc, setSortAsc] = useState(false);
   const [filter, setFilter] = useState('');
+  const [showEmpty, setShowEmpty] = useState(false);
 
   useEffect(() => {
     api.spyKnown()
@@ -34,8 +50,13 @@ export function KnownStatsList() {
       .finally(() => setLoading(false));
   }, []);
 
+  const emptyCount = useMemo(() => estimates.filter(isEmptyRow).length, [estimates]);
+
   const sorted = useMemo(() => {
     let list = estimates;
+    if (!showEmpty) {
+      list = list.filter(e => !isEmptyRow(e));
+    }
     if (filter) {
       const q = filter.toLowerCase();
       list = list.filter(e =>
@@ -48,7 +69,7 @@ export function KnownStatsList() {
       const vb = b[sortCol] ?? 0;
       return sortAsc ? (va as number) - (vb as number) : (vb as number) - (va as number);
     });
-  }, [estimates, sortCol, sortAsc, filter]);
+  }, [estimates, sortCol, sortAsc, filter, showEmpty]);
 
   const toggleSort = (col: SortCol) => {
     if (sortCol === col) setSortAsc(!sortAsc);
@@ -72,41 +93,61 @@ export function KnownStatsList() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wide">
-          Known Stats ({sorted.length})
+          Known Stats ({sorted.length}{!showEmpty && emptyCount > 0 ? ` · ${emptyCount} hidden` : ''})
         </h3>
-        <input
-          type="text"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          placeholder="Filter by name or ID..."
-          className="bg-bg-card border border-text-secondary/30 rounded-lg px-3 py-1.5 text-sm text-text-primary w-48 focus:outline-none focus:border-torn-green focus:ring-1 focus:ring-torn-green"
-        />
+        <div className="flex items-center gap-3 flex-wrap">
+          {emptyCount > 0 && (
+            <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showEmpty}
+                onChange={e => setShowEmpty(e.target.checked)}
+                className="accent-torn-green"
+              />
+              Show {emptyCount} rows with no stats
+            </label>
+          )}
+          <input
+            type="text"
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filter by name or ID..."
+            className="bg-bg-card border border-text-secondary/30 rounded-lg px-3 py-1.5 text-sm text-text-primary w-48 focus:outline-none focus:border-torn-green focus:ring-1 focus:ring-torn-green"
+          />
+        </div>
       </div>
 
       {/* Mobile cards */}
       <div className="lg:hidden space-y-2">
-        {sorted.slice(0, 50).map(e => (
-          <div key={e.player_id} className="bg-bg-card border border-text-secondary/20 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
-                <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
-                   className="text-sm font-medium text-text-primary hover:text-torn-green">
-                  {e.player_name || `#${e.player_id}`}
-                </a>
+        {sorted.slice(0, 50).map(e => {
+          const { display, muted } = renderName(e);
+          return (
+            <div key={e.player_id} className={`bg-bg-card border border-text-secondary/20 rounded-lg p-3 ${isEmptyRow(e) ? 'opacity-60' : ''}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full flex-none ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
+                  <a href={`/spy?id=${e.player_id}`}
+                     className={`text-sm font-medium hover:text-torn-green truncate ${muted ? 'text-text-muted italic' : 'text-text-primary'}`}>
+                    {display}
+                  </a>
+                  <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
+                     className="text-xs text-text-muted hover:text-torn-green flex-none">
+                    [{e.player_id}]
+                  </a>
+                </div>
+                <span className="text-lg font-bold text-torn-green flex-none ml-2">{fmt(e.total)}</span>
               </div>
-              <span className="text-lg font-bold text-torn-green">{fmt(e.total)}</span>
+              <div className="grid grid-cols-4 gap-2 text-xs text-center">
+                <div><span className="text-text-secondary">STR</span><br/><span className="font-medium">{fmt(e.strength)}</span></div>
+                <div><span className="text-text-secondary">DEF</span><br/><span className="font-medium">{fmt(e.defense)}</span></div>
+                <div><span className="text-text-secondary">SPD</span><br/><span className="font-medium">{fmt(e.speed)}</span></div>
+                <div><span className="text-text-secondary">DEX</span><br/><span className="font-medium">{fmt(e.dexterity)}</span></div>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-xs text-center">
-              <div><span className="text-text-secondary">STR</span><br/><span className="font-medium">{fmt(e.strength)}</span></div>
-              <div><span className="text-text-secondary">DEF</span><br/><span className="font-medium">{fmt(e.defense)}</span></div>
-              <div><span className="text-text-secondary">SPD</span><br/><span className="font-medium">{fmt(e.speed)}</span></div>
-              <div><span className="text-text-secondary">DEX</span><br/><span className="font-medium">{fmt(e.dexterity)}</span></div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Desktop table */}
@@ -138,27 +179,34 @@ export function KnownStatsList() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map(e => (
-              <tr key={e.player_id} className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors">
-                <td className="py-1.5 px-2">
-                  <span className={`w-2 h-2 rounded-full inline-block ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
-                </td>
-                <td className="py-1.5 px-2">
-                  <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
-                     className="text-text-primary hover:text-torn-green transition-colors">
-                    {e.player_name || `#${e.player_id}`}
-                  </a>
-                  <span className="ml-1 text-xs text-text-muted">[{e.player_id}]</span>
-                </td>
-                <td className="py-1.5 px-2 font-semibold text-torn-green">{fmt(e.total)}</td>
-                <td className="py-1.5 px-2">{fmt(e.strength)}</td>
-                <td className="py-1.5 px-2">{fmt(e.defense)}</td>
-                <td className="py-1.5 px-2">{fmt(e.speed)}</td>
-                <td className="py-1.5 px-2">{fmt(e.dexterity)}</td>
-                <td className="py-1.5 px-2 text-text-muted text-xs">{e.source}</td>
-                <td className="py-1.5 px-2 text-text-muted text-xs">{e.age_days === 0 ? 'today' : `${e.age_days}d`}</td>
-              </tr>
-            ))}
+            {sorted.map(e => {
+              const { display, muted } = renderName(e);
+              const empty = isEmptyRow(e);
+              return (
+                <tr key={e.player_id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${empty ? 'opacity-60' : ''}`}>
+                  <td className="py-1.5 px-2">
+                    <span className={`w-2 h-2 rounded-full inline-block ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <a href={`/spy?id=${e.player_id}`}
+                       className={`hover:text-torn-green transition-colors ${muted ? 'text-text-muted italic' : 'text-text-primary'}`}>
+                      {display}
+                    </a>
+                    <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
+                       className="ml-1.5 text-xs text-text-muted hover:text-torn-green">
+                      [{e.player_id}]
+                    </a>
+                  </td>
+                  <td className="py-1.5 px-2 font-semibold text-torn-green">{fmt(e.total)}</td>
+                  <td className="py-1.5 px-2">{fmt(e.strength)}</td>
+                  <td className="py-1.5 px-2">{fmt(e.defense)}</td>
+                  <td className="py-1.5 px-2">{fmt(e.speed)}</td>
+                  <td className="py-1.5 px-2">{fmt(e.dexterity)}</td>
+                  <td className="py-1.5 px-2 text-text-muted text-xs">{e.source}</td>
+                  <td className="py-1.5 px-2 text-text-muted text-xs">{e.age_days === 0 ? 'today' : e.age_days != null ? `${e.age_days}d` : '—'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

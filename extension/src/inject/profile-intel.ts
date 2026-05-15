@@ -563,7 +563,7 @@ export async function renderProfileIntel(
   card.innerHTML = `
     <div class="card-header">
       <div class="card-title">⚡ TM Hub intel</div>
-      <a class="card-link" href="${HUB_ORIGIN}/spy/${playerId}" target="_blank">Open in TM Hub →</a>
+      <a class="card-link" href="${HUB_ORIGIN}/spy?id=${playerId}" target="_blank">Open in TM Hub →</a>
     </div>
     ${spy ? spyRow(spy) : ''}
     ${target ? targetRow(target) : ''}
