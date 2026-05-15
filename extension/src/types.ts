@@ -140,3 +140,50 @@ export interface StakeoutsResponse {
   stakeouts: Stakeout[];
   count: number;
 }
+
+export type ThreatLabel = 'trivial' | 'easy' | 'moderate' | 'dangerous' | 'lethal' | 'unknown';
+export type ThreatSource = 'spy' | 'estimated' | 'none';
+
+export interface BountyItem {
+  target_id: number;
+  target_name?: string;
+  target_level?: number;
+  reward: number;
+  reason?: string;
+  threat_score: number;
+  threat_label: ThreatLabel;
+  threat_source: ThreatSource;
+  estimated_total?: number | null;
+  target_status?: string;
+}
+
+export interface BountiesResponse {
+  bounties: BountyItem[];
+  count: number;
+  total_value: number;
+  threat_mode?: string;
+}
+
+export interface LootReservation {
+  player_id: number;
+  player_name: string;
+  target_level: number;
+}
+
+export interface LootNpc {
+  id: number;
+  name: string;
+  status: string;
+  hosp_out: number | null;
+  level: number;
+  next_level_at: number | null;
+  level_times: Record<string, number>;
+  updated: number;
+  reservations: LootReservation[];
+}
+
+export interface LootResponse {
+  npcs: LootNpc[];
+  count: number;
+  fetched_at: number;
+}

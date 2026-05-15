@@ -16,6 +16,8 @@ import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
+import { applyBountiesOverlay } from './inject/bounties-overlay';
+import { renderLootOverlay } from './inject/loot-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
 import { startStatusChip } from './inject/status-chip';
@@ -63,6 +65,16 @@ async function getOffLimitsMap(auth: CompanionAuth, warId: number): Promise<Map<
 
 async function refresh(): Promise<void> {
   const match = matchPage();
+
+  // Bounty page is page-level, not per-player — handle here before the
+  // unknown-page early return.
+  if (match.kind === 'bounties') {
+    if (getAuth()) {
+      void applyBountiesOverlay();
+    }
+    return;
+  }
+
   if (match.kind === 'unknown' || !match.player_id) {
     renderProfileBadge(null);
     return;
@@ -96,6 +108,13 @@ async function refresh(): Promise<void> {
 
   if (match.kind === 'profile' || match.kind === 'attack') {
     void renderProfileIntel(match.player_id, { warId, offLimits: off });
+  }
+
+  // Loot NPC overlay: only renders if the visited profile happens to be a
+  // loot NPC the backend knows about (Duke, Leslie, Jimmy, Bruno, etc).
+  // No-ops on regular player profiles, so it's safe to call unconditionally.
+  if (match.kind === 'profile') {
+    void renderLootOverlay(match.player_id);
   }
 }
 
