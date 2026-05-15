@@ -12,9 +12,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.32.0";
+export const CURRENT_VERSION = "1.33.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.33.0",
+    date: "2026-05-15",
+    title: "Companion v0.12 — profile intel redesign with live toggle buttons",
+    changes: [
+      { type: "feat", text: "Profile INTEL overlay redesigned with an action-first 'Decision Stack' layout. The overlay now leads with the hero total (e.g. ⚔️ 3.91B total estimate) followed by color-coded meta pills (source / age / confidence — green for fresh+exact, yellow for stale+estimate, red for old), then the stat grid, then a clear actions section. Mobile uses a 2x2 stat grid + vertical action stack; desktop uses a 4-col stat row + horizontal actions. Breakpoint at 480px." },
+      { type: "feat", text: "All three actions are now live toggles. 🎯 Save to targets ↔ ✓ Saved (tap to remove). 🔍 Watch ↔ ✓ Watching (tap to stop). 🚫 Flag off-limits ↔ ✓ Off-limits (tap to unflag) — only visible during an active war. Active buttons glow green; hovering an active button shifts it to red to signal 'tap to undo'. Each removal confirms with a native dialog to prevent accidental taps. The previous 'Edit target' modal flow is gone — to update tag/notes go to TM Hub web via the ↗ link in the card header." },
+      { type: "feat", text: "Inline target tags and stakeout info now live inside the spy body instead of separate full-width rows. On mobile they stack under the stat grid; on desktop they sit side-by-side as a single line. Saves ~40px of vertical space when the player is both saved and on stakeout." },
+      { type: "fix", text: "Profile intel card no longer renders broken on narrow Torn PDA viewports. Root cause: `.card-title` and `.card-link` were flex children with no `white-space: nowrap`, so on ~320px viewports the text wrapped per-word ('TM / HUB / INTEL' on three lines, 'Open / in / TM / Hub / →' on five). Same problem cropped up on the action buttons whose long English labels ('Flag off-limits', 'Save to targets', 'Watch (stakeout)') were getting pushed off-screen. Now everything is `nowrap`, button labels are shorter, and the link collapses to a single ↗ icon below 480px (full 'Open in TM Hub' text on desktop)." },
+      { type: "feat", text: "Backend `removeOffLimits` (DELETE /api/war-off-limits/{warId}/{playerId}) is now wired into the companion — previously only callable from the web UI. Lets you unflag a player as off-limits directly from their Torn profile without leaving the page." },
+    ],
+  },
   {
     version: "1.32.0",
     date: "2026-05-15",
