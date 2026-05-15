@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.20.0";
+export const CURRENT_VERSION = "1.21.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.21.0",
+    date: "2026-05-15",
+    title: "TM Hub Companion — userscript for inside torn.com",
+    changes: [
+      { type: "feat", text: "New TM Hub Companion userscript injects faction intel directly into torn.com pages. Phase 1 surfaces OFF-LIMITS flags from /war on enemy profile and attack pages — when a teammate has flagged a player as med-out or dip, you see a red banner the moment you open their profile and a confirmation modal before the Attack button fires. No more accidentally breaking agreements because the chat scroll moved" },
+      { type: "feat", text: "New /install landing page with three install paths (Tampermonkey userscript, Chrome / Firefox extension placeholder, Torn PDA) and step-by-step instructions. The userscript path works day-one in Tampermonkey, Violentmonkey, Torn PDA, and any other GM-compatible runtime — no Web Store review wait" },
+      { type: "feat", text: "New /extension-auth page mints a 90-day extension JWT and hands it to the userscript via window.postMessage. Falls back to a copy-paste flow if postMessage is blocked (e.g. opened directly instead of through the companion)" },
+      { type: "improve", text: "Backend: new POST /api/extension/issue-token endpoint, GET /api/wars/current lookup, and CORS allow-list for https://www.torn.com so the userscript can talk to hub.tri.ovh from inside a torn.com tab. Extension tokens carry a distinct scope claim and can be revoked independently of session tokens" },
+    ],
+  },
   {
     version: "1.20.0",
     date: "2026-05-15",

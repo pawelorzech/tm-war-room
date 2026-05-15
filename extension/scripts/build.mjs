@@ -1,0 +1,85 @@
+// Builds dist/tm-hub-companion.user.js — a Tampermonkey/Violentmonkey/PDA
+// compatible userscript. Bundle is plain JS (no module workers, no
+// dynamic imports) so it can run inside the userscript sandbox.
+//
+// Production build mode: `node scripts/build.mjs`
+// Watch mode (for local dev): `node scripts/build.mjs --watch`
+
+import { build, context } from 'esbuild';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = resolve(__dirname, '..');
+const distFile = resolve(root, 'dist/tm-hub-companion.user.js');
+// Also publish into the Next.js static export so hub.tri.ovh/companion.user.js
+// resolves. This is what the userscript's @updateURL points at, so installs
+// can self-update without us shipping a separate hosting story.
+const publicDir = resolve(root, '..', 'frontend', 'public');
+const publicFile = resolve(publicDir, 'companion.user.js');
+
+const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+const HUB_ORIGIN = process.env.TM_HUB_ORIGIN || 'https://hub.tri.ovh';
+
+const banner = `// ==UserScript==
+// @name         TM Hub Companion
+// @namespace    https://hub.tri.ovh/
+// @version      ${pkg.version}
+// @description  Injects TM Hub faction intel (OFF-LIMITS flags, threat info) into torn.com pages.
+// @author       The Masters [TM]
+// @match        https://www.torn.com/*
+// @connect      hub.tri.ovh
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
+// @run-at       document-idle
+// @updateURL    ${HUB_ORIGIN}/companion.user.js
+// @downloadURL  ${HUB_ORIGIN}/companion.user.js
+// @homepageURL  ${HUB_ORIGIN}/install
+// ==/UserScript==
+
+/* eslint-disable */
+`;
+
+const options = {
+  entryPoints: [resolve(root, 'src/index.ts')],
+  outfile: distFile,
+  bundle: true,
+  format: 'iife',
+  target: ['chrome100', 'firefox100', 'safari15'],
+  minify: false,
+  sourcemap: false,
+  banner: { js: banner },
+  define: {
+    'process.env.TM_HUB_ORIGIN': JSON.stringify(HUB_ORIGIN),
+    'process.env.TM_COMPANION_VERSION': JSON.stringify(pkg.version),
+  },
+  logLevel: 'info',
+};
+
+mkdirSync(resolve(root, 'dist'), { recursive: true });
+
+if (process.argv.includes('--watch')) {
+  const ctx = await context(options);
+  await ctx.watch();
+  console.log('Watching for changes…');
+} else {
+  await build(options);
+  // esbuild's banner injection works, but double-check the file starts with
+  // ==UserScript== — Tampermonkey rejects anything that does not.
+  const out = readFileSync(distFile, 'utf8');
+  if (!out.startsWith('// ==UserScript==')) {
+    writeFileSync(distFile, banner + out);
+  }
+  console.log(`Built ${distFile}`);
+
+  // Publish to frontend/public/ so Next.js static export serves it at
+  // /companion.user.js. Skip silently if the frontend repo layout is missing
+  // (e.g. someone is building the extension in isolation).
+  if (existsSync(publicDir)) {
+    copyFileSync(distFile, publicFile);
+    console.log(`Published ${publicFile}`);
+  }
+}

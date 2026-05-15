@@ -1,0 +1,17 @@
+{
+  "name": "tm-hub-companion",
+  "version": "0.1.0",
+  "description": "TM Hub Companion — userscript that injects faction intel into torn.com",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/tampermonkey": "^5.0.4",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
