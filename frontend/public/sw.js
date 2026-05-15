@@ -5,7 +5,7 @@
 // before the 15-minute schedule rewrite). The activate handler below already
 // deletes any cache that starts with `tm-hub-shell-` and isn't the current
 // CACHE_NAME, so a bump here = global force-refresh.
-const CACHE_NAME = 'tm-hub-shell-v2';
+const CACHE_NAME = 'tm-hub-shell-v3';
 const SHELL_URLS = [
   '/',
   '/offline.html',
@@ -100,14 +100,14 @@ self.addEventListener('push', function(event) {
   let payload;
   try {
     payload = event.data.json();
-  } catch (e) {
+  } catch {
     payload = { title: 'TM Hub', body: event.data.text() };
   }
 
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    badge: '/icons/notification-badge.png',
     data: { url: payload.url || '/' },
     vibrate: [200, 100, 200],
     tag: payload.tag || 'tm-hub-notification',

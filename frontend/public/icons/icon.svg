@@ -1,15 +1,7 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-  <rect width="512" height="512" rx="96" fill="#0d1117"/>
-  <text x="256" y="310" text-anchor="middle" font-family="system-ui,-apple-system,BlinkMacSystemFont,sans-serif" font-weight="800" font-size="180" fill="#3fb950" filter="url(#glow)" letter-spacing="-8">TM</text>
-  <circle cx="256" cy="256" r="210" fill="none" stroke="#3fb950" stroke-width="2" opacity="0.2"/>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TM Hub">
+  <rect width="512" height="512" fill="#0d1117"/>
+  <rect x="48" y="48" width="416" height="416" rx="92" fill="#111820" stroke="#1d6f37" stroke-width="4"/>
+  <path d="M116 174H270V220H216V342H169V220H116V174Z" fill="#3fb950"/>
+  <path d="M286 342V174H332L365 256L398 174H444V342H400V256L377 315H353L330 256V342H286Z" fill="#3fb950"/>
+  <path d="M116 174H270V220H216V342H169V220H116V174ZM286 342V174H332L365 256L398 174H444V342H400V256L377 315H353L330 256V342H286Z" fill="none" stroke="#75e083" stroke-width="6" stroke-linejoin="round" opacity="0.22"/>
 </svg>
