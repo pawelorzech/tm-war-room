@@ -1,0 +1,529 @@
+{
+  "stocks": {
+    "1": {
+      "acronym": "TSB",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "10": {
+      "acronym": "CNC",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "11": {
+      "acronym": "MSG",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "12": {
+      "acronym": "TMI",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "13": {
+      "acronym": "TCP",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "14": {
+      "acronym": "IIL",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "15": {
+      "acronym": "FHG",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "16": {
+      "acronym": "SYM",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "17": {
+      "acronym": "LSC",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "18": {
+      "acronym": "PRN",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "19": {
+      "acronym": "EWM",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "2": {
+      "acronym": "TCI",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "20": {
+      "acronym": "TCM",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "21": {
+      "acronym": "ELT",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "22": {
+      "acronym": "HRG",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "23": {
+      "acronym": "TGP",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "24": {
+      "acronym": "MUN",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "25": {
+      "acronym": "WSU",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "26": {
+      "acronym": "IST",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "27": {
+      "acronym": "BAG",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "28": {
+      "acronym": "EVL",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "29": {
+      "acronym": "MCS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "3": {
+      "acronym": "SYS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "30": {
+      "acronym": "WLT",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "31": {
+      "acronym": "TCC",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "32": {
+      "acronym": "ASS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "33": {
+      "acronym": "CBD",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "34": {
+      "acronym": "LOS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "35": {
+      "acronym": "PTS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "4": {
+      "acronym": "LAG",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "5": {
+      "acronym": "IOU",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "6": {
+      "acronym": "GRN",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "7": {
+      "acronym": "THS",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "8": {
+      "acronym": "YAZ",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "passive"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    },
+    "9": {
+      "acronym": "TCT",
+      "benefit": {
+        "description": "test description",
+        "frequency": 100,
+        "requirement": 100,
+        "type": "active"
+      },
+      "current_price": 100.0,
+      "investors": 100,
+      "market_cap": 100,
+      "name": "TestPlayer",
+      "stock_id": 100,
+      "total_shares": 100
+    }
+  }
+}

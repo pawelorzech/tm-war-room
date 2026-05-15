@@ -70,9 +70,38 @@ The two hotfixes (1.31.1, 1.31.2) showed exactly what fails when you don't probe
 2. **Diff the shapes.** Look for: array-vs-dict, nesting (`top.field` → `top.parent.field`), renamed fields (`market_value` → `value.market_price`), missing fields, wrapped responses (`{info: {access: …}}` — the bug that gave us 502 on key/info).
 3. **Update consumers FIRST.** Change every reader to use the v2 shape with a fallback to v1, or write a normalizer at the boundary. Tests are mocked and won't catch shape mismatches — **deploy and walk through the UI**.
 4. **Flip the URL.** Then change `V1_BASE` → `V2_BASE` (and the log integration string).
-5. **Walk through the UI under playwright.** Hit the affected page, check the network panel and console for 500s. Don't trust pytest passing — our 619 tests all pass with stub data regardless of v1/v2.
+5. **Walk through the UI under playwright.** Hit the affected page, check the network panel and console for 500s. **In addition to manual probing, now also run `scripts/probe_torn_shapes.py diff`** (see "Validating mocks against the live API" below) — that script catches shape drift automatically against captured fixtures.
 
 If the shape diff is large enough that a normalizer would dwarf the URL change, just leave it on v1 and document why in the inline comment.
+
+---
+
+## Validating mocks against the live API
+
+We have a helper at `scripts/probe_torn_shapes.py` (added after the 1.31.x hotfix cycle) that captures live Torn responses as sanitized JSON fixtures, then lets us detect drift before it bites prod. Use it whenever you're about to flip a URL v1↔v2, or when a Torn API release note suggests they changed something.
+
+```bash
+# One-time setup or re-capture: hit live API for ~12 selections,
+# sanitize (mask player IDs, names, monetary values), write to
+# tests/fixtures/torn/*.json. Safe to commit — values are placeholders.
+TORN_API_KEY=$(grep "API Key:" ~/.claude/projects/-Users-pawelorzech-Documents-Obsidian-Vault/memory/torn-account.md | awk '{print $NF}') \
+  uv run python scripts/probe_torn_shapes.py capture
+
+# Before flipping a URL: compare current fixtures vs fresh live responses.
+# Exit 1 = shape drift detected (field added / removed / type changed / dict↔list).
+TORN_API_KEY=... uv run python scripts/probe_torn_shapes.py diff
+
+# After a migration: check whether hand-written FAKE_* mocks in
+# tests/test_torn_client.py still match the live shape. No network call.
+uv run python scripts/probe_torn_shapes.py audit-fakes
+```
+
+When `diff` reports drift:
+- **drift on a v1 fixture** → Torn changed v1 (rare, since v1 is frozen). Update the fixture, re-run the test suite. If a test broke, that's a real consumer that needs a fix.
+- **drift on a v2 fixture** → Torn evolved v2 (common — new fields, new endpoints). Update the fixture; this is informational.
+- **dict↔list change on v2** → Torn rebuilt the selection. Do NOT migrate until you've written a normalizer.
+
+The 3 v1-fallback selections with named regression tests are: `fetch_stock_market` (`torn/stocks`), `fetch_user_stocks` (`user/stocks`), `fetch_honor_catalog` (`torn/honors,medals`). Each asserts on V1_BASE URL + v1 shape — if someone tries to flip them to v2, the test fails with an explanatory message rather than silently passing.
 
 ---
 

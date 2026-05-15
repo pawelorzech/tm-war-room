@@ -1,0 +1,49 @@
+{
+  "profile": {
+    "age": 100,
+    "awards": 100,
+    "donator_status": "Donator",
+    "enemies": 100,
+    "faction_id": 100,
+    "forum_posts": 100,
+    "friends": 100,
+    "gender": "Male",
+    "honor_id": 100,
+    "id": 100,
+    "image": "https://profileimages.torn.com/6d1111e-f1111-4edc-a7bf-4adbab9b0b24-1111.png",
+    "karma": 100,
+    "last_action": {
+      "relative": "test description",
+      "status": "Idle",
+      "timestamp": 100
+    },
+    "level": 100,
+    "life": {
+      "current": 100,
+      "maximum": 100
+    },
+    "name": "TestPlayer",
+    "property": {
+      "id": 100,
+      "name": "TestPlayer"
+    },
+    "rank": "Legendary",
+    "revivable": false,
+    "role": "Civilian",
+    "signed_up": 100,
+    "spouse": {
+      "days_married": 100,
+      "id": 100,
+      "name": "TestPlayer",
+      "status": "Married"
+    },
+    "status": {
+      "color": "green",
+      "description": "test description",
+      "details": null,
+      "state": "Okay",
+      "until": null
+    },
+    "title": "Outcast"
+  }
+}

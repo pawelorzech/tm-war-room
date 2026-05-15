@@ -19,6 +19,8 @@ FAKE_MEMBERS_RESPONSE = {
             "is_on_wall": False,
             "is_revivable": False,
             "is_in_oc": False,
+            "has_early_discharge": False,
+            "revive_setting": "No one",
         }
     ]
 }
@@ -38,13 +40,21 @@ FAKE_WARS_RESPONSE = {
         },
         "raids": [],
         "territory": [],
-    }
+    },
+    "pacts": [],  # NB: v2 returns pacts at top level alongside `wars`, not nested
 }
 
 FAKE_BARS_RESPONSE = {
+    # v1 user/?selections=bars,cooldowns returns 6 bars at top-level. Migration to v2
+    # would nest these under `bars: {...}` — see docs/torn-api-v2-migration.md (line on
+    # bars,cooldowns) for the breaking shape.
     "energy": {"current": 500, "maximum": 150, "increment": 5, "interval": 600, "ticktime": 50, "fulltime": 0},
     "happy": {"current": 4000, "maximum": 4525, "increment": 5, "interval": 900, "ticktime": 350, "fulltime": 0},
+    "nerve": {"current": 25, "maximum": 100, "increment": 1, "interval": 300, "ticktime": 100, "fulltime": 0},
+    "life": {"current": 8800, "maximum": 8800, "increment": 264, "interval": 300, "ticktime": 100, "fulltime": 0},
+    "chain": {"current": 0, "maximum": 25000, "timeout": 0, "modifier": 1, "cooldown": 0},
     "cooldowns": {"drug": 3600, "medical": 0, "booster": 0},
+    "server_time": 1700000000,
 }
 
 
@@ -125,7 +135,8 @@ FAKE_ENEMY_MEMBERS = {
         {"id": 183527, "name": "DarkMagic", "level": 82, "days_in_faction": 66,
          "last_action": {"status": "Offline", "timestamp": 1774603546, "relative": "13 min ago"},
          "status": {"description": "Okay", "details": None, "state": "Okay", "color": "green", "until": None},
-         "position": "Tubby Kitten", "is_on_wall": False, "is_revivable": False, "is_in_oc": False}
+         "position": "Tubby Kitten", "is_on_wall": False, "is_revivable": False, "is_in_oc": False,
+         "has_early_discharge": False, "revive_setting": "No one"}
     ]
 }
 
@@ -523,3 +534,86 @@ async def test_fetch_tornstats_efficiency_error_returns_none(client):
             "tskey", manual_labor=1, intelligence=2, endurance=3
         )
     assert result is None
+
+
+# ─── v1-fallback shape regression tests ───────────────────────────────────────
+# These three selections live on v1 because v2 changed their shape in ways that
+# break our consumers (dict → list). When someone tries to flip the URL to v2
+# again, these tests must fail loudly. Fixtures captured by
+# `scripts/probe_torn_shapes.py capture` against the live API.
+# See docs/torn-api-v2-migration.md for the exact mismatches.
+
+from tests.fixtures.torn import load_torn_fixture  # noqa: E402
+
+
+@pytest.mark.asyncio
+async def test_fetch_stock_market_uses_v1(client):
+    # NB: v1 shape — see docs/torn-api-v2-migration.md (torn/?selections=stocks).
+    # v1 returns stocks as a dict keyed by stock_id; v2 returns a list.
+    # fetch_stock_market consumers iterate .items(), so flipping to v2 breaks them.
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = load_torn_fixture("torn_stocks_v1")
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        stocks = await client.fetch_stock_market()
+
+    assert mock_get.call_args.args[0].startswith("https://api.torn.com/torn/"), (
+        "fetch_stock_market must use V1_BASE — v2 stocks shape is a list, not a dict"
+    )
+    assert isinstance(stocks, dict), "v1 torn/stocks returns dict keyed by stock_id"
+    assert stocks, "fixture should have at least one stock"
+    sample_key = next(iter(stocks))
+    assert isinstance(sample_key, str) and sample_key.isdigit(), (
+        "v1 keys are numeric strings"
+    )
+    sample = stocks[sample_key]
+    # Field names from v1 (flat) — would be nested under `market.*` in v2.
+    for required in ("acronym", "current_price", "market_cap", "total_shares", "stock_id"):
+        assert required in sample, f"v1 stock missing flat field '{required}'"
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_stocks_uses_v1(client):
+    # NB: v1 shape — see docs/torn-api-v2-migration.md (user/?selections=stocks).
+    # v1: dict keyed by stock_id with {total_shares, transactions: dict}.
+    # v2: list with {id, shares, transactions: list}. Portfolio router reads v1.
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = load_torn_fixture("user_stocks_v1")
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        stocks = await client.fetch_user_stocks("fake_key")
+
+    assert mock_get.call_args.args[0].startswith("https://api.torn.com/user/"), (
+        "fetch_user_stocks must use V1_BASE — v2 user/stocks shape is a list"
+    )
+    assert isinstance(stocks, dict), "v1 user/stocks returns dict keyed by stock_id"
+    assert stocks, "fixture should have at least one holding"
+    sample = stocks[next(iter(stocks))]
+    assert "total_shares" in sample, "v1 user/stocks has flat total_shares"
+    assert isinstance(sample.get("transactions"), dict), (
+        "v1 transactions is a dict keyed by tx_id; v2 makes it a list"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetch_honor_catalog_uses_v1(client):
+    # NB: v1 shape — see docs/torn-api-v2-migration.md (torn/?selections=honors,medals).
+    # v1: two dicts keyed by id. v2: lists. collect_circulation iterates .items().
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = load_torn_fixture("torn_honors_medals_v1")
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        catalog = await client.fetch_honor_catalog()
+
+    assert mock_get.call_args.args[0].startswith("https://api.torn.com/torn/"), (
+        "fetch_honor_catalog must use V1_BASE — v2 honors/medals are lists"
+    )
+    assert isinstance(catalog, dict)
+    assert isinstance(catalog["honors"], dict), "v1 honors is a dict keyed by id"
+    assert isinstance(catalog["medals"], dict), "v1 medals is a dict keyed by id"
+    sample_honor = next(iter(catalog["honors"].values()))
+    for required in ("circulation", "description", "name", "rarity"):
+        assert required in sample_honor, f"v1 honor missing field '{required}'"

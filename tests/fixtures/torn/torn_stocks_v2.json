@@ -1,0 +1,739 @@
+{
+  "stocks": [
+    {
+      "acronym": "TSB",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TSB.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TSB.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TCI",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCI.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCI.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "SYS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/SYS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/SYS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "LAG",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LAG.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LAG.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "IOU",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IOU.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IOU.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "GRN",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/GRN.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/GRN.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "THS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/THS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/THS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "YAZ",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/YAZ.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/YAZ.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TCT",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCT.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCT.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "CNC",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/CNC.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/CNC.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "MSG",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MSG.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MSG.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TMI",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TMI.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TMI.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TCP",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCP.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCP.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "IIL",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IIL.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IIL.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "FHG",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/FHG.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/FHG.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "SYM",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/SYM.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/SYM.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "LSC",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LSC.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LSC.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "PRN",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/PRN.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/PRN.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "EWM",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/EWM.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/EWM.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TCM",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCM.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCM.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "ELT",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/ELT.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/ELT.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "HRG",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/HRG.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/HRG.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TGP",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TGP.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TGP.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "MUN",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MUN.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MUN.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "WSU",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/WSU.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/WSU.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "IST",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/IST.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/IST.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "BAG",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/BAG.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/BAG.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "EVL",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/EVL.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/EVL.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "MCS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/MCS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/MCS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "WLT",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/WLT.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/WLT.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "TCC",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/TCC.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/TCC.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "ASS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/ASS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/ASS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "CBD",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/CBD.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/CBD.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "LOS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": true,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/LOS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/LOS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    },
+    {
+      "acronym": "PTS",
+      "bonus": {
+        "description": "test description",
+        "frequency": 100,
+        "passive": false,
+        "requirement": 100
+      },
+      "id": 100,
+      "images": {
+        "full": "https://www.torn.com/images/v2/stock-market/portfolio/PTS.svg",
+        "logo": "https://www.torn.com/images/v2/stock-market/logos/PTS.svg"
+      },
+      "market": {
+        "cap": 100,
+        "investors": 100,
+        "price": 100.0,
+        "shares": 100
+      },
+      "name": "TestPlayer"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "age": 100,
+  "awards": 100,
+  "basicicons": {
+    "icon27": "test description",
+    "icon3": "Donator",
+    "icon35": "test description",
+    "icon6": "Male",
+    "icon8": "test description",
+    "icon9": "test description"
+  },
+  "competition": {
+    "current_hp": 100,
+    "max_hp": 100,
+    "name": "TestPlayer",
+    "status": "scissors"
+  },
+  "donator": 100,
+  "enemies": 100,
+  "faction": {
+    "days_in_faction": 100,
+    "faction_id": 100,
+    "faction_name": "TestPlayer",
+    "faction_tag": "TST",
+    "faction_tag_image": "test description",
+    "position": "Helper"
+  },
+  "forum_posts": 100,
+  "friends": 100,
+  "gender": "Male",
+  "honor": 100,
+  "job": {
+    "company_id": 100,
+    "company_name": "TestPlayer",
+    "company_type": 100,
+    "job": "Employee",
+    "position": "Roughneck"
+  },
+  "karma": 100,
+  "last_action": {
+    "relative": "test description",
+    "status": "Idle",
+    "timestamp": 100
+  },
+  "level": 100,
+  "life": {
+    "current": 100,
+    "maximum": 100
+  },
+  "married": {
+    "duration": 100,
+    "spouse_id": 100,
+    "spouse_name": "TestPlayer"
+  },
+  "name": "TestPlayer",
+  "player_id": 100,
+  "profile_image": "https://profileimages.torn.com/6d1111e-f1111-4edc-a7bf-4adbab9b0b24-1111.png",
+  "property": "test description",
+  "property_id": 100,
+  "rank": "test description",
+  "revivable": 100,
+  "role": "Civilian",
+  "signup": "test description",
+  "states": {
+    "hospital_timestamp": 100,
+    "jail_timestamp": 100
+  },
+  "status": {
+    "color": "green",
+    "description": "test description",
+    "details": "",
+    "state": "Okay",
+    "until": 100
+  }
+}

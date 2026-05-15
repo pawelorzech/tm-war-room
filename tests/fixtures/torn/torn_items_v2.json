@@ -1,0 +1,174 @@
+{
+  "items": [
+    {
+      "circulation": 100,
+      "description": "test description",
+      "details": {
+        "ammo": null,
+        "base_stats": {
+          "accuracy": 100,
+          "armor": 100,
+          "damage": 100
+        },
+        "category": "Melee",
+        "mods": [],
+        "stealth_level": 100.0
+      },
+      "effect": null,
+      "id": 100,
+      "image": "https://www.torn.com/images/items/1/large.png",
+      "is_found_in_city": true,
+      "is_masked": false,
+      "is_tradable": true,
+      "name": "TestPlayer",
+      "requirement": null,
+      "sub_type": "Clubbing",
+      "type": "Weapon",
+      "value": {
+        "buy_price": 100,
+        "market_price": 100,
+        "sell_price": 100,
+        "vendor": {
+          "country": "Torn",
+          "name": "TestPlayer"
+        }
+      }
+    },
+    {
+      "circulation": 100,
+      "description": "test description",
+      "details": {
+        "ammo": null,
+        "base_stats": {
+          "accuracy": 100,
+          "armor": 100,
+          "damage": 100
+        },
+        "category": "Melee",
+        "mods": [],
+        "stealth_level": 100.0
+      },
+      "effect": null,
+      "id": 100,
+      "image": "https://www.torn.com/images/items/2/large.png",
+      "is_found_in_city": true,
+      "is_masked": false,
+      "is_tradable": true,
+      "name": "TestPlayer",
+      "requirement": null,
+      "sub_type": "Clubbing",
+      "type": "Weapon",
+      "value": {
+        "buy_price": 100,
+        "market_price": 100,
+        "sell_price": 100,
+        "vendor": {
+          "country": "Torn",
+          "name": "TestPlayer"
+        }
+      }
+    },
+    {
+      "circulation": 100,
+      "description": "test description",
+      "details": {
+        "ammo": null,
+        "base_stats": {
+          "accuracy": 100,
+          "armor": 100,
+          "damage": 100
+        },
+        "category": "Melee",
+        "mods": [],
+        "stealth_level": 100.0
+      },
+      "effect": null,
+      "id": 100,
+      "image": "https://www.torn.com/images/items/3/large.png",
+      "is_found_in_city": true,
+      "is_masked": false,
+      "is_tradable": true,
+      "name": "TestPlayer",
+      "requirement": null,
+      "sub_type": "Clubbing",
+      "type": "Weapon",
+      "value": {
+        "buy_price": 100,
+        "market_price": 100,
+        "sell_price": 100,
+        "vendor": {
+          "country": "Torn",
+          "name": "TestPlayer"
+        }
+      }
+    },
+    {
+      "circulation": 100,
+      "description": "test description",
+      "details": {
+        "ammo": null,
+        "base_stats": {
+          "accuracy": 100,
+          "armor": 100,
+          "damage": 100
+        },
+        "category": "Melee",
+        "mods": [],
+        "stealth_level": 100.0
+      },
+      "effect": null,
+      "id": 100,
+      "image": "https://www.torn.com/images/items/4/large.png",
+      "is_found_in_city": true,
+      "is_masked": false,
+      "is_tradable": true,
+      "name": "TestPlayer",
+      "requirement": null,
+      "sub_type": "Clubbing",
+      "type": "Weapon",
+      "value": {
+        "buy_price": 100,
+        "market_price": 100,
+        "sell_price": 100,
+        "vendor": {
+          "country": "South Africa",
+          "name": "TestPlayer"
+        }
+      }
+    },
+    {
+      "circulation": 100,
+      "description": "test description",
+      "details": {
+        "ammo": null,
+        "base_stats": {
+          "accuracy": 100,
+          "armor": 100,
+          "damage": 100
+        },
+        "category": "Melee",
+        "mods": [],
+        "stealth_level": 100.0
+      },
+      "effect": null,
+      "id": 100,
+      "image": "https://www.torn.com/images/items/5/large.png",
+      "is_found_in_city": true,
+      "is_masked": false,
+      "is_tradable": true,
+      "name": "TestPlayer",
+      "requirement": null,
+      "sub_type": "Piercing",
+      "type": "Weapon",
+      "value": {
+        "buy_price": 100,
+        "market_price": 100,
+        "sell_price": 100,
+        "vendor": {
+          "country": "Torn",
+          "name": "TestPlayer"
+        }
+      }
+    }
+  ]
+}

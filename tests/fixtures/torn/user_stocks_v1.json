@@ -1,0 +1,359 @@
+{
+  "stocks": {
+    "14": {
+      "benefit": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "30316754": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "15": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "18138029": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "16": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "28387529": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "17": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "31007057": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "31366054": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "31366063": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "18": {
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "31007054": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "19": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "24093623": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "24380759": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "24": {
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "30499175": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "29": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "25174490": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "32": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "24380771": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "33": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "26946561": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "26983237": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "26983256": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "35": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "22157335": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "23942466": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "23942485": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "23942497": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "4": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "26283200": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "26983261": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "29426824": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "5": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "10047579": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "10058925": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "10058929": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "9991360": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "9992646": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "6": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "24093566": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "365159": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "7": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "24093571": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "271204": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    },
+    "9": {
+      "dividend": {
+        "frequency": 100,
+        "increment": 100,
+        "progress": 100,
+        "ready": 100
+      },
+      "stock_id": 100,
+      "total_shares": 100,
+      "transactions": {
+        "24093559": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "29427072": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "29427078": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        },
+        "958823": {
+          "bought_price": 100.0,
+          "shares": 100,
+          "time_bought": 100
+        }
+      }
+    }
+  }
+}
