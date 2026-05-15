@@ -265,6 +265,34 @@ class ChatRepository(BaseRepository):
              message_id, int(time.time())),
         )
 
+    def get_recent_mentions(
+        self, player_id: int, since: int = 0, limit: int = 20,
+    ) -> list[dict]:
+        """Return chat messages where player_id is in the mentions JSON array,
+        newer than `since` (message id). Used by the Companion userscript
+        to drive @mention toast alerts on torn.com without the user keeping
+        TM Hub open.
+
+        Uses SQLite's json_each (json1 extension) which ships with the
+        sqlite3 build Python uses on every platform we deploy to.
+        """
+        rows = self.execute(
+            """SELECT m.id, m.channel_id, c.name as channel_name,
+                      m.player_name as author_name, m.content, m.created_at
+               FROM chat_messages m
+               JOIN chat_channels c ON c.id = m.channel_id
+               WHERE m.deleted = 0
+                 AND m.id > ?
+                 AND EXISTS (
+                   SELECT 1 FROM json_each(m.mentions)
+                   WHERE json_each.value = ?
+                 )
+               ORDER BY m.id DESC
+               LIMIT ?""",
+            (since, player_id, limit),
+        )
+        return [dict(r) for r in rows]
+
     def get_unread_counts(self, player_id: int) -> dict[int, int]:
         rows = self.execute(
             """SELECT c.id as channel_id,
