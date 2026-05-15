@@ -25,8 +25,21 @@ jobs:
       - run: cd frontend && npm ci && npm run build
       # Post-mortem 2026-05-15: a broken nginx location block crashed prod
       # for ~9 min before a revert recovered it. Catch syntax errors here.
+      # Uses the same base image + nginx packages as the production Dockerfile
+      # (Stage 2: python:3.12-slim + nginx-full + brotli dynamic modules) so
+      # `brotli on;` and friends resolve, not an unknown-directive emerg.
       - name: Validate nginx.conf
-        run: docker run --rm -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:alpine nginx -t
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            python:3.12-slim sh -c "
+              apt-get update -qq &&
+              apt-get install -y -qq --no-install-recommends \
+                nginx-full \
+                libnginx-mod-http-brotli-filter \
+                libnginx-mod-http-brotli-static &&
+              nginx -t
+            "
 
   deploy:
     needs: test
