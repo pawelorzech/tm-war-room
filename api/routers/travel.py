@@ -48,8 +48,9 @@ async def travel_info():
         market_prices = _price_cache
     else:
         try:
+            # v1 (dict keyed by item id with flat market_value) — see comment in routers/market.py
             resp = await torn_client._http.get(
-                "https://api.torn.com/v2/torn/",
+                "https://api.torn.com/torn/",
                 params={"selections": "items", "key": torn_client._api_key},
             )
             resp.raise_for_status()

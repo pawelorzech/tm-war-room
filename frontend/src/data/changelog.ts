@@ -12,9 +12,18 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.0";
+export const CURRENT_VERSION = "1.31.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.1",
+    date: "2026-05-15",
+    title: "Hotfix — roll back 4 v2 selections with breaking shape changes; fix /key/info parser",
+    changes: [
+      { type: "fix", text: "Empirical v2 probes after 1.31.0 deployed showed four selections changed shape between v1 and v2 in ways that broke our consumers: /v2/torn/stocks returns an array (v1 returned a dict keyed by id), /v2/torn/honors+medals same array vs dict, /v2/torn/items returns an array with value.market_price nested (v1 had flat market_value on top), and /v2/torn/rankedwars currently returns an error in v2. Rolled fetch_stock_market, fetch_honor_catalog, fetch_ranked_wars, and the four torn/items call sites (routers/market, routers/stocks, routers/travel, scheduler/refresh_data) back to /v1 with explicit comments. v1 is frozen but functional — proper v2 migration for these needs consumer-side refactors (iterating lists, reading new field names) and is now tracked as backlog. Endpoints that DID migrate cleanly (user/bars, user/stocks, user/profile across main+admin+scheduler+avatars, torn/companies) stay on v2" },
+      { type: "fix", text: "Settings → API Key widget was returning 502 because /v2/key/info wraps the response under an outer 'info' key (not 'access' directly like the docs suggested). Parser now reads info.access.{level,type} and info.selections, with a flat-shape fallback in case Torn ever inlines it. Widget should now render with the green 'Full Access' badge for Full keys" },
+    ],
+  },
   {
     version: "1.31.0",
     date: "2026-05-15",

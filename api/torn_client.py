@@ -442,15 +442,16 @@ class TornClient:
             return cached
         start = time.time()
         try:
+            # NB: v2 returns {"error": ...} for rankedwars — keep on v1 (frozen but functional).
             resp = await self._http.get(
-                f"{V2_BASE}/torn/",
+                f"{V1_BASE}/torn/",
                 params={"selections": "rankedwars", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v2/torn/rankedwars", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v1/torn/rankedwars", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v2/torn/rankedwars", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v1/torn/rankedwars", False, (time.time() - start) * 1000, str(e))
             raise
         wars = raw.get("rankedwars", {})
         if isinstance(wars, dict):
@@ -514,15 +515,17 @@ class TornClient:
             return cached
         start = time.time()
         try:
+            # NB: v2 returns stocks as a LIST (v1 as a dict keyed by id) — our consumers
+            # iterate stocks.items(), so stay on v1 until we update those callers.
             resp = await self._http.get(
-                f"{V2_BASE}/torn/",
+                f"{V1_BASE}/torn/",
                 params={"selections": "stocks", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v2/torn/stocks", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v1/torn/stocks", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v2/torn/stocks", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v1/torn/stocks", False, (time.time() - start) * 1000, str(e))
             raise
         stocks = raw.get("stocks", {})
         self._set_cached("stocks_market", stocks)
@@ -609,15 +612,17 @@ class TornClient:
             return cached
         start = time.time()
         try:
+            # NB: v2 returns honors/medals as LISTS (v1 as dicts keyed by id) — collect_circulation
+            # iterates honors.items() / medals.items(), so stay on v1 until we update consumers.
             resp = await self._http.get(
-                f"{V2_BASE}/torn/",
+                f"{V1_BASE}/torn/",
                 params={"selections": "honors,medals", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
-            self._log_integration("torn_api", "/v2/torn/honors", True, (time.time() - start) * 1000)
+            self._log_integration("torn_api", "/v1/torn/honors", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("torn_api", "/v2/torn/honors", False, (time.time() - start) * 1000, str(e))
+            self._log_integration("torn_api", "/v1/torn/honors", False, (time.time() - start) * 1000, str(e))
             raise
         result = {
             "honors": raw.get("honors", {}),
@@ -786,13 +791,19 @@ class TornClient:
         except Exception as e:
             self._log_integration("torn_api", "/v2/key/info", False, (time.time() - start) * 1000, str(e))
             return None
-        access = raw.get("access") if isinstance(raw, dict) else None
-        if not isinstance(access, dict):
+        if not isinstance(raw, dict):
+            return None
+        # v2 /key/info wraps payload under "info"; "access"+"selections" live there.
+        # We also accept a flat shape in case Torn ever inlines it.
+        info = raw.get("info") if isinstance(raw.get("info"), dict) else raw
+        access = info.get("access") if isinstance(info.get("access"), dict) else {}
+        selections = info.get("selections") if isinstance(info.get("selections"), dict) else {}
+        if not access and not selections:
             return None
         result = {
             "access_level": access.get("level", access.get("access_level", 0)),
             "access_type": access.get("type") or access.get("access_type") or "Unknown",
-            "selections": access.get("selections", {}),
+            "selections": selections,
         }
         self._set_cached(cache_key, result)
         return result
