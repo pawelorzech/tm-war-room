@@ -134,6 +134,30 @@ export interface FactionSpiesResponse {
   total_count: number;
 }
 
+export interface TmKey {
+  player_id: number;
+  name: string;
+}
+
+export interface KeysResponse {
+  keys: TmKey[];
+}
+
+export interface EnemyMember {
+  id: number;
+  name: string;
+  level?: number;
+  threat_label?: string;
+}
+
+export interface EnemyResponse {
+  faction: unknown | null;
+  members: EnemyMember[];
+  threat_mode?: string;
+  threat_baseline?: string | null;
+  cached_at?: number;
+}
+
 export interface Target {
   player_id: number;
   player_name: string;

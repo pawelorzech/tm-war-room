@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.34.1";
+export const CURRENT_VERSION = "1.35.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.35.0",
+    date: "2026-05-15",
+    title: "Companion v0.14 — hospital list intel",
+    changes: [
+      {
+        type: "feat",
+        summary: "Hospital list rows on Torn now show TM Hub markers inline",
+        detail: "Open /hospitalview.php and any player in your faction (TM mate, green), the current war enemy (red), an OFF-LIMITS flag, or your saved target is called out with a pill — so you scan the page instead of cross-referencing 100 names.",
+      },
+      {
+        type: "feat",
+        summary: "Background tint on hospital rows for friend-or-foe at a glance",
+        detail: "TM mates get a soft green tint; current war enemies get a soft red tint. Players you have no signal on are left alone so the page is not noisy.",
+      },
+    ],
+  },
   {
     version: "1.34.1",
     date: "2026-05-15",
