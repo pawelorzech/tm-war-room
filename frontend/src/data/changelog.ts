@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.39.1";
+export const CURRENT_VERSION = "1.39.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.39.2",
+    date: "2026-05-15",
+    title: "Companion v0.17.2 — same width fix for stocks and travel cards",
+    changes: [
+      {
+        type: "fix",
+        summary: "Stocks and travel cards on Torn now always take the full content width",
+        before: "On Torn pages with a flex main container (notably PDA / narrow viewports) the stocks and travel cards could end up squeezed into a thin column with the header text wrapping awkwardly, the same shape as the armoury bug fixed in v0.17.1.",
+        after: "Both cards now force their Shadow DOM host to display block + width 100%, and their header rows wrap gracefully on small screens instead of breaking words.",
+        cause: "The same Shadow DOM host wasn't pinned to block + full width — the armoury fix wasn't applied to its two siblings.",
+      },
+    ],
+  },
   {
     version: "1.39.1",
     date: "2026-05-15",
