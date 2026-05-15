@@ -23,6 +23,10 @@ jobs:
         with:
           node-version: 20
       - run: cd frontend && npm ci && npm run build
+      # Post-mortem 2026-05-15: a broken nginx location block crashed prod
+      # for ~9 min before a revert recovered it. Catch syntax errors here.
+      - name: Validate nginx.conf
+        run: docker run --rm -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" nginx:alpine nginx -t
 
   deploy:
     needs: test

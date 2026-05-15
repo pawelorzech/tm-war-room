@@ -136,6 +136,7 @@ After each commit:
    - `/loot` — check NPCs show with levels
    - `/stocks` — check portfolio or market data
    - `/bounties` — check data loads (if empty, check API logs)
+   - `/spy/2362436` — confirm deep-link route serves the spy page (200, not 404; protects against the 2026-05-15 nginx-block outage class of regression)
 3. Check browser console for errors (use `browser_console_messages`)
 4. If ANY page shows empty data or errors → debug and fix BEFORE moving on
 5. Take screenshots of key pages as evidence

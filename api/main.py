@@ -1314,6 +1314,17 @@ if os.path.isdir(_next_static):
     app.mount("/_next/static", StaticFiles(directory=_next_static), name="next-static")
 
 
+@app.get("/spy/{player_id:int}")
+async def serve_spy_deep_link(player_id: int):
+    if not os.path.isdir(static_dir):
+        raise HTTPException(status_code=404, detail="Frontend not built")
+    static_root = os.path.realpath(static_dir)
+    target = _resolve_static_path(static_root, "spy", "_.html")
+    if not target or not os.path.isfile(target):
+        raise HTTPException(status_code=404, detail="Spy page not built")
+    return FileResponse(target, media_type="text/html", headers={"Cache-Control": "public, max-age=0, must-revalidate"})
+
+
 @app.head("/{path:path}")
 @app.get("/{path:path}")
 async def serve_frontend(path: str):

@@ -110,6 +110,24 @@ async def test_health_endpoint_returns_200(mock_client, mock_store):
 
 
 @pytest.mark.asyncio
+async def test_spy_deep_link_serves_sentinel():
+    import os
+    with tempfile.TemporaryDirectory() as static_root:
+        os.makedirs(os.path.join(static_root, "spy"))
+        sentinel = os.path.join(static_root, "spy", "_.html")
+        with open(sentinel, "w", encoding="utf-8") as fh:
+            fh.write("<html>spy sentinel</html>")
+        with patch("api.main.static_dir", static_root):
+            from api.main import app
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                resp = await ac.get("/spy/2362436")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/html")
+        assert b"spy sentinel" in resp.content
+
+
+@pytest.mark.asyncio
 async def test_serve_frontend_blocks_path_traversal():
     import os
 

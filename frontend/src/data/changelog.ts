@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.2";
+export const CURRENT_VERSION = "1.40.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.3",
+    date: "2026-05-16",
+    title: "Spy deep-link URLs are back — and nginx config now gets validated in CI",
+    changes: [
+      {
+        type: "feat",
+        summary: "/spy/<player_id> works again as a linkable URL",
+        detail: "You can paste or bookmark hub.tri.ovh/spy/2362436 and land on that player's spy card. This time the route is served by the backend instead of an nginx rewrite, so there's no path-mismatch risk.",
+      },
+      {
+        type: "improve",
+        summary: "CI now validates nginx.conf syntax before every deploy",
+        detail: "After yesterday's 9-min outage caused by a bad nginx block, the deploy workflow runs `nginx -t` against a clean container before triggering Coolify. Syntax errors will fail the workflow instead of taking prod down.",
+      },
+    ],
+  },
   {
     version: "1.40.2",
     date: "2026-05-15",
