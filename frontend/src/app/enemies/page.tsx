@@ -50,7 +50,11 @@ export default function EnemiesPage() {
           <div className="text-text-muted text-sm">Loading filters…</div>
         }
       >
-        <EnemyTable data={enemy} onLoadEnemy={loadEnemy} />
+        <EnemyTable
+          data={enemy}
+          onLoadEnemy={loadEnemy}
+          warId={overview?.war?.war_id ?? null}
+        />
       </Suspense>
 
       <div className="flex items-center justify-between text-xs text-text-muted pt-2 border-t border-border">

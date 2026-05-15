@@ -120,3 +120,20 @@ export interface EnemyResponse {
   threat_baseline: string | null;
   cached_at: number;
 }
+
+export interface WarOffLimits {
+  war_id: number;
+  player_id: number;
+  player_name: string;
+  set_by: number;
+  set_by_name: string;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WarOffLimitsResponse {
+  war_id: number;
+  entries: WarOffLimits[];
+  count: number;
+}
