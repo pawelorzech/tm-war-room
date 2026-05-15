@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { AppIcon } from '@/components/ui/AppIcon';
 
 interface Notification {
   id: number;
@@ -16,10 +18,10 @@ interface Notification {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  stakeout: '\uD83D\uDC41\uFE0F',
-  war: '\u2694\uFE0F',
-  loot: '\uD83D\uDCB0',
-  system: '\u2139\uFE0F',
+  stakeout: 'eye',
+  war: 'sword',
+  loot: 'cash',
+  system: 'bell',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -41,15 +43,17 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.notifications()
       .then(d => {
         const data = d as { notifications: Notification[]; unread: number };
         setNotifications(data.notifications);
         setUnread(data.unread);
       })
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load notifications'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -92,6 +96,8 @@ export default function NotificationsPage() {
               </div>
             ))}
           </div>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : notifications.length > 0 ? (
           <div className="space-y-2">
             {notifications.map(n => (
@@ -100,7 +106,7 @@ export default function NotificationsPage() {
                   n.read ? 'bg-bg-card border-text-secondary/10 opacity-70' : `bg-bg-card ${TYPE_COLORS[n.type] || 'border-text-secondary/20'}`
                 }`}>
                 <div className="flex items-start gap-2">
-                  <span className="text-lg shrink-0">{TYPE_ICONS[n.type] || '\uD83D\uDD14'}</span>
+                  <AppIcon name={TYPE_ICONS[n.type] || 'bell'} size={19} className="text-text-muted mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className={`text-sm font-medium ${n.read ? 'text-text-secondary' : 'text-text-primary'}`}>{n.title}</p>

@@ -6,6 +6,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 const RecentActivityChart = dynamic(
   () => import('@/components/chain/RecentActivityChart').then(m => ({ default: m.RecentActivityChart })),
@@ -123,6 +124,7 @@ export default function ChainPage() {
   const [tab, setTab] = useState<Tab>('chains');
   const [attacksInDb, setAttacksInDb] = useState(0);
   const [factionId, setFactionId] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Detail view state
   const [selectedChain, setSelectedChain] = useState<ChainSummary | null>(null);
@@ -134,6 +136,7 @@ export default function ChainPage() {
 
   const loadData = (force?: boolean) => {
     setLoading(true);
+    setError(null);
     Promise.all([
       api.chainList(force),
       api.chainRecent(100),
@@ -145,7 +148,7 @@ export default function ChainPage() {
       setAttacksInDb(chainData.attacks_in_db);
       setRecent((a as { attacks: RecentAttack[] }).attacks);
       if (t) setTimeline((t as { timeline: TimelineBucket[] }).timeline || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(e => setError(e instanceof Error ? e.message : 'Failed to load chain data')).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
@@ -153,10 +156,11 @@ export default function ChainPage() {
   const openChain = (chain: ChainSummary) => {
     setSelectedChain(chain);
     setDetailLoading(true);
+    setError(null);
     setDetailTab('members');
     api.chainDetail(chain.start_ts, chain.end_ts).then(d => {
       setDetail(d as ChainDetailResponse);
-    }).catch(() => {}).finally(() => setDetailLoading(false));
+    }).catch(e => setError(e instanceof Error ? e.message : 'Failed to load chain details')).finally(() => setDetailLoading(false));
   };
 
   const closeDetail = () => {
@@ -234,6 +238,8 @@ export default function ChainPage() {
 
         {loading ? (
           <div className="text-text-secondary text-sm animate-pulse">Loading attack data...</div>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={() => selectedChain ? openChain(selectedChain) : loadData(true)} />
         ) : tab === 'chains' ? (
           selectedChain ? (
             <ChainDetailView
@@ -243,7 +249,6 @@ export default function ChainPage() {
               detailTab={detailTab}
               setDetailTab={setDetailTab}
               sortedMembers={sortedMembers}
-              sortCol={sortCol}
               toggleSort={toggleSort}
               Arrow={Arrow}
               onBack={closeDetail}
@@ -275,7 +280,7 @@ function ChainListView({ chains, onSelect }: { chains: ChainSummary[]; onSelect:
 
   return (
     <div className="space-y-3">
-      {chains.map((c, i) => (
+      {chains.map((c) => (
         <button
           key={`${c.start_ts}-${c.end_ts}`}
           onClick={() => onSelect(c)}
@@ -339,7 +344,7 @@ function ChainListView({ chains, onSelect }: { chains: ChainSummary[]; onSelect:
 
 function ChainDetailView({
   chain, detail, loading, detailTab, setDetailTab,
-  sortedMembers, sortCol, toggleSort, Arrow, onBack, factionId = 0,
+  sortedMembers, toggleSort, Arrow, onBack, factionId = 0,
 }: {
   chain: ChainSummary;
   detail: ChainDetailResponse | null;
@@ -347,7 +352,6 @@ function ChainDetailView({
   detailTab: 'members' | 'attacks';
   setDetailTab: (t: 'members' | 'attacks') => void;
   sortedMembers: ChainDetailMember[];
-  sortCol: DetailSort;
   toggleSort: (col: DetailSort) => void;
   Arrow: React.FC<{ col: DetailSort }>;
   onBack: () => void;
@@ -555,7 +559,35 @@ function ActivityView({ timeline }: { timeline: TimelineBucket[] }) {
 function AttackTable({ attacks, factionId = 0 }: { attacks: RecentAttack[]; factionId?: number }) {
   return (
     <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="md:hidden divide-y divide-border-light">
+        {attacks.map(a => {
+          const isLoss = a.result === 'Lost' || a.result === 'Stalemate' || a.result === 'Escape';
+          const isIncoming = factionId > 0 && a.defender_faction_id === factionId;
+          const isRed = isLoss || isIncoming;
+          return (
+            <div key={a.id} className={`p-3 ${isRed ? 'bg-danger/10' : ''}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-text-primary truncate">{a.attacker_name || '?'}</p>
+                  <p className="text-xs text-text-muted truncate">
+                    vs {a.defender_name || '?'}
+                    {a.defender_faction_name && ` [${a.defender_faction_name}]`}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`font-medium ${RESULT_COLOR[a.result] || 'text-text-muted'}`}>{a.result}</p>
+                  <p className="text-[10px] text-text-muted">{timeAgo(a.started)}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-torn-green">{a.respect_gain > 0 ? `+${a.respect_gain.toFixed(2)} respect` : 'No respect'}</span>
+                <span className="text-text-muted">Chain {a.chain || '—'}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">

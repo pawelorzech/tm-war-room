@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface Target {
   id: number;
@@ -47,6 +48,7 @@ export default function TargetsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
@@ -63,14 +65,15 @@ export default function TargetsPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editDiff, setEditDiff] = useState('unknown');
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.targetsList(activeTag || undefined).then(d => {
       setData(d as TargetsData);
-    }).catch(() => {}).finally(() => setLoading(false));
-  };
+    }).catch(e => setError(e instanceof Error ? e.message : 'Failed to load targets')).finally(() => setLoading(false));
+  }, [activeTag]);
 
-  useEffect(() => { loadData(); }, [activeTag]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -200,6 +203,8 @@ export default function TargetsPage() {
         {/* Target list */}
         {loading ? (
           <CardSkeleton count={3} />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : filtered.length > 0 ? (
           <div className="space-y-2">
             {filtered.map(t => (

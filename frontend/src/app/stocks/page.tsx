@@ -9,6 +9,7 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
 import { StatCardsSkeleton, TableSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 const StockPriceChart = dynamic(
   () => import('@/components/stocks/StockPriceChart').then(m => ({ default: m.StockPriceChart })),
@@ -124,6 +125,7 @@ export default function StocksPage() {
   const [chartDays, setChartDays] = useState(30);
   const [roiData, setRoiData] = useState<StockROI[]>([]);
   const [portfolioError, setPortfolioError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const ownedIds = useMemo(() => {
     if (!portfolio) return new Set<number>();
@@ -132,6 +134,8 @@ export default function StocksPage() {
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
+    setPortfolioError('');
     Promise.all([
       api.stockMarket(),
       api.stockPortfolio().catch((e) => { setPortfolioError(e?.message || 'Could not load portfolio — use a Full Access API key'); return null; }),
@@ -141,7 +145,7 @@ export default function StocksPage() {
       setMarket(md.stocks);
       if (p) setPortfolio(p as PortfolioData);
       if (r) setRoiData((r as { recommendations: StockROI[] }).recommendations || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(e => setError(e instanceof Error ? e.message : 'Failed to load stock data')).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -266,6 +270,8 @@ export default function StocksPage() {
             <StatCardsSkeleton count={4} />
             <TableSkeleton rows={6} cols={7} />
           </>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : tab === 'portfolio' ? (
           /* ── Portfolio ── */
           portfolio && portfolio.holdings.length > 0 ? (
@@ -280,7 +286,27 @@ export default function StocksPage() {
               </div>
 
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="md:hidden divide-y divide-border-light">
+                  {sortedHoldings.map(h => (
+                    <button
+                      key={h.stock_id}
+                      onClick={() => selectStock(h.stock_id, h.name, h.acronym)}
+                      className={`w-full text-left p-3 hover:bg-bg-elevated/50 transition-colors ${selectedStock?.id === h.stock_id ? 'bg-torn-green/5' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-text-primary">{h.acronym} <span className="text-xs font-normal text-text-muted">{h.name}</span></p>
+                          <p className="text-xs text-text-muted">{h.total_shares.toLocaleString()} shares @ {fmtPrice(h.current_price)}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-medium">{fmtMoney(h.current_value)}</p>
+                          <p className={`text-xs ${profitClass(h.profit)}`}>{h.profit >= 0 ? '+' : ''}{fmtMoney(h.profit)} · {h.profit_pct.toFixed(1)}%</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
@@ -352,7 +378,36 @@ export default function StocksPage() {
 
             {roiData.length > 0 ? (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="md:hidden divide-y divide-border-light">
+                  {roiData.map((r, i) => {
+                    const paybackDays = r.is_active ? 0 : r.marginal_payback_days;
+                    return (
+                      <button
+                        key={`${r.stock_id}-${r.increment}`}
+                        onClick={() => selectStock(r.stock_id, r.name, r.acronym)}
+                        className={`w-full text-left p-3 hover:bg-bg-elevated/50 transition-colors ${r.is_active ? 'opacity-55' : ''} ${selectedStock?.id === r.stock_id ? 'bg-torn-green/5' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-text-primary">{r.is_active ? '—' : i + 1}. {r.acronym} <span className="text-[10px] text-text-muted">BB{r.increment}</span></p>
+                            <p className="text-xs text-text-muted truncate">{r.benefit_desc}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={r.marginal_roi_pct > 30 ? 'text-torn-green font-bold' : r.marginal_roi_pct > 15 ? 'text-torn-yellow font-bold' : 'text-text-secondary font-bold'}>
+                              {r.marginal_roi_pct.toFixed(1)}%
+                            </p>
+                            <p className="text-[10px] text-text-muted">{r.is_active ? 'active' : `${Math.round(paybackDays)}d payback`}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-xs">
+                          <span className="text-text-muted">Need {fmtMoney(r.cost_remaining)}</span>
+                          <span className="text-text-secondary">{fmtMoney(r.payout_value)}/{r.payout_freq_days}d</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
@@ -451,7 +506,42 @@ export default function StocksPage() {
 
             {filteredMarket.length > 0 ? (
               <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="md:hidden divide-y divide-border-light">
+                  {filteredMarket.map(s => {
+                    const isOwned = ownedIds.has(s.id);
+                    const holding = portfolio?.holdings.find(h => h.stock_id === s.id);
+                    const benefitActive = holding ? holding.total_shares >= s.benefit_requirement && s.benefit_requirement > 0 : false;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => selectStock(s.id, s.name, s.acronym)}
+                        className={`w-full text-left p-3 hover:bg-bg-elevated/50 transition-colors ${selectedStock?.id === s.id ? 'bg-torn-green/5' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-text-primary">
+                              {s.acronym} <span className="text-xs font-normal text-text-muted">{s.name}</span>
+                            </p>
+                            <p className="text-xs text-text-muted truncate">{s.benefit_desc || 'No benefit listed'}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-medium">{fmtPrice(s.current_price)}</p>
+                            {(benefitActive || isOwned) && (
+                              <p className={`text-[10px] font-bold ${benefitActive ? 'text-torn-green' : 'text-torn-yellow'}`}>
+                                {benefitActive ? 'ACTIVE' : 'OWNED'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+                          <span>{fmtMoney(s.market_cap)} cap</span>
+                          <span>{s.benefit_requirement > 0 ? `${s.benefit_requirement.toLocaleString()} req.` : 'No req.'}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">

@@ -6,6 +6,7 @@ import { useSort } from '@/hooks/useSort';
 import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface MarketItem {
   id: number;
@@ -32,8 +33,6 @@ function fmtMoney(n: number): string {
   return `$${n.toLocaleString()}`;
 }
 
-const MARKET_TAX = 0.0;  // Torn has no market tax currently, but we keep the toggle
-
 export default function MarketPage() {
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,15 +40,17 @@ export default function MarketPage() {
   const [filter, setFilter] = useState<Filter>('top20');
   const [taxPct, setTaxPct] = useState(0);
   const [typeFilter, setTypeFilter] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.marketPrices()
       .then(d => {
         const data = d as { items: MarketItem[] };
         setItems(data.items);
       })
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load market data'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -147,12 +148,49 @@ export default function MarketPage() {
         </div>
 
         <p className="text-xs text-text-muted">{displayItems.length} items shown{taxPct > 0 && ` (${taxPct}% tax applied)`}</p>
+        {error && <ErrorBanner message={error} onRetry={loadData} />}
 
         {loading ? (
           <p className="text-text-secondary text-sm animate-pulse">Loading market data...</p>
-        ) : displayItems.length > 0 ? (
+        ) : error ? null : displayItems.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="md:hidden divide-y divide-border-light">
+              {displayItems.slice(0, 80).map(item => {
+                const netProfit = item.profit_buy_sell * (1 - taxPct / 100);
+                const netMargin = item.buy_price > 0 ? (netProfit / item.buy_price) * 100 : 0;
+                return (
+                  <a
+                    key={item.id}
+                    href={`https://www.torn.com/imarket.php#/p=shop&step=shop&type=&searchname=${encodeURIComponent(item.name)}&ID=${item.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 hover:bg-bg-elevated/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-text-primary truncate">
+                          {item.name}
+                          {item.country_flag && <span className="ml-1.5">{item.country_flag}</span>}
+                        </p>
+                        <p className="text-xs text-text-muted">{item.type || 'Unknown type'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`font-semibold ${netProfit > 0 ? 'text-torn-green' : netProfit < 0 ? 'text-danger' : 'text-text-muted'}`}>
+                          {netProfit !== 0 ? `${netProfit > 0 ? '+' : ''}${fmtMoney(netProfit)}` : '—'}
+                        </p>
+                        <p className="text-[10px] text-text-muted">{netMargin > 0 ? `${netMargin.toFixed(0)}% margin` : 'no margin'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      <div><span className="text-text-muted">Market</span><p>{fmtMoney(item.market_value)}</p></div>
+                      <div><span className="text-text-muted">NPC Buy</span><p>{fmtMoney(item.buy_price)}</p></div>
+                      <div><span className="text-text-muted">NPC Sell</span><p>{fmtMoney(item.sell_price)}</p></div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">

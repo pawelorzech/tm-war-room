@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface RawMember {
   id: number;
@@ -95,15 +96,17 @@ export default function ActivityPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sortCol, setSortCol] = useState<SortCol>('last_action_ts');
   const [sortAsc, setSortAsc] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.overview()
       .then(d => {
         const raw = (d.members || []) as unknown as RawMember[];
         setMembers(raw.map(normalizeMember));
       })
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load member activity'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -176,9 +179,47 @@ export default function ActivityPage() {
 
         {loading ? (
           <p className="text-text-secondary text-sm animate-pulse">Loading member data...</p>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="md:hidden divide-y divide-border-light">
+              {displayMembers.map(m => {
+                const cat = activityCategory(m.last_action, m.status);
+                const c = CAT_COLORS[cat];
+                return (
+                  <a
+                    key={m.id}
+                    href={tornProfile(m.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 hover:bg-bg-elevated/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-text-primary truncate">
+                          {m.name}
+                          <span className="ml-1 text-[10px] text-text-muted">[{m.id}]</span>
+                        </p>
+                        <p className="text-xs text-text-muted truncate">{m.position || 'No position'}</p>
+                      </div>
+                      <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded shrink-0 ${c.bg} ${c.text}`}>
+                        {c.label}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      <div><span className="text-text-muted">Level</span><p>{m.level}</p></div>
+                      <div><span className="text-text-muted">Last</span><p className="truncate">{m.last_action || '—'}</p></div>
+                      <div><span className="text-text-muted">Days</span><p>{m.days_in_faction}</p></div>
+                    </div>
+                    {m.status && m.status !== 'Okay' && (
+                      <p className="mt-2 text-xs text-text-muted">{m.status}</p>
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">

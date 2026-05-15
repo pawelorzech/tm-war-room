@@ -7,6 +7,8 @@ import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { AppIcon } from '@/components/ui/AppIcon';
 
 interface Bounty {
   target_id: number;
@@ -101,18 +103,20 @@ export default function BountiesPage() {
   const [search, setSearch] = useState('');
   const [filterThreat, setFilterThreat] = useState<string>('all');
   const [hideUnavailable, setHideUnavailable] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.bounties()
       .then(d => setData(d as BountyResponse))
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load bounties'))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const bounties = data?.bounties || [];
+  const bounties = useMemo(() => data?.bounties || [], [data]);
 
   const grouped = useMemo(() => {
     let filtered: Bounty[] = search
@@ -167,7 +171,8 @@ export default function BountiesPage() {
   const toggleExpand = useCallback((id: number) => {
     setExpanded(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -235,7 +240,7 @@ export default function BountiesPage() {
         {/* Quick stats */}
         {data && easyCount > 0 && (
           <div className="bg-torn-green/5 border border-torn-green/20 rounded-lg p-3 flex items-center gap-3">
-            <span className="text-torn-green text-lg">💰</span>
+            <AppIcon name="cash" size={19} className="text-torn-green" />
             <div>
               <p className="text-sm font-medium text-text-primary">
                 {easyCount} easy target{easyCount !== 1 ? 's' : ''} available
@@ -250,9 +255,46 @@ export default function BountiesPage() {
 
         {loading ? (
           <TableSkeleton rows={10} cols={5} />
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : sortedGroups.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="md:hidden divide-y divide-border-light">
+              {sortedGroups.map(g => {
+                const unavailable = UNAVAILABLE_STATES.includes(g.target_status);
+                return (
+                  <a
+                    key={g.target_id}
+                    href={`https://www.torn.com/loader.php?sid=attack&user2ID=${g.target_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block p-3 hover:bg-bg-elevated/50 transition-colors ${unavailable ? 'opacity-45' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-text-primary truncate">
+                          {g.target_name || `#${g.target_id}`}
+                          {g.target_level > 0 && <span className="ml-1 text-[10px] text-text-muted">Lv{g.target_level}</span>}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <ThreatBadge label={g.threat_label} score={g.threat_score} source={g.threat_source} />
+                          {unavailable && <span className="px-1.5 py-0.5 text-[9px] rounded bg-danger/15 text-danger font-medium uppercase">{g.target_status}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-torn-green tabular-nums">{fmtMoney(g.total_reward)}</p>
+                        <p className="text-[10px] text-text-muted">{g.total_quantity > 1 ? `x${g.total_quantity}` : `${g.bounty_count} bounty`}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
+                      <span>{g.estimated_total ? `~${fmtStats(g.estimated_total)} stats` : 'No stat estimate'}</span>
+                      <span>{g.lister_count} lister{g.lister_count !== 1 ? 's' : ''}</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">

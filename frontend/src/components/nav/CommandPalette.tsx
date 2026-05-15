@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { searchNavItems, fuzzyMatch } from "@/lib/nav-data";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 const CHANNEL_ICONS: Record<string, string> = {
   general: "💬", "war-room": "⚔️", trading: "💰", "off-topic": "🎲",
@@ -175,7 +176,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         </p>
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-          <span className="text-text-muted">🔍</span>
+          <AppIcon name="search" size={17} className="text-text-muted" />
           <input
             ref={inputRef}
             type="text"
@@ -207,7 +208,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   : "text-text-secondary hover:bg-bg-elevated"
               }`}
             >
-              <span>{item.icon}</span>
+              <AppIcon name={item.icon} size={17} />
               <span className="flex-1 text-left">{item.label}</span>
               {item.unread > 0 && (
                 <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-torn-green text-bg-primary rounded-full px-1">

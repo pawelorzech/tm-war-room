@@ -7,6 +7,7 @@ import { SortableHeader } from '@/components/layout/SortableHeader';
 import { ExportButton } from '@/components/layout/ExportButton';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { ErrorBanner } from '@/components/layout/ErrorBanner';
 
 interface TopAttacker {
   attacker_id: number;
@@ -47,12 +48,14 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.chainAnalytics(days)
       .then(d => setData(d as AnalyticsData))
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load analytics'))
       .finally(() => setLoading(false));
   }, [days]);
 
@@ -102,6 +105,8 @@ export default function AnalyticsPage() {
 
         {loading ? (
           <p className="text-text-secondary text-sm animate-pulse">Loading analytics...</p>
+        ) : error ? (
+          <ErrorBanner message={error} onRetry={loadData} />
         ) : data ? (
           <>
             {/* Summary cards */}

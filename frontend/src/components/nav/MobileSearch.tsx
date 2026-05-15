@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { useRouter } from "next/navigation";
 import { searchNavItems } from "@/lib/nav-data";
+import { AppIcon } from "@/components/ui/AppIcon";
 
 interface MobileSearchProps {
   open: boolean;
@@ -97,7 +98,7 @@ export function MobileSearch({ open, onClose }: MobileSearchProps) {
       </p>
       {/* Search header */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-border">
-        <span className="text-text-muted">🔍</span>
+        <AppIcon name="search" size={17} className="text-text-muted" />
         <input
           ref={inputRef}
           type="text"
@@ -128,7 +129,7 @@ export function MobileSearch({ open, onClose }: MobileSearchProps) {
             onClick={() => navigate(item.href)}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-bg-elevated transition-colors border-b border-border-light/30"
           >
-            <span className="text-base">{item.icon}</span>
+            <AppIcon name={item.icon} size={17} />
             <div className="flex-1 text-left">
               <span className="text-text-primary">{item.label}</span>
             </div>
