@@ -18,6 +18,14 @@ export interface ToastInput {
   id?: string;
   title: string;
   body: string;
+  /**
+   * Optional pre-sanitized HTML for the title. When provided, replaces the
+   * escaped `title` in the rendered toast. Callers are responsible for
+   * escaping any user-supplied substrings before composing this string.
+   * The plain `title` is still used for the native browser Notification
+   * fallback (which only accepts text).
+   */
+  titleHtml?: string;
   /** Optional click handler. Receives the toast container so callers can close it. */
   onClick?: (close: () => void) => void;
   /** URL to open when toast is clicked. Used as fallback when onClick is omitted. */
@@ -118,7 +126,7 @@ function initHost(): ShadowRoot {
   return shadow;
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -133,10 +141,11 @@ function renderOne(input: ToastInput): void {
 
   const toast = document.createElement('div');
   toast.className = `toast ${input.tone || 'info'}`;
+  const titleHtml = input.titleHtml ?? escapeHtml(input.title);
   toast.innerHTML = `
     ${input.icon ? `<span class="icon">${escapeHtml(input.icon)}</span>` : ''}
     <div class="body">
-      <div class="title">${escapeHtml(input.title)}</div>
+      <div class="title">${titleHtml}</div>
       <div class="text">${escapeHtml(input.body)}</div>
     </div>
     <button class="close" aria-label="dismiss">×</button>
@@ -158,7 +167,16 @@ function renderOne(input: ToastInput): void {
     dismiss();
   });
 
-  toast.addEventListener('click', () => {
+  toast.addEventListener('click', (e) => {
+    // If the click landed on an <a> inside titleHtml (or anywhere else),
+    // let the anchor's own navigation handle it and skip the toast-level
+    // url. Otherwise mention-alert toasts would always pull the user to
+    // the hub chat even when they clicked the author profile link.
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest && target.closest('a')) {
+      dismiss();
+      return;
+    }
     if (input.onClick) {
       input.onClick(dismiss);
     } else if (input.url) {

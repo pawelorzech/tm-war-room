@@ -160,6 +160,7 @@ export default function SettingsPage() {
                 { key: 'loot_level4' as const, label: 'NPC Loot Level 4+', desc: 'When an NPC reaches loot level 4 or higher' },
                 { key: 'war_start' as const, label: 'War Started', desc: 'When a ranked war begins' },
                 { key: 'stakeout_change' as const, label: 'Stakeout Alert', desc: 'When a stakeout target changes status' },
+                { key: 'chat_mention' as const, label: 'Chat Mentions', desc: 'When someone @-mentions you in TM Hub chat' },
               ].map(({ key, label, desc }) => (
                 <label key={key} className="flex items-center gap-3 cursor-pointer group">
                   <input type="checkbox" checked={push.preferences[key]}
@@ -194,6 +195,7 @@ export default function SettingsPage() {
                 { key: 'loot_level4' as const, label: 'NPC Loot Level 4+', desc: 'When an NPC reaches loot level 4 or higher' },
                 { key: 'war_start' as const, label: 'War Started', desc: 'When a ranked war begins' },
                 { key: 'stakeout_change' as const, label: 'Stakeout Alert', desc: 'When a stakeout target changes status' },
+                { key: 'chat_mention' as const, label: 'Chat Mentions', desc: 'When someone @-mentions you in TM Hub chat' },
               ].map(({ key, label, desc }) => (
                 <label key={key} className="flex items-center gap-3 cursor-pointer group">
                   <input type="checkbox" checked={push.preferences[key]}

@@ -302,6 +302,7 @@ class ChatRepository(BaseRepository):
         """
         rows = self.execute(
             """SELECT m.id, m.channel_id, c.name as channel_name,
+                      m.player_id as author_id,
                       m.player_name as author_name, m.content, m.created_at
                FROM chat_messages m
                JOIN chat_channels c ON c.id = m.channel_id

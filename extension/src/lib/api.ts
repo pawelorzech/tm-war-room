@@ -19,6 +19,8 @@ import type {
   FactionSpiesResponse,
   KeysResponse,
   EnemyResponse,
+  ArmouryCompetitionsResponse,
+  ArmouryLeaderboardResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -235,6 +237,19 @@ export function fetchKeys(auth: CompanionAuth): Promise<KeysResponse> {
   return get<KeysResponse>('/api/keys', auth);
 }
 
+export interface OverviewMember {
+  id: number;
+  name: string;
+}
+
+export interface OverviewResponse {
+  members: OverviewMember[];
+}
+
+export function fetchOverview(auth: CompanionAuth): Promise<OverviewResponse> {
+  return get<OverviewResponse>('/api/overview', auth);
+}
+
 export function fetchEnemy(auth: CompanionAuth): Promise<EnemyResponse> {
   return get<EnemyResponse>('/api/enemy', auth);
 }
@@ -261,6 +276,17 @@ export function fetchStockPortfolio(auth: CompanionAuth): Promise<StockPortfolio
 
 export function fetchStockRoi(auth: CompanionAuth): Promise<StockRoiResponse> {
   return get<StockRoiResponse>('/api/stocks/roi', auth);
+}
+
+export function fetchArmouryCompetitions(auth: CompanionAuth): Promise<ArmouryCompetitionsResponse> {
+  return get<ArmouryCompetitionsResponse>('/api/armoury/competitions', auth);
+}
+
+export function fetchArmouryLeaderboard(
+  auth: CompanionAuth,
+  compId: number,
+): Promise<ArmouryLeaderboardResponse> {
+  return get<ArmouryLeaderboardResponse>(`/api/armoury/competitions/${compId}/leaderboard`, auth);
 }
 
 export function reserveLoot(

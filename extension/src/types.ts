@@ -58,6 +58,7 @@ export interface MentionPreview {
   id: number;
   channel_id: number;
   channel_name: string;
+  author_id: number;
   author_name: string;
   content: string;
   created_at: string;
@@ -288,4 +289,36 @@ export interface StockRoiRecommendation {
 export interface StockRoiResponse {
   recommendations: StockRoiRecommendation[];
   count: number;
+}
+
+export interface ArmouryCompetition {
+  id: number;
+  name: string;
+  category: string;
+  status: string;
+  start_ts: number;
+  end_ts: number;
+  prize_text?: string | null;
+  items?: string | null;
+}
+
+export interface ArmouryCompetitionsResponse {
+  competitions: ArmouryCompetition[];
+  count: number;
+}
+
+export interface ArmouryLeaderboardRow {
+  rank: number;
+  player_id: number;
+  player_name: string;
+  total: number;
+  deposits: number;
+  last_deposit: number | null;
+}
+
+export interface ArmouryLeaderboardResponse {
+  competition: ArmouryCompetition;
+  leaderboard: ArmouryLeaderboardRow[];
+  total_deposited: number;
+  participants: number;
 }

@@ -14,12 +14,13 @@ def _resolve_template(template: str, variables: dict) -> str:
 
 
 class NotificationDispatcher:
-    def __init__(self, push_service, push_repo, event_repo, group_repo, key_store):
+    def __init__(self, push_service, push_repo, event_repo, group_repo, key_store, notification_repo=None):
         self._push_service = push_service
         self._push_repo = push_repo
         self._event_repo = event_repo
         self._group_repo = group_repo
         self._key_store = key_store
+        self._notif_repo = notification_repo
 
     def send(
         self,
@@ -32,8 +33,14 @@ class NotificationDispatcher:
         sent_by: str = "system",
         template_id: int | None = None,
         variables: dict | None = None,
+        preference_filter: str | None = None,
     ) -> int:
-        """Send notification. Returns event_id."""
+        """Send notification. Returns event_id.
+
+        preference_filter (optional) — when target_type="player", only resolve
+        subs whose preferences[<preference_filter>] is truthy. Lets per-user
+        notifications respect the user's push preference toggles.
+        """
         variables = variables or {}
         title = _resolve_template(title, variables)
         body = _resolve_template(body, variables)
@@ -47,8 +54,25 @@ class NotificationDispatcher:
             variables_used=variables,
         )
 
-        subs = self._resolve_subscribers(target_type, target_value)
-        player_count = len({s["player_id"] for s in subs})
+        subs = self._resolve_subscribers(target_type, target_value, preference_filter)
+        unique_player_ids = {s["player_id"] for s in subs}
+        player_count = len(unique_player_ids)
+
+        # Mirror into per-user notification feed so the in-app bell at
+        # /notifications shows the same alert (push goes via subs below).
+        if self._notif_repo is not None:
+            for pid in unique_player_ids:
+                try:
+                    self._notif_repo.create(
+                        player_id=pid,
+                        type="system",
+                        title=title,
+                        message=body,
+                        data={"event_type": preference_filter or "system", "url": url},
+                    )
+                except Exception as e:
+                    logger.warning("Failed to write notification_repo entry for %d: %s", pid, e)
+
         for sub in subs:
             pid = sub["player_id"]
             channel = sub.get("channel", "webpush")
@@ -61,10 +85,15 @@ class NotificationDispatcher:
         logger.info("Dispatched event %d (%s) to %d players", event_id, target_type, player_count)
         return event_id
 
-    def _resolve_subscribers(self, target_type: str, target_value: str | None) -> list[dict]:
+    def _resolve_subscribers(self, target_type: str, target_value: str | None, preference_filter: str | None = None) -> list[dict]:
         """Return list of subscription dicts for the target."""
         if target_type == "player":
-            return self._push_repo.get_by_player(int(target_value)) if target_value else []
+            if not target_value:
+                return []
+            pid = int(target_value)
+            if preference_filter:
+                return self._push_repo.get_by_player_and_preference(pid, preference_filter)
+            return self._push_repo.get_by_player(pid)
         elif target_type == "all":
             return self._push_repo.get_all_subscribers()
         elif target_type == "group":

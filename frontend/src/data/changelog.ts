@@ -52,9 +52,36 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.35.0";
+export const CURRENT_VERSION = "1.36.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.36.0",
+    date: "2026-05-15",
+    title: "Chat mentions click through to Torn + notify you",
+    changes: [
+      {
+        type: "feat",
+        summary: "Every @mention in chat is now a clickable link to that player's Torn profile",
+        detail: "Works in the TM Hub web chat and inside the Companion dock on torn.com. Revive Monitor's lists, your own @mentions, and message authors all link through to torn.com/profiles.php in a new tab.",
+      },
+      {
+        type: "feat",
+        summary: "You get a notification when someone @-mentions you in chat",
+        detail: "Mentions land in the in-app /notifications bell and fire a web push toast (if you've enabled push). New 'Chat mentions' toggle in Settings → Push lets you opt out.",
+      },
+      {
+        type: "improve",
+        summary: "Typing @nick without picking from the autocomplete still mentions the person",
+        detail: "Used to require clicking the dropdown for the mention to register on the backend. Now the composer scans the message text for @names matching the faction roster and adds them automatically.",
+      },
+      {
+        type: "improve",
+        summary: "Companion mention toast lets you jump straight to the author's profile",
+        detail: "The author name in the 'X mentioned you' toast is its own link to their Torn profile. Clicking anywhere else on the toast still opens TM Hub chat as before.",
+      },
+    ],
+  },
   {
     version: "1.35.0",
     date: "2026-05-15",
