@@ -250,6 +250,7 @@ async def lifespan(app: FastAPI):
         event_repo=event_repo,
         group_repo=group_repo,
         key_store=key_store,
+        notification_repo=notification_repo,
     )
 
     from api.routers import admin_push as admin_push_mod

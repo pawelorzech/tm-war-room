@@ -13,6 +13,7 @@ import { ThreadPanel } from "./ThreadPanel";
 import { CreateThreadDialog } from "./CreateThreadDialog";
 import { ChatAdmin } from "./ChatAdmin";
 import { api } from "@/lib/api-client";
+import { getOverview } from "@/lib/overview-cache";
 import { Avatar } from "@/components/ui/Avatar";
 import type { Thread, Channel } from "@/types/chat";
 
@@ -53,7 +54,9 @@ export function ChatLayout() {
   const [travelers, setTravelers] = useState<{ player_id: number; name: string; status: string }[]>([]);
 
   useEffect(() => {
-    api.listKeys().then(res => setMembers(res.keys)).catch(() => {});
+    getOverview()
+      .then(ov => setMembers(ov.members.map(m => ({ player_id: m.id, name: m.name }))))
+      .catch(() => {});
     api.chatAdminIds().then(res => setAdminIds(new Set(res.admin_ids))).catch(() => {});
   }, []);
 

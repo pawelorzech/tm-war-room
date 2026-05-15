@@ -783,6 +783,7 @@ async def _notify_mentions(
                     target_type="player",
                     target_value=str(pid),
                     sent_by="system",
+                    preference_filter="chat_mention",
                 )
             elif push_service:
                 push_service.dispatch_to_player(

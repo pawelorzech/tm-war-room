@@ -168,6 +168,9 @@ class TestMessages:
         assert bob_mentions[1]["content"] == "hi @Bob"
         assert bob_mentions[0]["channel_name"] == "general"
         assert bob_mentions[0]["author_name"] == "Alice"
+        # author_id powers the companion toast's profile link.
+        assert bob_mentions[0]["author_id"] == 100
+        assert bob_mentions[1]["author_id"] == 100
 
     def test_get_recent_mentions_since_filter(self, chat_repo):
         ch = chat_repo.get_channel_by_name("general")

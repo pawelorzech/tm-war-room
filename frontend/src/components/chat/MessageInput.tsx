@@ -79,7 +79,19 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
   const handleSubmit = useCallback(() => {
     const content = value.trim();
     if (!content || disabled) return;
-    onSend(content, pendingMentions.length > 0 ? pendingMentions : undefined);
+
+    // Auto-extract @mentions even if user didn't pick from autocomplete dropdown
+    const byLower = new Map<string, number>();
+    for (const m of members) byLower.set(m.name.toLowerCase(), m.player_id);
+    const combined = new Set<number>(pendingMentions);
+    const tokens = content.match(/@[\w-]+/g) ?? [];
+    for (const t of tokens) {
+      const pid = byLower.get(t.slice(1).toLowerCase());
+      if (pid) combined.add(pid);
+    }
+    const finalMentions = Array.from(combined);
+
+    onSend(content, finalMentions.length > 0 ? finalMentions : undefined);
     setValue("");
     setPendingMentions([]);
     setMentionQuery(null);
@@ -87,7 +99,7 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [value, disabled, onSend, pendingMentions]);
+  }, [value, disabled, onSend, pendingMentions, members]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (suggestions.length > 0) {

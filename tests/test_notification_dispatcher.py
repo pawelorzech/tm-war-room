@@ -128,3 +128,77 @@ def test_pda_delivery_stays_pending():
     # PDA delivery stays pending — picked up by polling
     push_service._send_to_subs.assert_not_called()
     event_repo.mark_delivered.assert_not_called()
+
+
+def test_send_writes_to_notification_repo_for_targeted_player():
+    """When notification_repo is wired, each unique targeted player_id gets a feed entry."""
+    push_repo = MagicMock()
+    push_repo.get_by_player.return_value = [
+        {"player_id": 123, "channel": "webpush"},
+        {"player_id": 123, "channel": "pda"},  # two subs, same player
+    ]
+    event_repo = MagicMock()
+    event_repo.create_event.return_value = 1
+    event_repo.create_delivery.return_value = 10
+    notif_repo = MagicMock()
+
+    d = _make_dispatcher(push_repo=push_repo, event_repo=event_repo, notification_repo=notif_repo)
+    d.send(
+        title="@sender mentioned you", body="hello",
+        url="/chat?channel=1",
+        target_type="player", target_value="123",
+        sent_by="system",
+    )
+
+    # Exactly one bell entry per unique player, regardless of how many subs they have
+    notif_repo.create.assert_called_once()
+    kwargs = notif_repo.create.call_args.kwargs
+    assert kwargs["player_id"] == 123
+    assert kwargs["title"] == "@sender mentioned you"
+    assert kwargs["message"] == "hello"
+
+
+def test_preference_filter_scopes_player_subs():
+    """When preference_filter is set, dispatcher uses get_by_player_and_preference."""
+    push_repo = MagicMock()
+    push_repo.get_by_player_and_preference.return_value = []
+    event_repo = MagicMock()
+    event_repo.create_event.return_value = 1
+
+    d = _make_dispatcher(push_repo=push_repo, event_repo=event_repo)
+    d.send(
+        title="T", body="B", url=None,
+        target_type="player", target_value="123",
+        sent_by="system",
+        preference_filter="chat_mention",
+    )
+
+    push_repo.get_by_player_and_preference.assert_called_once_with(123, "chat_mention")
+    push_repo.get_by_player.assert_not_called()
+
+
+def test_no_preference_filter_uses_get_by_player():
+    """When preference_filter is None, dispatcher falls back to get_by_player (all subs)."""
+    push_repo = MagicMock()
+    push_repo.get_by_player.return_value = []
+    event_repo = MagicMock()
+    event_repo.create_event.return_value = 1
+
+    d = _make_dispatcher(push_repo=push_repo, event_repo=event_repo)
+    d.send(title="T", body="B", url=None, target_type="player", target_value="123", sent_by="system")
+
+    push_repo.get_by_player.assert_called_once_with(123)
+    push_repo.get_by_player_and_preference.assert_not_called()
+
+
+def test_send_without_notification_repo_does_not_crash():
+    """Backward compat: dispatcher constructed without notification_repo still works."""
+    push_repo = MagicMock()
+    push_repo.get_by_player.return_value = [{"player_id": 123, "channel": "webpush"}]
+    event_repo = MagicMock()
+    event_repo.create_event.return_value = 1
+    event_repo.create_delivery.return_value = 10
+
+    d = _make_dispatcher(push_repo=push_repo, event_repo=event_repo)  # no notification_repo
+    # Must not raise
+    d.send(title="T", body="B", url=None, target_type="player", target_value="123", sent_by="system")

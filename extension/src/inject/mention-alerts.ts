@@ -9,7 +9,7 @@
 import { ApiError, fetchRecentMentions } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
-import { showToast } from '../lib/notifications';
+import { escapeHtml, showToast } from '../lib/notifications';
 import { mentionsActive } from '../lib/settings';
 
 declare const GM_getValue: <T>(key: string, def?: T) => T;
@@ -74,9 +74,12 @@ async function pollOnce(): Promise<void> {
   // Newest mention first looks more natural in a toast stack (stack renders
   // bottom-up, so newest will appear on top).
   for (const m of mentions.slice(0, 5)) {
+    const authorEsc = escapeHtml(m.author_name);
+    const channelEsc = escapeHtml(m.channel_name);
     showToast({
       id: `mention:${m.id}`,
       title: `@${m.author_name} in #${m.channel_name}`,
+      titleHtml: `<a href="https://www.torn.com/profiles.php?XID=${m.author_id}" target="_blank" rel="noopener noreferrer" style="color:#58a6ff;text-decoration:none;font-weight:600">@${authorEsc}</a> in #${channelEsc}`,
       body: m.content,
       icon: '💬',
       tone: 'mention',

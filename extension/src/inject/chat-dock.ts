@@ -17,6 +17,7 @@ import {
   fetchChatChannels,
   fetchChatMessages,
   fetchChatUnread,
+  fetchOverview,
   markChatRead,
   sendChatMessage,
 } from '../lib/api';
@@ -253,6 +254,24 @@ const STYLES = `
     color: #58a6ff;
     font-weight: 600;
     margin-right: 6px;
+    text-decoration: none;
+  }
+  .msg a.author:hover { text-decoration: underline; }
+  .msg .author.bot { color: #d29922; }
+  .msg .text a.mention {
+    color: #58a6ff;
+    background: rgba(88, 166, 255, 0.12);
+    padding: 0 2px;
+    border-radius: 3px;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .msg .text a.mention:hover { text-decoration: underline; }
+  .msg .text .mention-unlinked {
+    color: #58a6ff;
+    background: rgba(88, 166, 255, 0.06);
+    padding: 0 2px;
+    border-radius: 3px;
   }
   .msg .time {
     color: #6e7681;
@@ -355,6 +374,22 @@ let _lastMsgId = 0;
 let _messagePoller: PollHandle | null = null;
 let _unreadPoller: PollHandle | null = null;
 let _atBottom = true;
+// Faction roster (playerId → name). Used to linkify @mentions inside message
+// content — only IDs that appear in a message's `mentions[]` AND match a
+// known faction member become clickable.
+let _roster: Map<number, string> = new Map();
+
+async function loadRoster(): Promise<void> {
+  if (_roster.size > 0) return;
+  const auth = getAuth();
+  if (!auth) return;
+  try {
+    const ov = await fetchOverview(auth);
+    _roster = new Map(ov.members.map((m) => [m.id, m.name]));
+  } catch {
+    // Dock still works without — mentions just fall back to styled non-link.
+  }
+}
 
 export function startChatDock(): DockController {
   const { shadow } = ensurePersistentHost({ kind: HOST_KIND, zIndex: 999900 });
@@ -373,6 +408,11 @@ export function startChatDock(): DockController {
     fn: () => pollUnread(shadow),
     immediate: true,
   });
+
+  // Prime the faction roster once so @mentions can be linkified. Re-renders
+  // pull from _roster, so a late arrival just upgrades visible mentions on
+  // the next render tick (poll cadence). No-op if not authenticated yet.
+  void loadRoster();
 
   // Heartbeat: flip the launch-button between connected (green chat) and
   // disconnected (yellow plug) variants without requiring a page reload.
@@ -774,12 +814,15 @@ function renderMessages(shadow: ShadowRoot): void {
         hour: '2-digit',
         minute: '2-digit',
       });
+      const authorHtml = m.bot_id
+        ? `<span class="author bot">${escapeHtml(m.player_name)}</span>`
+        : `<a class="author" href="https://www.torn.com/profiles.php?XID=${m.player_id}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.player_name)}</a>`;
       return `
         <div class="msg">
           <div>
-            <span class="author">${escapeHtml(m.player_name)}</span>
+            ${authorHtml}
             <span class="time">${time}</span>
-            <div class="text${mentioned ? ' mentioned' : ''}">${escapeHtml(m.content)}</div>
+            <div class="text${mentioned ? ' mentioned' : ''}">${renderBody(m.content, m.mentions, _roster)}</div>
           </div>
         </div>
       `;
@@ -841,6 +884,30 @@ async function doSend(
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderBody(content: string, mentions: number[], roster: Map<number, string>): string {
+  // Only IDs that are BOTH in the message's mentions[] AND in our local
+  // roster become clickable — that keeps us from linkifying arbitrary words
+  // that happen to look like Torn names.
+  const nameToId = new Map<string, number>();
+  for (const pid of mentions) {
+    const name = roster.get(pid);
+    if (name) nameToId.set(name.toLowerCase(), pid);
+  }
+  const parts = content.split(/(@[\w-]+)/g);
+  return parts
+    .map((part) => {
+      if (part.startsWith('@')) {
+        const pid = nameToId.get(part.slice(1).toLowerCase());
+        if (pid) {
+          return `<a class="mention" href="https://www.torn.com/profiles.php?XID=${pid}" target="_blank" rel="noopener noreferrer">${escapeHtml(part)}</a>`;
+        }
+        return `<span class="mention-unlinked">${escapeHtml(part)}</span>`;
+      }
+      return escapeHtml(part);
+    })
+    .join('');
 }
 
 // Avoid unused-variable warning in TypeScript.
