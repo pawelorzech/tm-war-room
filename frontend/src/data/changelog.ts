@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.22.0";
+export const CURRENT_VERSION = "1.23.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.23.0",
+    date: "2026-05-15",
+    title: "Companion v0.3 — @mention alerts inside torn.com",
+    changes: [
+      { type: "feat", text: "Whenever someone @mentions you in TM Hub chat — #war-room, #general, anywhere — the Companion userscript pops a toast on whatever torn.com page you are on within ~15s. Toast shows who mentioned you, in which channel, and a preview of the message. Click to jump to that channel; ignore to dismiss. If torn.com is in a background tab and you granted browser notification permission, a native OS-level alert fires too" },
+      { type: "feat", text: "New backend endpoint GET /api/chat/mentions/recent returns chat messages where the caller is in the mentions array, with channel name and message preview (200 char clamp). Powers the Companion mention feature without exposing the full chat firehose to userscripts" },
+      { type: "improve", text: "Polling discipline — mentions poll every 15s, notifications every 45s, heartbeat every 60s. All paused when the torn.com tab is hidden (Page Visibility API). Exponential backoff on 5xx so a backend outage doesn't get hammered" },
+      { type: "improve", text: "Use the gear icon in the bottom-right of torn.com to mute @mentions for 1h without disconnecting the whole Companion" },
+    ],
+  },
   {
     version: "1.22.0",
     date: "2026-05-15",

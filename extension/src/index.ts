@@ -19,6 +19,7 @@ import { applyBaseStyles, ensureHost } from './lib/shadow';
 import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
 import { startSettingsButton } from './inject/settings-button';
+import { startMentionAlerts } from './inject/mention-alerts';
 import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
 
@@ -164,6 +165,7 @@ function bootstrap(): void {
   // awareness. Each runs as long as we have an auth token; they self-skip
   // when getAuth() returns null.
   startNotificationToasts();
+  startMentionAlerts();
   startHeartbeat();
   startSettingsButton();
 }

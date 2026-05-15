@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 
-from fastapi import APIRouter, HTTPException, Header, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Header, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from api.auth import decode_jwt, rate_limiter
@@ -428,6 +428,36 @@ async def get_unread(x_player_id: int = Header()):
         counts = {k: v for k, v in counts.items() if k not in admin_only_ids}
     total = sum(counts.values())
     return {"channels": counts, "total": total}
+
+
+@router.get("/mentions/recent")
+async def get_recent_mentions(
+    since: int = Query(0, ge=0, description="Last seen message id (exclusive)"),
+    limit: int = Query(20, ge=1, le=50),
+    x_player_id: int = Header(),
+):
+    """Return recent chat messages where the caller was @mentioned.
+
+    Powers the TM Hub Companion userscript's @mention toast feature: the
+    userscript polls this endpoint every ~15s with `since=<last_seen_id>`,
+    renders new mentions as toast cards on torn.com.
+
+    Content is truncated to 200 chars (UI clamps anyway) to keep the payload
+    small and reduce the risk of leaking secrets pasted in chat.
+    """
+    if not chat_repo:
+        raise HTTPException(status_code=503, detail="Not initialized")
+    _verify_member(x_player_id)
+    rows = chat_repo.get_recent_mentions(x_player_id, since=since, limit=limit)
+    if not _is_admin(x_player_id):
+        admin_only_ids = {ch["id"] for ch in chat_repo.get_channels() if ch["admin_only"]}
+        rows = [r for r in rows if r["channel_id"] not in admin_only_ids]
+    # Truncate content for safety / bandwidth.
+    for r in rows:
+        content = r.get("content") or ""
+        if len(content) > 200:
+            r["content"] = content[:197] + "…"
+    return {"mentions": rows, "count": len(rows)}
 
 
 @router.get("/admin-ids")

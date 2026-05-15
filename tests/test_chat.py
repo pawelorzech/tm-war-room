@@ -154,6 +154,46 @@ class TestMessages:
         messages = chat_repo.get_messages(ch["id"])
         assert messages[0]["mentions"] == [200, 300]
 
+    def test_get_recent_mentions_returns_only_for_mentioned_player(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        chat_repo.create_message(ch["id"], 100, "Alice", "no mention here", mentions=[])
+        chat_repo.create_message(ch["id"], 100, "Alice", "hi @Bob", mentions=[200])
+        chat_repo.create_message(ch["id"], 100, "Alice", "@Carol only", mentions=[300])
+        chat_repo.create_message(ch["id"], 100, "Alice", "@Bob @Carol both", mentions=[200, 300])
+
+        bob_mentions = chat_repo.get_recent_mentions(200)
+        # Bob sees the two messages where 200 is in mentions, newest first.
+        assert len(bob_mentions) == 2
+        assert bob_mentions[0]["content"] == "@Bob @Carol both"
+        assert bob_mentions[1]["content"] == "hi @Bob"
+        assert bob_mentions[0]["channel_name"] == "general"
+        assert bob_mentions[0]["author_name"] == "Alice"
+
+    def test_get_recent_mentions_since_filter(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        first = chat_repo.create_message(ch["id"], 100, "Alice", "old @Bob", mentions=[200])
+        second = chat_repo.create_message(ch["id"], 100, "Alice", "new @Bob", mentions=[200])
+
+        only_new = chat_repo.get_recent_mentions(200, since=first["id"])
+        assert len(only_new) == 1
+        assert only_new[0]["id"] == second["id"]
+        assert chat_repo.get_recent_mentions(200, since=second["id"]) == []
+
+    def test_get_recent_mentions_skips_deleted(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        msg = chat_repo.create_message(ch["id"], 100, "Alice", "@Bob hello", mentions=[200])
+        chat_repo.delete_message(msg["id"], player_id=100, is_admin=False)
+        assert chat_repo.get_recent_mentions(200) == []
+
+    def test_get_recent_mentions_limit(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        for i in range(5):
+            chat_repo.create_message(ch["id"], 100, "Alice", f"#{i} @Bob", mentions=[200])
+        results = chat_repo.get_recent_mentions(200, limit=3)
+        assert len(results) == 3
+        # Newest first
+        assert results[0]["content"] == "#4 @Bob"
+
     def test_message_with_bot(self, chat_repo):
         ch = chat_repo.get_channel_by_name("general")
         bot_id = chat_repo.create_bot("TestBot", "token123", "*", 1)
