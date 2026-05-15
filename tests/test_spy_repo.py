@@ -55,3 +55,45 @@ def test_get_all_estimates(repo):
             strength=1e9, defense=1e9, speed=1e9, dexterity=1e9, total=4e9, confidence="estimate", reported_at="2026-03-28T12:00:00")
     estimates = repo.get_all_estimates()
     assert len(estimates) == 3
+
+
+def test_get_names_for_ids_from_spy_reports(repo):
+    repo.upsert_report(player_id=42, player_name="Hero", source="tornstats",
+        strength=1, defense=1, speed=1, dexterity=1, total=4, confidence="estimate",
+        reported_at="2026-05-15T12:00:00")
+    repo.upsert_report(player_id=43, player_name=None, source="member_submit",
+        strength=1, defense=1, speed=1, dexterity=1, total=4, confidence="exact",
+        reported_at="2026-05-15T12:00:00")
+    names = repo.get_names_for_ids([42, 43, 44])
+    assert names == {42: "Hero"}
+
+
+def test_get_names_for_ids_falls_back_to_attack_log(repo):
+    conn = repo._conn()
+    conn.execute(
+        """INSERT INTO attack_log
+           (id, attacker_id, attacker_name, defender_id, defender_name, result, started, ended)
+           VALUES (1, 999, 'Me', 42, 'EnemyDef', 'Attacked', 1700000000, 1700000060),
+                  (2, 43, 'EnemyAtk', 999, 'Me', 'Lost', 1700000000, 1700000060)""",
+    )
+    conn.commit()
+    names = repo.get_names_for_ids([42, 43, 44])
+    assert names == {42: "EnemyDef", 43: "EnemyAtk"}
+
+
+def test_get_names_for_ids_prefers_spy_reports_over_attack_log(repo):
+    repo.upsert_report(player_id=42, player_name="FromReport", source="tornstats",
+        strength=1, defense=1, speed=1, dexterity=1, total=4, confidence="estimate",
+        reported_at="2026-05-15T12:00:00")
+    conn = repo._conn()
+    conn.execute(
+        """INSERT INTO attack_log
+           (id, attacker_id, attacker_name, defender_id, defender_name, result, started, ended)
+           VALUES (1, 999, 'Me', 42, 'FromAttackLog', 'Attacked', 1700000000, 1700000060)""",
+    )
+    conn.commit()
+    assert repo.get_names_for_ids([42]) == {42: "FromReport"}
+
+
+def test_get_names_for_ids_empty(repo):
+    assert repo.get_names_for_ids([]) == {}

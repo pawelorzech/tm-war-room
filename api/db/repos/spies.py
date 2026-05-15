@@ -55,6 +55,53 @@ class SpyRepository(BaseRepository):
         rows = self.execute("SELECT * FROM spy_estimates ORDER BY total DESC")
         return [dict(r) for r in rows]
 
+    def get_names_for_ids(self, player_ids: list[int]) -> dict[int, str]:
+        # spy_estimates.player_name can be NULL when TornStats /spy/faction/{id}
+        # doesn't include a name (95% of rows in prod). Scavenge a usable name
+        # from any local table that has one. Order = most authoritative first.
+        if not player_ids:
+            return {}
+        result: dict[int, str] = {}
+
+        def _scan(sql: str, ids: list[int]) -> None:
+            if not ids:
+                return
+            placeholders = ",".join("?" * len(ids))
+            for r in self.execute(sql.format(ph=placeholders), tuple(ids)):
+                result.setdefault(r["pid"], r["name"])
+
+        _scan(
+            """SELECT player_id AS pid, player_name AS name FROM spy_reports
+               WHERE player_id IN ({ph})
+                 AND player_name IS NOT NULL AND player_name != ''
+               ORDER BY reported_at DESC""",
+            player_ids,
+        )
+        remaining = [p for p in player_ids if p not in result]
+        _scan(
+            """SELECT defender_id AS pid, defender_name AS name FROM attack_log
+               WHERE defender_id IN ({ph})
+                 AND defender_name IS NOT NULL AND defender_name != ''
+               ORDER BY started DESC""",
+            remaining,
+        )
+        remaining = [p for p in player_ids if p not in result]
+        _scan(
+            """SELECT attacker_id AS pid, attacker_name AS name FROM attack_log
+               WHERE attacker_id IN ({ph})
+                 AND attacker_name IS NOT NULL AND attacker_name != ''
+               ORDER BY started DESC""",
+            remaining,
+        )
+        remaining = [p for p in player_ids if p not in result]
+        _scan(
+            """SELECT player_id AS pid, player_name AS name FROM targets
+               WHERE player_id IN ({ph})
+                 AND player_name IS NOT NULL AND player_name != ''""",
+            remaining,
+        )
+        return result
+
     def get_stale_estimates(self, max_age_days: int, limit: int) -> list[dict]:
         cutoff = f"-{max_age_days} days"
         rows = self.execute(

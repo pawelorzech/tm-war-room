@@ -40,7 +40,7 @@ async def refresh_spy_cache(spy_service: SpyService, torn_client, tornstats_key:
                 skipped_empty += 1
                 continue
             spy_service.repo.upsert_report(
-                player_id=player_id, player_name=None, source="tornstats",
+                player_id=player_id, player_name=stats.get("name"), source="tornstats",
                 strength=stats.get("strength", 0) or 0,
                 defense=stats.get("defense", 0) or 0,
                 speed=stats.get("speed", 0) or 0,

@@ -43,6 +43,36 @@ async def test_get_spy_not_found(setup_db):
 
 
 @pytest.mark.asyncio
+async def test_known_endpoint_enriches_missing_names_from_attack_log(setup_db):
+    # Reproduces production state: a TornStats estimate exists with no name, but
+    # we've previously logged an attack against the player so we have a name locally.
+    # /api/spy/known must surface that name instead of leaving the row as "Unknown player".
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+    spy_repo.update_estimate(player_id=777, player_name=None, source="tornstats",
+        strength=1e9, defense=1e9, speed=1e9, dexterity=1e9, total=4e9,
+        confidence="estimate", reported_at="2026-05-15T12:00:00")
+    conn = spy_repo._conn()
+    conn.execute(
+        """INSERT INTO attack_log
+           (id, attacker_id, attacker_name, defender_id, defender_name, result, started, ended)
+           VALUES (1, 999, 'Me', 777, 'EnemyName', 'Attacked', 1700000000, 1700000060)""",
+    )
+    conn.commit()
+    with patch("api.main.key_store", _mock_store()), patch("api.routers.spy.spy_service", spy_svc):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/known", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    estimates = resp.json()["estimates"]
+    row = next(e for e in estimates if e["player_id"] == 777)
+    assert row["player_name"] == "EnemyName"
+
+
+@pytest.mark.asyncio
 async def test_submit_and_get_spy(setup_db):
     from api.db.repos.spies import SpyRepository
     from api.services.spy import SpyService

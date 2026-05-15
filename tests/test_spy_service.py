@@ -59,3 +59,16 @@ def test_newer_same_source_wins(service):
     service.refresh_estimate(4)
     est = service.repo.get_estimate(4)
     assert est["total"] == 8e9
+
+
+def test_member_submit_estimate_keeps_tornstats_name(service):
+    # member_submit reports never carry a player_name. Before the fix this
+    # propagated NULL to the estimate even though a TornStats report with a name existed.
+    service.repo.upsert_report(player_id=5, player_name="Hero", source="tornstats",
+        strength=1e9, defense=1e9, speed=1e9, dexterity=1e9, total=4e9, confidence="estimate", reported_at=_days_ago(3))
+    service.repo.upsert_report(player_id=5, player_name=None, source="member_submit",
+        strength=2e9, defense=2e9, speed=2e9, dexterity=2e9, total=8e9, confidence="exact", reported_at=_days_ago(1))
+    service.refresh_estimate(5)
+    est = service.repo.get_estimate(5)
+    assert est["source"] == "member_submit"
+    assert est["player_name"] == "Hero"

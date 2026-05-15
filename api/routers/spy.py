@@ -79,11 +79,20 @@ async def list_known_estimates(svc: SpyService = Depends(_require_service)):
     now = datetime.now(timezone.utc)
     # Skip placeholder rows (total<=0) — they hold no actionable stat info,
     # and rendering them as "0/0/0/0" misleads the UI.
-    result = [
-        _fmt_estimate(e, now)
-        for e in estimates
+    visible = [
+        e for e in estimates
         if e["player_id"] not in hidden and (e.get("total") or 0) > 0
     ]
+    missing_ids = [e["player_id"] for e in visible if not (e.get("player_name") or "").strip()]
+    name_overrides = svc.repo.get_names_for_ids(missing_ids) if missing_ids else {}
+    result = []
+    for e in visible:
+        entry = _fmt_estimate(e, now)
+        if not (entry.get("player_name") or "").strip():
+            override = name_overrides.get(e["player_id"])
+            if override:
+                entry["player_name"] = override
+        result.append(entry)
     return {"estimates": result, "count": len(result)}
 
 
@@ -192,6 +201,10 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
                 pass
         raise HTTPException(status_code=404, detail="No spy data available for this player")
     result = _fmt_estimate(est, datetime.now(timezone.utc))
+    if not (result.get("player_name") or "").strip():
+        override = svc.repo.get_names_for_ids([player_id]).get(player_id)
+        if override:
+            result["player_name"] = override
     # Add stat estimate from personalstats if available
     if torn_client and result.get("confidence") in ("estimate", "unknown"):
         try:
