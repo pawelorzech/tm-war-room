@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CHANGELOG, CURRENT_VERSION } from '@/data/changelog';
-import type { ChangelogChange } from '@/data/changelog';
+import type { ChangelogChange, ChangelogEntry } from '@/data/changelog';
 import { useVersionNotice } from '@/hooks/useVersionNotice';
 
 const TYPE_STYLES: Record<ChangelogChange['type'], { label: string; color: string }> = {
@@ -11,7 +11,61 @@ const TYPE_STYLES: Record<ChangelogChange['type'], { label: string; color: strin
   improve: { label: 'IMPROVED', color: 'bg-blue-500/20 text-blue-400' },
 };
 
-function VersionCard({ entry, defaultOpen }: { entry: { version: string; date: string; title: string; changes: ChangelogChange[] }; defaultOpen: boolean }) {
+function ChangeRow({ change }: { change: ChangelogChange }) {
+  const style = TYPE_STYLES[change.type];
+  const badge = (
+    <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${style.color}`}>
+      {style.label}
+    </span>
+  );
+
+  // Fix entries get a Before / Now block plus optional "Why it broke" line.
+  if (change.type === 'fix') {
+    return (
+      <div className="flex items-start gap-2 pt-2">
+        {badge}
+        <div className="flex-1 min-w-0 space-y-2">
+          <p className="text-sm font-medium text-text-primary leading-snug">{change.summary}</p>
+          <div className="rounded-lg border border-text-secondary/15 bg-bg-elevated/40 overflow-hidden text-sm">
+            <div className="flex items-start gap-3 px-3 py-2 border-b border-text-secondary/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 shrink-0 w-12 pt-0.5">
+                Before
+              </span>
+              <span className="text-text-secondary leading-snug">{change.before}</span>
+            </div>
+            <div className="flex items-start gap-3 px-3 py-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-torn-green shrink-0 w-12 pt-0.5">
+                Now
+              </span>
+              <span className="text-text-secondary leading-snug">{change.after}</span>
+            </div>
+          </div>
+          {change.cause && (
+            <p className="text-xs italic text-text-muted leading-snug">
+              <span className="not-italic font-medium text-text-muted/80">Why it broke — </span>
+              {change.cause}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // feat / improve — summary + optional detail.
+  return (
+    <div className="flex items-start gap-2 pt-2">
+      {badge}
+      <div className="flex-1 min-w-0 space-y-1">
+        <p className="text-sm font-medium text-text-primary leading-snug">{change.summary}</p>
+        {change.detail && (
+          <p className="text-sm text-text-secondary leading-snug">{change.detail}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VersionCard({ entry, defaultOpen }: { entry: ChangelogEntry; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const isLatest = entry.version === CURRENT_VERSION;
 
@@ -21,14 +75,14 @@ function VersionCard({ entry, defaultOpen }: { entry: { version: string; date: s
         onClick={() => setOpen(!open)}
         className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-bg-elevated/30 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <span className="text-lg font-bold text-text-primary">v{entry.version}</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-lg font-bold text-text-primary shrink-0">v{entry.version}</span>
           {isLatest && (
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-torn-green/20 text-torn-green px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-torn-green/20 text-torn-green px-2 py-0.5 rounded-full shrink-0">
               Latest
             </span>
           )}
-          <span className="text-sm text-text-secondary">{entry.title}</span>
+          <span className="text-sm text-text-secondary truncate">{entry.title}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs text-text-muted">{entry.date}</span>
@@ -36,18 +90,10 @@ function VersionCard({ entry, defaultOpen }: { entry: { version: string; date: s
         </div>
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-2 border-t border-border-light">
-          {entry.changes.map((change, i) => {
-            const style = TYPE_STYLES[change.type];
-            return (
-              <div key={i} className="flex items-start gap-2 pt-2">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${style.color}`}>
-                  {style.label}
-                </span>
-                <span className="text-sm text-text-secondary">{change.text}</span>
-              </div>
-            );
-          })}
+        <div className="px-4 pb-4 space-y-3 border-t border-border-light">
+          {entry.changes.map((change, i) => (
+            <ChangeRow key={i} change={change} />
+          ))}
         </div>
       )}
     </div>
