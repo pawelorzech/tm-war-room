@@ -18,6 +18,7 @@ import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
+import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -89,6 +90,15 @@ async function refresh(): Promise<void> {
     if (auth && match.faction_id) {
       const warId = await getWarId(auth);
       void applyFactionRosterOverlay({ factionId: match.faction_id, warId });
+    }
+    return;
+  }
+
+  if (match.kind === 'hospital') {
+    const auth = getAuth();
+    if (auth) {
+      const warId = await getWarId(auth);
+      void applyHospitalOverlay({ warId });
     }
     return;
   }
