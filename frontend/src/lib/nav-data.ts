@@ -88,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: "📚",
     items: [
       { label: "Member Guide", href: "/guide", icon: "📖" },
+      { label: "TM Hub Companion", href: "/install", icon: "⚡" },
       { label: "Userscripts", href: "/scripts", icon: "🔧" },
       { label: "FAQ", href: "/faq", icon: "❓" },
       { label: "Changelog", href: "/changelog", icon: "📋" },
