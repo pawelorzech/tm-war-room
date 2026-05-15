@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.0";
+export const CURRENT_VERSION = "1.40.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.1",
+    date: "2026-05-15",
+    title: "Companion shows real battle stats for teammates instead of \"no data\"",
+    changes: [
+      {
+        type: "fix",
+        summary: "TM Hub Intel on a teammate's Torn profile said \"no spy estimate available\" even when we had their exact stats",
+        before: "Visiting a faction member's profile (or looking them up on /spy) showed \"no data\" because TornStats and YATA almost never have spies on our own teammates.",
+        after: "If the teammate has their API key registered with TM Hub we now show their exact stats straight from our daily snapshot — STR / DEF / SPD / DEX and total. For players we don't have at all we fall back to a rough estimate derived from their public personalstats so the panel is no longer empty.",
+        cause: "The spy lookup only ever asked external spy networks; it ignored the stat snapshots we already collect for every registered member.",
+      },
+    ],
+  },
   {
     version: "1.40.0",
     date: "2026-05-15",
