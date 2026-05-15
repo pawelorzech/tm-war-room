@@ -21,6 +21,7 @@ import type {
   EnemyResponse,
   ArmouryCompetitionsResponse,
   ArmouryLeaderboardResponse,
+  KnownSpiesResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -231,6 +232,10 @@ export function fetchSpyEstimate(auth: CompanionAuth, playerId: number): Promise
 
 export function fetchFactionSpies(auth: CompanionAuth, factionId: number): Promise<FactionSpiesResponse> {
   return get<FactionSpiesResponse>(`/api/spy/faction/${factionId}`, auth);
+}
+
+export function fetchKnownSpies(auth: CompanionAuth): Promise<KnownSpiesResponse> {
+  return get<KnownSpiesResponse>('/api/spy/known', auth);
 }
 
 export function fetchKeys(auth: CompanionAuth): Promise<KeysResponse> {

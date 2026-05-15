@@ -52,9 +52,35 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.37.0";
+export const CURRENT_VERSION = "1.38.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.38.0",
+    date: "2026-05-15",
+    title: "Companion v0.16 — retal queue intel",
+    changes: [
+      {
+        type: "feat",
+        summary: "Retal queue rows on Torn now show TM Hub intel pills",
+        detail: "Open /factions.php?step=retals and any attacker we have data on gets a pill: OFF-LIMITS (don't retal them — they're medded out), your saved target tag, and 'spy 12.4M · 3d' if we know their stats. Attackers we have nothing on are left alone.",
+      },
+    ],
+  },
+  {
+    version: "1.37.1",
+    date: "2026-05-15",
+    title: "Spy Central — usernames instead of 'Unknown player'",
+    changes: [
+      {
+        type: "fix",
+        summary: "Known Stats rows now show the player's name when we have it locally",
+        before: "Roughly 85% of Known Stats rows rendered as 'Unknown player' even though we had the player's ID and had attacked or spied them before.",
+        after: "Rows now show the real name. New rows pick up the name straight from TornStats, and existing nameless rows are filled in at request time from our attack log, prior spy reports, or saved targets.",
+        cause: "The scheduled TornStats faction-spy refresh wrote every report with a NULL name (the TornStats response shape was being read with the wrong field path), so the estimate's name kept getting blanked out.",
+      },
+    ],
+  },
   {
     version: "1.37.0",
     date: "2026-05-15",
