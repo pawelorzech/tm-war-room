@@ -71,6 +71,13 @@ export default function InstallPage() {
             <p className="text-text-secondary text-xs">
               Works in Chrome, Firefox, Edge, and Safari. Fastest way to get started.
             </p>
+            <p className="text-text-muted text-[11px] leading-relaxed">
+              <span className="text-text-secondary font-semibold">Before you start:</span> open{' '}
+              <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                Torn → Preferences → API Keys
+              </a>{' '}
+              and create a <span className="text-text-secondary">Full Access</span> key — TM Hub will ask for it on first connect.
+            </p>
             <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
               <li>
                 Install{' '}
@@ -101,6 +108,13 @@ export default function InstallPage() {
             <h3 className="text-base font-bold">Torn PDA</h3>
             <p className="text-text-secondary text-xs">
               Torn PDA on iOS and Android supports userscripts natively.
+            </p>
+            <p className="text-text-muted text-[11px] leading-relaxed">
+              <span className="text-text-secondary font-semibold">Before you start:</span> in PDA, open{' '}
+              <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                Torn → Preferences → API Keys
+              </a>{' '}
+              and create a <span className="text-text-secondary">Full Access</span> key. Long-press the key → Copy. TM Hub will ask for it on first connect.
             </p>
             <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
               <li>Open Torn PDA → More → Userscripts</li>

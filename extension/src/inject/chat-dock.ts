@@ -20,7 +20,7 @@ import {
   markChatRead,
   sendChatMessage,
 } from '../lib/api';
-import { getAuth, clearAuth } from '../lib/auth';
+import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
 import type { ChatChannel, ChatMessage } from '../types';
 
@@ -488,7 +488,7 @@ function renderLaunchButton(shadow: ShadowRoot): void {
     const auth = getAuth();
     if (!auth) {
       // Friendly nudge — same flow as the chip's Connect button.
-      window.open(`${HUB_ORIGIN}/extension-auth`, 'tm-hub-companion-auth', 'width=520,height=720');
+      openAuthPage(HUB_ORIGIN);
       return;
     }
     if (_state.open) closeDock(shadow);

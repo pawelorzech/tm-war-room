@@ -38,6 +38,37 @@ export function clearAuth(): void {
 }
 
 /**
+ * Open the auth/handoff page in a way that works across hosts.
+ *
+ * Desktop (Tampermonkey / browsers): sized popup so it floats over torn.com
+ * and the postMessage handshake keeps an `opener` to write back to.
+ *
+ * Torn PDA (Flutter `flutter_inappwebview`): a sized popup is rendered as a
+ * full-screen modal overlay that users instinctively dismiss by tapping the
+ * edge — and once dismissed there is no obvious way to reopen it. Use a
+ * normal new-tab `window.open` instead, so the user can swipe back to
+ * torn.com and re-tap Connect in the chip if they need to.
+ */
+export function openAuthPage(hubOrigin: string): void {
+  const url = `${hubOrigin}/extension-auth`;
+  const isPDA =
+    typeof navigator !== 'undefined' &&
+    (/TornPDA/i.test(navigator.userAgent || '') ||
+      typeof (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview !==
+        'undefined');
+  if (isPDA) {
+    window.open(url, '_blank');
+    return;
+  }
+  const popup = window.open(
+    url,
+    'tm-hub-companion-auth',
+    'width=520,height=720,resizable=yes,scrollbars=yes',
+  );
+  if (!popup) window.open(url, '_blank');
+}
+
+/**
  * Listen for postMessage from hub.tri.ovh/extension-auth carrying the token.
  * Idempotent — safe to call multiple times.
  */

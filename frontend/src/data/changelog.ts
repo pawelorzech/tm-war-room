@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.30.3";
+export const CURRENT_VERSION = "1.30.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.30.4",
+    date: "2026-05-15",
+    title: "Companion v0.10.3 — friendlier first connect in Torn PDA",
+    changes: [
+      { type: "fix", text: "Tapping Connect in the companion chip inside Torn PDA used to open hub.tri.ovh/extension-auth as a sized popup ('width=520,height=720'). Flutter's in-app webview renders that as a full-screen modal overlay that users instinctively dismiss by tapping the edge — and once dismissed there was no obvious way to bring it back. The userscript now detects Torn PDA (via UA + flutter_inappwebview bridge) and opens the auth page as a normal new tab, so you can swipe back to torn.com and re-tap Connect anytime. Desktop Tampermonkey keeps the sized popup since that works well there" },
+      { type: "improve", text: "The login screen at /extension-auth now leads with a prominent 'Need a Torn API key?' card — a big mobile-friendly link straight to torn.com → Preferences → API Keys, plus a 1-2-3 mini-guide and a Torn-PDA-specific copy hint. The tiny 10px helper line was easy to miss on mobile; the new block makes the prereq impossible to overlook before you hit the input" },
+      { type: "improve", text: "Added a small recovery line at the bottom of the login screen explaining how to reopen the connect flow if you closed it by accident — tap the ⚡ TM Hub Companion chip at the bottom-left of any torn.com page → Connect" },
+      { type: "improve", text: "/install page now has a 'Before you start' note in both the Tampermonkey and Torn PDA cards, pointing at Torn → Preferences → API Keys so first-timers grab a Full Access key before they hit /extension-auth instead of after the prompt opens" },
+    ],
+  },
   {
     version: "1.30.3",
     date: "2026-05-15",

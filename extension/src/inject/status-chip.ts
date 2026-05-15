@@ -20,7 +20,7 @@ import {
   muteFor,
   unmute,
 } from '../lib/settings';
-import { getAuth, clearAuth } from '../lib/auth';
+import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
 import type { CompanionAuth } from '../types';
 
 const HOST_KIND = 'status-chip';
@@ -228,12 +228,7 @@ function renderChip(shadow: ShadowRoot, auth: CompanionAuth | null): void {
     }
   });
   chip.querySelector('[data-act="connect"]')?.addEventListener('click', () => {
-    const popup = window.open(
-      `${HUB_ORIGIN}/extension-auth`,
-      'tm-hub-companion-auth',
-      'width=520,height=720,resizable=yes,scrollbars=yes',
-    );
-    if (!popup) window.open(`${HUB_ORIGIN}/extension-auth`, '_blank');
+    openAuthPage(HUB_ORIGIN);
   });
 
   // Ensure menu element exists (rendered lazily on first open, but the
