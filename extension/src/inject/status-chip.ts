@@ -24,12 +24,7 @@ import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
 import type { CompanionAuth } from '../types';
 
 const HOST_KIND = 'status-chip';
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
-const COMPANION_VERSION: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_COMPANION_VERSION) ||
-  '0.0.0';
+import { HUB_ORIGIN, COMPANION_VERSION } from '../env';
 
 const STYLES = `
   :host { all: initial; }

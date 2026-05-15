@@ -114,7 +114,10 @@ async function refresh(): Promise<void> {
     renderAttackOverlay(off);
   }
 
-  if (match.kind === 'profile' || match.kind === 'attack') {
+  // Intel card only on /profile.php — on /page.php?sid=attack it shifted the
+  // attack button down and broke muscle memory. Players can still see full
+  // intel by visiting the target's profile beforehand.
+  if (match.kind === 'profile') {
     void renderProfileIntel(match.player_id, { warId, offLimits: off });
   }
 

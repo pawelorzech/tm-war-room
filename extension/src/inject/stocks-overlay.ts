@@ -25,9 +25,7 @@ import type {
   StockRoiResponse,
 } from '../types';
 
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
+import { HUB_ORIGIN } from '../env';
 
 const TTL_MS = 60_000;
 

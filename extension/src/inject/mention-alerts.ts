@@ -16,9 +16,7 @@ declare const GM_getValue: <T>(key: string, def?: T) => T;
 declare const GM_setValue: (key: string, value: unknown) => void;
 
 const STORAGE_LAST_SEEN = 'tm-hub-companion-last-seen-mention';
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
+import { HUB_ORIGIN } from '../env';
 
 function getLastSeenId(): number {
   return Number(GM_getValue<string>(STORAGE_LAST_SEEN, '0') || '0');

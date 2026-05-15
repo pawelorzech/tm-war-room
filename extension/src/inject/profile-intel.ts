@@ -34,9 +34,7 @@ export interface ProfileIntelContext {
   playerName?: string;
 }
 
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
+import { HUB_ORIGIN } from '../env';
 
 const INTEL_TTL_MS = 10 * 60_000; // 10 min cache per player
 

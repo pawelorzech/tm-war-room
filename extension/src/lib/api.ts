@@ -35,12 +35,7 @@ declare const GM_xmlhttpRequest: ((details: {
   ontimeout: () => void;
 }) => void) | undefined;
 
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
-const VERSION: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_COMPANION_VERSION) ||
-  '0.0.0';
+import { HUB_ORIGIN, COMPANION_VERSION as VERSION } from '../env';
 
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
