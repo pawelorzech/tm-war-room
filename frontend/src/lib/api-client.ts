@@ -507,6 +507,12 @@ export const api = {
 
   listKeys: () => apiFetch<{ keys: { player_id: number; name: string }[] }>("/api/keys"),
 
+  extensionIssueToken: () =>
+    apiPostJson<{ ext_token: string; player_id: number; player_name: string; expires_hours: number }>(
+      "/api/extension/issue-token",
+      {},
+    ),
+
   registerKey: (apiKey: string, remember: boolean = true) =>
     apiPostJson<{
       player_id: number;

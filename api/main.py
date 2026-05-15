@@ -31,6 +31,7 @@ from api.auth import (
     REMEMBER_TTL_HOURS,
     TOKEN_TYPE_SESSION,
     TOKEN_TYPE_ADMIN,
+    TOKEN_TYPE_EXTENSION,
 )
 from api.db import KeyStore
 from api.threat import compute_threat, compute_stat_threat
@@ -82,6 +83,8 @@ from api.routers.preferences import router as preferences_router
 import api.routers.preferences as preferences_mod
 from api.routers.war_off_limits import router as war_off_limits_router
 import api.routers.war_off_limits as war_off_limits_mod
+from api.routers.extension import router as extension_router
+import api.routers.extension as extension_mod
 from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
@@ -158,6 +161,9 @@ async def lifespan(app: FastAPI):
     from api.db.repos.war_off_limits import WarOffLimitsRepository
     war_off_limits_mod.repo = WarOffLimitsRepository(db_path="data/keys.db")
     war_off_limits_mod.key_store = key_store
+
+    extension_mod.key_store = key_store
+    extension_mod.torn_client = torn_client
 
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
@@ -403,6 +409,20 @@ app.include_router(chat_router)
 app.include_router(armoury_router)
 app.include_router(preferences_router)
 app.include_router(war_off_limits_router)
+app.include_router(extension_router)
+
+# CORS for the TM Hub Companion (browser extension / userscript running on
+# torn.com). Origins are explicit — wildcard would forbid credentials and we
+# don't want random sites calling our API anyway. The ext sends ext-token in
+# the Authorization header, no cookies — so allow_credentials=False is fine.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://hub.tri.ovh", "https://www.torn.com"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["X-Player-Id", "Authorization", "Content-Type", "X-TM-Companion"],
+    allow_credentials=False,
+    max_age=600,
+)
 
 # MCP server (Streamable HTTP transport)
 _mcp_app = mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware())
@@ -661,12 +681,20 @@ def _bearer_or_cookie(request: Request, cookie_name: str) -> str:
 async def enforce_api_auth(request: Request, call_next):
     path = request.url.path
     renewed_token: str | None = None
-    if path.startswith("/api/") and path not in PUBLIC_API_PATHS and not path.startswith("/api/admin/"):
+    # OPTIONS = CORS preflight from the TM Hub Companion content script.
+    # CORSMiddleware needs to respond with allow-headers etc. without auth
+    # because preflight by spec never carries Authorization/X-Player-Id.
+    if (
+        request.method != "OPTIONS"
+        and path.startswith("/api/")
+        and path not in PUBLIC_API_PATHS
+        and not path.startswith("/api/admin/")
+    ):
         try:
             payload = require_bearer_token(
                 _bearer_or_cookie(request, SESSION_COOKIE_NAME),
                 JWT_SECRET,
-                allowed_token_types=(TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN),
+                allowed_token_types=(TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN, TOKEN_TYPE_EXTENSION),
             )
         except HTTPException as exc:
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)

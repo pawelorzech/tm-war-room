@@ -9,9 +9,15 @@ from fastapi import HTTPException
 
 TOKEN_TYPE_SESSION = "session"
 TOKEN_TYPE_ADMIN = "admin"
+# Extension/userscript tokens — issued by /api/extension/issue-token, scoped to
+# the TM Hub Companion browser extension running on torn.com. Long TTL (90d)
+# because re-prompting the user from a torn.com tab is awkward. Revocable
+# through the regular jti revocation list.
+TOKEN_TYPE_EXTENSION = "extension"
 
 DEFAULT_TTL_HOURS = 24
 REMEMBER_TTL_HOURS = 24 * 90  # 90 days
+EXTENSION_TTL_HOURS = 24 * 90  # 90 days for browser extension tokens
 RENEW_THRESHOLD = 0.5  # renew when more than 50% of lifetime has elapsed
 
 

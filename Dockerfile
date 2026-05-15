@@ -1,9 +1,22 @@
-# Stage 1: Build frontend
+# Stage 0: Build the TM Hub Companion userscript so hub.tri.ovh/companion.user.js
+# resolves. The build script writes to extension/dist/ and (when frontend/public
+# exists) also publishes a copy into public/. We stage frontend/public/ in the
+# workspace so the publish side-effect lands somewhere we can COPY from.
+FROM node:20-alpine AS extension
+WORKDIR /workspace
+COPY extension/ ./extension/
+COPY frontend/public/ ./frontend/public/
+WORKDIR /workspace/extension
+RUN npm ci
+RUN npm run build
+
+# Stage 1: Build frontend (with companion userscript copied into public/)
 FROM node:20-alpine AS frontend
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ .
+COPY --from=extension /workspace/frontend/public/companion.user.js ./public/companion.user.js
 RUN npm run build
 
 # Stage 2: Backend + nginx reverse proxy

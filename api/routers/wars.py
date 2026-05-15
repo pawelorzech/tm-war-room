@@ -2,10 +2,35 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter, HTTPException
 
+from api.config import FACTION_ID
+
 logger = logging.getLogger("tm-hub.wars")
 
 router = APIRouter(prefix="/api/wars", tags=["wars"])
 torn_client = None  # Set by main.py
+
+
+@router.get("/current")
+async def current_war():
+    """Lightweight current-war lookup used by the TM Hub Companion extension.
+
+    Content scripts on torn.com profile/attack pages need ``war_id`` to fetch
+    off-limits flags. They poll this endpoint instead of the full /api/overview
+    payload. Returns ``{"war_id": null}`` outside of war.
+    """
+    if not torn_client:
+        raise HTTPException(status_code=503, detail="Not initialized")
+    war = await torn_client.fetch_war()
+    if not war or not war.war_id:
+        return {"war_id": None, "opponent_faction_id": None, "start": None, "end": None}
+    opponent = next((f for f in war.factions if f.id != FACTION_ID), None)
+    return {
+        "war_id": war.war_id,
+        "opponent_faction_id": opponent.id if opponent else None,
+        "opponent_name": opponent.name if opponent else None,
+        "start": war.start,
+        "end": war.end,
+    }
 
 
 def _parse_factions(factions_data) -> list[dict]:
