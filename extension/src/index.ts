@@ -15,7 +15,7 @@ import { getAuth, installAuthListener, clearAuth } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
-import { applyBaseStyles, ensureHost } from './lib/shadow';
+import { renderProfileIntel } from './inject/profile-intel';
 import { startNotificationToasts } from './inject/notification-toasts';
 import { startHeartbeat } from './inject/heartbeat';
 import { startStatusChip } from './inject/status-chip';
@@ -23,10 +23,6 @@ import { startMentionAlerts } from './inject/mention-alerts';
 import { startChatDock } from './inject/chat-dock';
 import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
-
-const HUB_ORIGIN: string =
-  (typeof process !== 'undefined' && process.env && (process.env as Record<string, string>).TM_HUB_ORIGIN) ||
-  'https://hub.tri.ovh';
 
 // Caches — keyed by absolute timestamps for expiry checking.
 let warIdCache: { value: number | null; until: number } = { value: null, until: 0 };
@@ -42,8 +38,9 @@ async function getWarId(auth: CompanionAuth): Promise<number | null> {
     return war.war_id;
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      // Token died — clear it so the chip flips to "not connected" on its
+      // next 5s tick. No need to render an extra prompt here.
       clearAuth();
-      promptConnect();
     }
     warIdCache = { value: null, until: Date.now() + 10_000 }; // short retry
     return null;
@@ -73,8 +70,18 @@ async function refresh(): Promise<void> {
 
   const auth = getAuth();
   if (!auth) {
-    promptConnect();
+    // The persistent status chip in the corner is now the canonical
+    // "not connected" UI — no need for an extra banner here. Just clear
+    // any leftover injections from a previous render.
+    renderProfileBadge(null);
     return;
+  }
+
+  // Profile intel (spy + targets + stakeout) runs unconditionally — it
+  // doesn't need an active war. Fire-and-forget; renders only when there's
+  // something to show.
+  if (match.kind === 'profile' || match.kind === 'attack') {
+    void renderProfileIntel(match.player_id);
   }
 
   const warId = await getWarId(auth);
@@ -93,57 +100,9 @@ async function refresh(): Promise<void> {
   }
 }
 
-// One-time "connect to TM Hub" banner shown when no token is present.
-//
-// IMPORTANT: we open the auth page with window.open() rather than a plain
-// `<a target="_blank">` link. Modern browsers null out `window.opener` for
-// cross-origin _blank links (and `rel="noopener"` does it explicitly), which
-// would break the postMessage handoff back to this tab. Programmatic
-// window.open with a named target keeps opener intact.
-let _promptShown = false;
-function promptConnect(): void {
-  if (_promptShown) return;
-  _promptShown = true;
-  const { host, shadow } = ensureHost('connect-banner');
-  applyBaseStyles(shadow);
-  const div = document.createElement('div');
-  div.className = 'card warn';
-  div.innerHTML = `
-    <span class="icon">⚡</span>
-    <div style="flex:1">
-      <div class="title warn">TM Hub Companion — not connected</div>
-      <div class="reason">Click to authorize this browser session.</div>
-      <div class="meta" style="margin-top:8px;">
-        <button class="btn btn-attack" data-act="connect">Connect to TM Hub →</button>
-      </div>
-    </div>
-  `;
-  shadow.appendChild(div);
-  if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
-
-  shadow.querySelector('[data-act="connect"]')?.addEventListener('click', () => {
-    const popup = window.open(
-      `${HUB_ORIGIN}/extension-auth`,
-      'tm-hub-companion-auth',
-      'width=520,height=720,resizable=yes,scrollbars=yes',
-    );
-    // If the popup blocker shoots us down, fall back to a normal navigation
-    // in a new tab — the user can then copy the token manually.
-    if (!popup) {
-      window.open(`${HUB_ORIGIN}/extension-auth`, '_blank');
-    }
-  });
-}
-
-function dismissConnectPrompt(): void {
-  document.querySelector('[data-tm-companion="connect-banner"]')?.remove();
-  _promptShown = false;
-}
-
 function bootstrap(): void {
   // Listen for token handoff from hub.tri.ovh/extension-auth.
   installAuthListener(() => {
-    dismissConnectPrompt();
     // Re-run refresh with the fresh token.
     void refresh();
     // Ask for native notification permission now that the user just

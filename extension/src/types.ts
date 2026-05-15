@@ -97,3 +97,46 @@ export interface ChatUnreadResponse {
   channels: Record<string, number>;
   total: number;
 }
+
+export interface SpyEstimate {
+  player_id: number;
+  player_name: string;
+  strength: number;
+  defense: number;
+  speed: number;
+  dexterity: number;
+  total: number;
+  confidence: 'exact' | 'estimate' | 'unknown' | string;
+  source: string;
+  reported_at: string;
+  age_days: number;
+}
+
+export interface Target {
+  player_id: number;
+  player_name: string;
+  tag?: string | null;
+  notes?: string | null;
+  difficulty?: string | null;
+  added_by?: number;
+  added_by_name?: string;
+}
+
+export interface TargetsResponse {
+  targets: Target[];
+  count: number;
+  tags: string[];
+}
+
+export interface Stakeout {
+  player_id: number;
+  player_name: string;
+  notes?: string | null;
+  added_by?: number;
+  added_by_name?: string;
+}
+
+export interface StakeoutsResponse {
+  stakeouts: Stakeout[];
+  count: number;
+}
