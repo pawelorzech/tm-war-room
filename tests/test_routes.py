@@ -288,6 +288,67 @@ async def test_enemy_with_rw(mock_client, mock_store):
     assert data["threat_baseline"] == "bombel"
 
 
+@pytest.mark.asyncio
+async def test_enemy_skips_zero_total_spy_estimate(mock_client, mock_store):
+    """Placeholder spy rows (total<=0) must not feed compute_stat_threat —
+    that path turns ratio=0 into (5, "easy") regardless of the enemy's level.
+    Such enemies must fall back to personalstats-based relative threat."""
+    mock_client.fetch_war = AsyncMock(return_value=_make_war())
+    mock_client.fetch_enemy_members = AsyncMock(return_value=[
+        _make_member(id=777, name="ZeroSpy"),
+        _make_member(id=888, name="RealSpy"),
+    ])
+    mock_client.fetch_faction_info = AsyncMock(return_value=FactionInfo(
+        id=9420, name="The Pusheen Army", tag="TPA", respect=4000000,
+        members_count=73, rank_name="Platinum", rank_level=16, best_chain=50000, wins=62))
+    enemy_ps = PersonalStats(
+        xanax_taken=2000, refills=900, attacks_won=4000, defends_won=400,
+        networth=5_000_000_000, highest_beaten=100, best_damage=6000,
+        best_kill_streak=90, damage_done=13_000_000)
+    mock_client.fetch_tornstats_spy = AsyncMock(return_value={777: enemy_ps, 888: enemy_ps})
+    mock_client.fetch_personalstats = AsyncMock(return_value=PersonalStats(
+        xanax_taken=3000, refills=1500, attacks_won=8000, defends_won=500,
+        networth=11_000_000_000, highest_beaten=100, best_damage=7000,
+        best_kill_streak=100, damage_done=20_000_000))
+
+    fake_repo = MagicMock()
+    fake_repo.get_estimate.side_effect = lambda pid: {
+        777: {"player_id": 777, "player_name": "ZeroSpy", "total": 0,
+              "strength": 0, "defense": 0, "speed": 0, "dexterity": 0},
+        888: {"player_id": 888, "player_name": "RealSpy", "total": 3_000_000_000,
+              "strength": 7.5e8, "defense": 7.5e8, "speed": 7.5e8, "dexterity": 7.5e8},
+        123: {"player_id": 123, "player_name": "bombel", "total": 5_000_000_000,
+              "strength": 1.25e9, "defense": 1.25e9, "speed": 1.25e9, "dexterity": 1.25e9},
+    }.get(pid)
+    fake_service = MagicMock()
+    fake_service.repo = fake_repo
+
+    registered_keys = {
+        123: {"player_id": 123, "player_name": "bombel", "api_key": "fk", "is_faction_key": False},
+    }
+    mock_store.get_all_keys = MagicMock(return_value=list(registered_keys.values()))
+    mock_store.get_key.side_effect = lambda player_id: registered_keys.get(player_id)
+    mock_store.has_key.side_effect = lambda player_id: player_id in registered_keys
+
+    with patch("api.routers.spy.spy_service", fake_service), \
+         patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
+         patch("api.main.TORNSTATS_API_KEY", "fake_ts_key"):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/enemy?baseline_pid=123", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    by_id = {m["id"]: m for m in resp.json()["members"]}
+
+    # ZeroSpy: placeholder row filtered → spy_total surfaces as None, not 0
+    assert by_id[777]["spy_total"] is None, by_id[777]
+    # ZeroSpy must NOT get the compute_stat_threat zero-ratio output
+    assert not (by_id[777]["threat_label"] == "easy" and by_id[777]["threat_score"] == 5), by_id[777]
+    # RealSpy: real estimate preserved, stat-based path stays in effect
+    assert by_id[888]["spy_total"] == 3_000_000_000, by_id[888]
+
+
 FAKE_YATA = {
     "123": {
         "id": 123, "name": "Test", "energy_share": 1, "energy": 87,

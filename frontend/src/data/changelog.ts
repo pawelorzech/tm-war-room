@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.31.2";
+export const CURRENT_VERSION = "1.31.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.31.3",
+    date: "2026-05-15",
+    title: "Fix — /enemies no longer shows everyone as 'easy 5'",
+    changes: [
+      { type: "fix", text: "Enemy threat scoring was labelling almost every enemy 'easy 5' regardless of level. Root cause: the spy_estimates table holds placeholder rows with total=0 for players where TornStats has no battle-stat data; the stat-based threat formula divided that zero by your real total, got a 0.0 ratio, and the 'ratio < 0.3 → easy' branch floored every such enemy at score 5. Now placeholder spy rows (total<=0) are skipped at the source, so those enemies fall back to the personalstats-based relative threat (xanax/refills/attacks_won/networth/level ratios), which produces the full easy/medium/hard/avoid spread again. Enemies with real spy estimates keep the more accurate stat-based score" },
+    ],
+  },
   {
     version: "1.31.2",
     date: "2026-05-15",

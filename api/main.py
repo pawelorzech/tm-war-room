@@ -1075,12 +1075,13 @@ async def enemy(
         else:
             baseline = baseline_result
 
-    # Look up spy estimates for better threat scoring
+    # Skip placeholder spy rows where total <= 0: compute_stat_threat would
+    # treat them as ratio=0 → (5, "easy") for every such enemy.
     spy_estimates = {}
     if spy_mod.spy_service:
         for m in members:
             est = spy_mod.spy_service.repo.get_estimate(m.id)
-            if est:
+            if est and (est.get("total") or 0) > 0:
                 spy_estimates[m.id] = est
 
     enemy_list = []
