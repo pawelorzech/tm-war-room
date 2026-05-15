@@ -77,7 +77,18 @@ class TornClient:
         except Exception as e:
             self._log_integration("torn_api", "/v2/faction/members", False, (time.time() - start) * 1000, str(e))
             raise
-        members = [FactionMember(**m) for m in raw["members"]]
+        # Torn occasionally returns 200 with a payload missing the `members` key (transient
+        # hiccup or `{error: ...}` body). Treat as empty rather than 500ing /api/overview.
+        # Real HTTP/JSON failures already raise above.
+        raw_members = raw.get("members") if isinstance(raw, dict) else None
+        if not isinstance(raw_members, list):
+            self._log_integration(
+                "torn_api", "/v2/faction/members", False, (time.time() - start) * 1000,
+                f"malformed response: members={type(raw_members).__name__}",
+            )
+            self._set_cached(cache_key, [])
+            return []
+        members = [FactionMember(**m) for m in raw_members]
         self._set_cached(cache_key, members)
         return members
 
@@ -629,9 +640,27 @@ class TornClient:
         except Exception as e:
             self._log_integration("torn_api", "/v1/torn/honors", False, (time.time() - start) * 1000, str(e))
             raise
+
+        # Defensive: v1 *should* return honors/medals as dicts keyed by id, but we've seen
+        # AttributeError: 'list' object has no attribute 'items' in production (collect_circulation
+        # iterates .items()). If Torn ever drifts to a list shape — or leaks an error payload
+        # with a wrong type — normalize to the dict-keyed-by-id contract callers expect.
+        def _as_id_dict(raw_val: Any) -> dict:
+            if isinstance(raw_val, dict):
+                return raw_val
+            if isinstance(raw_val, list):
+                out: dict = {}
+                for i, item in enumerate(raw_val):
+                    if not isinstance(item, dict):
+                        continue
+                    item_id = item.get("id", i)
+                    out[str(item_id)] = item
+                return out
+            return {}
+
         result = {
-            "honors": raw.get("honors", {}),
-            "medals": raw.get("medals", {}),
+            "honors": _as_id_dict(raw.get("honors")),
+            "medals": _as_id_dict(raw.get("medals")),
         }
         self._set_cached("honor_catalog", result)
         return result
