@@ -112,6 +112,28 @@ export interface SpyEstimate {
   age_days: number;
 }
 
+export interface FactionSpyMember {
+  player_id: number;
+  player_name: string;
+  strength: number;
+  defense: number;
+  speed: number;
+  dexterity: number;
+  total: number;
+  confidence: 'exact' | 'estimate' | 'unknown' | string;
+  source: string;
+  reported_at: string | null;
+  age_days: number | null;
+  level: number;
+}
+
+export interface FactionSpiesResponse {
+  faction: unknown | null;
+  members: FactionSpyMember[];
+  known_count: number;
+  total_count: number;
+}
+
 export interface Target {
   player_id: number;
   player_name: string;

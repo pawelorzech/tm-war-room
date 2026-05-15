@@ -6,11 +6,12 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
   player_id: number | null;
+  faction_id?: number | null;
 }
 
 /**
@@ -20,6 +21,7 @@ export interface PageMatch {
  * - `/profiles.php?XID=123` → profile (older URL form)
  * - `/page.php?sid=attack&user2ID=123` → attack (current router, post-2026-05)
  * - `/loader.php?sid=attack&user2ID=123` → attack (legacy router, kept for old tabs)
+ * - `/factions.php?step=profile&ID=123` → faction, faction_id=123
  */
 export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   const path = url.pathname.toLowerCase();
@@ -42,6 +44,13 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   }
   if (path === '/bounties.php') {
     return { kind: 'bounties', player_id: null };
+  }
+  if (path === '/factions.php') {
+    const step = url.searchParams.get('step');
+    const id = url.searchParams.get('ID') || url.searchParams.get('id');
+    if (step === 'profile' && id && /^\d+$/.test(id)) {
+      return { kind: 'faction', player_id: null, faction_id: parseInt(id, 10) };
+    }
   }
   return { kind: 'unknown', player_id: null };
 }

@@ -16,6 +16,7 @@ import type {
   ChatMessage,
   ChatUnreadResponse,
   SpyEstimate,
+  FactionSpiesResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -222,6 +223,10 @@ export function markChatRead(
 
 export function fetchSpyEstimate(auth: CompanionAuth, playerId: number): Promise<SpyEstimate> {
   return get<SpyEstimate>(`/api/spy/${playerId}`, auth);
+}
+
+export function fetchFactionSpies(auth: CompanionAuth, factionId: number): Promise<FactionSpiesResponse> {
+  return get<FactionSpiesResponse>(`/api/spy/faction/${factionId}`, auth);
 }
 
 export function fetchTargets(auth: CompanionAuth): Promise<TargetsResponse> {
