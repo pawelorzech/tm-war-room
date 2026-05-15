@@ -73,6 +73,45 @@ async def test_known_endpoint_enriches_missing_names_from_attack_log(setup_db):
 
 
 @pytest.mark.asyncio
+async def test_faction_snapshot_fallback_when_no_spy(setup_db):
+    """Faction members never get spied (you don't spy your own teammates), so
+    TornStats and YATA almost always return nothing for them. Before this
+    fallback, the companion showed "no spy estimate available" for the entire
+    faction. We pull the player's own stat_snapshots row (their API key →
+    exact battle stats) and return it as a SpyEstimate-shaped response.
+    """
+    from api.db.repos.spies import SpyRepository
+    from api.db.repos.stats import StatSnapshotRepository
+    from api.services.spy import SpyService
+
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+    stats_repo = StatSnapshotRepository(setup_db)
+    # Kaszmir registered an API key; daily snapshot collector wrote his stats.
+    stats_repo.insert_snapshot(
+        player_id=2001, snapshot_date="2026-05-14",
+        strength=20_000_000, defense=20_000_000, speed=20_000_000, dexterity=18_780_000,
+        total=78_780_000, level=70,
+    )
+
+    with patch("api.main.key_store", _mock_store()), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.stats_repo", stats_repo), \
+         patch("api.routers.spy.torn_client", None):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/2001", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["player_id"] == 2001
+    assert data["total"] == 78_780_000
+    assert data["source"] == "faction_snapshot"
+    assert data["confidence"] == "exact"  # snapshot is 1 day old
+
+
+@pytest.mark.asyncio
 async def test_submit_and_get_spy(setup_db):
     from api.db.repos.spies import SpyRepository
     from api.services.spy import SpyService
