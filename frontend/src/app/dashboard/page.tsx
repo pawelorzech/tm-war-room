@@ -77,30 +77,33 @@ export default function DashboardPage() {
       }
 
       // Chain
-      setChainCount(data.chain_summary.total_chains || 0);
-      setAttackCount(data.chain_summary.attacks_in_db || 0);
+      setChainCount(data.chain_summary?.total_chains || 0);
+      setAttackCount(data.chain_summary?.attacks_in_db || 0);
 
-      // Bounties
-      if (data.bounties.length > 0) {
-        const easy = data.bounties.filter((b: unknown) => (b as { threat_label: string }).threat_label === 'easy').length;
+      // Bounties — guard against null/undefined from upstream errors.
+      const bounties = (data.bounties || []) as unknown[];
+      if (bounties.length > 0) {
+        const easy = bounties.filter((b: unknown) => (b as { threat_label: string }).threat_label === 'easy').length;
         setEasyBounties(easy);
-        const totalValue = data.bounties.reduce((sum: number, b: unknown) => sum + ((b as { reward: number }).reward || 0), 0);
+        const totalValue = bounties.reduce((sum: number, b: unknown) => sum + ((b as { reward: number }).reward || 0), 0);
         setBountyValue(totalValue);
       }
 
-      // OC
-      const crimes = data.oc_crimes;
+      // OC — same defensive treatment. Torn occasionally returns crimes
+      // without participants[] which used to crash the whole load.
+      const crimes = (data.oc_crimes || []) as unknown[];
       setOcTotal(crimes.length);
       const ready = crimes.filter((c: unknown) => {
-        const crime = c as { participants: { planning_complete: boolean }[] };
-        return crime.participants.length > 0 && crime.participants.every(p => p.planning_complete);
+        const crime = c as { participants?: { planning_complete: boolean }[] };
+        const participants = crime.participants || [];
+        return participants.length > 0 && participants.every(p => p.planning_complete);
       }).length;
       setOcReady(ready);
 
       // Chat
       setChatUnread(data.chat_unread);
       const nameMap: Record<number, string> = {};
-      for (const ch of data.chat_channels) {
+      for (const ch of (data.chat_channels || [])) {
         nameMap[ch.id] = ch.name;
       }
       setChatChannelNames(nameMap);

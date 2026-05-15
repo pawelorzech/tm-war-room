@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.26.1";
+export const CURRENT_VERSION = "1.26.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.26.2",
+    date: "2026-05-15",
+    title: "Dashboard stops exploding on partial Torn API responses",
+    changes: [
+      { type: "fix", text: "Dashboard was throwing 'Cannot read properties of undefined (reading length)' when Torn's API returned an organized-crime record without a participants array, or when the bounties / oc_crimes / chat_channels payloads were null because of an upstream timeout. Added defensive guards on every list-typed dashboard field so a single bad row no longer kills the whole load" },
+    ],
+  },
   {
     version: "1.26.1",
     date: "2026-05-15",
