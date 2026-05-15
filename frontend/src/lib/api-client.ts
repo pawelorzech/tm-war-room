@@ -242,6 +242,20 @@ export const api = {
   pinnedNavsGet: () => apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs'),
   pinnedNavsPut: (hrefs: string[]) =>
     apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hrefs }) }),
+  warOffLimitsList: (warId: number) =>
+    apiFetch<import("@/types/war").WarOffLimitsResponse>(`/api/war-off-limits/${warId}`),
+  warOffLimitsAdd: (warId: number, data: { player_id: number; player_name: string; reason?: string }) =>
+    apiFetch<{ status: string }>(`/api/war-off-limits/${warId}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+  warOffLimitsUpdate: (warId: number, playerId: number, data: { reason: string }) =>
+    apiFetch<{ status: string }>(`/api/war-off-limits/${warId}/${playerId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+  warOffLimitsRemove: (warId: number, playerId: number) =>
+    apiFetch<{ status: string }>(`/api/war-off-limits/${warId}/${playerId}`, { method: 'DELETE' }),
   stakeoutList: () => apiFetch<unknown>('/api/stakeout'),
   stakeoutAdd: (data: { player_id: number; player_name?: string; notes?: string }) =>
     apiFetch<unknown>('/api/stakeout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),

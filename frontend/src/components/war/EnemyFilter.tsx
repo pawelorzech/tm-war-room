@@ -2,15 +2,18 @@
 
 export type EnemyStatusFilter = "okay" | "hospital";
 export type EnemyActivityFilter = "online" | "idle" | "offline";
+export type EnemyDiplomaticFilter = "off_limits_only" | "hide_off_limits";
 
 export interface EnemyFilterState {
   status: EnemyStatusFilter[];
   activity: EnemyActivityFilter[];
+  diplomatic: EnemyDiplomaticFilter | null;
 }
 
 export const EMPTY_ENEMY_FILTER: EnemyFilterState = {
   status: [],
   activity: [],
+  diplomatic: null,
 };
 
 const STATUS_VALUES: readonly EnemyStatusFilter[] = ["okay", "hospital"];
@@ -18,6 +21,10 @@ const ACTIVITY_VALUES: readonly EnemyActivityFilter[] = [
   "online",
   "idle",
   "offline",
+];
+const DIPLOMATIC_VALUES: readonly EnemyDiplomaticFilter[] = [
+  "off_limits_only",
+  "hide_off_limits",
 ];
 
 const STATUS_LABELS: Record<EnemyStatusFilter, string> = {
@@ -29,18 +36,26 @@ const ACTIVITY_LABELS: Record<EnemyActivityFilter, string> = {
   idle: "Idle",
   offline: "Offline",
 };
+const DIPLOMATIC_LABELS: Record<EnemyDiplomaticFilter, string> = {
+  off_limits_only: "Off-limits only",
+  hide_off_limits: "Hide off-limits",
+};
 
 interface EnemyFilterProps {
   value: EnemyFilterState;
   onChange: (value: EnemyFilterState) => void;
+  showDiplomatic?: boolean;
 }
 
 function toggle<T extends string>(arr: readonly T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 
-export function EnemyFilter({ value, onChange }: EnemyFilterProps) {
-  const hasAny = value.status.length > 0 || value.activity.length > 0;
+export function EnemyFilter({ value, onChange, showDiplomatic = false }: EnemyFilterProps) {
+  const hasAny =
+    value.status.length > 0 ||
+    value.activity.length > 0 ||
+    value.diplomatic !== null;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -62,7 +77,7 @@ export function EnemyFilter({ value, onChange }: EnemyFilterProps) {
           onChange({ ...value, activity: toggle(value.activity, v) })
         }
         trailing={
-          hasAny ? (
+          !showDiplomatic && hasAny ? (
             <button
               type="button"
               onClick={() => onChange(EMPTY_ENEMY_FILTER)}
@@ -73,6 +88,31 @@ export function EnemyFilter({ value, onChange }: EnemyFilterProps) {
           ) : null
         }
       />
+      {showDiplomatic ? (
+        <ChipRow
+          label="Diplomatic"
+          options={DIPLOMATIC_VALUES}
+          labels={DIPLOMATIC_LABELS}
+          selected={value.diplomatic ? [value.diplomatic] : []}
+          onToggle={(v) =>
+            onChange({
+              ...value,
+              diplomatic: value.diplomatic === v ? null : v,
+            })
+          }
+          trailing={
+            hasAny ? (
+              <button
+                type="button"
+                onClick={() => onChange(EMPTY_ENEMY_FILTER)}
+                className="text-xs text-text-muted hover:text-torn-green transition-colors px-1.5 py-1"
+              >
+                Clear
+              </button>
+            ) : null
+          }
+        />
+      ) : null}
     </div>
   );
 }
@@ -124,11 +164,19 @@ function ChipRow<T extends string>({
 
 export function applyEnemyFilter<
   T extends {
+    id: number;
     last_action: { status: string };
     status: { state: string };
   },
->(members: T[], filter: EnemyFilterState): T[] {
-  if (filter.status.length === 0 && filter.activity.length === 0) {
+>(
+  members: T[],
+  filter: EnemyFilterState,
+  offLimitsIds?: Set<number>,
+): T[] {
+  const noStatus = filter.status.length === 0;
+  const noActivity = filter.activity.length === 0;
+  const noDiplomatic = filter.diplomatic === null;
+  if (noStatus && noActivity && noDiplomatic) {
     return members;
   }
   return members.filter((m) => {
@@ -152,6 +200,11 @@ export function applyEnemyFilter<
       }
       if (!filter.activity.includes(a as EnemyActivityFilter)) return false;
     }
+    if (filter.diplomatic && offLimitsIds) {
+      const flagged = offLimitsIds.has(m.id);
+      if (filter.diplomatic === "off_limits_only" && !flagged) return false;
+      if (filter.diplomatic === "hide_off_limits" && flagged) return false;
+    }
     return true;
   });
 }
@@ -171,12 +224,22 @@ function parseList<T extends string>(
   return out;
 }
 
+function parseSingle<T extends string>(
+  raw: string | null,
+  allowed: readonly T[],
+): T | null {
+  if (!raw) return null;
+  const v = raw.trim().toLowerCase();
+  return (allowed as readonly string[]).includes(v) ? (v as T) : null;
+}
+
 export function filterFromSearchParams(
   sp: URLSearchParams,
 ): EnemyFilterState {
   return {
     status: parseList(sp.get("status"), STATUS_VALUES),
     activity: parseList(sp.get("activity"), ACTIVITY_VALUES),
+    diplomatic: parseSingle(sp.get("diplomatic"), DIPLOMATIC_VALUES),
   };
 }
 
@@ -190,6 +253,9 @@ export function filterToSearchParams(
   if (filter.activity.length > 0) {
     sp.set("activity", filter.activity.join(","));
   }
+  if (filter.diplomatic) {
+    sp.set("diplomatic", filter.diplomatic);
+  }
   return sp;
 }
 
@@ -197,5 +263,6 @@ export function describeFilter(filter: EnemyFilterState): string {
   const parts: string[] = [];
   for (const s of filter.status) parts.push(STATUS_LABELS[s]);
   for (const a of filter.activity) parts.push(ACTIVITY_LABELS[a]);
+  if (filter.diplomatic) parts.push(DIPLOMATIC_LABELS[filter.diplomatic]);
   return parts.join(", ");
 }

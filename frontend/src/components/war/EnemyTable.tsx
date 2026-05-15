@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { fmtCD, fmtNum } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
+import { useWarOffLimits } from "@/hooks/useWarOffLimits";
 import { EnemyCard } from "./EnemyCard";
 import {
   EnemyFilter,
@@ -12,7 +14,9 @@ import {
   describeFilter,
 } from "./EnemyFilter";
 import type { EnemyFilterState } from "./EnemyFilter";
-import type { EnemyResponse, EnemyMember } from "@/types/war";
+import { OffLimitsModal } from "./OffLimitsModal";
+import { OffLimitsConfirmModal } from "./OffLimitsConfirmModal";
+import type { EnemyResponse, EnemyMember, WarOffLimits } from "@/types/war";
 
 type EnemySortCol =
   | "threat_score"
@@ -30,6 +34,7 @@ interface SortState {
 interface EnemyTableProps {
   data: EnemyResponse | null;
   onLoadEnemy: (factionId: number) => void;
+  warId: number | null;
 }
 
 function getEnemySortValue(m: EnemyMember, col: EnemySortCol): string | number {
@@ -67,7 +72,13 @@ const THREAT_GLOW: Record<string, string> = {
   unknown: "none",
 };
 
-export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
+type ModalState =
+  | { kind: "add"; member: EnemyMember }
+  | { kind: "edit"; entry: WarOffLimits; member: EnemyMember }
+  | { kind: "confirm"; entry: WarOffLimits; member: EnemyMember }
+  | null;
+
+export function EnemyTable({ data, onLoadEnemy, warId }: EnemyTableProps) {
   const [sort, setSort] = useState<SortState>({
     col: "threat_score",
     asc: true,
@@ -87,10 +98,39 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
     [router, pathname],
   );
   const [factionInput, setFactionInput] = useState("");
+  const [modal, setModal] = useState<ModalState>(null);
+
+  const auth = useAuth();
+  const isAdmin = auth.role === "admin" || auth.role === "superadmin";
+  const offLimits = useWarOffLimits(warId);
+  const canFlag = warId !== null && auth.playerId !== null;
 
   const now = Math.floor(Date.now() / 1000);
 
-  // No faction loaded — show input
+  const ms = useMemo(() => data?.members ?? [], [data?.members]);
+  const offLimitsIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const e of offLimits.entries) set.add(e.player_id);
+    return set;
+  }, [offLimits.entries]);
+
+  const filtered = useMemo(
+    () => applyEnemyFilter(ms, filter, offLimitsIds),
+    [ms, filter, offLimitsIds],
+  );
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const va = getEnemySortValue(a, sort.col);
+      const vb = getEnemySortValue(b, sort.col);
+      const cmp =
+        typeof va === "string" && typeof vb === "string"
+          ? va.localeCompare(vb)
+          : (va as number) - (vb as number);
+      return sort.asc ? cmp : -cmp;
+    });
+  }, [filtered, sort]);
+
   if (!data?.faction) {
     return (
       <div className="space-y-3">
@@ -126,29 +166,12 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
   }
 
   const f = data.faction;
-  const ms = data.members;
   const hasBaseline = data.threat_mode === "relative";
 
-  const filtered = applyEnemyFilter(ms, filter);
-
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      const va = getEnemySortValue(a, sort.col);
-      const vb = getEnemySortValue(b, sort.col);
-      const cmp =
-        typeof va === "string" && typeof vb === "string"
-          ? va.localeCompare(vb)
-          : (va as number) - (vb as number);
-      return sort.asc ? cmp : -cmp;
-    });
-  }, [filtered, sort]);
-
-  // Summary stats
   let atk = 0,
     hosp = 0;
   for (const m of ms) {
-    if (m.last_action.status !== "Offline" && m.status.state === "Okay")
-      atk++;
+    if (m.last_action.status !== "Offline" && m.status.state === "Okay") atk++;
     if (m.status.state === "Hospital") hosp++;
   }
 
@@ -163,7 +186,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
   const SortArrow = ({ col }: { col: EnemySortCol }) =>
     sort.col === col ? (
       <span className="ml-1 text-torn-green">
-        {sort.asc ? "\u25B2" : "\u25BC"}
+        {sort.asc ? "▲" : "▼"}
       </span>
     ) : null;
 
@@ -177,6 +200,27 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
       ? `Threat relative to ${data.threat_baseline}`
       : "Register your API key to see personalized threat levels";
 
+  const offLimitsCount = offLimits.entries.length;
+
+  const handleRequestFlag = (member: EnemyMember) => {
+    setModal({ kind: "add", member });
+  };
+  const handleRequestEdit = (entry: WarOffLimits, member: EnemyMember) => {
+    setModal({ kind: "edit", entry, member });
+  };
+  const handleRequestRemove = async (entry: WarOffLimits) => {
+    if (!warId) return;
+    if (!confirm(`Remove off-limit flag on ${entry.player_name}?`)) return;
+    try {
+      await offLimits.remove(entry.player_id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to remove");
+    }
+  };
+  const handleAttackBlocked = (member: EnemyMember, entry: WarOffLimits) => {
+    setModal({ kind: "confirm", entry, member });
+  };
+
   return (
     <div>
       {/* Summary */}
@@ -184,21 +228,29 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
         <a
           href={`https://www.torn.com/factions.php?step=profile&ID=${f.id}`}
           target="_blank" rel="noopener noreferrer"
-          
           className="font-bold text-text-primary hover:text-torn-green transition-colors"
         >
           {f.name}
         </a>{" "}
-        [{f.tag}] {"\u2014"} {f.rank_name} ({f.wins}W) {"\u2014"}{" "}
+        [{f.tag}] {"—"} {f.rank_name} ({f.wins}W) {"—"}{" "}
         <span className="text-torn-green font-medium">{atk}</span> attackable,{" "}
         <span className="text-torn-yellow font-medium">{hosp}</span> hospital,{" "}
         {ms.length} total{filterNote}
+        {warId && offLimitsCount > 0 ? (
+          <>
+            {" "}
+            {"—"}{" "}
+            <span className="text-torn-red font-medium">
+              {"🚫"} {offLimitsCount} off-limits
+            </span>
+          </>
+        ) : null}
       </div>
       <div className="text-xs text-text-muted mb-3">{threatInfo}</div>
 
       {/* Filter + sort controls */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <EnemyFilter value={filter} onChange={setFilter} />
+        <EnemyFilter value={filter} onChange={setFilter} showDiplomatic={!!warId} />
 
         {/* Mobile sort dropdown */}
         <div className="lg:hidden flex items-center gap-1.5">
@@ -230,7 +282,7 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
             onClick={() => setSort({ ...sort, asc: !sort.asc })}
             title={sort.asc ? "Ascending" : "Descending"}
           >
-            {sort.asc ? "\u25B2" : "\u25BC"}
+            {sort.asc ? "▲" : "▼"}
           </button>
         </div>
 
@@ -241,9 +293,24 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
 
       {/* Mobile cards */}
       <div className="lg:hidden space-y-2">
-        {sorted.map((m) => (
-          <EnemyCard key={m.id} member={m} hasBaseline={hasBaseline} />
-        ))}
+        {sorted.map((m) => {
+          const entry = offLimits.byPlayer.get(m.id) ?? null;
+          return (
+            <EnemyCard
+              key={m.id}
+              member={m}
+              hasBaseline={hasBaseline}
+              offLimits={entry}
+              canFlag={canFlag}
+              isMyEntry={entry?.set_by === auth.playerId}
+              isAdmin={isAdmin}
+              onRequestFlag={handleRequestFlag}
+              onRequestEdit={(e) => handleRequestEdit(e, m)}
+              onRequestRemove={handleRequestRemove}
+              onAttackBlocked={handleAttackBlocked}
+            />
+          );
+        })}
       </div>
 
       {/* Desktop table */}
@@ -311,8 +378,8 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
               const ps = m.personal_stats;
               const xr = ps
                 ? `${fmtNum(ps.xanax_taken)}/${fmtNum(ps.refills)}`
-                : "\u2014";
-              const aw = ps ? fmtNum(ps.attacks_won) : "\u2014";
+                : "—";
+              const aw = ps ? fmtNum(ps.attacks_won) : "—";
               const hospTime =
                 isHosp && m.status.until
                   ? ` (${fmtCD(m.status.until - now)})`
@@ -347,10 +414,16 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                 </span>
               );
 
+              const entry = offLimits.byPlayer.get(m.id) ?? null;
+              const isMyEntry = entry?.set_by === auth.playerId;
+              const canEditEntry = entry && (isMyEntry || isAdmin);
+
               return (
                 <tr
                   key={m.id}
-                  className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors group"
+                  className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors group ${
+                    entry ? "bg-torn-red/[0.04]" : ""
+                  }`}
                 >
                   <td className="py-2 px-2">
                     <span
@@ -363,18 +436,25 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                     />
                   </td>
                   <td className="py-2 px-2">
-                    <a
-                      href={m.profile_url}
-                      target="_blank" rel="noopener noreferrer"
-                      
-                      className="text-text-primary hover:text-torn-green transition-colors"
-                    >
-                      {m.name}
-                    </a>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <a
+                        href={m.profile_url}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-text-primary hover:text-torn-green transition-colors"
+                      >
+                        {m.name}
+                      </a>
+                      {entry ? (
+                        <span
+                          className="rounded px-1.5 py-0.5 text-[10px] font-semibold border bg-torn-red/15 text-torn-red border-torn-red/40"
+                          title={`Off-limits by ${entry.set_by_name}${entry.reason ? `: ${entry.reason}` : ""}`}
+                        >
+                          {"🚫"} {entry.set_by_name}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
-                  <td className="py-2 px-2 text-text-muted">
-                    {m.level}
-                  </td>
+                  <td className="py-2 px-2 text-text-muted">{m.level}</td>
                   <td className="py-2 px-2">{threatCell}</td>
                   <td className="py-2 px-2">
                     {isHosp ? (
@@ -394,27 +474,63 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
                   <td className="py-2 px-2 text-text-muted font-mono text-xs">{xr}</td>
                   <td className="py-2 px-2 text-text-muted font-mono text-xs">{aw}</td>
                   <td className="py-2 px-2">
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 items-center">
                       <a
                         href={m.attack_url}
                         target="_blank" rel="noopener noreferrer"
-                        
                         className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-all active:scale-95 ${
                           isHosp
                             ? "bg-bg-elevated text-text-muted border border-border"
-                            : "bg-torn-green/20 text-torn-green border border-torn-green/30 hover:bg-torn-green/30 hover:shadow-[0_0_12px_rgba(63,185,80,0.15)]"
+                            : entry
+                              ? "bg-torn-red/15 text-torn-red border border-torn-red/40 hover:bg-torn-red/25"
+                              : "bg-torn-green/20 text-torn-green border border-torn-green/30 hover:bg-torn-green/30 hover:shadow-[0_0_12px_rgba(63,185,80,0.15)]"
                         }`}
+                        onClick={(e) => {
+                          if (entry) {
+                            e.preventDefault();
+                            handleAttackBlocked(m, entry);
+                          }
+                        }}
                       >
                         {isHosp ? "Hosp" : "Attack"}
                       </a>
                       <a
                         href={m.stats_url}
                         target="_blank" rel="noopener noreferrer"
-                        
                         className="text-xs px-2.5 py-1 rounded-md bg-bg-elevated text-text-secondary border border-border hover:text-text-primary hover:border-border transition-colors"
                       >
                         Stats
                       </a>
+                      {canFlag && !entry ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestFlag(m)}
+                          className="text-xs px-2 py-1 rounded-md bg-bg-elevated text-text-muted border border-border hover:text-torn-red hover:border-torn-red/40 transition-colors"
+                          title="Flag as off-limits"
+                        >
+                          {"🚫"}
+                        </button>
+                      ) : null}
+                      {canEditEntry && entry ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestEdit(entry, m)}
+                            className="text-xs px-2 py-1 rounded-md bg-bg-elevated text-text-muted border border-border hover:text-text-primary transition-colors"
+                            title="Edit off-limit reason"
+                          >
+                            {"✎"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRequestRemove(entry)}
+                            className="text-xs px-2 py-1 rounded-md bg-bg-elevated text-text-muted border border-border hover:text-torn-red hover:border-torn-red/40 transition-colors"
+                            title="Remove off-limit"
+                          >
+                            {"✕"}
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -423,6 +539,38 @@ export function EnemyTable({ data, onLoadEnemy }: EnemyTableProps) {
           </tbody>
         </table>
       </div>
+
+      {modal?.kind === "add" ? (
+        <OffLimitsModal
+          mode="add"
+          playerName={modal.member.name}
+          onCancel={() => setModal(null)}
+          onSubmit={async (reason) => {
+            await offLimits.add(modal.member.id, modal.member.name, reason);
+            setModal(null);
+          }}
+        />
+      ) : null}
+      {modal?.kind === "edit" ? (
+        <OffLimitsModal
+          mode="edit"
+          playerName={modal.member.name}
+          initialReason={modal.entry.reason}
+          onCancel={() => setModal(null)}
+          onSubmit={async (reason) => {
+            await offLimits.update(modal.entry.player_id, reason);
+            setModal(null);
+          }}
+        />
+      ) : null}
+      {modal?.kind === "confirm" ? (
+        <OffLimitsConfirmModal
+          entry={modal.entry}
+          attackUrl={modal.member.attack_url}
+          onCancel={() => setModal(null)}
+          onConfirm={() => setModal(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -80,6 +80,8 @@ from api.routers.armoury import router as armoury_router
 import api.routers.armoury as armoury_mod
 from api.routers.preferences import router as preferences_router
 import api.routers.preferences as preferences_mod
+from api.routers.war_off_limits import router as war_off_limits_router
+import api.routers.war_off_limits as war_off_limits_mod
 from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
@@ -152,6 +154,10 @@ async def lifespan(app: FastAPI):
     target_repo = TargetRepository(db_path="data/keys.db")
     targets_mod.target_repo = target_repo
     targets_mod.key_store = key_store
+
+    from api.db.repos.war_off_limits import WarOffLimitsRepository
+    war_off_limits_mod.repo = WarOffLimitsRepository(db_path="data/keys.db")
+    war_off_limits_mod.key_store = key_store
 
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
@@ -396,6 +402,7 @@ app.include_router(version_router)
 app.include_router(chat_router)
 app.include_router(armoury_router)
 app.include_router(preferences_router)
+app.include_router(war_off_limits_router)
 
 # MCP server (Streamable HTTP transport)
 _mcp_app = mcp_server.http_app(path="/", stateless_http=True, middleware=get_mcp_middleware())

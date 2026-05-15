@@ -12,9 +12,20 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.19.1";
+export const CURRENT_VERSION = "1.20.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.20.0",
+    date: "2026-05-15",
+    title: "War-time off-limits tracker (med-out / dip agreements)",
+    changes: [
+      { type: "feat", text: "Flag enemy players as 'off-limits' during a war so the rest of the faction knows not to attack them — covers med-out agreements ('I let them out of hospital, don't re-hospitalize') and dip arrangements ('do not attack at all this war'). Open the Enemies page during an active war, hit the new {🚫} button next to any enemy, and add an optional reason. The flag is faction-wide and tied to the current war_id, so it auto-disappears when the war ends" },
+      { type: "feat", text: "Off-limits enemies show a red badge and tinted row in both mobile and desktop views. Clicking 'Attack' on a flagged player opens a confirmation modal with who flagged them and why — you can still attack anyway if you have a reason, but you won't break a teammate's agreement by accident" },
+      { type: "feat", text: "New 'Diplomatic' filter row on the Enemies page (active only during a war): 'Off-limits only' to review every standing agreement, 'Hide off-limits' to focus on attackable targets. Persists in the URL like the other filters" },
+      { type: "improve", text: "Members can edit and remove only their own flags; admins can manage any. The flag header shows who set it, so audit is trivial. Backend ownership checks enforced server-side, not just in the UI" },
+    ],
+  },
   {
     version: "1.19.1",
     date: "2026-05-15",
