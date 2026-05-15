@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.39.0";
+export const CURRENT_VERSION = "1.39.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.39.1",
+    date: "2026-05-15",
+    title: "Companion v0.17.1 — armoury card no longer wraps letter-by-letter on mobile",
+    changes: [
+      {
+        type: "fix",
+        summary: "Armoury competition card on Torn rendered as three narrow vertical columns on mobile / PDA",
+        before: "The card title '🏆 TM Hub Armoury' wrapped one letter-cluster per line, 'Open in TM Hub →' got split across multiple lines, and the competition leaderboard sat in a middle column with the footer hint pushed to a third right-side column.",
+        after: "The card always takes the full width of Torn's content area, the title and 'Open in TM Hub →' link stay on one line, and on narrow viewports the link wraps to a new line as a whole instead of getting cut up.",
+        cause: "The Shadow DOM host wasn't forced to a block display + full width, so Torn's flex layout on the faction page squeezed the card into a narrow inline column.",
+      },
+    ],
+  },
   {
     version: "1.39.0",
     date: "2026-05-15",
