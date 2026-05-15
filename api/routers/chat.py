@@ -159,16 +159,30 @@ class MessageEdit(BaseModel):
 
 @router.get("/channels/{channel_id}/messages")
 async def get_messages(
-    channel_id: int, before: int | None = None,
-    limit: int = 50, x_player_id: int = Header(),
+    channel_id: int,
+    before: int | None = None,
+    after: int | None = None,
+    limit: int = 50,
+    x_player_id: int = Header(),
 ):
+    """Fetch messages from a channel.
+
+    - ``?before=<id>``: paginate older messages (newest first by default)
+    - ``?after=<id>``: fetch new messages since the last seen id, used by
+      the Companion chat dock polling loop
+    """
     _verify_member(x_player_id)
     ch = chat_repo.get_channel(channel_id)
     if not ch:
         raise HTTPException(status_code=404, detail="Channel not found")
     if ch["admin_only"] and not _is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin-only channel")
-    messages = chat_repo.get_messages(channel_id, before_id=before, limit=min(limit, 100))
+    messages = chat_repo.get_messages(
+        channel_id,
+        before_id=before,
+        after_id=after,
+        limit=min(limit, 100),
+    )
     return {"messages": messages}
 
 

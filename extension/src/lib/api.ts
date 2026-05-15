@@ -12,6 +12,9 @@ import type {
   WarOffLimitsResponse,
   NotificationsUnread,
   MentionsRecentResponse,
+  ChatChannel,
+  ChatMessage,
+  ChatUnreadResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -163,6 +166,54 @@ export function fetchRecentMentions(
 
 export function sendHeartbeat(auth: CompanionAuth): Promise<{ ok: boolean }> {
   return post<{ ok: boolean }>('/api/heartbeat', {}, auth);
+}
+
+// ── Chat ────────────────────────────────────────────────────
+
+export function fetchChatChannels(auth: CompanionAuth): Promise<{ channels: ChatChannel[] }> {
+  return get<{ channels: ChatChannel[] }>('/api/chat/channels', auth);
+}
+
+export function fetchChatMessages(
+  auth: CompanionAuth,
+  channelId: number,
+  opts: { after?: number; before?: number; limit?: number } = {},
+): Promise<{ messages: ChatMessage[] }> {
+  const params = new URLSearchParams();
+  if (opts.after !== undefined) params.set('after', String(opts.after));
+  if (opts.before !== undefined) params.set('before', String(opts.before));
+  if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return get<{ messages: ChatMessage[] }>(`/api/chat/channels/${channelId}/messages${qs}`, auth);
+}
+
+export function sendChatMessage(
+  auth: CompanionAuth,
+  channelId: number,
+  content: string,
+  mentions: number[] = [],
+): Promise<ChatMessage> {
+  return post<ChatMessage>(
+    `/api/chat/channels/${channelId}/messages`,
+    { content, mentions },
+    auth,
+  );
+}
+
+export function fetchChatUnread(auth: CompanionAuth): Promise<ChatUnreadResponse> {
+  return get<ChatUnreadResponse>('/api/chat/unread', auth);
+}
+
+export function markChatRead(
+  auth: CompanionAuth,
+  channelId: number,
+  messageId: number,
+): Promise<{ status: string }> {
+  return post<{ status: string }>(
+    '/api/chat/read',
+    { channel_id: channelId, message_id: messageId, thread_id: 0 },
+    auth,
+  );
 }
 
 export { ApiError };

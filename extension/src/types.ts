@@ -67,3 +67,33 @@ export interface MentionsRecentResponse {
   mentions: MentionPreview[];
   count: number;
 }
+
+export interface ChatChannel {
+  id: number;
+  name: string;
+  description?: string | null;
+  type?: string;
+  position?: number;
+  admin_only?: boolean | number;
+  write_restricted?: boolean | number;
+}
+
+export interface ChatMessage {
+  id: number;
+  channel_id: number;
+  thread_id: number | null;
+  player_id: number;
+  player_name: string;
+  content: string;
+  bot_id?: number | null;
+  mentions: number[];
+  pinned: number;
+  deleted: number;
+  created_at: number;
+  edited_at?: number | null;
+}
+
+export interface ChatUnreadResponse {
+  channels: Record<string, number>;
+  total: number;
+}

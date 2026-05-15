@@ -194,6 +194,21 @@ class TestMessages:
         # Newest first
         assert results[0]["content"] == "#4 @Bob"
 
+    def test_get_messages_after_id_returns_only_newer(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        first = chat_repo.create_message(ch["id"], 100, "Alice", "first", mentions=[])
+        second = chat_repo.create_message(ch["id"], 100, "Alice", "second", mentions=[])
+        third = chat_repo.create_message(ch["id"], 100, "Alice", "third", mentions=[])
+
+        new_msgs = chat_repo.get_messages(ch["id"], after_id=first["id"])
+        # Ascending order — oldest of the new batch first
+        assert [m["content"] for m in new_msgs] == ["second", "third"]
+        assert new_msgs[0]["id"] == second["id"]
+        assert new_msgs[1]["id"] == third["id"]
+
+        # Polling exactly at the latest id returns nothing.
+        assert chat_repo.get_messages(ch["id"], after_id=third["id"]) == []
+
     def test_message_with_bot(self, chat_repo):
         ch = chat_repo.get_channel_by_name("general")
         bot_id = chat_repo.create_bot("TestBot", "token123", "*", 1)
