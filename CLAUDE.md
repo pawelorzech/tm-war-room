@@ -154,6 +154,7 @@ When building a new feature:
 - **Router state injection**: when adding a dependency (e.g. `key_store`) to a router, wire it in BOTH `main.py` lifespan AND test fixtures
 - **Middleware vs admin auth**: `/api/admin/*` bypasses `enforce_api_auth` middleware — admin endpoints rely solely on `require_admin` dependency
 - **Dependency audit**: run `uv run pip-audit` and `cd frontend && npm audit` before releases
+- **Torn API v1 vs v2 — read `docs/torn-api-v2-migration.md` before touching `api/torn_client.py`**. We mix both deliberately: v1 (frozen but functional) for selections where v2 changed shape, v2 everywhere else. Inline `# NB: v1 because ...` comments name each mismatch; the doc lists the exact array-vs-dict / nested-vs-flat / renamed-field breakages we found empirically. Pytest is mocked and will NOT catch shape mismatches — probe live v2 + walk through UI under playwright before flipping any URL.
 
 ## Testing notes
 
