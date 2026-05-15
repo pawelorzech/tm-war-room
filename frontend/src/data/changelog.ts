@@ -12,9 +12,17 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.21.0";
+export const CURRENT_VERSION = "1.21.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.21.1",
+    date: "2026-05-15",
+    title: "Companion auth handoff actually works now",
+    changes: [
+      { type: "fix", text: "The 'Connect to TM Hub' banner in the userscript opened the auth page via a plain target=\"_blank\" link with rel=\"noopener\", which by definition nulls out window.opener — so the popup had nobody to postMessage the token to. Switched to a programmatic window.open() with a named target. Now the token flows back automatically and the userscript caches it without copy-paste" },
+    ],
+  },
   {
     version: "1.21.0",
     date: "2026-05-15",
