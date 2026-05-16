@@ -50,12 +50,14 @@ def test_purge_old_bins_drops_only_stale_rows(repo):
 
 def test_enroll_outsider_idempotent_and_tracked_outsiders(repo):
     repo.enroll_outsider(player_id=100, now=1_000)
-    repo.enroll_outsider(player_id=100, now=2_000)  # re-enroll refreshes enrolled_at
+    repo.enroll_outsider(player_id=100, now=2_000)  # re-enroll is a no-op
     repo.enroll_outsider(player_id=200, now=1_500)
     rows = repo.tracked_outsiders()
     assert len(rows) == 2
     by_pid = {r["player_id"]: r for r in rows}
-    assert by_pid[100]["enrolled_at"] == 2_000
+    # Phase 3A: enrolled_at locks on first insert so the 14-day purge anchor
+    # reflects when we started tracking, not the most recent profile view.
+    assert by_pid[100]["enrolled_at"] == 1_000
     assert by_pid[100]["last_bin_at"] is None
 
 
