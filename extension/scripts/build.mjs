@@ -51,17 +51,16 @@ const options = {
   bundle: true,
   format: 'iife',
   target: ['chrome100', 'firefox100', 'safari15'],
-  // Minify whitespace + syntax but keep identifier names. Userscript managers
-  // (Tampermonkey, Violentmonkey, Torn PDA) work fine with minified IIFEs.
-  // We keep readable identifiers so the rare bug report with a stack trace
-  // is still useful — the size win comes mostly from whitespace + syntax
-  // shrinking anyway. Sprint 0 baseline (2026-05-17): 184.5 KB raw,
-  // 44.1 KB gzipped, 37.0 KB brotli (q=11). Production nginx serves the
-  // brotli_static pre-compressed file. See extension/docs/perf-baseline.md.
+  // Sprint 2 of the perf plan: flipped minifyIdentifiers + linked sourcemap.
+  // Identifier minification used to be off so stack traces stayed readable;
+  // sourcemap is now publicly hosted at hub.tri.ovh/companion.user.js.map
+  // (Companion is already open-source on Greasy Fork — see Plans/chc-zadba-bardoz-snazzy-wave.md
+  // for the disclosure-vs-perf decision). Result: ~15-25% gzip shrink, and
+  // stack traces remain useful via the map.
   minifyWhitespace: true,
   minifySyntax: true,
-  minifyIdentifiers: false,
-  sourcemap: false,
+  minifyIdentifiers: true,
+  sourcemap: 'linked',
   banner: { js: banner },
   define: {
     'process.env.TM_HUB_ORIGIN': JSON.stringify(HUB_ORIGIN),
@@ -87,10 +86,27 @@ if (process.argv.includes('--watch')) {
   console.log(`Built ${distFile}`);
 
   // Publish to frontend/public/ so Next.js static export serves it at
-  // /companion.user.js. Skip silently if the frontend repo layout is missing
-  // (e.g. someone is building the extension in isolation).
+  // /companion.user.js (and /companion.user.js.map). Skip silently if the
+  // frontend repo layout is missing (e.g. someone is building the
+  // extension in isolation).
   if (existsSync(publicDir)) {
     copyFileSync(distFile, publicFile);
     console.log(`Published ${publicFile}`);
+    const mapSrc = `${distFile}.map`;
+    if (existsSync(mapSrc)) {
+      const mapDest = `${publicFile}.map`;
+      copyFileSync(mapSrc, mapDest);
+      console.log(`Published ${mapDest}`);
+      // esbuild emits `//# sourceMappingURL=tm-hub-companion.user.js.map`
+      // (basename of the original outfile). After copying to
+      // frontend/public/companion.user.js, that URL no longer resolves —
+      // the map file is now called companion.user.js.map. Rewrite the
+      // pragma so Chrome DevTools picks up the correct file in prod.
+      const publicContent = readFileSync(publicFile, 'utf8').replace(
+        '//# sourceMappingURL=tm-hub-companion.user.js.map',
+        '//# sourceMappingURL=companion.user.js.map',
+      );
+      writeFileSync(publicFile, publicContent);
+    }
   }
 }
