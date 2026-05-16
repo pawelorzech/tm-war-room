@@ -8,13 +8,13 @@
 // Mounted as a single Shadow DOM card via lib/shadow.ts, same visual
 // language as stocks-overlay and armoury-overlay.
 
-import { ApiError, fetchTravel } from '../lib/api';
+import { ApiError, fetchTravel, fetchActiveFlights } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { TRAVEL_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { cardBase } from '../lib/card-styles';
-import type { TravelCountry, TravelItem } from '../types';
-import { HUB_ORIGIN } from '../env';
+import type { TravelCountry, TravelItem, FlightRow } from '../types';
+import { HUB_ORIGIN, getFeatureFlags } from '../env';
 import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 60_000;
@@ -44,6 +44,68 @@ async function getTravelData(): Promise<TravelCache> {
   }
 }
 
+function fmtCountdown(secs: number): string {
+  if (secs <= 0) return 'landing now';
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}
+
+function prettyDest(raw: string): string {
+  const tidy = raw.replace(/_/g, ' ').trim();
+  return tidy
+    .split(' ')
+    .map((w) => (w.length === 0 ? w : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+function renderAirborneBlock(flights: FlightRow[]): string {
+  if (flights.length === 0) {
+    return `
+      <div class="airborne">
+        <div class="airborne-head"><span>✈️ Tracked players in transit</span><span style="font-weight:400;color:#6e7681">via TM Hub</span></div>
+        <div class="airborne-empty">No tracked players in transit right now.</div>
+      </div>
+    `;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const sorted = [...flights]
+    .sort((a, b) => (a.predicted_landed_at ?? 0) - (b.predicted_landed_at ?? 0))
+    .slice(0, 8);
+  const rows = sorted
+    .map((f) => {
+      const lands = f.predicted_landed_at ?? f.departed_at + 1560;
+      const secs = lands - now;
+      return `
+        <div class="airborne-row">
+          <span class="who">Player ${escapeHtml(String(f.player_id))}</span>
+          <span class="where">${escapeHtml(prettyDest(f.destination))}</span>
+          <span class="when">lands in ${escapeHtml(fmtCountdown(secs))}</span>
+        </div>
+      `;
+    })
+    .join('');
+  const more = flights.length > sorted.length ? `<div class="airborne-empty">+${flights.length - sorted.length} more — see TM Hub.</div>` : '';
+  return `
+    <div class="airborne">
+      <div class="airborne-head"><span>✈️ Tracked players in transit</span><span style="font-weight:400;color:#6e7681">${flights.length} airborne</span></div>
+      ${rows}
+      ${more}
+    </div>
+  `;
+}
+
+async function getActiveFlights(): Promise<FlightRow[]> {
+  if (!getFeatureFlags().flights) return [];
+  const auth = getAuth();
+  if (!auth) return [];
+  const resp = await fetchActiveFlights(auth);
+  return resp.flights;
+}
+
 function fmtMoney(n: number): string {
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
@@ -56,6 +118,37 @@ function fmtMoney(n: number): string {
 
 const STYLES = cardBase('#3fb950') + `
   .title { white-space: nowrap; min-width: 0; }
+  .airborne {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 8px;
+  }
+  .airborne-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    color: #79c0ff;
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .airborne-empty { color: #6e7681; font-size: 11px; }
+  .airborne-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 11px;
+    color: #c9d1d9;
+    border-top: 1px solid #21262d;
+  }
+  .airborne-row:first-of-type { border-top: 0; }
+  .airborne-row .who { color: #f0f6fc; font-weight: 600; }
+  .airborne-row .where { color: #79c0ff; }
+  .airborne-row .when { color: #8b949e; }
   .dest {
     background: #0d1117;
     border: 1px solid #21262d;
@@ -156,7 +249,7 @@ export async function renderTravelOverlay(): Promise<void> {
     document.querySelector('[data-tm-companion="travel-overlay"]')?.remove();
     return;
   }
-  const data = await getTravelData();
+  const [data, flights] = await Promise.all([getTravelData(), getActiveFlights()]);
   const { host, shadow } = ensureHost('travel-overlay');
   // Force the host to be a full-width block — Torn pages put their main
   // container in flex/grid layouts that otherwise squeeze the host into
@@ -193,11 +286,17 @@ export async function renderTravelOverlay(): Promise<void> {
     }
   }
 
+  // The airborne block only renders when the feature flag is on AND we
+  // have at least one tracked player in transit (or zero — we still show
+  // the empty-state so the user knows the panel is wired up).
+  const airborneBlock = getFeatureFlags().flights ? renderAirborneBlock(flights) : '';
+
   card.innerHTML = `
     <div class="head">
       <div class="title">✈️ TM Hub Travel</div>
       <a class="link" href="${HUB_ORIGIN}/travel" target="_blank" rel="noopener">Open in TM Hub →</a>
     </div>
+    ${airborneBlock}
     ${body}
     <div class="footer">Profit = market value × 0.95 (5% selling fee) minus abroad cost. Top 3 destinations by best item profit.</div>
   `;

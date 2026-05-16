@@ -233,6 +233,20 @@ export const api = {
   lootCancelReserve: (npc_id: number) =>
     apiFetch<unknown>(`/api/loot/reserve/${npc_id}`, { method: 'DELETE' }),
   travelInfo: () => apiFetch<unknown>('/api/travel'),
+  flightsActive: () => apiFetch<{
+    flights: {
+      id: number;
+      player_id: number;
+      departed_at: number;
+      destination: string;
+      ticket_class: string;
+      landed_at: number | null;
+      observed_at: number;
+      source: string;
+      predicted_landed_at?: number;
+    }[];
+    cached_at: number;
+  }>('/api/flights/active'),
   ocOverview: (cat?: string) => apiFetch<unknown>(`/api/oc${cat ? `?cat=${cat}` : ''}`),
   warHistory: () => apiFetch<unknown>('/api/wars'),
   bounties: () => apiFetch<unknown>('/api/bounties'),

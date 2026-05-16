@@ -10,6 +10,7 @@ import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { escapeHtml } from '../lib/format';
 import { maybeRenderFFChip } from './ff-chip';
+import { maybeRenderFlightPill } from './flight-pill';
 
 /** Render the FF fallback chip on a profile page. Lives alongside the
  *  OFF-LIMITS badge but in its own host so it can render independently —
@@ -75,5 +76,31 @@ export function renderProfileBadge(off: WarOffLimits | null): void {
     // Last resort — pin to top of body.
     document.body.insertBefore(host, document.body.firstChild);
   }
+}
+
+// Flight pill — appended alongside the OFF-LIMITS badge on profile pages.
+// Lives in its own light-DOM host so it shows up even when the player is NOT
+// off-limits (the OFF-LIMITS host is removed in that case).
+const FLIGHT_HOST_ATTR = 'data-tm-companion-flight';
+
+export async function renderProfileFlightPill(playerId: number): Promise<void> {
+  let host = document.querySelector<HTMLElement>(`[${FLIGHT_HOST_ATTR}]`);
+  if (!host) {
+    host = document.createElement('div');
+    host.setAttribute(FLIGHT_HOST_ATTR, '1');
+    host.style.margin = '6px 0';
+    for (const sel of PROFILE_ANCHOR_SELECTORS) {
+      const anchor = document.querySelector(sel);
+      if (anchor) {
+        anchor.insertBefore(host, anchor.firstChild);
+        break;
+      }
+    }
+    if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
+  }
+  await maybeRenderFlightPill(host, playerId);
+  // Remove the host entirely when no pill rendered, so the profile header
+  // doesn't keep an empty 6px gap on non-airborne players.
+  if (!host.firstElementChild) host.remove();
 }
 

@@ -13,8 +13,10 @@ import {
   fetchOffLimits,
   fetchTargets,
   fetchStakeouts,
+  fetchActiveFlights,
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
+import { getFeatureFlags } from '../env';
 import { decorateRows } from '../lib/row-decorator';
 import { maybeRenderFFChip } from './ff-chip';
 import type {
@@ -23,9 +25,11 @@ import type {
   WarOffLimits,
   Target,
   Stakeout,
+  FlightRow,
 } from '../types';
 import { escapeHtml, formatTotal } from '../lib/format';
 import { pillBase } from '../lib/card-styles';
+import { renderFlightPillFromRow } from './flight-pill';
 
 interface FactionRow {
   spy: FactionSpyMember | null;
@@ -33,6 +37,7 @@ interface FactionRow {
   target: Target | null;
   stakeout: Stakeout | null;
   threat_label: ThreatLabel;
+  flight: FlightRow | null;
 }
 
 const TIER_COLOR: Record<ThreatLabel, { bg: string; label: string }> = {
@@ -112,6 +117,19 @@ async function getTargets(): Promise<Map<number, Target>> {
   }
 }
 
+async function getActiveFlightsMap(): Promise<Map<number, FlightRow>> {
+  // Self-gated on the feature flag so the roster overlay doesn't burn a
+  // network round-trip when flights are dark. Soft-fails to empty map on
+  // any error (fetchActiveFlights already returns an empty list on 503).
+  if (!getFeatureFlags().flights) return new Map();
+  const auth = getAuth();
+  if (!auth) return new Map();
+  const resp = await fetchActiveFlights(auth);
+  const map = new Map<number, FlightRow>();
+  for (const f of resp.flights) map.set(f.player_id, f);
+  return map;
+}
+
 async function getStakeouts(): Promise<Map<number, Stakeout>> {
   if (stakeoutsCache && Date.now() - stakeoutsCache.ts < TTL_MS) return stakeoutsCache.data;
   const auth = getAuth();
@@ -131,11 +149,12 @@ async function buildMap(
   factionId: number,
   warId: number | null,
 ): Promise<Map<number, FactionRow>> {
-  const [spies, off, targets, stakeouts] = await Promise.all([
+  const [spies, off, targets, stakeouts, flights] = await Promise.all([
     getSpies(factionId),
     warId ? getOffLimits(warId) : Promise.resolve(new Map<number, WarOffLimits>()),
     getTargets(),
     getStakeouts(),
+    getActiveFlightsMap(),
   ]);
 
   // Iterate over spies (= the faction's full member roster as known by TM Hub).
@@ -149,6 +168,7 @@ async function buildMap(
       target: targets.get(pid) ?? null,
       stakeout: stakeouts.get(pid) ?? null,
       threat_label: labelForTotal(spy.total > 0 ? spy.total : null),
+      flight: flights.get(pid) ?? null,
     });
   }
   return out;
@@ -200,6 +220,7 @@ export async function applyFactionRosterOverlay(opts: {
         d.target ? (d.target.tag ?? d.target.player_id) : '',
         d.stakeout ? d.stakeout.player_id : '',
         d.threat_label,
+        d.flight ? `${d.flight.destination}|${d.flight.predicted_landed_at ?? 0}` : '',
       ].join('|'),
     render: ({ anchor, row, data, appendBadge }) => {
       const tier = TIER_COLOR[data.threat_label] || TIER_COLOR.unknown;
@@ -247,6 +268,13 @@ export async function applyFactionRosterOverlay(opts: {
 
       const badge = document.createElement('span');
       badge.innerHTML = pills.join('');
+      // Append the flight pill after the standard pills so it visually sits
+      // at the tail of the roster row. The pill lives in light DOM (no
+      // shadow root) — it shares the page's font but has its own styles
+      // scoped via [data-tm-flight-pill]. No-op when flags.flights is off.
+      if (data.flight) {
+        renderFlightPillFromRow(badge, data.flight);
+      }
       appendBadge(badge);
 
       // FF fallback chip — only shows for rows where the backend has no
