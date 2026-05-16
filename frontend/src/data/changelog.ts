@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.44.0";
+export const CURRENT_VERSION = "1.44.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.44.1",
+    date: "2026-05-16",
+    title: "Wars page loads roughly twice as fast",
+    changes: [
+      {
+        type: "improve",
+        summary: "Wars endpoint now fetches faction history and past ranked wars in parallel",
+        detail: "The /wars page used to wait for two independent Torn API calls one after the other — current/recent wars first, then the past ranked wars list. They now run concurrently, roughly halving the response time on slow days. Same pattern Stocks and Company already use.",
+      },
+    ],
+  },
   {
     version: "1.44.0",
     date: "2026-05-16",
