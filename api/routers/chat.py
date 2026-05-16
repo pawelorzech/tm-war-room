@@ -162,7 +162,7 @@ async def get_messages(
     channel_id: int,
     before: int | None = None,
     after: int | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=100),
     x_player_id: int = Header(),
 ):
     """Fetch messages from a channel.
@@ -181,7 +181,7 @@ async def get_messages(
         channel_id,
         before_id=before,
         after_id=after,
-        limit=min(limit, 100),
+        limit=limit,
     )
     return {"messages": messages}
 

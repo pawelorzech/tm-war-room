@@ -52,9 +52,28 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.41.0";
+export const CURRENT_VERSION = "1.41.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.41.1",
+    date: "2026-05-16",
+    title: "Faster stock portfolio + tighter chat-history limits",
+    changes: [
+      {
+        type: "improve",
+        summary: "Stock portfolio page loads about twice as fast",
+        detail: "The portfolio endpoint used to fetch the stock market and your holdings one after the other. They're now fetched in parallel, roughly halving the response time players see when opening the portfolio tab.",
+      },
+      {
+        type: "fix",
+        summary: "Chat history endpoint no longer dumps the entire channel for negative page sizes",
+        before: "The chat-message endpoint silently accepted any integer for the page-size parameter. Passing a negative value pulled the entire channel history in one response — small risk for normal players, but a way for a curious or hostile client to spike server load and pull more than intended.",
+        after: "The endpoint now requires the page size to be between 1 and 100. Out-of-range values are rejected with a clear validation error before the database is even touched.",
+        cause: "A newer paginated endpoint was missing the same range guards that every other paginated endpoint in the app already had.",
+      },
+    ],
+  },
   {
     version: "1.41.0",
     date: "2026-05-16",
