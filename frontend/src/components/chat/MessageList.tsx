@@ -23,9 +23,10 @@ function formatDateSeparator(ts: number): string {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diff = (today.getTime() - msgDay.getTime()) / 86400000;
+  const diff = Math.round((today.getTime() - msgDay.getTime()) / 86400000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
+  if (diff < 7) return d.toLocaleDateString([], { weekday: "long" });
   return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
@@ -132,10 +133,10 @@ export function MessageList({
           return (
             <div key={msg.id}>
               {showSeparator && (
-                <div className="flex items-center gap-3 px-3 py-2 my-1">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[11px] text-text-muted font-medium">{msgDate}</span>
-                  <div className="flex-1 h-px bg-border" />
+                <div className="sticky top-1 z-10 flex justify-center py-1 my-2 pointer-events-none">
+                  <span className="pointer-events-auto text-[11px] font-semibold uppercase tracking-wider text-text-secondary bg-bg-elevated/95 backdrop-blur-sm border border-border rounded-full px-3 py-1 shadow-sm">
+                    {msgDate}
+                  </span>
                 </div>
               )}
               <MessageBubble

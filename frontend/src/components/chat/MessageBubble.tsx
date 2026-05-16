@@ -20,11 +20,16 @@ function formatTime(ts: number): string {
   const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
   if (diff < 60) return "just now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400 && d.getDate() === now.getDate()) {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  return d.toLocaleDateString([], { month: "short", day: "numeric" }) +
-    " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round((today.getTime() - msgDay.getTime()) / 86400000);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  if (dayDiff === 0) return time;
+  if (dayDiff === 1) return `Yesterday ${time}`;
+  if (dayDiff < 7) return `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
+  return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + time;
 }
 
 function renderContent(

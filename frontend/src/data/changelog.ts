@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.4";
+export const CURRENT_VERSION = "1.50.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.5",
+    date: "2026-05-17",
+    title: "Chat — date headers so messages from different days stop looking adjacent",
+    changes: [
+      {
+        type: "fix",
+        summary: "Chat messages now show the day, not just the time",
+        before: "Messages older than today only showed a short timestamp like \"22:00\" with no day attached, and the thin date divider between days was easy to miss while scrolling. A message posted today at 00:30 looked like it was sent two hours after a message from yesterday at 22:00.",
+        after: "Every timestamp older than today now carries a day label: \"Yesterday 22:00\", \"Mon 22:00\", or a full date for anything older than a week. The day divider between conversations is now a sticky pill that stays pinned to the top of the message list while you scroll, so you always know which day you're reading.",
+        cause: "Previous format relied solely on a low-contrast divider; under quick scrolling players never saw it.",
+      },
+    ],
+  },
   {
     version: "1.50.4",
     date: "2026-05-17",
