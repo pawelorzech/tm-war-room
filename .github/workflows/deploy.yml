@@ -3,6 +3,8 @@ name: Deploy to Coolify
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 # F-14: minimum scope for GITHUB_TOKEN; tighten per-job if some step needs more.
@@ -23,6 +25,14 @@ jobs:
         with:
           node-version: 20
       - run: cd frontend && npm ci && npm run build
+      # Sprint 0 of the Companion perf plan: extension tests + bundle-size gate.
+      # Plans/chc-zadba-bardoz-snazzy-wave.md is the source of truth.
+      - name: Companion — install deps
+        run: cd extension && npm ci
+      - name: Companion — vitest
+        run: cd extension && npm test
+      - name: Companion — bundle-size gate
+        run: cd extension && npm run size
       # Post-mortem 2026-05-15: a broken nginx location block crashed prod
       # for ~9 min before a revert recovered it. Catch syntax errors here.
       # Uses the same base image + nginx packages as the production Dockerfile
@@ -48,6 +58,8 @@ jobs:
 
   deploy:
     needs: test
+    # Only deploy on push to master, not on every PR.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify deploy

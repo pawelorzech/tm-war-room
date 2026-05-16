@@ -13,6 +13,8 @@
 import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
+import { injectPreconnect } from './lib/preconnect';
+import { HUB_ORIGIN } from './env';
 import { ensureProfileStack } from './lib/profile-stack';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
@@ -271,6 +273,11 @@ function invalidateAndRefresh(): void {
 }
 
 function bootstrap(): void {
+  // Sprint 1 quick win: warm the TCP+TLS socket to hub.tri.ovh before
+  // anything else runs. The cost is one <link> tag in <head>; the win is
+  // ~50-200ms shaved off the first fetch on a fresh tab.
+  injectPreconnect(HUB_ORIGIN);
+
   // FFScouter-parity feature flags: prime the cache on boot and refresh
   // every 60 s. ``getFeatureFlags()`` (the sync accessor used by overlays)
   // returns all-false until this resolves, which is the desired "dark by
