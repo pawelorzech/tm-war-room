@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import httpx
 from fastapi import APIRouter, HTTPException
 
 from api.config import FACTION_ID
@@ -9,6 +10,8 @@ logger = logging.getLogger("tm-hub.wars")
 router = APIRouter(prefix="/api/wars", tags=["wars"])
 torn_client = None  # Set by main.py
 
+_EMPTY_WAR = {"war_id": None, "opponent_faction_id": None, "start": None, "end": None}
+
 
 @router.get("/current")
 async def current_war():
@@ -16,13 +19,18 @@ async def current_war():
 
     Content scripts on torn.com profile/attack pages need ``war_id`` to fetch
     off-limits flags. They poll this endpoint instead of the full /api/overview
-    payload. Returns ``{"war_id": null}`` outside of war.
+    payload. Returns ``{"war_id": null}`` outside of war OR when Torn upstream
+    is flaking — the extension polls again next cycle.
     """
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
-    war = await torn_client.fetch_war()
+    try:
+        war = await torn_client.fetch_war()
+    except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as exc:
+        logger.warning("Torn upstream failed for /api/wars/current: %s", exc)
+        return _EMPTY_WAR
     if not war or not war.war_id:
-        return {"war_id": None, "opponent_faction_id": None, "start": None, "end": None}
+        return _EMPTY_WAR
     opponent = next((f for f in war.factions if f.id != FACTION_ID), None)
     return {
         "war_id": war.war_id,

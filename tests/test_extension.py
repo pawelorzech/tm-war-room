@@ -158,6 +158,56 @@ def test_wars_current_returns_war_id_and_opponent(client_active_war):
     assert body["end"] == 1700100000
 
 
+class _FlakyTornClient:
+    """fetch_war raises an httpx upstream error — simulates Torn API 504."""
+    def __init__(self, exc):
+        self._exc = exc
+
+    async def fetch_war(self, *args, **kwargs):
+        raise self._exc
+
+
+@pytest.mark.parametrize(
+    "exc_factory",
+    [
+        lambda: __import__("httpx").HTTPStatusError(
+            "Server error '504 Gateway Timeout'",
+            request=__import__("httpx").Request("GET", "https://api.torn.com/v2/faction"),
+            response=__import__("httpx").Response(
+                504,
+                request=__import__("httpx").Request("GET", "https://api.torn.com/v2/faction"),
+            ),
+        ),
+        lambda: __import__("httpx").TimeoutException("read timeout"),
+        lambda: __import__("httpx").ConnectError("dns failed"),
+        lambda: __import__("httpx").ReadError("connection reset"),
+    ],
+    ids=["504", "timeout", "connect", "read"],
+)
+def test_wars_current_returns_empty_on_upstream_error(exc_factory):
+    """PYTHON-FASTAPI-G regression: Torn upstream errors must not crash /api/wars/current.
+
+    Companion extension polls this endpoint — propagating 5xx/timeout to the
+    extension would surface as UNHANDLED in Sentry every time Torn flakes.
+    Treat upstream noise as 'no war info this cycle' and let the extension poll
+    again.
+    """
+    from api.routers import wars as wars_mod
+    wars_mod.torn_client = _FlakyTornClient(exc=exc_factory())
+
+    app = FastAPI()
+    app.include_router(wars_mod.router)
+    client = TestClient(app)
+    resp = client.get("/api/wars/current")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["war_id"] is None
+    assert body["opponent_faction_id"] is None
+    assert body["start"] is None
+    assert body["end"] is None
+
+
 # ---------- Integration: extension JWT accepted by middleware ----------
 
 
