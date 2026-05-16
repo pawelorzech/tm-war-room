@@ -20,6 +20,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { attachToProfileStack } from '../lib/profile-stack';
 import { cardBase } from '../lib/card-styles';
 import { showFormModal } from '../lib/modal';
 import { showToast } from '../lib/notifications';
@@ -244,6 +245,7 @@ export async function renderLootOverlay(playerId: number): Promise<void> {
   bindLootActions(shadow, npc, auth.player_id);
 
   if (!host.parentElement) {
+    if (attachToProfileStack(host)) return;
     const intelHost = document.querySelector('[data-tm-companion="profile-intel"]');
     if (intelHost && intelHost.parentElement) {
       intelHost.parentElement.insertBefore(host, intelHost.nextSibling);
