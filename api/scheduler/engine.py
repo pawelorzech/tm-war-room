@@ -42,6 +42,7 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
     from api.scheduler.jobs.discover_companies import run_discover_companies
     from api.scheduler.jobs.check_trains_stagnation import run_check_trains_stagnation
     from api.scheduler.jobs.backup_keys_db import run_backup_keys_db
+    from api.scheduler.jobs.flights import run_flights_tick
 
     global _state
     _state = app_state
@@ -133,6 +134,21 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         IntervalTrigger(hours=24, start_time=datetime.now(timezone.utc) + timedelta(seconds=60)),
         id="backup_keys_db_schedule",
     )
+
+    # === Intel Pack jobs (Phase 1-4) ===
+    # Each block is gated on its feature flag so a disabled phase does NOT
+    # consume Torn rate-limit budget. Flags live in api.config and are read
+    # *here* (not at module import) so an env-var flip on deploy is honoured
+    # the moment the scheduler boots.
+    from api import config as _intel_cfg
+    if _intel_cfg.ENABLE_FLIGHTS:
+        await scheduler.configure_task("flights_tick", func=run_flights_tick)
+        await scheduler.add_schedule(
+            "flights_tick",
+            IntervalTrigger(seconds=60),
+            id="flights_tick_schedule",
+        )
+        logger.info("Intel Pack: flights_tick registered (60s)")
 
     # Track every completed job so /api/admin/scheduler/status can answer
     # "is the collector still running?" without grepping container logs.
