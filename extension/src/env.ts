@@ -27,3 +27,15 @@ export const HUB_ORIGIN: string =
 
 export const COMPANION_VERSION: string =
   process.env.TM_COMPANION_VERSION || '0.0.0';
+
+// FFScouter parity (Phase 0): re-export the lib/api cache helper as part of
+// the public env surface. Overlays in Phases 1B/2B/3B/4B will gate their own
+// init on this without having to import lib/api directly. Defaults are
+// all-false so any call site that runs before the first fetch is safe.
+import { getCachedFeatureFlags, type FeatureFlags } from './lib/api';
+
+export function getFeatureFlags(): FeatureFlags {
+  return getCachedFeatureFlags();
+}
+
+export type { FeatureFlags };

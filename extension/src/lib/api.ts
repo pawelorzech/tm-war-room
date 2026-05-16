@@ -379,4 +379,74 @@ export function removeStakeout(
   return del<{ status: string }>(`/api/stakeout/${playerId}`, auth);
 }
 
+// ── Feature flags (Phase 0) ─────────────────────────────────
+//
+// Public endpoint — no auth, no X-Player-Id. We still go through
+// gmRequest/plainRequest so the Companion uses one transport for everything.
+
+export interface FeatureFlags {
+  ff_score: boolean;
+  flights: boolean;
+  activity: boolean;
+  hit_calling: boolean;
+}
+
+const FEATURE_FLAGS_DEFAULT: FeatureFlags = {
+  ff_score: false,
+  flights: false,
+  activity: false,
+  hit_calling: false,
+};
+
+const FEATURE_FLAGS_TTL_MS = 60_000;
+
+let _flagsCache: { value: FeatureFlags; fetchedAt: number } | null = null;
+
+async function rawGetFlags(): Promise<FeatureFlags> {
+  const url = `${HUB_ORIGIN}/api/extension/feature-flags`;
+  const headers: Record<string, string> = {
+    'X-TM-Companion': `userscript/${VERSION}`,
+  };
+  let res: RawResponse;
+  try {
+    res = await gmRequest('GET', url, headers);
+  } catch {
+    res = await plainRequest('GET', url, headers);
+  }
+  if (res.status < 200 || res.status >= 300 || !res.body) {
+    throw new ApiError(`HTTP ${res.status}`, res.status);
+  }
+  const parsed = JSON.parse(res.body) as Partial<FeatureFlags>;
+  // Coerce defensively so a backend missing a key never becomes `undefined`.
+  return {
+    ff_score: Boolean(parsed.ff_score),
+    flights: Boolean(parsed.flights),
+    activity: Boolean(parsed.activity),
+    hit_calling: Boolean(parsed.hit_calling),
+  };
+}
+
+export async function fetchFeatureFlags(): Promise<FeatureFlags> {
+  const now = Date.now();
+  if (_flagsCache && now - _flagsCache.fetchedAt < FEATURE_FLAGS_TTL_MS) {
+    return _flagsCache.value;
+  }
+  try {
+    const value = await rawGetFlags();
+    _flagsCache = { value, fetchedAt: now };
+    return value;
+  } catch {
+    // Backend unreachable or returned non-2xx: fall back to all-off so the
+    // Companion never accidentally lights up a dark-launched overlay just
+    // because the network blipped. Cache the default briefly to avoid
+    // hammering the endpoint while it's down.
+    _flagsCache = { value: FEATURE_FLAGS_DEFAULT, fetchedAt: now };
+    return FEATURE_FLAGS_DEFAULT;
+  }
+}
+
+export function getCachedFeatureFlags(): FeatureFlags {
+  return _flagsCache?.value ?? FEATURE_FLAGS_DEFAULT;
+}
+
 export { ApiError };
