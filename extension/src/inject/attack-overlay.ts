@@ -19,6 +19,7 @@ import { escapeHtml, formatTotal } from '../lib/format';
 import { ApiError, submitSpyReport } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { showToast } from '../lib/notifications';
+import { maybeRenderFFChip } from './ff-chip';
 
 const INTERCEPT_FLAG = 'tmCompanionIntercepted';
 
@@ -29,6 +30,12 @@ export function renderAttackOverlay(off: WarOffLimits | null): void {
   // Independent of off-limits state — if the fight is over and stats are
   // revealed in the DOM, offer a Submit chip. Both paths can coexist.
   void maybeOfferSpySubmit();
+
+  // FF fallback chip: a tiny pill near the attack-page badge so the player
+  // sees a difficulty signal even when no spy estimate exists. Coexists
+  // with the submit-spy chip — they target different DOM hosts and
+  // independent rendering conditions.
+  void maybeRenderAttackFFChip();
 
   if (!off) return;
 
@@ -164,5 +171,51 @@ async function maybeOfferSpySubmit(): Promise<void> {
     }
   });
   document.body.appendChild(chip);
+}
+
+// --- FF fallback chip on attack page --------------------------------------
+//
+// Mounts a stable host (own data-tm-companion id so it can't collide with
+// the submit-spy chip) anchored to the OFF-LIMITS badge if present, else
+// to #mainContainer. maybeRenderFFChip handles its own feature-flag gate +
+// "no fresh spy" short-circuit, so this is safe to call on every refresh.
+
+const FF_HOST_ATTR = 'data-tm-companion';
+const FF_HOST_KIND = 'attack-ff-chip';
+
+function attackTargetId(): number | null {
+  const uid = new URL(window.location.href).searchParams.get('user2ID');
+  if (!uid || !/^\d+$/.test(uid)) return null;
+  return parseInt(uid, 10);
+}
+
+function ensureAttackFFHost(): HTMLElement | null {
+  let host = document.querySelector<HTMLElement>(`[${FF_HOST_ATTR}="${FF_HOST_KIND}"]`);
+  if (host) return host;
+  host = document.createElement('span');
+  host.setAttribute(FF_HOST_ATTR, FF_HOST_KIND);
+  host.style.display = 'inline-block';
+  host.style.margin = '4px 0';
+  // Attach next to the off-limits badge if it exists (same flow region),
+  // otherwise hang it off #mainContainer's first child.
+  const badge = document.querySelector('[data-tm-companion="profile-badge"]');
+  if (badge?.parentElement) {
+    badge.parentElement.insertBefore(host, badge.nextSibling);
+    return host;
+  }
+  const main = document.getElementById('mainContainer');
+  if (main) {
+    main.insertBefore(host, main.firstChild);
+    return host;
+  }
+  return null;
+}
+
+async function maybeRenderAttackFFChip(): Promise<void> {
+  const playerId = attackTargetId();
+  if (!playerId) return;
+  const host = ensureAttackFFHost();
+  if (!host) return;
+  await maybeRenderFFChip(host, playerId);
 }
 

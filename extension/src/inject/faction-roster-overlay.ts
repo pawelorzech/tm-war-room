@@ -16,6 +16,7 @@ import {
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
+import { maybeRenderFFChip } from './ff-chip';
 import type {
   FactionSpyMember,
   ThreatLabel,
@@ -200,7 +201,7 @@ export async function applyFactionRosterOverlay(opts: {
         d.stakeout ? d.stakeout.player_id : '',
         d.threat_label,
       ].join('|'),
-    render: ({ row, data, appendBadge }) => {
+    render: ({ anchor, row, data, appendBadge }) => {
       const tier = TIER_COLOR[data.threat_label] || TIER_COLOR.unknown;
       if (tier.bg !== 'transparent') {
         row.style.backgroundColor = tier.bg;
@@ -247,6 +248,15 @@ export async function applyFactionRosterOverlay(opts: {
       const badge = document.createElement('span');
       badge.innerHTML = pills.join('');
       appendBadge(badge);
+
+      // FF fallback chip — only shows for rows where the backend has no
+      // fresh spy estimate (otherwise the spy pill above already covers
+      // it). Fired per-row; maybeRenderFFChip handles the feature-flag
+      // gate + formula-only filter internally.
+      const m = anchor.href.match(/XID=(\d+)/);
+      if (m) {
+        void maybeRenderFFChip(badge, parseInt(m[1], 10));
+      }
     },
   });
 }
