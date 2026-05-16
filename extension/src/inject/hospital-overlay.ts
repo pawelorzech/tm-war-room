@@ -14,11 +14,13 @@ import {
   fetchEnemy,
   fetchOffLimits,
   fetchTargets,
+  getCachedFeatureFlags,
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { WarOffLimits, Target } from '../types';
 import { escapeHtml } from '../lib/format';
+import { renderClaimButton } from './claim-button';
 
 interface HospitalRow {
   tm_mate: boolean;
@@ -175,7 +177,7 @@ export async function applyHospitalOverlay(opts: { warId: number | null }): Prom
         d.off_limits ? '1' : '0',
         d.target ? (d.target.tag ?? '1') : '0',
       ].join('|'),
-    render: ({ row, data, appendBadge }) => {
+    render: ({ row, data, anchor, appendBadge }) => {
       if (data.tm_mate) {
         row.style.backgroundColor = 'rgba(63,185,80,0.10)';
       } else if (data.war_enemy) {
@@ -191,11 +193,32 @@ export async function applyHospitalOverlay(opts: { warId: number | null }): Prom
         const tag = data.target.tag ? ` ${escapeHtml(data.target.tag)}` : '';
         pills.push(`<span class="pill pill-target">🎯 target${tag}</span>`);
       }
-      if (pills.length === 0) return;
-
       const badge = document.createElement('span');
       badge.innerHTML = pills.join('');
-      appendBadge(badge);
+      if (pills.length > 0) appendBadge(badge);
+
+      // Hit-claim button: only paint for war enemies that aren't off-limits.
+      // Off-limits already telegraphs "don't shoot", and claiming a faction
+      // mate makes no sense. No-op when hit_calling flag is off.
+      if (
+        getCachedFeatureFlags().hit_calling &&
+        data.war_enemy &&
+        !data.off_limits &&
+        !data.tm_mate
+      ) {
+        const m = anchor.href.match(/XID=(\d+)/);
+        const pid = m ? parseInt(m[1], 10) : 0;
+        if (pid > 0) {
+          const slot = document.createElement('span');
+          slot.setAttribute('data-tm-hospital-claim-slot', String(pid));
+          anchor.insertAdjacentElement('afterend', slot);
+          renderClaimButton({
+            host: slot,
+            targetId: pid,
+            targetName: anchor.textContent?.trim() || String(pid),
+          });
+        }
+      }
     },
   });
 }

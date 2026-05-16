@@ -8,6 +8,7 @@ import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
 import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
+import { ActiveClaims } from '@/components/intel/ActiveClaims';
 
 const RecentActivityChart = dynamic(
   () => import('@/components/chain/RecentActivityChart').then(m => ({ default: m.RecentActivityChart })),
@@ -237,6 +238,9 @@ export default function ChainPage() {
             />
           </div>
         </div>
+
+        {/* Phase 4B (intel-pack): live hit-claim list. Hidden when flag off. */}
+        <ActiveClaims />
 
         {loading ? (
           <TableSkeleton rows={8} cols={5} />
