@@ -13,6 +13,7 @@ import { maybeRenderFFChip } from './ff-chip';
 import { maybeRenderFlightPill } from './flight-pill';
 import { getCachedFeatureFlags } from '../lib/api';
 import { renderClaimButton } from './claim-button';
+import { attachToProfileStack } from '../lib/profile-stack';
 
 /** Render the FF fallback chip on a profile page. Lives alongside the
  *  OFF-LIMITS badge but in its own host so it can render independently —
@@ -27,14 +28,16 @@ export function renderProfileFFChip(playerId: number): void {
     host.setAttribute('data-tm-companion', 'profile-ff-chip');
     host.style.display = 'inline-block';
     host.style.margin = '4px 0';
-    for (const sel of PROFILE_ANCHOR_SELECTORS) {
-      const anchor = document.querySelector(sel);
-      if (anchor) {
-        anchor.insertBefore(host, anchor.firstChild);
-        break;
+    if (!attachToProfileStack(host)) {
+      for (const sel of PROFILE_ANCHOR_SELECTORS) {
+        const anchor = document.querySelector(sel);
+        if (anchor) {
+          anchor.insertBefore(host, anchor.firstChild);
+          break;
+        }
       }
+      if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
     }
-    if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
   }
   void maybeRenderFFChip(host, playerId);
 }
@@ -68,6 +71,7 @@ export function renderProfileBadge(off: WarOffLimits | null): void {
 
   // Place host above the profile content.
   if (!host.parentElement) {
+    if (attachToProfileStack(host)) return;
     for (const sel of PROFILE_ANCHOR_SELECTORS) {
       const anchor = document.querySelector(sel);
       if (anchor) {
@@ -91,14 +95,16 @@ export async function renderProfileFlightPill(playerId: number): Promise<void> {
     host = document.createElement('div');
     host.setAttribute(FLIGHT_HOST_ATTR, '1');
     host.style.margin = '6px 0';
-    for (const sel of PROFILE_ANCHOR_SELECTORS) {
-      const anchor = document.querySelector(sel);
-      if (anchor) {
-        anchor.insertBefore(host, anchor.firstChild);
-        break;
+    if (!attachToProfileStack(host)) {
+      for (const sel of PROFILE_ANCHOR_SELECTORS) {
+        const anchor = document.querySelector(sel);
+        if (anchor) {
+          anchor.insertBefore(host, anchor.firstChild);
+          break;
+        }
       }
+      if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
     }
-    if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
   }
   await maybeRenderFlightPill(host, playerId);
   // Remove the host entirely when no pill rendered, so the profile header
@@ -121,7 +127,7 @@ export function renderProfileClaimButton(targetId: number, targetName: string): 
   applyBaseStyles(shadow);
 
   // Anchor above the profile content alongside the OFF-LIMITS card (when present).
-  if (!host.parentElement) {
+  if (!host.parentElement && !attachToProfileStack(host)) {
     let placed = false;
     for (const sel of PROFILE_ANCHOR_SELECTORS) {
       const anchor = document.querySelector(sel);

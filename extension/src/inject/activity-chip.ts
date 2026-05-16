@@ -20,6 +20,7 @@ import { ApiError, fetchActivity, enrollActivityTracking, fetchFeatureFlags } fr
 import { getAuth, clearAuth } from '../lib/auth';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
+import { attachToProfileStack } from '../lib/profile-stack';
 import { cardBase } from '../lib/card-styles';
 import { escapeHtml } from '../lib/format';
 
@@ -59,6 +60,9 @@ function clearChip(): void {
 
 function placeHost(host: HTMLElement, anchor: HTMLElement): void {
   if (host.parentElement) return;
+  // Prefer the pre-mounted profile-stack so the chip lands inside reserved
+  // space instead of triggering a layout shift on async mount.
+  if (attachToProfileStack(host)) return;
   // If the placement-hint anchor is in the DOM, drop the chip right after it
   // so it visually clusters with profile-badge / profile-intel.
   if (anchor.parentElement) {

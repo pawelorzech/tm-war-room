@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.49.0";
+export const CURRENT_VERSION = "1.49.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.49.1",
+    date: "2026-05-16",
+    title: "Companion v0.27.1 — profile pages stop hitching on every TM Hub overlay load",
+    changes: [
+      {
+        type: "fix",
+        summary: "TM Hub overlays on /profile.php no longer push the page around as they load",
+        before: "Opening a profile made the page jump around for a second or two — the OFF-LIMITS card, FF chip, intel card, claim button, flight pill, activity chip and loot overlay each appeared one after another, each pushing whatever was below them further down. Web Vitals scored layout shift as 0.61 (poor).",
+        after: "All seven overlays land inside a single reserved-height container that the companion drops in the moment the page loads, so the rest of the profile keeps its position even while overlay data is still being fetched.",
+        cause: "Each overlay was mounting itself with insertBefore on the page header as soon as its fetch resolved, with no shared parent to hold space in advance.",
+      },
+    ],
+  },
   {
     version: "1.49.0",
     date: "2026-05-16",
