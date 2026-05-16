@@ -38,28 +38,29 @@ def spy_reported_at(timestamp, fallback_iso: str) -> str:
     except (OverflowError, OSError, ValueError):
         return fallback_iso
 def is_real_spy(data) -> bool:
-    """Reject "estimate-only" spy responses — total without per-stat breakdown.
+    """Reject "estimate-only" or partial spy responses.
 
-    TornStats sometimes returns an algorithmic estimate (no real spy exists, only
-    a level-based total guess) where per-stat fields are non-numeric placeholders
-    like the literal string "N/A". `_num` in torn_client coerces those to 0 at the
-    parser boundary; this guard then rejects the row entirely so refresh_estimate
-    won't pick it as the freshest report. The UI falls back to YATA, the faction
-    snapshot, or the heuristic estimator — all of which are honest about being
-    estimates and produce per-stat breakdowns.
+    A real spy carries five numbers: total + all four per-stat. TornStats sometimes
+    returns an algorithmic estimate (no real spy exists, only a level-based total
+    guess) where per-stat are the literal string "N/A", AND sometimes a partial
+    response where 1-3 of the four per-stat are "N/A" with the rest real. `_num`
+    in torn_client coerces non-numerics to 0 at the parser boundary; this guard
+    then rejects any row missing the full breakdown — storing a row with even one
+    zero per-stat next to a real total still misleads the UI ("strength = 0?").
+
+    refresh_estimate falls back to YATA, the faction snapshot, or the personalstats
+    heuristic — all of which produce a complete per-stat breakdown or are honest
+    about being a single-number estimate.
     """
     if not data:
         return False
     total = data.get("total", 0) or 0
     if total <= 0:
         return False
-    stat_sum = (
-        (data.get("strength", 0) or 0)
-        + (data.get("defense", 0) or 0)
-        + (data.get("speed", 0) or 0)
-        + (data.get("dexterity", 0) or 0)
-    )
-    return stat_sum > 0
+    for field in ("strength", "defense", "speed", "dexterity"):
+        if (data.get(field, 0) or 0) <= 0:
+            return False
+    return True
 
 
 EXACT_MAX_AGE_DAYS = 7
