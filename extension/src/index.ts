@@ -16,6 +16,7 @@ import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
+import { maybeRenderActivityChip } from './inject/activity-chip';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
@@ -229,6 +230,18 @@ async function refresh(): Promise<void> {
   // target is mid-flight (you can't hit travelers).
   if (match.kind === 'profile' || match.kind === 'attack') {
     void renderProfileFlightPill(match.player_id);
+  }
+
+  // Most-active-window chip (Phase 3B). Self-gates on the `activity` feature
+  // flag and on whether the backend has any data for this player. Anchored to
+  // the profile-badge host so it visually clusters with the other profile
+  // overlay cards.
+  if (match.kind === 'profile') {
+    const anchorEl =
+      document.querySelector<HTMLElement>('[data-tm-companion="profile-badge"]') ||
+      document.querySelector<HTMLElement>('[data-tm-companion="profile-intel"]') ||
+      document.body;
+    void maybeRenderActivityChip(anchorEl, match.player_id);
   }
 }
 
