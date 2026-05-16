@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.46.0";
+export const CURRENT_VERSION = "1.46.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.46.1",
+    date: "2026-05-16",
+    title: "Companion install instructions now appear first on /install",
+    changes: [
+      {
+        type: "improve",
+        summary: "Install steps (Tampermonkey + Torn PDA) moved above the 'what works today' grid on the Companion page",
+        detail: "Opening TM Hub Companion used to scroll past a long 'what works today' feature list before showing how to actually install the userscript. The install paths now sit directly under the page header, with the feature status grid moved below them — easier to find the install button when that's why you're on the page.",
+      },
+    ],
+  },
   {
     version: "1.46.0",
     date: "2026-05-16",
