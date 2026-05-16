@@ -50,6 +50,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Travel arbitrage card</span> on /travelagency.php — top-3 destinations by best item profit, with abroad cost / sell value / travel time</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Ambient pills wherever player names appear</span> — /messages, /forums, /friendlist, /searchresults all get inline OFF-LIMITS / target / stakeout / spy total pills next to known players</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Item market fair-price pills</span> on /imarket.php — every listing gets a green/red pill showing whether the asking price is below, at, or above TM Hub's fair value, with the % delta</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">OC 2.0 readiness card</span> on /factions.php?step=crimes — planning + executing OCs with slot fill, average CPR, ready-at countdown, and a pill telling you whether you're already booked</span></li>
             </ul>
           </div>
 

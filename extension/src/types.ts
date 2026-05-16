@@ -374,3 +374,32 @@ export interface MarketPricesResponse {
   items: MarketPriceItem[];
   count: number;
 }
+
+export interface OcParticipant {
+  player_id: number;
+  player_name: string;
+  role: string;
+  checkpoint_pass_rate: number;
+  planning_complete: boolean;
+}
+
+export interface OcCrime {
+  id: number;
+  name: string;
+  status: string;
+  difficulty: string;
+  initiated_at: number;
+  executed_at: number;
+  ready_at: number;
+  success: boolean | null;
+  money_gain: number;
+  respect_gain: number;
+  participants: OcParticipant[];
+  participant_count: number;
+}
+
+export interface OcResponse {
+  crimes: OcCrime[];
+  count: number;
+  category: string;
+}
