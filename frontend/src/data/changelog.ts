@@ -52,9 +52,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.6";
+export const CURRENT_VERSION = "1.50.7";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.7",
+    date: "2026-05-17",
+    title: "Companion chat — date headers stop overlapping each other",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion chat date headers no longer pile up on the top edge during scroll",
+        before: "v0.27.3 used a sticky pill so the day label stayed pinned to the top of the chat dock while you scrolled. In the narrow Companion panel the sticky pills did not push each other out of the way the way they do in wider chats — two or three consecutive day pills collided in the top-right corner and rendered as overlapping fragments.",
+        after: "Each day boundary now renders as a centered inline pill with a hairline divider on each side (Today / Yesterday / Monday / Apr 6). The label scrolls with the conversation instead of pinning, so different days can no longer overlap. Per-message timestamps still carry the day (\"Yesterday 22:00\", \"Mon 22:00\"), so even when the divider is off-screen you can tell which day a line belongs to. Update via Tampermonkey Dashboard → TM Hub Companion → Check for updates (v0.27.4).",
+      },
+    ],
+  },
   {
     version: "1.50.6",
     date: "2026-05-17",
