@@ -12,6 +12,7 @@ import { ApiError, fetchTravel } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { TRAVEL_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { cardBase } from '../lib/card-styles';
 import type { TravelCountry, TravelItem } from '../types';
 import { HUB_ORIGIN } from '../env';
 import { escapeHtml } from '../lib/format';
@@ -53,33 +54,8 @@ function fmtMoney(n: number): string {
 }
 
 
-const STYLES = `
-  :host { all: initial; display: block; width: 100%; }
-  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .card {
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-    border: 1px solid #30363d;
-    border-left: 3px solid #3fb950;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px 0;
-    color: #c9d1d9;
-    font-size: 12px;
-    line-height: 1.45;
-    width: 100%;
-    display: block;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-  }
-  .title { font-weight: 700; color: #3fb950; font-size: 13px; white-space: nowrap; min-width: 0; }
-  .link { color: #6e7681; font-size: 11px; text-decoration: none; white-space: nowrap; }
-  .link:hover { color: #3fb950; text-decoration: underline; }
+const STYLES = cardBase('#3fb950') + `
+  .title { white-space: nowrap; min-width: 0; }
   .dest {
     background: #0d1117;
     border: 1px solid #21262d;
@@ -133,23 +109,6 @@ const STYLES = `
     font-size: 11px;
   }
   .item-row .stock { color: #6e7681; font-size: 10px; }
-  .empty { color: #6e7681; font-size: 11px; margin-top: 6px; }
-  .err {
-    background: rgba(248,81,73,0.08);
-    border: 1px solid rgba(248,81,73,0.3);
-    color: #c9d1d9;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    margin-top: 6px;
-  }
-  .footer {
-    color: #6e7681;
-    font-size: 10px;
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid #21262d;
-  }
 `;
 
 function renderDestination(country: TravelCountry): string {

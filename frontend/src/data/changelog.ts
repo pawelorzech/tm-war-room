@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.46.1";
+export const CURRENT_VERSION = "1.47.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.47.0",
+    date: "2026-05-16",
+    title: "Companion v0.24 — Submit spy stats straight from the attack-end screen",
+    changes: [
+      {
+        type: "feat",
+        summary: "Submit-spy chip on attack pages when the loser's stats are revealed",
+        detail: "After a fight where the opponent's stats showed up in the outcome panel (STR/DEF/SPD/DEX visible), the Companion now drops a small \"Submit spy to TM Hub\" chip in the top-right of the page. One click ships those four numbers to /api/spy/submit so the rest of the faction sees up-to-date intel — no copying numbers into the web app by hand. Chip is hidden when stats aren't on screen, removes itself after a successful submit, and shows a retry label if the call fails.",
+      },
+    ],
+  },
   {
     version: "1.46.1",
     date: "2026-05-16",
