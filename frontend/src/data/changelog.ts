@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.41.2";
+export const CURRENT_VERSION = "1.42.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.0",
+    date: "2026-05-16",
+    title: "Companion v0.19 — Spot underpriced item market listings without leaving Torn",
+    changes: [
+      {
+        type: "feat",
+        summary: "Fair-price pills on every /imarket.php listing",
+        detail: "Open Torn's item market and each listing now carries a small pill: green if the asking price is more than 10% below TM Hub's fair value, red if it's more than 10% above, grey if it's within ±10%. The pill shows the % delta so you can sort the deals at a glance. Fair value comes from Torn's own market_value field, refreshed every 5 minutes — same data TM Hub uses elsewhere.",
+      },
+    ],
+  },
   {
     version: "1.41.2",
     date: "2026-05-16",
