@@ -19,7 +19,10 @@ def log_job_error(logger: logging.Logger, msg: str, exc: BaseException) -> None:
     if _is_upstream_noise(exc):
         logger.warning(msg, exc)
         return
-    logger.error(msg, exc)
+    # exc_info=exc so Sentry's LoggingIntegration attaches the real traceback —
+    # without it we get only the message and the log call site (cf. PYTHON-FASTAPI-M:
+    # "KeyError: 'members'" with no stack to chase).
+    logger.error(msg, exc, exc_info=exc)
 
 
 def report_job_error(
