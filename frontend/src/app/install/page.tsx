@@ -1,18 +1,51 @@
 'use client';
 
-/**
- * TM Hub Companion install landing.
- *
- * Two install paths: Tampermonkey (desktop) and Torn PDA (mobile). Both run
- * the same userscript hosted at /companion.user.js. A native MV3 browser
- * extension is not currently on the roadmap — the userscript covers Chrome,
- * Firefox, Edge, and Safari through Tampermonkey.
- */
+import { useEffect, useState } from 'react';
 
 const USERSCRIPT_URL = 'https://hub.tri.ovh/companion.user.js';
+// Empty until the script is published on Greasy Fork. See docs/publishing-to-greasyfork.md
+// for the one-time setup. When set, this URL becomes the recommended 1-click install path
+// (Greasy Fork scripts bypass Chrome MV3 "developer mode required" restrictions).
+const GREASYFORK_URL = '';
 const TAMPERMONKEY_URL = 'https://www.tampermonkey.net/';
+const TORN_PDA_IOS_URL = 'https://apps.apple.com/app/torn-pda/id1467110341';
+const TORN_PDA_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.manuito.tornpda';
+
+type Env = 'desktop' | 'apple-mobile' | 'android-mobile' | 'unknown';
+
+function detectEnv(): Env {
+  if (typeof navigator === 'undefined' || typeof document === 'undefined') return 'unknown';
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'apple-mobile';
+  // iPad on iPadOS 13+ reports as Macintosh; the touch-end hint disambiguates.
+  if (/Macintosh/.test(ua) && 'ontouchend' in document) return 'apple-mobile';
+  if (/Android/i.test(ua)) return 'android-mobile';
+  return 'desktop';
+}
 
 export default function InstallPage() {
+  const [env, setEnv] = useState<Env>('unknown');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setEnv(detectEnv());
+  }, []);
+
+  const isMobile = env === 'apple-mobile' || env === 'android-mobile';
+  const showDesktop = !isMobile;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(USERSCRIPT_URL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // older browser without clipboard API — user can still copy from the visible code block
+    }
+  };
+
+  const pdaStoreUrl = env === 'android-mobile' ? TORN_PDA_ANDROID_URL : TORN_PDA_IOS_URL;
+
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
@@ -21,76 +54,167 @@ export default function InstallPage() {
           <p className="text-text-secondary">
             Your faction intel injected directly into torn.com pages.
           </p>
+          {isMobile && (
+            <p className="text-text-muted text-xs">
+              You're on {env === 'apple-mobile' ? 'iPhone / iPad' : 'Android'} — showing the mobile install path. Open this page on desktop for Chrome / Firefox instructions.
+            </p>
+          )}
         </header>
 
-        <section className="grid md:grid-cols-2 gap-4">
-          {/* Userscript path (desktop) */}
-          <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
-            <span className="absolute -top-2 right-3 bg-torn-green text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
-              Desktop
-            </span>
-            <h3 className="text-base font-bold">Tampermonkey</h3>
-            <p className="text-text-secondary text-xs">
-              Works in Chrome, Firefox, Edge, and Safari. Fastest way to get started.
-            </p>
-            <p className="text-text-muted text-[11px] leading-relaxed">
-              <span className="text-text-secondary font-semibold">Before you start:</span> open{' '}
-              <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
-                Torn → Preferences → API Keys
-              </a>{' '}
-              and create a <span className="text-text-secondary">Full Access</span> key — TM Hub will ask for it on first connect.
-            </p>
-            <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
-              <li>
-                Install{' '}
-                <a href={TAMPERMONKEY_URL} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
-                  Tampermonkey
-                </a>
-              </li>
-              <li>
-                Click{' '}
-                <a href={USERSCRIPT_URL} className="text-torn-green underline">
-                  install TM Hub Companion
-                </a>{' '}
-                — Tampermonkey will offer to install
-              </li>
-              <li>Open <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> to authorize the script</li>
-              <li>Reload torn.com — done.</li>
-            </ol>
-            <p className="text-text-muted text-[10px] mt-2">
-              Updates automatically every 24h.
-            </p>
-          </div>
+        <section className="space-y-4">
+          {showDesktop && GREASYFORK_URL && (
+            <div className="bg-bg-card border-2 border-torn-green rounded-xl p-5 space-y-3 relative">
+              <span className="absolute -top-2 right-3 bg-torn-green text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
+                Recommended · Desktop
+              </span>
+              <h3 className="text-base font-bold">1-click install via Greasy Fork</h3>
+              <p className="text-text-secondary text-xs">
+                Works around Chrome's MV3 restrictions — no "developer mode" toggle, no manual paste. Tampermonkey trusts Greasy Fork natively.
+              </p>
+              <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
+                <li>
+                  Install <a href={TAMPERMONKEY_URL} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">Tampermonkey</a> (Chrome, Firefox, Edge)
+                </li>
+                <li>
+                  Open <a href={GREASYFORK_URL} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">TM Hub Companion on Greasy Fork</a> → click the green <span className="text-text-primary">Install</span> button → Tampermonkey opens an install prompt
+                </li>
+                <li>
+                  Open <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> in this browser to authorize
+                </li>
+                <li>Reload torn.com — done.</li>
+              </ol>
+              <a
+                href={GREASYFORK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center bg-torn-green text-bg-primary font-bold text-sm px-4 py-2 rounded-md hover:opacity-90 transition"
+              >
+                Open Greasy Fork →
+              </a>
+              <p className="text-text-muted text-[10px]">Updates automatically every 24h.</p>
+            </div>
+          )}
 
-          {/* PDA path (mobile) */}
-          <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
-            <span className="absolute -top-2 right-3 bg-torn-green text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
-              Mobile
-            </span>
-            <h3 className="text-base font-bold">Torn PDA</h3>
-            <p className="text-text-secondary text-xs">
-              Torn PDA on iOS and Android supports userscripts natively.
-            </p>
-            <p className="text-text-muted text-[11px] leading-relaxed">
-              <span className="text-text-secondary font-semibold">Before you start:</span> in PDA, open{' '}
-              <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
-                Torn → Preferences → API Keys
-              </a>{' '}
-              and create a <span className="text-text-secondary">Full Access</span> key. Long-press the key → Copy. TM Hub will ask for it on first connect.
-            </p>
-            <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
-              <li>Open Torn PDA → More → Userscripts</li>
-              <li>
-                Tap <span className="text-text-primary">+ Add</span> and paste:
-              </li>
-            </ol>
-            <code className="block bg-bg-primary border border-border rounded-md p-2 text-[10px] font-mono break-all">
-              {USERSCRIPT_URL}
-            </code>
-            <ol start={3} className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
-              <li>Tap Save → enable the script</li>
-              <li>Open <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> in PDA's browser to authorize</li>
-            </ol>
+          <div className={isMobile ? 'grid grid-cols-1 gap-4' : 'grid md:grid-cols-2 gap-4'}>
+            {showDesktop && (
+              <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
+                <span className="absolute -top-2 right-3 bg-torn-green/80 text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
+                  {GREASYFORK_URL ? 'Alternative · Desktop' : 'Desktop'}
+                </span>
+                <h3 className="text-base font-bold">Tampermonkey (direct)</h3>
+                <p className="text-text-secondary text-xs">
+                  Works in Chrome, Firefox, Edge. If the 1-click link below shows "cannot install scripts from this website", use the manual fallback underneath.
+                </p>
+                <p className="text-text-muted text-[11px] leading-relaxed">
+                  <span className="text-text-secondary font-semibold">Before you start:</span> open{' '}
+                  <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                    Torn → Preferences → API Keys
+                  </a>{' '}
+                  and create a <span className="text-text-secondary">Full Access</span> key — TM Hub will ask for it on first connect.
+                </p>
+                <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
+                  <li>
+                    Install{' '}
+                    <a href={TAMPERMONKEY_URL} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                      Tampermonkey
+                    </a>
+                  </li>
+                  <li>
+                    Try{' '}
+                    <a href={USERSCRIPT_URL} className="text-torn-green underline">
+                      install TM Hub Companion
+                    </a>
+                    {' '}— Tampermonkey should offer to install
+                  </li>
+                  <li>Open <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> to authorize</li>
+                  <li>Reload torn.com — done.</li>
+                </ol>
+
+                <details className="text-[11px] text-text-secondary border-t border-text-secondary/15 pt-3">
+                  <summary className="cursor-pointer text-text-primary font-semibold">
+                    Got "cannot install scripts from this website"? Manual install (always works)
+                  </summary>
+                  <div className="mt-2 space-y-2 pl-1">
+                    <p>
+                      Chrome 130+ blocks direct userscript installs unless <span className="text-text-primary">Developer Mode</span> is on at{' '}
+                      <code className="bg-bg-primary px-1 rounded">chrome://extensions/</code>. Two fixes — pick one:
+                    </p>
+                    <p className="text-text-primary font-semibold">Option A — enable Developer Mode</p>
+                    <ol className="space-y-1 list-decimal list-inside pl-2">
+                      <li>Open <code className="bg-bg-primary px-1 rounded">chrome://extensions/</code></li>
+                      <li>Toggle <span className="text-text-primary">Developer mode</span> ON (top-right)</li>
+                      <li>Click the install link above again — Tampermonkey will accept it</li>
+                    </ol>
+                    <p className="text-text-primary font-semibold">Option B — paste the URL into Tampermonkey directly</p>
+                    <ol className="space-y-1 list-decimal list-inside pl-2">
+                      <li>Click the Tampermonkey icon → <span className="text-text-primary">Dashboard</span></li>
+                      <li>Go to <span className="text-text-primary">Utilities</span> tab</li>
+                      <li>Under <span className="text-text-primary">Install from URL</span>, paste the URL below and click Install</li>
+                    </ol>
+                    <div className="flex items-stretch gap-2 mt-2">
+                      <code className="flex-1 bg-bg-primary border border-border rounded-md px-2 py-1.5 text-[10px] font-mono break-all flex items-center">
+                        {USERSCRIPT_URL}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={handleCopy}
+                        className="bg-torn-green/20 hover:bg-torn-green/30 border border-torn-green/40 text-torn-green text-[11px] font-semibold px-3 rounded-md transition shrink-0"
+                      >
+                        {copied ? 'Copied!' : 'Copy URL'}
+                      </button>
+                    </div>
+                  </div>
+                </details>
+
+                <p className="text-text-muted text-[10px]">
+                  Updates automatically every 24h.
+                </p>
+              </div>
+            )}
+
+            <div className="bg-bg-card border border-torn-green/40 rounded-xl p-5 space-y-3 relative">
+              <span className="absolute -top-2 right-3 bg-torn-green/80 text-bg-primary text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded">
+                {isMobile ? 'Recommended · Mobile' : 'Mobile'}
+              </span>
+              <h3 className="text-base font-bold">Torn PDA</h3>
+              <p className="text-text-secondary text-xs">
+                The only working path on iOS — and the easiest on Android. PDA runs userscripts natively, no Tampermonkey required.
+              </p>
+              <p className="text-text-muted text-[11px] leading-relaxed">
+                <span className="text-text-secondary font-semibold">Before you start:</span> in PDA, open{' '}
+                <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                  Torn → Preferences → API Keys
+                </a>{' '}
+                and create a <span className="text-text-secondary">Full Access</span> key. Long-press → Copy.
+              </p>
+              <ol className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
+                <li>
+                  Install{' '}
+                  <a href={pdaStoreUrl} target="_blank" rel="noopener noreferrer" className="text-torn-green underline">
+                    Torn PDA
+                  </a>{' '}
+                  ({env === 'android-mobile' ? 'Play Store' : env === 'apple-mobile' ? 'App Store' : 'App Store / Play Store'})
+                </li>
+                <li>Open PDA → More → Userscripts → tap <span className="text-text-primary">+ Add</span></li>
+                <li>Paste the URL below into the script source field:</li>
+              </ol>
+              <div className="flex items-stretch gap-2">
+                <code className="flex-1 bg-bg-primary border border-border rounded-md px-2 py-1.5 text-[10px] font-mono break-all flex items-center">
+                  {USERSCRIPT_URL}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="bg-torn-green/20 hover:bg-torn-green/30 border border-torn-green/40 text-torn-green text-[11px] font-semibold px-3 rounded-md transition shrink-0"
+                >
+                  {copied ? 'Copied!' : 'Copy URL'}
+                </button>
+              </div>
+              <ol start={4} className="text-xs text-text-secondary space-y-1.5 list-decimal list-inside">
+                <li>Tap Save → enable the script</li>
+                <li>Open <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> in PDA's browser to authorize</li>
+              </ol>
+            </div>
           </div>
         </section>
 
@@ -149,6 +273,12 @@ export default function InstallPage() {
         <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-6 space-y-3">
           <h2 className="text-lg font-semibold">Troubleshooting</h2>
           <ul className="text-sm text-text-secondary space-y-2 list-disc list-inside">
+            <li>
+              <span className="text-text-primary">"Tampermonkey cannot install scripts from this website"</span> — Chrome 130+ requires
+              Developer Mode at <code className="bg-bg-primary px-1 rounded">chrome://extensions/</code>. Either toggle it on, or open the
+              <span className="text-text-primary"> Tampermonkey Dashboard → Utilities → Install from URL</span> and paste{' '}
+              <code className="bg-bg-primary px-1 rounded break-all">{USERSCRIPT_URL}</code>. Detailed steps are in the install card above.
+            </li>
             <li>
               <span className="text-text-primary">Badge does not appear on enemy profile</span> — make sure you are logged into TM Hub
               and re-run <a href="/extension-auth" className="text-torn-green underline">/extension-auth</a> to refresh the token.
