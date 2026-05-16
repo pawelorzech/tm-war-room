@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
+import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface Participant {
   player_id: number;
@@ -367,7 +368,7 @@ export default function OCPage() {
         )}
 
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading OC data...</p>
+          <CardSkeleton count={3} />
         ) : data && data.crimes.length > 0 ? (
           <div className="space-y-2">
             {data.crimes.map(crime => {
