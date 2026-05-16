@@ -100,7 +100,10 @@ export function MessageList({
     }
   };
 
-  // Group messages by date
+  // Group messages by date AND by author proximity.
+  // Two consecutive messages from the same author within GROUP_WINDOW seconds
+  // collapse: only the first shows avatar + nick + timestamp.
+  const GROUP_WINDOW = 5 * 60; // 5 minutes
   let lastDate = "";
 
   return (
@@ -126,10 +129,20 @@ export function MessageList({
         {loadingOlder && (
           <div className="px-3 pb-2 text-center text-xs text-text-muted">Loading older messages...</div>
         )}
-        {messages.map(msg => {
+        {messages.map((msg, i) => {
           const msgDate = formatDateSeparator(msg.created_at);
           const showSeparator = msgDate !== lastDate;
           lastDate = msgDate;
+          const prev = i > 0 ? messages[i - 1] : null;
+          // Group when: same author (human OR same bot id), within window,
+          // and no date separator between them.
+          const sameAuthor =
+            !!prev &&
+            prev.player_id === msg.player_id &&
+            (prev.bot_id ?? null) === (msg.bot_id ?? null);
+          const withinWindow =
+            !!prev && msg.created_at - prev.created_at <= GROUP_WINDOW;
+          const grouped = !showSeparator && sameAuthor && withinWindow;
           return (
             <div key={msg.id}>
               {showSeparator && (
@@ -146,6 +159,7 @@ export function MessageList({
                 onDeleted={onMessageDeleted}
                 memberMap={memberMap}
                 adminIds={adminIds}
+                grouped={grouped}
               />
             </div>
           );

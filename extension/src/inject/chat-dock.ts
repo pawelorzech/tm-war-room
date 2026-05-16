@@ -17,6 +17,7 @@ import {
   fetchChatChannels,
   fetchChatMessages,
   fetchChatUnread,
+  fetchMemberAvatars,
   fetchOverview,
   markChatRead,
   sendChatMessage,
@@ -234,7 +235,7 @@ const STYLES = `
     padding: 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
     background: #0d1117;
     scrollbar-width: thin;
     scrollbar-color: #30363d transparent;
@@ -249,8 +250,52 @@ const STYLES = `
     line-height: 1.45;
     word-wrap: break-word;
     word-break: break-word;
+    padding: 1px 0;
   }
-  .msg .meta-col { flex-shrink: 0; min-width: 0; }
+  .msg.group-start { margin-top: 6px; }
+  .msg .avatar-col {
+    flex: 0 0 28px;
+    width: 28px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+  }
+  .msg .avatar-col img,
+  .msg .avatar-col .avatar-fallback {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+  .msg .avatar-col .avatar-fallback {
+    background: #21262d;
+    color: #c9d1d9;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 28px;
+    text-transform: uppercase;
+  }
+  .msg .avatar-col .avatar-fallback.bot {
+    background: rgba(210, 153, 34, 0.18);
+    color: #d29922;
+  }
+  /* Hover-revealed timestamp gutter for grouped messages */
+  .msg .avatar-col .gutter-time {
+    font-size: 9px;
+    color: #6e7681;
+    text-align: right;
+    padding-right: 2px;
+    line-height: 1;
+    padding-top: 4px;
+    opacity: 0;
+    transition: opacity 0.1s;
+    user-select: none;
+    width: 100%;
+  }
+  .msg:hover .avatar-col .gutter-time { opacity: 1; }
+  .msg .body-col { flex: 1; min-width: 0; }
   .msg .author {
     color: #58a6ff;
     font-weight: 600;
@@ -404,6 +449,8 @@ let _atBottom = true;
 // content — only IDs that appear in a message's `mentions[]` AND match a
 // known faction member become clickable.
 let _roster: Map<number, string> = new Map();
+// Avatar URLs keyed by player_id (B2-hosted member avatars).
+let _avatars: Map<number, string> = new Map();
 
 async function loadRoster(): Promise<void> {
   if (_roster.size > 0) return;
@@ -414,6 +461,20 @@ async function loadRoster(): Promise<void> {
     _roster = new Map(ov.members.map((m) => [m.id, m.name]));
   } catch {
     // Dock still works without — mentions just fall back to styled non-link.
+  }
+}
+
+async function loadAvatars(): Promise<void> {
+  if (_avatars.size > 0) return;
+  const auth = getAuth();
+  if (!auth) return;
+  try {
+    const r = await fetchMemberAvatars(auth);
+    _avatars = new Map(
+      Object.entries(r.avatars).map(([k, v]) => [Number(k), v]),
+    );
+  } catch {
+    // Falls back to initials avatar.
   }
 }
 
@@ -439,6 +500,8 @@ export function startChatDock(): DockController {
   // pull from _roster, so a late arrival just upgrades visible mentions on
   // the next render tick (poll cadence). No-op if not authenticated yet.
   void loadRoster();
+  // Same idea for avatars — late arrival just upgrades the next render.
+  void loadAvatars();
 
   // Heartbeat: flip the launch-button between connected (green chat) and
   // disconnected (yellow plug) variants without requiring a page reload.
@@ -864,32 +927,72 @@ function renderMessages(shadow: ShadowRoot): void {
   }
   const auth = getAuth();
   const me = auth?.player_id || 0;
+  const GROUP_WINDOW = 5 * 60; // seconds; matches main chat
   let lastDateLabel = '';
+  let prev: ChatMessage | null = null;
   wrap.innerHTML = _messages
     .map((m) => {
       const mentioned = m.mentions.includes(me);
       const dateLabel = formatDateSep(m.created_at);
-      const separator =
-        dateLabel !== lastDateLabel
-          ? `<div class="date-sep"><span class="line"></span><span class="label">${escapeHtml(dateLabel)}</span><span class="line"></span></div>`
-          : '';
+      const showSeparator = dateLabel !== lastDateLabel;
+      const separator = showSeparator
+        ? `<div class="date-sep"><span class="line"></span><span class="label">${escapeHtml(dateLabel)}</span><span class="line"></span></div>`
+        : '';
       lastDateLabel = dateLabel;
-      const time = formatChatTime(m.created_at);
-      const authorHtml = m.bot_id
-        ? `<span class="author bot">${escapeHtml(m.player_name)}</span>`
-        : `<a class="author" href="https://www.torn.com/profiles.php?XID=${m.player_id}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.player_name)}</a>`;
+
+      const sameAuthor =
+        !!prev &&
+        prev.player_id === m.player_id &&
+        (prev.bot_id ?? null) === (m.bot_id ?? null);
+      const withinWindow =
+        !!prev && m.created_at - prev.created_at <= GROUP_WINDOW;
+      const grouped = !showSeparator && sameAuthor && withinWindow;
+      prev = m;
+
+      // Avatar column: full avatar (or initials) when starting a block,
+      // hover-revealed timestamp when grouped.
+      let avatarCol = '';
+      if (grouped) {
+        const hover = date24Hm(m.created_at);
+        avatarCol = `<div class="avatar-col"><div class="gutter-time">${hover}</div></div>`;
+      } else if (m.bot_id) {
+        avatarCol = `<div class="avatar-col"><div class="avatar-fallback bot">B</div></div>`;
+      } else {
+        const url = _avatars.get(m.player_id);
+        if (url) {
+          avatarCol = `<div class="avatar-col"><img src="${escapeHtml(url)}" alt="${escapeHtml(m.player_name)}" loading="lazy" decoding="async"></div>`;
+        } else {
+          const initials = escapeHtml(m.player_name.slice(0, 2));
+          avatarCol = `<div class="avatar-col"><div class="avatar-fallback">${initials}</div></div>`;
+        }
+      }
+
+      const headerHtml = grouped
+        ? ''
+        : `${
+            m.bot_id
+              ? `<span class="author bot">${escapeHtml(m.player_name)}</span>`
+              : `<a class="author" href="https://www.torn.com/profiles.php?XID=${m.player_id}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.player_name)}</a>`
+          }<span class="time">${formatChatTime(m.created_at)}</span>`;
+
+      const cls = `msg${grouped ? '' : ' group-start'}`;
       return `
         ${separator}
-        <div class="msg">
-          <div>
-            ${authorHtml}
-            <span class="time">${time}</span>
+        <div class="${cls}">
+          ${avatarCol}
+          <div class="body-col">
+            ${headerHtml}
             <div class="text${mentioned ? ' mentioned' : ''}">${renderBody(m.content, m.mentions, _roster)}</div>
           </div>
         </div>
       `;
     })
     .join('');
+}
+
+function date24Hm(ts: number): string {
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function scrollToBottom(shadow: ShadowRoot): void {

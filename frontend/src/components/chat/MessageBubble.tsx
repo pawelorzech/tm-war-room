@@ -12,6 +12,15 @@ interface Props {
   onDeleted?: (id: number) => void;
   memberMap?: Record<number, string>;
   adminIds?: Set<number>;
+  /** When true, this message immediately follows another from the same author
+   *  within the grouping window — hide the avatar + header, only show the body
+   *  with a hover-revealed timestamp in the gutter. */
+  grouped?: boolean;
+}
+
+function formatHoverTime(ts: number): string {
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatTime(ts: number): string {
@@ -73,7 +82,7 @@ function renderContent(
   });
 }
 
-export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds }: Props) {
+export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds, grouped = false }: Props) {
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -124,13 +133,18 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
   return (
     <div
       ref={containerRef}
-      className="group relative flex gap-2 px-3 py-1 hover:bg-bg-elevated/50 transition-colors"
+      className={`group relative flex gap-2 px-3 hover:bg-bg-elevated/50 transition-colors ${grouped ? "py-0.5" : "py-1 mt-1"}`}
       onMouseEnter={isCoarse ? undefined : () => setShowActions(true)}
       onMouseLeave={isCoarse ? undefined : () => setShowActions(false)}
       onClick={handleTouchToggle}
     >
-      {/* Avatar area */}
-      {isBot ? (
+      {/* Avatar / gutter — for grouped messages keep the same 32px column so
+          message bodies line up, but show timestamp on hover instead of avatar. */}
+      {grouped ? (
+        <div className="w-8 shrink-0 flex justify-end pr-0.5 pt-0.5 text-[10px] text-text-muted opacity-0 group-hover:opacity-100 transition-opacity select-none leading-none">
+          {formatHoverTime(message.created_at)}
+        </div>
+      ) : isBot ? (
         <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-xs font-bold text-torn-blue shrink-0 mt-0.5">
           B
         </div>
@@ -139,38 +153,40 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
       )}
 
       <div className="flex-1 min-w-0">
-        {/* Header */}
-        <div className="flex items-baseline gap-2">
-          <a
-            href={isBot ? undefined : `https://www.torn.com/profiles.php?XID=${message.player_id}`}
-            target="_blank" rel="noopener noreferrer"
-            
-            className={`text-sm font-medium ${isBot ? "text-torn-blue" : "text-torn-green"} hover:underline`}
-          >
-            {message.player_name}
-          </a>
-          {isBot && (
-            <span className="text-[10px] px-1 py-px rounded bg-torn-blue/20 text-torn-blue font-bold uppercase">
-              bot
+        {/* Header — hidden when grouped */}
+        {!grouped && (
+          <div className="flex items-baseline gap-2">
+            <a
+              href={isBot ? undefined : `https://www.torn.com/profiles.php?XID=${message.player_id}`}
+              target="_blank" rel="noopener noreferrer"
+
+              className={`text-sm font-medium ${isBot ? "text-torn-blue" : "text-torn-green"} hover:underline`}
+            >
+              {message.player_name}
+            </a>
+            {isBot && (
+              <span className="text-[10px] px-1 py-px rounded bg-torn-blue/20 text-torn-blue font-bold uppercase">
+                bot
+              </span>
+            )}
+            {!isBot && adminIds?.has(message.player_id) && (
+              <span className="text-[10px] px-1 py-px rounded bg-torn-green/20 text-torn-green font-bold uppercase">
+                admin
+              </span>
+            )}
+            {message.pinned === 1 && (
+              <span className="text-[10px] px-1 py-px rounded bg-torn-yellow/20 text-torn-yellow">
+                pinned
+              </span>
+            )}
+            <span className="text-[11px] text-text-muted" title={new Date(message.created_at * 1000).toLocaleString()}>
+              {formatTime(message.created_at)}
             </span>
-          )}
-          {!isBot && adminIds?.has(message.player_id) && (
-            <span className="text-[10px] px-1 py-px rounded bg-torn-green/20 text-torn-green font-bold uppercase">
-              admin
-            </span>
-          )}
-          {message.pinned === 1 && (
-            <span className="text-[10px] px-1 py-px rounded bg-torn-yellow/20 text-torn-yellow">
-              pinned
-            </span>
-          )}
-          <span className="text-[11px] text-text-muted" title={new Date(message.created_at * 1000).toLocaleString()}>
-            {formatTime(message.created_at)}
-          </span>
-          {message.edited_at && (
-            <span className="text-[10px] text-text-muted">(edited)</span>
-          )}
-        </div>
+            {message.edited_at && (
+              <span className="text-[10px] text-text-muted">(edited)</span>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         {editing ? (
@@ -191,6 +207,9 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
         ) : (
           <div className="text-sm text-text-primary whitespace-pre-wrap break-words">
             {renderContent(message.content, message.mentions, memberMap)}
+            {grouped && message.edited_at && (
+              <span className="ml-1 text-[10px] text-text-muted">(edited)</span>
+            )}
           </div>
         )}
       </div>
