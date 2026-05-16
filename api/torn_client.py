@@ -1100,17 +1100,30 @@ class TornClient:
         source closes the gap where TornStats has a stale spy (e.g. from a year
         ago, before the player grew) while YATA has a recent one.
 
-        Endpoint: ``/api/v1/spy/{player_id}?key={api_key}``.
-        Response shape: ``{"spies": {"{player_id}": {strength, defense, speed,
-        dexterity, total, *_timestamp, update, target_name, ...}}}``.
+        Endpoint: ``/api/v1/spy/{player_id}/?key={api_key}``.
+        Response shape (per YATA docs https://yata.yt/api/) is flat, keyed by
+        target_id at the top level:
+        ``{"<target_id>": {strength, defense, speed, dexterity, total,
+        *_timestamp, update, target_name, target_faction_id, ...}}``.
 
         Returns dict with strength/defense/speed/dexterity/total/timestamp
         (epoch int from YATA's ``update`` field — the most recent of the per-stat
-        timestamps) plus ``player_name``. None on error or empty response.
+        timestamps) plus ``player_name``. None on error, empty response, or when
+        YATA reports a semantic error (e.g. 400 "Player not found" — meaning the
+        target isn't in any spy DB our faction can see, NOT that YATA is down).
 
-        Negative-caches the YATA-down state for 60s (matches fetch_yata_members)
-        to avoid hammering when YATA is offline. Successful results cached for
-        1 hour (matches YATA's own cache so we don't waste their bandwidth).
+        Two failure modes are distinguished:
+
+        - **Transport error** (timeout, DNS, 5xx): sets the global ``yata_down``
+          cache for 60s so we don't hammer YATA while it's struggling.
+        - **Semantic error** (4xx with JSON ``{"error": {...}}`` body): logs the
+          error message for diagnostics, caches None for this player only.
+          Doing this for the global cache would block all YATA spy calls every
+          time the queried player happens not to be in YATA's DB — burning the
+          integration for everyone for 60s on every miss.
+
+        Successful results cached for 1 hour (matches YATA's own cache so we
+        don't waste their bandwidth).
         """
         cache_key = f"yspy_user_{player_id}"
         cached = self._get_cached(cache_key, ttl=YATA_CACHE_TTL)
@@ -1120,6 +1133,7 @@ class TornClient:
             return None
 
         key = api_key or self._api_key
+        endpoint = f"/api/v1/spy/{player_id}"
         start = time.time()
         try:
             resp = await self._http.get(
@@ -1127,25 +1141,24 @@ class TornClient:
                 params={"key": key},
                 timeout=8.0,
             )
-            resp.raise_for_status()
-            raw = await _json(resp)
-            if "error" in raw:
-                self._log_integration("yata", f"/api/v1/spy/{player_id}", False, (time.time() - start) * 1000, "API error response")
-                self._set_cached(cache_key, "_yata_down")
-                return None
-            self._log_integration("yata", f"/api/v1/spy/{player_id}", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("yata", f"/api/v1/spy/{player_id}", False, (time.time() - start) * 1000, str(e))
+            elapsed = (time.time() - start) * 1000
+            self._log_integration("yata", endpoint, False, elapsed, str(e))
             self._set_cached("yata_down", True)
             return None
 
-        spies = raw.get("spies", {})
-        # YATA keys by stringified target_id. Also tolerate int-keyed responses.
-        spy = spies.get(str(player_id)) or spies.get(player_id)
-        if not spy:
-            self._set_cached(cache_key, "_yata_down")
+        elapsed = (time.time() - start) * 1000
+        raw, _err = await self._yata_parse_body(resp, endpoint, cache_key, elapsed)
+        if raw is None:
             return None
 
+        # Documented shape: {"<target_id>": {...}} at the top level. No envelope.
+        spy = raw.get(str(player_id)) or raw.get(player_id) if isinstance(raw, dict) else None
+        if not spy:
+            self._set_cached(cache_key, None)
+            return None
+
+        self._log_integration("yata", endpoint, True, elapsed)
         result = {
             "player_id": player_id,
             "player_name": spy.get("target_name"),
@@ -1161,14 +1174,70 @@ class TornClient:
         self._set_cached(cache_key, result)
         return result
 
+    async def _yata_parse_body(self, resp, endpoint: str, cache_key: str, elapsed_ms: float):
+        """Parse a YATA response, distinguishing semantic errors from transport.
+
+        Returns (raw, error_msg). ``raw`` is the parsed JSON dict on success;
+        None on any failure (transport, non-JSON body, semantic 4xx error).
+        ``error_msg`` is set for diagnostics when raw is None.
+
+        Side effects:
+        - Logs to integration analytics.
+        - Sets per-cache-key negative entry on semantic errors (NOT the global
+          ``yata_down`` — that's reserved for actual outages).
+        - Sets ``yata_down`` only on transport-level failures (network, 5xx,
+          non-JSON body, missing JSON envelope).
+        """
+        # Try to read the body regardless of status — YATA returns 400 + JSON
+        # for semantic errors ("Player not found", "Player not in any spy DB"),
+        # and we want to distinguish that from a real outage.
+        raw = None
+        body_err = None
+        try:
+            raw = await _json(resp)
+        except Exception as e:
+            body_err = f"non-json body: {e}"
+
+        if isinstance(raw, dict) and "error" in raw:
+            err = raw["error"]
+            msg = (
+                f"yata error code={err.get('code')}: {err.get('error')}"
+                if isinstance(err, dict)
+                else f"yata error: {err}"
+            )
+            self._log_integration("yata", endpoint, False, elapsed_ms, msg)
+            # Per-call cache only — do NOT poison global yata_down. A wrong
+            # player_id or a faction with no spy DB is not an outage.
+            self._set_cached(cache_key, None)
+            return None, msg
+
+        status = getattr(resp, "status_code", None)
+        if status is not None and status >= 400:
+            msg = body_err or f"HTTP {status}"
+            self._log_integration("yata", endpoint, False, elapsed_ms, msg)
+            self._set_cached("yata_down", True)
+            return None, msg
+
+        if raw is None:
+            self._log_integration("yata", endpoint, False, elapsed_ms, body_err or "empty body")
+            self._set_cached("yata_down", True)
+            return None, body_err
+
+        return raw, None
+
     async def fetch_yata_faction_spies(self, faction_id: int, api_key: str | None = None) -> dict[int, dict]:
         """Fetch all spies YATA has on a given faction.
 
         Endpoint: ``/api/v1/spies/?key={key}&faction={faction_id}``.
+        Documented response (per YATA docs) is flat — target_id at top level:
+        ``{"<id>": {...}, "<id>": {...}}`` — no ``spies`` wrapper.
+
         Rate-limited by YATA to 1 call/hour, so the result is cached for an hour.
 
         Returns ``dict[player_id, {strength, defense, speed, dexterity, total,
-        timestamp, name}]``. Empty dict on error or no data.
+        timestamp, name}]``. Empty dict on error or no data. Distinguishes
+        transport failures (yata_down) from semantic errors via
+        :py:meth:`_yata_parse_body` — see that method's docstring for rationale.
         """
         cache_key = f"yspy_faction_{faction_id}"
         cached = self._get_cached(cache_key, ttl=YATA_CACHE_TTL)
@@ -1178,6 +1247,7 @@ class TornClient:
             return {}
 
         key = api_key or self._api_key
+        endpoint = f"/api/v1/spies/?faction={faction_id}"
         start = time.time()
         try:
             resp = await self._http.get(
@@ -1185,21 +1255,21 @@ class TornClient:
                 params={"key": key, "faction": faction_id},
                 timeout=10.0,
             )
-            resp.raise_for_status()
-            raw = await _json(resp)
-            if "error" in raw:
-                self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", False, (time.time() - start) * 1000, "API error response")
-                self._set_cached(cache_key, "_yata_down")
-                return {}
-            self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", True, (time.time() - start) * 1000)
         except Exception as e:
-            self._log_integration("yata", f"/api/v1/spies/?faction={faction_id}", False, (time.time() - start) * 1000, str(e))
+            elapsed = (time.time() - start) * 1000
+            self._log_integration("yata", endpoint, False, elapsed, str(e))
             self._set_cached("yata_down", True)
             return {}
 
+        elapsed = (time.time() - start) * 1000
+        raw, _err = await self._yata_parse_body(resp, endpoint, cache_key, elapsed)
+        if raw is None:
+            return {}
+        self._log_integration("yata", endpoint, True, elapsed)
+
         result: dict[int, dict] = {}
-        spies = raw.get("spies", {})
-        for pid_str, spy in spies.items():
+        # Documented shape iterates raw.items() directly — no envelope.
+        for pid_str, spy in raw.items():
             if not spy:
                 continue
             try:

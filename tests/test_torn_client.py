@@ -767,22 +767,21 @@ async def test_fetch_tornstats_spy_user_handles_na_strings(client):
 @pytest.mark.asyncio
 async def test_fetch_yata_spy_user_handles_non_numeric_stats(client):
     """Same defense for YATA — if its API ever drifts to non-numeric placeholders
-    (or returns a null), we must coerce rather than poison the DB."""
+    (or returns a null), we must coerce rather than poison the DB. Documented
+    shape is {"<player_id>": {...}} directly (no `spies` envelope)."""
     mock_resp = AsyncMock()
+    mock_resp.status_code = 200
     mock_resp.json.return_value = {
-        "spies": {
-            "348794": {
-                "target_name": "DeadlyAssassin",
-                "strength": None,
-                "defense": "N/A",
-                "speed": "",
-                "dexterity": 1234567890,
-                "total": 9876543210,
-                "update": 1700000000,
-            }
+        "348794": {
+            "target_name": "DeadlyAssassin",
+            "strength": None,
+            "defense": "N/A",
+            "speed": "",
+            "dexterity": 1234567890,
+            "total": 9876543210,
+            "update": 1700000000,
         }
     }
-    mock_resp.raise_for_status = lambda: None
     with patch.object(client._http, "get", return_value=mock_resp):
         result = await client.fetch_yata_spy_user(348794)
     assert result is not None
@@ -791,6 +790,95 @@ async def test_fetch_yata_spy_user_handles_non_numeric_stats(client):
     assert isinstance(result["speed"], (int, float)) and result["speed"] == 0.0
     assert isinstance(result["dexterity"], (int, float)) and result["dexterity"] == 1234567890.0
     assert isinstance(result["total"], (int, float)) and result["total"] == 9876543210.0
+
+
+# ── Regression: YATA `/spy/{id}/` returns 400 + JSON error body for semantic errors ───
+# Live probe (2026-05-16) against TM's API key showed every per-player and faction-wide
+# spy endpoint returns:
+#   HTTP 400 {"error": {"code": 2, "error": "Player not found"}}
+# Even for our own member IDs. The previous parser raised on 400, hit the bare-except,
+# and set `yata_down` for 60s — blocking ALL YATA spy calls until the cache expired.
+# Real shape per YATA docs (https://yata.yt/api/) is the player_id at the top level,
+# NOT wrapped in a `spies` envelope.
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_spy_user_player_not_found_no_yata_down(client):
+    """YATA returns 400 + {error: ...} when the queried player isn't in any spy DB
+    our faction can see. That's a config issue, NOT an outage. The function must
+    return None and NOT set the global yata_down cache (which would block legitimate
+    YATA calls for other players for 60s)."""
+    error_resp = AsyncMock()
+    error_resp.status_code = 400
+    error_resp.json.return_value = {"error": {"code": 2, "error": "Player not found"}}
+    # Real httpx raises HTTPStatusError on 4xx when raise_for_status() is called —
+    # the bug was the bare `except Exception` treating that as a network outage.
+    def _raise_400():
+        raise httpx.HTTPStatusError(
+            "Bad Request",
+            request=httpx.Request("GET", "https://yata.yt/api/v1/spy/348794/"),
+            response=httpx.Response(400),
+        )
+    error_resp.raise_for_status = _raise_400
+    with patch.object(client._http, "get", return_value=error_resp):
+        result = await client.fetch_yata_spy_user(348794)
+    assert result is None
+    assert client._get_cached("yata_down", ttl=60) is None, (
+        "400 'Player not found' is a semantic error, not an outage — "
+        "must not poison the global yata_down cache"
+    )
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_spy_user_parses_documented_shape(client):
+    """YATA docs say the per-player response is `{"<target_id>": {...}}` directly.
+    Earlier parser assumed `{"spies": {"<id>": {...}}}` which would never match
+    a real successful response — silently returning None even when data was present."""
+    success_resp = AsyncMock()
+    success_resp.status_code = 200
+    success_resp.json.return_value = {
+        "2362436": {
+            "strength": 1_500_000_000,
+            "defense": 1_500_000_000,
+            "speed": 1_500_000_000,
+            "dexterity": 1_500_000_000,
+            "total": 6_000_000_000,
+            "update": 1700000000,
+            "target_name": "Bombel",
+            "target_faction_id": 11559,
+            "target_faction_name": "The Masters",
+        }
+    }
+    with patch.object(client._http, "get", return_value=success_resp):
+        result = await client.fetch_yata_spy_user(2362436)
+    assert result is not None
+    assert result["player_id"] == 2362436
+    assert result["player_name"] == "Bombel"
+    assert result["strength"] == 1_500_000_000.0
+    assert result["total"] == 6_000_000_000.0
+    assert result["timestamp"] == 1700000000
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_faction_spies_parses_documented_shape(client):
+    """Faction-wide /spies/?faction=X has the same flat shape — `{"<id>": {...}}`
+    per ID, no wrapper. Existing parser iterated `raw.get("spies", {})` which
+    silently returned an empty dict for the real shape."""
+    success_resp = AsyncMock()
+    success_resp.status_code = 200
+    success_resp.json.return_value = {
+        "2362436": {"strength": 1e9, "defense": 1e9, "speed": 1e9, "dexterity": 1e9,
+                    "total": 4e9, "update": 1700000000, "target_name": "Bombel"},
+        "348794": {"strength": 2e9, "defense": 2.2e9, "speed": 2e9, "dexterity": 3e9,
+                   "total": 9.2e9, "update": 1690000000, "target_name": "DeadlyAssassin"},
+    }
+    with patch.object(client._http, "get", return_value=success_resp):
+        result = await client.fetch_yata_faction_spies(11559)
+    assert 2362436 in result
+    assert 348794 in result
+    assert result[2362436]["total"] == 4e9
+    assert result[348794]["total"] == 9.2e9
+    assert result[348794]["name"] == "DeadlyAssassin"
 
 
 @pytest.mark.asyncio
