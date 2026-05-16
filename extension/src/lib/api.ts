@@ -223,6 +223,12 @@ export function fetchChatUnread(auth: CompanionAuth): Promise<ChatUnreadResponse
   return get<ChatUnreadResponse>('/api/chat/unread', auth);
 }
 
+export function fetchMemberAvatars(
+  auth: CompanionAuth,
+): Promise<{ avatars: Record<string, string> }> {
+  return get<{ avatars: Record<string, string> }>('/api/members/avatars', auth);
+}
+
 export function markChatRead(
   auth: CompanionAuth,
   channelId: number,
