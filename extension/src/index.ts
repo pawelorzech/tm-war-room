@@ -13,6 +13,7 @@
 import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
+import { ensureProfileStack } from './lib/profile-stack';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { startClaimBanner } from './inject/claim-banner';
@@ -79,6 +80,14 @@ async function getOffLimitsMap(auth: CompanionAuth, warId: number): Promise<Map<
 
 async function refresh(): Promise<void> {
   const match = matchPage();
+
+  // Profile pages mount up to 7 async overlays (off-limits, FF chip, intel,
+  // claim button, flight pill, activity chip, loot). Pre-mount their container
+  // synchronously so the fetch resolve order doesn't translate into layout
+  // shifts. Without this we measured CLS 0.61 / "worst cluster: 7 shifts" on
+  // /profile.php. Each renderer attaches into this stack instead of running
+  // its own insertBefore on the page anchor.
+  if (match.kind === 'profile' && getAuth()) ensureProfileStack();
 
   // Pinned navs panel — present on every Torn page while authed, not gated on
   // page kind. Cheap idempotency inside the helper means re-runs no-op.
