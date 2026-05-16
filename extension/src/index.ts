@@ -21,6 +21,7 @@ import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { applyJailOverlay } from './inject/jail-overlay';
 import { applyHalloffameOverlay } from './inject/halloffame-overlay';
+import { applyPinnedNavsOverlay } from './inject/pinned-navs-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
@@ -76,6 +77,10 @@ async function getOffLimitsMap(auth: CompanionAuth, warId: number): Promise<Map<
 
 async function refresh(): Promise<void> {
   const match = matchPage();
+
+  // Pinned navs panel — present on every Torn page while authed, not gated on
+  // page kind. Cheap idempotency inside the helper means re-runs no-op.
+  if (getAuth()) void applyPinnedNavsOverlay();
 
   // Bounty page is page-level, not per-player — handle here before the
   // unknown-page early return.

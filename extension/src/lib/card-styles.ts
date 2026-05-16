@@ -6,6 +6,16 @@
 // The `accent` parameter is the left-rail accent + title/link colour. Each
 // overlay picks its own hex (gold, blue, green, etc).
 
+// Shared outer-badge wrapper used by the row-decorator pill overlays
+// (hospital, jail, retals, faction-roster, etc). Each overlay still appends
+// its per-tier `.pill-*` color rules; this just centralises the chrome.
+export function pillBase(featureId: string): string {
+  return `
+[data-tm-${featureId}-badge]{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;padding:2px 6px;margin:4px 0;font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;border-radius:10px;background:rgba(22,27,34,.85);border:1px solid rgba(255,255,255,.1);color:#c9d1d9;white-space:nowrap}
+[data-tm-${featureId}-badge] .pill{padding:1px 6px;border-radius:8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+`;
+}
+
 export function cardBase(accent: string): string {
   return `
 :host{all:initial;display:block;width:100%}

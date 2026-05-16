@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.47.1";
+export const CURRENT_VERSION = "1.48.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.48.0",
+    date: "2026-05-16",
+    title: "Companion v0.25 — TM Hub pin shortcuts on every Torn page",
+    changes: [
+      {
+        type: "feat",
+        summary: "Floating quick-pins panel on torn.com with an inline picker",
+        detail: "A small TM Hub Pins panel now floats in the top-left of every Torn page once you're connected. It lists the routes you've pinned in TM Hub (Dashboard, Team, Chain, etc.) as one-click links — Torn fight night and TM Hub stay one tab apart. A ✎ button reveals an inline picker (checkboxes over 14 of the most-pinned routes) so you can add or remove pins without leaving Torn; changes sync to TM Hub and the existing /preferences/pinned-navs UI sees them on its next poll.",
+      },
+    ],
+  },
   {
     version: "1.47.1",
     date: "2026-05-16",
