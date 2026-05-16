@@ -23,6 +23,22 @@ async def _json(resp: Any) -> Any:
     return result
 
 
+def _num(v: Any) -> float:
+    """Coerce v to float, defaulting to 0.0 if non-numeric.
+
+    TornStats and YATA occasionally return non-numeric placeholders for spy
+    fields — e.g. the literal string "N/A" when no actual spy exists, only a
+    level-based total estimate. SQLite's dynamic typing happily stores those
+    strings in REAL columns, where they later round-trip back to JSON and the
+    browser renders `Math.round("N/A")` → NaN. Coerce at the parser boundary
+    so non-numeric values can never enter the DB.
+    """
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class TornClient:
     def __init__(self, api_key: str, cache_ttl: int = 60, analytics_store=None) -> None:
         self._api_key = api_key
@@ -1019,11 +1035,11 @@ class TornClient:
                 # member_data.name is the TornStats-level player name; spy block has no name.
                 # Without this, scheduler upserts player_name=None and the UI shows "Unknown player".
                 "name": member_data.get("name") or spy_raw.get("player_name"),
-                "strength": spy_raw.get("strength", 0) or 0,
-                "defense": spy_raw.get("defense", 0) or 0,
-                "speed": spy_raw.get("speed", 0) or 0,
-                "dexterity": spy_raw.get("dexterity", 0) or 0,
-                "total": spy_raw.get("total", 0) or 0,
+                "strength": _num(spy_raw.get("strength")),
+                "defense": _num(spy_raw.get("defense")),
+                "speed": _num(spy_raw.get("speed")),
+                "dexterity": _num(spy_raw.get("dexterity")),
+                "total": _num(spy_raw.get("total")),
                 "timestamp": spy_raw.get("timestamp"),
             }
         self._set_cached(cache_key, result)
@@ -1057,11 +1073,11 @@ class TornClient:
         result = {
             "player_id": player_id,
             "player_name": spy.get("player_name") or spy.get("name"),
-            "strength": spy.get("strength", 0) or 0,
-            "defense": spy.get("defense", 0) or 0,
-            "speed": spy.get("speed", 0) or 0,
-            "dexterity": spy.get("dexterity", 0) or 0,
-            "total": spy.get("total", 0) or 0,
+            "strength": _num(spy.get("strength")),
+            "defense": _num(spy.get("defense")),
+            "speed": _num(spy.get("speed")),
+            "dexterity": _num(spy.get("dexterity")),
+            "total": _num(spy.get("total")),
             "timestamp": spy.get("timestamp"),
         }
         self._set_cached(cache_key, result)
@@ -1123,11 +1139,11 @@ class TornClient:
         result = {
             "player_id": player_id,
             "player_name": spy.get("target_name"),
-            "strength": spy.get("strength", 0) or 0,
-            "defense": spy.get("defense", 0) or 0,
-            "speed": spy.get("speed", 0) or 0,
-            "dexterity": spy.get("dexterity", 0) or 0,
-            "total": spy.get("total", 0) or 0,
+            "strength": _num(spy.get("strength")),
+            "defense": _num(spy.get("defense")),
+            "speed": _num(spy.get("speed")),
+            "dexterity": _num(spy.get("dexterity")),
+            "total": _num(spy.get("total")),
             # ``update`` = max of per-stat timestamps — closest thing YATA has to
             # a single "when was this spy taken" answer.
             "timestamp": spy.get("update"),
@@ -1182,11 +1198,11 @@ class TornClient:
                 continue
             result[pid] = {
                 "name": spy.get("target_name"),
-                "strength": spy.get("strength", 0) or 0,
-                "defense": spy.get("defense", 0) or 0,
-                "speed": spy.get("speed", 0) or 0,
-                "dexterity": spy.get("dexterity", 0) or 0,
-                "total": spy.get("total", 0) or 0,
+                "strength": _num(spy.get("strength")),
+                "defense": _num(spy.get("defense")),
+                "speed": _num(spy.get("speed")),
+                "dexterity": _num(spy.get("dexterity")),
+                "total": _num(spy.get("total")),
                 "timestamp": spy.get("update"),
             }
         self._set_cached(cache_key, result)

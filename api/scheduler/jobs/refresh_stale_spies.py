@@ -3,7 +3,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from api.scheduler.jobs._log_helpers import report_job_error, with_sentry_capture
-from api.services.spy import SpyService, spy_reported_at
+from api.services.spy import SpyService, is_real_spy, spy_reported_at
 
 logger = logging.getLogger("tm-hub.jobs.refresh_stale_spies")
 
@@ -62,7 +62,7 @@ async def refresh_stale_estimates(
             ts_data, yata_data = await asyncio.gather(ts_task, yata_task, return_exceptions=True)
             now = datetime.now(timezone.utc).isoformat()
             touched = False
-            if not isinstance(ts_data, Exception) and ts_data and ts_data.get("total", 0) > 0:
+            if not isinstance(ts_data, Exception) and is_real_spy(ts_data):
                 spy_service.repo.upsert_report(
                     player_id=player_id,
                     player_name=ts_data.get("player_name") or row.get("player_name"),
@@ -73,7 +73,7 @@ async def refresh_stale_estimates(
                     reported_at=spy_reported_at(ts_data.get("timestamp"), now),
                 )
                 touched = True
-            if not isinstance(yata_data, Exception) and yata_data and yata_data.get("total", 0) > 0:
+            if not isinstance(yata_data, Exception) and is_real_spy(yata_data):
                 spy_service.repo.upsert_report(
                     player_id=player_id,
                     player_name=yata_data.get("player_name") or row.get("player_name"),

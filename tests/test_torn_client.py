@@ -711,3 +711,95 @@ async def test_fetch_honor_catalog_garbage_returns_empty(client):
     # collect_circulation pattern: `.items()` must work
     list(catalog["honors"].items())
     list(catalog["medals"].items())
+
+
+# ── Regression: TornStats / YATA "estimate-only" responses with non-numeric stats ────
+# Diagnosed against prod DB on 2026-05-16: player 348794 stored as
+#   strength='N/A', defense='N/A', speed='N/A', dexterity='N/A', total=2669168643.0
+# TornStats sometimes returns the literal string "N/A" for per-stat fields when
+# no real spy exists, only a level-based total estimate. `value or 0` only catches
+# falsy values; "N/A" is truthy and slipped into SQLite REAL columns as TEXT,
+# surfacing in the browser as `Math.round("N/A")` = NaN.
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_spy_user_handles_na_strings(client):
+    """TornStats estimate-only response: per-stat are literal "N/A" strings,
+    total is a real number. Parser must coerce non-numeric values to 0.0 so
+    the downstream upsert can refuse the row instead of storing TEXT in REAL
+    columns."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "status": True,
+        "spy": {
+            "player_name": "DeadlyAssassin",
+            "strength": "N/A",
+            "defense": "N/A",
+            "speed": "N/A",
+            "dexterity": "N/A",
+            "total": 2669168643,
+            "timestamp": None,
+        },
+    }
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        result = await client.fetch_tornstats_spy_user(348794, "fake_key")
+    assert result is not None
+    # Every field must be a real number — never the string "N/A"
+    assert isinstance(result["strength"], (int, float)) and result["strength"] == 0.0
+    assert isinstance(result["defense"], (int, float)) and result["defense"] == 0.0
+    assert isinstance(result["speed"], (int, float)) and result["speed"] == 0.0
+    assert isinstance(result["dexterity"], (int, float)) and result["dexterity"] == 0.0
+    assert isinstance(result["total"], (int, float)) and result["total"] == 2669168643.0
+
+
+@pytest.mark.asyncio
+async def test_fetch_yata_spy_user_handles_non_numeric_stats(client):
+    """Same defense for YATA — if its API ever drifts to non-numeric placeholders
+    (or returns a null), we must coerce rather than poison the DB."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "spies": {
+            "348794": {
+                "target_name": "DeadlyAssassin",
+                "strength": None,
+                "defense": "N/A",
+                "speed": "",
+                "dexterity": 1234567890,
+                "total": 9876543210,
+                "update": 1700000000,
+            }
+        }
+    }
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        result = await client.fetch_yata_spy_user(348794)
+    assert result is not None
+    assert isinstance(result["strength"], (int, float)) and result["strength"] == 0.0
+    assert isinstance(result["defense"], (int, float)) and result["defense"] == 0.0
+    assert isinstance(result["speed"], (int, float)) and result["speed"] == 0.0
+    assert isinstance(result["dexterity"], (int, float)) and result["dexterity"] == 1234567890.0
+    assert isinstance(result["total"], (int, float)) and result["total"] == 9876543210.0
+
+
+@pytest.mark.asyncio
+async def test_fetch_tornstats_faction_battle_stats_coerces_non_numeric(client):
+    """Faction batch fetcher has the same per-stat dict — same coercion required.
+    Otherwise refresh_spy_cache writes 'N/A' strings into spy_reports every 30 min."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {
+        "status": True,
+        "faction": {"members": {
+            "111": {"name": "EstimateOnly", "id": 111, "spy": {
+                "strength": "N/A", "defense": "N/A", "speed": "N/A", "dexterity": "N/A",
+                "total": 2669168643, "timestamp": None,
+            }},
+        }},
+    }
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        battle = await client.fetch_tornstats_faction_battle_stats(9420, "fake_key")
+    assert 111 in battle
+    for f in ("strength", "defense", "speed", "dexterity"):
+        assert isinstance(battle[111][f], (int, float)) and battle[111][f] == 0.0
+    assert battle[111]["total"] == 2669168643.0

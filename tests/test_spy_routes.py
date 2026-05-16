@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 from tests.helpers import TEST_JWT_SECRET, auth_headers
 
@@ -109,6 +109,55 @@ async def test_faction_snapshot_fallback_when_no_spy(setup_db):
     assert data["total"] == 78_780_000
     assert data["source"] == "faction_snapshot"
     assert data["confidence"] == "exact"  # snapshot is 1 day old
+
+
+@pytest.mark.asyncio
+async def test_estimate_only_tornstats_response_skipped(setup_db):
+    """Regression for player 348794 (2026-05-16): TornStats returned a
+    "estimate-only" response — per-stat fields were coerced to 0 by the parser
+    but total was a real number. Before this fix the endpoint upserted the row,
+    and refresh_estimate happily picked it as the freshest report, surfacing
+    a wildly wrong total next to four NaN cells in the UI.
+
+    Now we treat sum-of-per-stats == 0 as the unmistakable estimate-only
+    signal and skip the upsert; the endpoint falls through to the fallback
+    (or 404 if nothing else applies)."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+
+    mock_torn = MagicMock()
+    mock_torn.fetch_tornstats_spy_user = AsyncMock(return_value={
+        "player_id": 348794, "player_name": "DeadlyAssassin",
+        "strength": 0.0, "defense": 0.0, "speed": 0.0, "dexterity": 0.0,
+        "total": 2669168643.0, "timestamp": None,
+    })
+    mock_torn.fetch_yata_spy_user = AsyncMock(return_value=None)
+    # Heuristic estimator path: make personalstats fetch return 404 so it
+    # bails, leaving the endpoint with no data to return.
+    failing_resp = MagicMock()
+    failing_resp.status_code = 404
+    mock_torn._http.get = AsyncMock(return_value=failing_resp)
+
+    with patch("api.main.key_store", _mock_store()), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", mock_torn), \
+         patch("api.routers.spy.tornstats_key", "fake_key"), \
+         patch("api.routers.spy.stats_repo", None):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/348794", headers=AUTH_HEADERS)
+
+    # No report rows must have been written for this player — the estimate-only
+    # response was rejected at the upsert guard.
+    reports = spy_repo.get_reports(348794)
+    assert reports == [], f"estimate-only response must not be persisted, got {reports}"
+    # And the endpoint must not silently return a row with sum-of-stats == 0
+    # alongside a 2.67B total. With no other source available, 404 is correct.
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio

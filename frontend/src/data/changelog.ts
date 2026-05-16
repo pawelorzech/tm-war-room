@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.4";
+export const CURRENT_VERSION = "1.40.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.5",
+    date: "2026-05-16",
+    title: "Enemy profile no longer shows NaN stats next to a fake total",
+    changes: [
+      {
+        type: "fix",
+        summary: "Some enemy profiles showed NaN per-stat values with a wildly wrong total",
+        before: "Opening a player like Deadly_Assassin [348794] on Torn showed a TM Hub panel with 'today / estimate' badges, a 2.67B total, and STR/DEF/SPD/DEX all reading NaN — while YATA below showed real values adding up to 9.3B.",
+        after: "We now ignore spy network responses that don't include a per-stat breakdown, falling back to YATA, your faction snapshot, or our personalstats-based estimator. If nothing has real data the panel says 'No spy estimate available' instead of inventing a misleading number, and the rendering guards turn any non-finite value into a dash.",
+        cause: "TornStats returns the literal string 'N/A' for per-stat fields when nobody in their network has actually spied the player — only a level-based total guess. The string slipped past our number coercion and got stored as text in a numeric column, which the browser then rendered as NaN.",
+      },
+    ],
+  },
   {
     version: "1.40.4",
     date: "2026-05-16",
