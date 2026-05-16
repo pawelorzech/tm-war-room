@@ -9,6 +9,32 @@ import type { WarOffLimits } from '../types';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { escapeHtml } from '../lib/format';
+import { maybeRenderFFChip } from './ff-chip';
+
+/** Render the FF fallback chip on a profile page. Lives alongside the
+ *  OFF-LIMITS badge but in its own host so it can render independently —
+ *  the chip should appear on every enemy profile (when the feature flag
+ *  is on AND we don't have a fresh spy), not only on flagged targets.
+ */
+export function renderProfileFFChip(playerId: number): void {
+  // Reuse a stable host element so re-renders don't duplicate the chip.
+  let host = document.querySelector<HTMLElement>('[data-tm-companion="profile-ff-chip"]');
+  if (!host) {
+    host = document.createElement('span');
+    host.setAttribute('data-tm-companion', 'profile-ff-chip');
+    host.style.display = 'inline-block';
+    host.style.margin = '4px 0';
+    for (const sel of PROFILE_ANCHOR_SELECTORS) {
+      const anchor = document.querySelector(sel);
+      if (anchor) {
+        anchor.insertBefore(host, anchor.firstChild);
+        break;
+      }
+    }
+    if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
+  }
+  void maybeRenderFFChip(host, playerId);
+}
 
 export function renderProfileBadge(off: WarOffLimits | null): void {
   // Remove any previous badge first (target may have changed, or flag cleared).
