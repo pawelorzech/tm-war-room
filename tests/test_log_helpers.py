@@ -45,6 +45,38 @@ def test_unknown_exception_kept_as_error(caplog):
     assert any(r.levelno == logging.ERROR for r in caplog.records if r.name == logger.name)
 
 
+def test_log_job_error_threads_exc_info_for_real_bugs():
+    """PYTHON-FASTAPI-M regression: a genuine bug (non-upstream) must keep its
+    traceback so Sentry's LoggingIntegration captures the original raise site,
+    not the log call site. Without exc_info, "KeyError: 'members'"-style
+    messages reach Sentry with no stack to chase.
+    """
+    fake_logger = MagicMock(spec=logging.Logger)
+    exc = KeyError("members")
+
+    log_job_error(fake_logger, "Background members refresh failed: %s", exc)
+
+    fake_logger.error.assert_called_once()
+    _, kwargs = fake_logger.error.call_args
+    assert kwargs.get("exc_info") is exc, (
+        "logger.error must thread exc_info=exc so Sentry gets the real traceback"
+    )
+
+
+def test_log_job_error_upstream_noise_does_not_attach_exc_info():
+    """Upstream noise stays on logger.warning — exc_info would just bloat the
+    breadcrumb. Belt-and-suspenders: ensure the demote path never accidentally
+    starts shipping traces.
+    """
+    fake_logger = MagicMock(spec=logging.Logger)
+    exc = _make_status_error(504)
+
+    log_job_error(fake_logger, "upstream call failed: %s", exc)
+
+    fake_logger.warning.assert_called_once()
+    fake_logger.error.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # report_job_error: Sentry-aware variant
 # ---------------------------------------------------------------------------
