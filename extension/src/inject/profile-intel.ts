@@ -36,6 +36,7 @@ export interface ProfileIntelContext {
 }
 
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const INTEL_TTL_MS = 10 * 60_000; // 10 min cache per player
 
@@ -371,9 +372,6 @@ const STYLES = `
   }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function fmtBigNumber(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '—';

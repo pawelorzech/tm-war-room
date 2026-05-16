@@ -8,6 +8,7 @@
 
 import { ensurePersistentHost } from './persistent-host';
 import { loadSettings, updateSettings } from './settings';
+import { escapeHtml } from './format';
 
 const TOAST_HOST_KIND = 'toast-stack';
 const MAX_VISIBLE = 3;
@@ -124,14 +125,6 @@ function initHost(): ShadowRoot {
     _initialized = true;
   }
   return shadow;
-}
-
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function renderOne(input: ToastInput): void {

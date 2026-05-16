@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.44.1";
+export const CURRENT_VERSION = "1.45.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.45.0",
+    date: "2026-05-16",
+    title: "Companion v0.22 — Hall of Fame leaderboards highlight TM mates and war enemies",
+    changes: [
+      {
+        type: "feat",
+        summary: "Hall of Fame rows get a small TM pill on faction mates and a ☠ pill on current war enemies",
+        detail: "Open /halloffame.php on any tab (chain, ranked war, attacks, etc.) and the rows you scroll past now carry small inline pills next to known players — green TM for faction mates, red ☠ for the current war enemy. No row tinting, nothing on people we don't recognise, so the leaderboard still looks like a leaderboard. Quiet by design.",
+      },
+    ],
+  },
   {
     version: "1.44.1",
     date: "2026-05-16",

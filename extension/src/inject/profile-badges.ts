@@ -8,6 +8,7 @@
 import type { WarOffLimits } from '../types';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { escapeHtml } from '../lib/format';
 
 export function renderProfileBadge(off: WarOffLimits | null): void {
   // Remove any previous badge first (target may have changed, or flag cleared).
@@ -50,10 +51,3 @@ export function renderProfileBadge(off: WarOffLimits | null): void {
   }
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

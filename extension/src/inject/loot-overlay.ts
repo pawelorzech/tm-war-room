@@ -25,6 +25,7 @@ import { showToast } from '../lib/notifications';
 import type { LootNpc } from '../types';
 
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 60_000;
 let _lootCache: { ts: number; map: Map<number, LootNpc> } | null = null;
@@ -153,9 +154,6 @@ const STYLES = `
   }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function fmtCountdown(targetTs: number): string {
   const now = Math.floor(Date.now() / 1000);

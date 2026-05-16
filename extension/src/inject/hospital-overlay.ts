@@ -18,6 +18,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { WarOffLimits, Target } from '../types';
+import { escapeHtml } from '../lib/format';
 
 interface HospitalRow {
   tm_mate: boolean;
@@ -161,9 +162,6 @@ const STYLES = `
   }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 export async function applyHospitalOverlay(opts: { warId: number | null }): Promise<void> {
   await decorateRows<HospitalRow>({

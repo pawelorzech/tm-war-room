@@ -9,7 +9,8 @@
 import { ApiError, fetchRecentMentions } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
-import { escapeHtml, showToast } from '../lib/notifications';
+import { showToast } from '../lib/notifications';
+import { escapeHtml } from '../lib/format';
 import { mentionsActive } from '../lib/settings';
 
 declare const GM_getValue: <T>(key: string, def?: T) => T;

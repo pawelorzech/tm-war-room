@@ -14,6 +14,7 @@ import { TRAVEL_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import type { TravelCountry, TravelItem } from '../types';
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 60_000;
 
@@ -51,9 +52,6 @@ function fmtMoney(n: number): string {
   return `${sign}$${Math.round(abs)}`;
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 const STYLES = `
   :host { all: initial; display: block; width: 100%; }

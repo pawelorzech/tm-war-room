@@ -20,6 +20,7 @@ import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { applyJailOverlay } from './inject/jail-overlay';
+import { applyHalloffameOverlay } from './inject/halloffame-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
@@ -115,6 +116,13 @@ async function refresh(): Promise<void> {
     if (auth) {
       const warId = await getWarId(auth);
       void applyJailOverlay({ warId });
+    }
+    return;
+  }
+
+  if (match.kind === 'halloffame') {
+    if (getAuth()) {
+      void applyHalloffameOverlay();
     }
     return;
   }
