@@ -20,6 +20,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { STOCKS_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { cardBase } from '../lib/card-styles';
 import type {
   StockPortfolioResponse,
   StockRoiResponse,
@@ -93,33 +94,8 @@ function fmtPct(n: number): string {
 }
 
 
-const STYLES = `
-  :host { all: initial; display: block; width: 100%; }
-  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .card {
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-    border: 1px solid #30363d;
-    border-left: 3px solid #58a6ff;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px 0;
-    color: #c9d1d9;
-    font-size: 12px;
-    line-height: 1.45;
-    width: 100%;
-    display: block;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-  }
-  .title { font-weight: 700; color: #58a6ff; font-size: 13px; white-space: nowrap; min-width: 0; }
-  .link { color: #6e7681; font-size: 11px; text-decoration: none; white-space: nowrap; }
-  .link:hover { color: #58a6ff; text-decoration: underline; }
+const STYLES = cardBase('#58a6ff') + `
+  .title { white-space: nowrap; min-width: 0; }
   .summary {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -173,15 +149,6 @@ const STYLES = `
   .rec .roi.cold { color: #6e7681; }
   .rec .cost { color: #c9d1d9; font-size: 11px; }
   .rec .days { color: #6e7681; font-size: 10px; }
-  .empty { color: #6e7681; font-size: 11px; }
-  .err {
-    background: rgba(248,81,73,0.08);
-    border: 1px solid rgba(248,81,73,0.3);
-    color: #c9d1d9;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 11px;
-  }
   .err b { color: #f85149; }
   .pill {
     display: inline-flex;
@@ -193,13 +160,6 @@ const STYLES = `
     font-size: 11px;
     font-weight: 600;
     margin: 2px 4px 2px 0;
-  }
-  .footer {
-    color: #6e7681;
-    font-size: 10px;
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid #21262d;
   }
 `;
 
