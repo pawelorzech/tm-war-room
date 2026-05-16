@@ -2,11 +2,41 @@
 
 Greasy Fork is the canonical userscript host. Tampermonkey trusts Greasy Fork
 natively, so installs from there **bypass the Chrome 130+ "Developer Mode
-required" prompt** that has been blocking new TM Hub members. This is the
-single biggest install-funnel fix available — one-time setup, then every push
-to master auto-syncs.
+required" prompt** that has been blocking new TM Hub members.
 
-## One-time setup (~5 minutes)
+## Status: published
+
+| Field            | Value                                                          |
+| ---------------- | -------------------------------------------------------------- |
+| Listing URL      | https://greasyfork.org/en/scripts/578482-tm-hub-companion      |
+| Install URL      | https://update.greasyfork.org/scripts/578482/TM%20Hub%20Companion.user.js |
+| Script ID        | 578482                                                         |
+| Author           | pawelorzech                                                    |
+| Sync source      | https://hub.tri.ovh/companion.user.js                          |
+| Sync mode        | **Automatic** — GF polls hourly                                |
+| License (header) | MIT (`@license MIT` is injected by `extension/scripts/build.mjs`) |
+
+`frontend/src/app/install/page.tsx` already points `GREASYFORK_URL` at the
+listing, so the install page shows the green 1-click hero card.
+
+## What happens on every Companion release
+
+1. We ship a new Companion version (the `@version` field in
+   `extension/package.json` bumps; CI builds `companion.user.js`).
+2. Coolify deploys, and `hub.tri.ovh/companion.user.js` starts serving the new
+   bytes.
+3. Within ~1 hour Greasy Fork's automatic sync polls the URL, notices the new
+   `@version`, and updates the listing.
+4. Installed Tampermonkey clients pick up the update on their next 24h check.
+
+Nothing manual to do per release — the only failure modes are:
+
+- GF rejects a version (rare — usually only if the `@name` or namespace
+  changes, in which case GF flags it for review)
+- We push a Companion build with a regressed `@version` (lower than the live
+  one) — GF will refuse the downgrade and flag it on the admin page
+
+## One-time setup (~5 minutes) — already done, kept for reference
 
 ### 1. Create a Greasy Fork account
 
@@ -43,23 +73,15 @@ notifies installed Tampermonkey clients on their next 24h check.
 
 ### 4. Wire the URL into the install page
 
-The install page already has a placeholder constant:
+`frontend/src/app/install/page.tsx` defines:
 
 ```ts
-// frontend/src/app/install/page.tsx
-const GREASYFORK_URL = '';
+const GREASYFORK_URL = 'https://greasyfork.org/en/scripts/578482-tm-hub-companion';
 ```
 
-Replace the empty string with the published script URL, e.g.:
-
-```ts
-const GREASYFORK_URL = 'https://greasyfork.org/scripts/XXXXXX-tm-hub-companion';
-```
-
-Commit, push to master, and the install page automatically promotes Greasy
-Fork to the recommended path (with a green primary card above the Tampermonkey
-fallback). When `GREASYFORK_URL` is empty the card is hidden, so it is safe to
-ship with the placeholder in place.
+If `GREASYFORK_URL` is empty the green hero card disappears and the install
+page falls back to Tampermonkey-direct as the primary path. That's the kill
+switch if GF ever delists us or sync breaks.
 
 ## Why this matters
 

@@ -38,6 +38,8 @@ const banner = `// ==UserScript==
 // @updateURL    ${HUB_ORIGIN}/companion.user.js
 // @downloadURL  ${HUB_ORIGIN}/companion.user.js
 // @homepageURL  ${HUB_ORIGIN}/install
+// @supportURL   ${HUB_ORIGIN}/install
+// @license      MIT
 // ==/UserScript==
 
 /* eslint-disable */

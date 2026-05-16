@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 
 const USERSCRIPT_URL = 'https://hub.tri.ovh/companion.user.js';
-// Empty until the script is published on Greasy Fork. See docs/publishing-to-greasyfork.md
-// for the one-time setup. When set, this URL becomes the recommended 1-click install path
-// (Greasy Fork scripts bypass Chrome MV3 "developer mode required" restrictions).
-const GREASYFORK_URL = '';
+// Greasy Fork listing — Tampermonkey trusts GF natively, so installs from this URL
+// bypass the Chrome 130+ "Developer Mode required" prompt entirely. GF's
+// "Automatic sync" polls hub.tri.ovh/companion.user.js, so every new Companion
+// version we ship lands here within an hour without any manual republish.
+const GREASYFORK_URL = 'https://greasyfork.org/en/scripts/578482-tm-hub-companion';
 const TAMPERMONKEY_URL = 'https://www.tampermonkey.net/';
 const TORN_PDA_IOS_URL = 'https://apps.apple.com/app/torn-pda/id1467110341';
 const TORN_PDA_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.manuito.tornpda';
