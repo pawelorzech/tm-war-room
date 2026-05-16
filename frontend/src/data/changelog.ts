@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.4";
+export const CURRENT_VERSION = "1.42.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.5",
+    date: "2026-05-16",
+    title: "Push-notification subscription no longer silently saves a broken record",
+    changes: [
+      {
+        type: "fix",
+        summary: "Subscribing to push notifications with missing browser keys now returns a clear error instead of looking successful",
+        before: "Asking to enable push notifications returned 'subscribed' even when the browser sent an empty cryptographic-keys payload. The row was saved to our side, but the actual push never reached the device — you'd toggle notifications on, see no confirmation problem, then never receive anything.",
+        after: "The subscribe endpoint now rejects requests with missing or empty keys (or an empty endpoint) with a 422 validation error, so a buggy or unsupported browser surfaces the problem at registration time instead of vanishing into silent failure.",
+        cause: "The subscribe request model accepted the keys block as a free-form dictionary, with empty-string fallbacks if the keys were missing. The empty strings looked valid enough to save, but the web-push library couldn't encrypt anything with them.",
+      },
+    ],
+  },
   {
     version: "1.42.4",
     date: "2026-05-16",

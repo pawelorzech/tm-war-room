@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 from fastapi import APIRouter, HTTPException, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("tm-hub.push")
 
@@ -18,9 +18,14 @@ def _verify_member(player_id: int):
         raise HTTPException(status_code=403, detail="Not a faction member")
 
 
+class PushKeys(BaseModel):
+    p256dh: str = Field(..., min_length=1)
+    auth: str = Field(..., min_length=1)
+
+
 class SubscribeRequest(BaseModel):
-    endpoint: str
-    keys: dict  # {"p256dh": "...", "auth": "..."}
+    endpoint: str = Field(..., min_length=1)
+    keys: PushKeys
     preferences: dict = {}
 
 
@@ -41,8 +46,8 @@ async def subscribe(req: SubscribeRequest, x_player_id: int = Header()):
     push_repo.save(
         player_id=x_player_id,
         endpoint=req.endpoint,
-        p256dh=req.keys.get("p256dh", ""),
-        auth=req.keys.get("auth", ""),
+        p256dh=req.keys.p256dh,
+        auth=req.keys.auth,
         preferences=req.preferences,
     )
     return {"status": "subscribed"}
