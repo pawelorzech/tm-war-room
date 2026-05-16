@@ -284,6 +284,30 @@ const STYLES = `
   }
   .msg .text.mentioned { background: rgba(210, 153, 34, 0.12); padding: 2px 4px; border-radius: 3px; }
 
+  .date-sep {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    margin: 4px 0 2px;
+  }
+  .date-sep span {
+    pointer-events: auto;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #c9d1d9;
+    background: rgba(33, 38, 45, 0.95);
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    padding: 3px 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+  }
+
   .new-pill {
     position: absolute;
     left: 50%;
@@ -804,6 +828,32 @@ function updatePlaceholder(shadow: ShadowRoot): void {
   ta.placeholder = ch ? `Message #${ch.name}` : 'Message';
 }
 
+function dayDelta(ts: number): { dayDiff: number; date: Date } {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round((today.getTime() - msgDay.getTime()) / 86400000);
+  return { dayDiff, date: d };
+}
+
+function formatChatTime(ts: number): string {
+  const { dayDiff, date } = dayDelta(ts);
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (dayDiff === 0) return time;
+  if (dayDiff === 1) return `Yesterday ${time}`;
+  if (dayDiff < 7) return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
+}
+
+function formatDateSep(ts: number): string {
+  const { dayDiff, date } = dayDelta(ts);
+  if (dayDiff === 0) return 'Today';
+  if (dayDiff === 1) return 'Yesterday';
+  if (dayDiff < 7) return date.toLocaleDateString([], { weekday: 'long' });
+  return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
 function renderMessages(shadow: ShadowRoot): void {
   const wrap = shadow.querySelector<HTMLElement>('.messages');
   if (!wrap) return;
@@ -813,17 +863,22 @@ function renderMessages(shadow: ShadowRoot): void {
   }
   const auth = getAuth();
   const me = auth?.player_id || 0;
+  let lastDateLabel = '';
   wrap.innerHTML = _messages
     .map((m) => {
       const mentioned = m.mentions.includes(me);
-      const time = new Date(m.created_at * 1000).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      const dateLabel = formatDateSep(m.created_at);
+      const separator =
+        dateLabel !== lastDateLabel
+          ? `<div class="date-sep"><span>${escapeHtml(dateLabel)}</span></div>`
+          : '';
+      lastDateLabel = dateLabel;
+      const time = formatChatTime(m.created_at);
       const authorHtml = m.bot_id
         ? `<span class="author bot">${escapeHtml(m.player_name)}</span>`
         : `<a class="author" href="https://www.torn.com/profiles.php?XID=${m.player_id}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.player_name)}</a>`;
       return `
+        ${separator}
         <div class="msg">
           <div>
             ${authorHtml}
