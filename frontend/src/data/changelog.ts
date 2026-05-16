@@ -52,9 +52,30 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.2";
+export const CURRENT_VERSION = "1.50.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.3",
+    date: "2026-05-17",
+    title: "/install — unstick newcomers on \"cannot install scripts from this website\"",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion install link no longer leaves Chrome users with a Tampermonkey error and no recovery path",
+        before: "Clicking the desktop install link on /install threw a Tampermonkey error (\"you cannot install scripts from this website\") for any Chrome 130+ user without Developer Mode enabled at chrome://extensions/. The page gave no hint about the fix, so new members effectively could not install the Companion at all.",
+        after: "The install card now ships with an expandable \"Manual install (always works)\" section: it explains the Chrome Developer Mode requirement in two clicks, and offers a Copy-URL button that pastes straight into Tampermonkey Dashboard → Utilities → Install from URL. The Troubleshooting list surfaces the same recovery path. iPhone, iPad, and Android visitors now see only the Torn PDA card instead of a desktop path that cannot succeed on their device.",
+        cause: "Chrome 130+ enforces an MV3 restriction that requires Developer Mode for any non-store userscript install — the install page silently assumed the old behaviour.",
+      },
+      {
+        type: "fix",
+        summary: "/install no longer hides behind the TM Hub login wall — newcomers can read install docs first",
+        before: "Anyone hitting /install before logging into TM Hub saw only the API-key login card. New faction members had to log into TM Hub before they could see how to install the Companion — an order-of-operations trap, since most of them came to the page precisely because someone in chat said \"install the Companion first\".",
+        after: "/install is now part of the public-routes allowlist. The page renders for unauthenticated visitors exactly the same as for logged-in members. Other pages still require login.",
+        cause: "The auth gate had no concept of public routes — every page in the app fell through to the same login wall.",
+      },
+    ],
+  },
   {
     version: "1.50.2",
     date: "2026-05-16",

@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { usePDA } from "@/contexts/PDAContext";
 
+// Routes that render their full content for unauthenticated visitors so
+// outsiders can read install / onboarding docs before they have a TM Hub
+// account. Faction-only pages stay behind the login wall.
+const PUBLIC_ROUTES = new Set<string>(["/install"]);
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading, login } = useAuth();
   const { isPDA } = usePDA();
@@ -14,11 +19,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   // copy so the flow feels like one step, not "log into hub + then mint a
   // token for the extension".
   const isCompanionHandoff = pathname === "/extension-auth";
+  // Normalize pathname: strip trailing slash and .html suffix so /install,
+  // /install/, and /install.html all match the same allowlist entry. In
+  // production nginx serves /install (extensionless); in a static-export
+  // dev preview the URL is /install.html.
+  const normalizedPath = pathname.replace(/\.html$/i, "").replace(/\/+$/, "") || "/";
+  const isPublicRoute = PUBLIC_ROUTES.has(normalizedPath);
   const [apiKey, setApiKey] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
