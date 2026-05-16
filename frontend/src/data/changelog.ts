@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.43.0";
+export const CURRENT_VERSION = "1.44.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.44.0",
+    date: "2026-05-16",
+    title: "Companion v0.21 — Jail list now marks TM mates and war enemies inline",
+    changes: [
+      {
+        type: "feat",
+        summary: "Jail list rows show TM mate / war enemy / OFF-LIMITS / target pills inline",
+        detail: "Open /jailview.php on Torn and each row gets a tinted background and a small pill next to the name if we know the player: green for TM mates (don't bust unless asked), red for current war enemies (good bust candidates to keep them in), 🚫 OFF-LIMITS for anyone flagged in TM Hub, and 🎯 target for your saved targets — with your tag, if any. People we don't recognise stay untouched so the page doesn't get noisy.",
+      },
+    ],
+  },
   {
     version: "1.43.0",
     date: "2026-05-16",
