@@ -433,3 +433,20 @@ export interface ActiveFlightsResponse {
   flights: FlightRow[];
   cached_at: number;
 }
+
+// ── Hit claims (Phase 4) ────────────────────────────────────
+
+export interface ClaimRow {
+  target_id: number;
+  claimer_id: number;
+  claimer_name: string | null;
+  claimed_at: number;
+  expires_at: number;
+  status: 'active' | 'released' | 'hit' | 'expired';
+  note: string | null;
+}
+
+export interface ClaimActiveResponse {
+  claims: ClaimRow[];
+  cached_at: number;
+}

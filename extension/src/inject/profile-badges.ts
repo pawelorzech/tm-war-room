@@ -11,6 +11,8 @@ import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { escapeHtml } from '../lib/format';
 import { maybeRenderFFChip } from './ff-chip';
 import { maybeRenderFlightPill } from './flight-pill';
+import { getCachedFeatureFlags } from '../lib/api';
+import { renderClaimButton } from './claim-button';
 
 /** Render the FF fallback chip on a profile page. Lives alongside the
  *  OFF-LIMITS badge but in its own host so it can render independently —
@@ -102,5 +104,47 @@ export async function renderProfileFlightPill(playerId: number): Promise<void> {
   // Remove the host entirely when no pill rendered, so the profile header
   // doesn't keep an empty 6px gap on non-airborne players.
   if (!host.firstElementChild) host.remove();
+}
+
+/**
+ * Claim-button-only host for the profile owner. Independent of OFF-LIMITS so
+ * it shows up on every profile when hit_calling is on. Renders a single
+ * compact card with the claim button.
+ */
+export function renderProfileClaimButton(targetId: number, targetName: string): void {
+  if (!getCachedFeatureFlags().hit_calling) return;
+  // Strip any prior host (target may have changed across SPA nav).
+  const prior = document.querySelector('[data-tm-companion="profile-claim"]');
+  if (prior) prior.remove();
+
+  const { host, shadow } = ensureHost('profile-claim');
+  applyBaseStyles(shadow);
+
+  // Anchor above the profile content alongside the OFF-LIMITS card (when present).
+  if (!host.parentElement) {
+    let placed = false;
+    for (const sel of PROFILE_ANCHOR_SELECTORS) {
+      const anchor = document.querySelector(sel);
+      if (anchor) {
+        anchor.insertBefore(host, anchor.firstChild);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) document.body.insertBefore(host, document.body.firstChild);
+  }
+
+  // The button itself lives inside a slot in the shadow root — claim-button
+  // attaches via inline styles, no shadow-aware CSS needed.
+  shadow.querySelectorAll('[data-tm-claim-host]').forEach((n) => n.remove());
+  const slot = document.createElement('div');
+  slot.setAttribute('data-tm-claim-host', '1');
+  slot.style.cssText =
+    'display:flex;align-items:center;gap:8px;padding:8px 12px;margin:8px 0;' +
+    'background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff;' +
+    'border-radius:8px;color:#c9d1d9;font:600 12px -apple-system,BlinkMacSystemFont,sans-serif;';
+  slot.innerHTML = '<span>Hit-call:</span>';
+  shadow.appendChild(slot);
+  renderClaimButton({ host: slot, targetId, targetName });
 }
 

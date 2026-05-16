@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>verify</title>
+<style>
+  body { margin: 0; padding: 16px; background: #1c1c1e; color: #c9d1d9;
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .container-narrow { width: 320px; border: 1px dashed #6e7681; margin-bottom: 24px; padding: 4px; }
+  .container-medium { width: 400px; border: 1px dashed #6e7681; margin-bottom: 24px; padding: 4px; }
+  .container-wide   { width: 600px; border: 1px dashed #6e7681; margin-bottom: 24px; padding: 4px; }
+  .label { font-size: 11px; color: #6e7681; text-transform: uppercase; margin-bottom: 4px; }
+
+  /* SIMULATE BASE_STYLES .card collision — this is what was breaking it */
+  .card {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: 8px;
+    background: #161b22;
+    border: 1px solid #f85149;
+  }
+
+  /* ============ NEW STYLES from profile-intel.ts (renamed to .intel-card) ============ */
+  .intel-card {
+    display: block;
+    container-type: inline-size;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    color: #c9d1d9;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .intel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .intel-title { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #58a6ff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+  .intel-link { color: #6e7681; font-size: 12px; text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+  .intel-link .link-icon { font-size: 14px; }
+  .intel-link .link-text { display: none; }
+  @container (min-width: 481px) { .intel-link .link-text { display: inline; } }
+
+  .spy-total { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .spy-total .icon { font-size: 16px; }
+  .spy-total .value { font-size: 18px; font-weight: 700; color: #f0f6fc; font-variant-numeric: tabular-nums; }
+  .spy-total .label { font-size: 11px; color: #8b949e; text-transform: lowercase; }
+  .spy-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; font-size: 11px; }
+  .meta-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; background: #21262d; color: #c9d1d9; font-size: 11px; font-weight: 500; }
+  .meta-tag.source { background: rgba(88,166,255,0.12); color: #79b8ff; }
+  .meta-tag.age-fresh { background: rgba(63,185,80,0.18); color: #56d364; }
+  .meta-tag.confidence-estimate { background: rgba(210,153,34,0.18); color: #e8b339; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  @container (min-width: 481px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+  .stat { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .stat-key { color: #6e7681; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-val { color: #f0f6fc; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .inline-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  @container (min-width: 481px) { .inline-rows { flex-direction: row; gap: 16px; flex-wrap: wrap; } }
+  .inline-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #c9d1d9; }
+  .inline-row .row-icon { font-size: 13px; }
+  .tag-pill { display: inline-block; background: #21262d; color: #c9d1d9; padding: 1px 7px; border-radius: 8px; font-size: 10px; font-weight: 500; }
+  .tag-pill.tag-blue { background: rgba(88,166,255,0.18); color: #79b8ff; }
+  .tag-pill.difficulty-medium { background: rgba(210,153,34,0.18); color: #e8b339; }
+  .inline-note { color: #c9d1d9; font-style: italic; font-size: 11px; }
+  .inline-secondary { color: #8b949e; font-size: 11px; }
+
+  .actions { margin-top: 12px; padding-top: 10px; border-top: 1px solid #21262d; display: flex; flex-direction: column; gap: 8px; }
+  .action-primary { width: 100%; }
+  .action-secondary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @container (min-width: 481px) {
+    .actions { flex-direction: row; align-items: stretch; }
+    .action-primary { width: auto; flex: 1; }
+    .action-secondary-grid { display: flex; flex: 1; }
+    .action-secondary-grid .action-btn { flex: 1; }
+  }
+
+  .action-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; padding: 0 12px; height: 36px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+  .action-btn.primary { border-color: #58a6ff; color: #f0f6fc; background: rgba(88,166,255,0.08); height: 40px; font-size: 13px; }
+  .action-btn .check { font-weight: 700; }
+  .action-btn .hint { font-size: 10px; font-weight: 500; opacity: 0.75; margin-left: 4px; display: none; }
+  @container (min-width: 481px) { .action-btn .hint { display: inline; } }
+</style>
+</head><body>
+
+<div class="label">CONTAINER 320px (narrow — PDA / left column on desktop) — must stack vertically</div>
+<div class="container-narrow">
+  <div class="intel-card">
+    <div class="intel-header">
+      <div class="intel-title">⚡ TM HUB INTEL</div>
+      <a class="intel-link"><span class="link-icon">↗</span><span class="link-text">Open in TM Hub</span></a>
+    </div>
+    <div class="spy-total"><span class="icon">⚔️</span><span class="value">5.83M</span><span class="label">total estimate</span></div>
+    <div class="spy-meta">
+      <span class="meta-tag source">●&nbsp;tornstats</span>
+      <span class="meta-tag age-fresh">⏱&nbsp;today</span>
+      <span class="meta-tag confidence-estimate">◇&nbsp;estimate</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-key">STR</div><div class="stat-val">2.25M</div></div>
+      <div class="stat"><div class="stat-key">DEF</div><div class="stat-val">1.11M</div></div>
+      <div class="stat"><div class="stat-key">SPD</div><div class="stat-val">1.62M</div></div>
+      <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">846.6k</div></div>
+    </div>
+    <div class="inline-rows">
+      <div class="inline-row"><span class="row-icon">🎯</span><span class="tag-pill tag-blue">blue</span><span class="tag-pill difficulty-medium">medium</span><span class="inline-note">"watch retal"</span></div>
+      <div class="inline-row"><span class="row-icon">🔍</span><span class="inline-secondary">Watched · by Bombel</span></div>
+    </div>
+    <div class="actions">
+      <button class="action-btn primary action-primary">🎯&nbsp;Save to targets</button>
+      <div class="action-secondary-grid">
+        <button class="action-btn">🔍&nbsp;Watch</button>
+        <button class="action-btn">🚫&nbsp;Flag</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="label">CONTAINER 400px (medium narrow) — still narrow layout</div>
+<div class="container-medium">
+  <div class="intel-card">
+    <div class="intel-header"><div class="intel-title">⚡ TM HUB INTEL</div><a class="intel-link"><span class="link-icon">↗</span><span class="link-text">Open in TM Hub</span></a></div>
+    <div class="spy-total"><span class="icon">⚔️</span><span class="value">5.83M</span><span class="label">total estimate</span></div>
+    <div class="spy-meta"><span class="meta-tag source">●&nbsp;tornstats</span><span class="meta-tag age-fresh">⏱&nbsp;today</span><span class="meta-tag confidence-estimate">◇&nbsp;estimate</span></div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-key">STR</div><div class="stat-val">2.25M</div></div>
+      <div class="stat"><div class="stat-key">DEF</div><div class="stat-val">1.11M</div></div>
+      <div class="stat"><div class="stat-key">SPD</div><div class="stat-val">1.62M</div></div>
+      <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">846.6k</div></div>
+    </div>
+    <div class="actions">
+      <button class="action-btn primary action-primary">🎯&nbsp;Save to targets</button>
+      <div class="action-secondary-grid"><button class="action-btn">🔍&nbsp;Watch</button><button class="action-btn">🚫&nbsp;Flag</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="label">CONTAINER 600px (wide) — horizontal layout activated</div>
+<div class="container-wide">
+  <div class="intel-card">
+    <div class="intel-header"><div class="intel-title">⚡ TM HUB INTEL</div><a class="intel-link"><span class="link-icon">↗</span><span class="link-text">Open in TM Hub</span></a></div>
+    <div class="spy-total"><span class="icon">⚔️</span><span class="value">5.83M</span><span class="label">total estimate</span></div>
+    <div class="spy-meta"><span class="meta-tag source">●&nbsp;tornstats</span><span class="meta-tag age-fresh">⏱&nbsp;today</span><span class="meta-tag confidence-estimate">◇&nbsp;estimate</span></div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-key">STR</div><div class="stat-val">2.25M</div></div>
+      <div class="stat"><div class="stat-key">DEF</div><div class="stat-val">1.11M</div></div>
+      <div class="stat"><div class="stat-key">SPD</div><div class="stat-val">1.62M</div></div>
+      <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">846.6k</div></div>
+    </div>
+    <div class="inline-rows">
+      <div class="inline-row"><span class="row-icon">🎯</span><span class="tag-pill tag-blue">blue</span><span class="tag-pill difficulty-medium">medium</span><span class="inline-note">"watch retal"</span></div>
+      <div class="inline-row"><span class="row-icon">🔍</span><span class="inline-secondary">Watched · by Bombel</span></div>
+    </div>
+    <div class="actions">
+      <button class="action-btn primary action-primary">🎯&nbsp;Save to targets</button>
+      <div class="action-secondary-grid"><button class="action-btn">🔍&nbsp;Watch</button><button class="action-btn">🚫&nbsp;Flag off-limits</button></div>
+    </div>
+  </div>
+</div>
+
+</body></html>

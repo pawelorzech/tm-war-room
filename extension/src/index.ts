@@ -13,8 +13,9 @@
 import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
-import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill } from './inject/profile-badges';
+import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
+import { startClaimBanner } from './inject/claim-banner';
 import { renderProfileIntel } from './inject/profile-intel';
 import { maybeRenderActivityChip } from './inject/activity-chip';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
@@ -216,6 +217,10 @@ async function refresh(): Promise<void> {
   // intel by visiting the target's profile beforehand.
   if (match.kind === 'profile') {
     void renderProfileIntel(match.player_id, { warId, offLimits: off });
+    // Hit-call claim button for the profile owner (Phase 4B). Self-claim is
+    // filtered inside renderClaimButton, and the whole thing is a no-op
+    // when the hit_calling feature flag is off.
+    renderProfileClaimButton(match.player_id, off?.player_name || `Player ${match.player_id}`);
   }
 
   // Loot NPC overlay: only renders if the visited profile happens to be a
@@ -311,6 +316,9 @@ function bootstrap(): void {
   startNotificationToasts();
   startMentionAlerts();
   startHeartbeat();
+  // Live claim banner + bus pump. Internally feature-flag gated and a no-op
+  // when hit_calling is off, so it's safe to start unconditionally.
+  void startClaimBanner();
 }
 
 if (document.readyState === 'loading') {
