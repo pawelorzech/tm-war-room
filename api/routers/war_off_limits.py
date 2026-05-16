@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 
 from api.db.repos.war_off_limits import WarOffLimitsRepository
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.war_off_limits")
 
@@ -40,12 +41,15 @@ def _can_mutate(row: dict, caller_id: int) -> bool:
 
 
 @router.get("/{war_id}")
-async def list_off_limits(war_id: int, x_player_id: int = Header()):
+async def list_off_limits(war_id: int, request: Request, x_player_id: int = Header()):
     if not repo:
         raise HTTPException(status_code=503, detail="Not initialized")
     _verify_member(x_player_id)
     rows = repo.list_for_war(war_id)
-    return {"war_id": war_id, "entries": rows, "count": len(rows)}
+    return etag_response(
+        {"war_id": war_id, "entries": rows, "count": len(rows)},
+        request,
+    )
 
 
 @router.post("/{war_id}")

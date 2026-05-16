@@ -2,9 +2,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from api.config import FACTION_ID
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.wars")
 
@@ -15,13 +16,16 @@ _EMPTY_WAR = {"war_id": None, "opponent_faction_id": None, "start": None, "end":
 
 
 @router.get("/current")
-async def current_war():
+async def current_war(request: Request):
     """Lightweight current-war lookup used by the TM Hub Companion extension.
 
     Content scripts on torn.com profile/attack pages need ``war_id`` to fetch
     off-limits flags. They poll this endpoint instead of the full /api/overview
     payload. Returns ``{"war_id": null}`` outside of war OR when Torn upstream
     is flaking — the extension polls again next cycle.
+
+    Sprint 2: ETag-aware so the Companion's 30s poll loop gets 304 No Content
+    on the (very frequent) case where the war state hasn't changed.
     """
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
@@ -29,17 +33,18 @@ async def current_war():
         war = await torn_client.fetch_war()
     except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as exc:
         logger.warning("Torn upstream failed for /api/wars/current: %s", exc)
-        return _EMPTY_WAR
+        return etag_response(_EMPTY_WAR, request)
     if not war or not war.war_id:
-        return _EMPTY_WAR
+        return etag_response(_EMPTY_WAR, request)
     opponent = next((f for f in war.factions if f.id != FACTION_ID), None)
-    return {
+    payload = {
         "war_id": war.war_id,
         "opponent_faction_id": opponent.id if opponent else None,
         "opponent_name": opponent.name if opponent else None,
         "start": war.start,
         "end": war.end,
     }
+    return etag_response(payload, request)
 
 
 def _parse_factions(factions_data) -> list[dict]:
