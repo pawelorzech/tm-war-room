@@ -10,10 +10,10 @@
 // server, but each tab on torn.com runs its own userscript instance, so
 // hot paths still need to be cheap.
 
-import { fetchCurrentWar, fetchOffLimits, ApiError } from './lib/api';
+import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
-import { renderProfileBadge } from './inject/profile-badges';
+import { renderProfileBadge, renderProfileFFChip } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
@@ -200,6 +200,7 @@ async function refresh(): Promise<void> {
 
   if (match.kind === 'profile') {
     renderProfileBadge(off);
+    renderProfileFFChip(match.player_id);
   } else if (match.kind === 'attack') {
     renderAttackOverlay(off);
   }
@@ -252,6 +253,12 @@ function bootstrap(): void {
     // for the browser permission prompt.
     void ensureNativePermission();
   });
+
+  // Warm the feature-flag cache up front (60s TTL inside fetchFeatureFlags).
+  // Overlays that gate on flags (FF chip, etc.) read getFeatureFlags()
+  // synchronously — without this prefetch the first paint after a fresh
+  // page load would always see all-false and silently skip the overlay.
+  void fetchFeatureFlags();
 
   // Initial render + URL-change re-trigger.
   void refresh();
