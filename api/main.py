@@ -385,6 +385,11 @@ async def lifespan(app: FastAPI):
         "tracked_companies_repo": tracked_companies_repo,
         "pinned_weeks_repo": pinned_weeks_repo,
         "company_alerts_repo": company_alerts_repo,
+        # Intel Pack (Phase 1-4): flight tracker reads these from get_state()
+        # once per 60 s tick. Wired here so the scheduler module stays
+        # ignorant of where the repos came from.
+        "flight_repo": flights_mod.flight_repo,
+        "faction_id": FACTION_ID,
     })
     from api import b2_client
     if b2_client.is_configured() and is_leader:
