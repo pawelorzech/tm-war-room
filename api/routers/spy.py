@@ -91,12 +91,16 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
     try:
         from api.stat_estimator import estimate_stats
         from api.torn_client import _json
+        # Torn API v1 takes the target user id in the URL path, not as `?id=`.
+        # A query-string `id` is silently ignored and the response holds the
+        # API key OWNER's stats — which is why the heuristic estimate used to
+        # show the owner's totals (e.g. 7.02B split 1.76B/stat) for every
+        # player who lacked a TornStats/YATA spy.
         resp = await torn_client._http.get(
-            "https://api.torn.com/user/",
+            f"https://api.torn.com/user/{player_id}",
             params={
                 "selections": "personalstats,profile",
                 "key": torn_client._api_key,
-                "id": player_id,
             },
         )
         if resp.status_code != 200:
@@ -329,9 +333,11 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
     if torn_client and result.get("confidence") in ("estimate", "unknown"):
         try:
             from api.stat_estimator import estimate_stats
+            # See _build_fallback_estimate: `id` must be in the URL path; a
+            # query-string id is ignored and returns the key owner's data.
             resp = await torn_client._http.get(
-                "https://api.torn.com/user/",
-                params={"selections": "personalstats,profile", "key": torn_client._api_key, "id": player_id},
+                f"https://api.torn.com/user/{player_id}",
+                params={"selections": "personalstats,profile", "key": torn_client._api_key},
             )
             if resp.status_code == 200:
                 from api.torn_client import _json
