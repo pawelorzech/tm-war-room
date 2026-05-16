@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import logging
 import time
 from fastapi import APIRouter, HTTPException, Header, Query
@@ -81,9 +82,11 @@ async def stock_portfolio(x_player_id: int = Header()):
     if not user_key:
         raise HTTPException(status_code=401, detail="Register your API key first")
 
-    market = await torn_client.fetch_stock_market()
     try:
-        portfolio = await torn_client.fetch_user_stocks(user_key["api_key"])
+        market, portfolio = await asyncio.gather(
+            torn_client.fetch_stock_market(),
+            torn_client.fetch_user_stocks(user_key["api_key"]),
+        )
     except Exception as e:
         err_str = str(e).lower()
         if "access" in err_str or "permission" in err_str or "incorrect" in err_str:

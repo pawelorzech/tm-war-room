@@ -6,6 +6,9 @@ dict keyed by stock id. The portfolio route iterated with `.items()`, which
 exploded with `AttributeError: 'list' object has no attribute 'items'`.
 """
 
+import asyncio
+import time
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
@@ -100,3 +103,55 @@ async def test_portfolio_happy_path_dict_response(mock_store):
     assert data["count"] == 1
     assert data["holdings"][0]["stock_id"] == 14
     assert data["holdings"][0]["total_shares"] == 1000
+
+
+@pytest.mark.asyncio
+async def test_portfolio_fetches_market_and_user_concurrently(mock_store):
+    """Perf: fetch_stock_market + fetch_user_stocks must run concurrently, not serially.
+
+    Each upstream call sleeps 100ms. Serial = ~200ms, concurrent = ~100ms.
+    We assert under 180ms to prove concurrency while leaving headroom for CI jitter.
+    """
+    portfolio = {
+        "14": {
+            "stock_id": 14,
+            "total_shares": 1000,
+            "transactions": {
+                "1": {"shares": 1000, "bought_price": 500.0, "time_bought": 1700000000},
+            },
+            "benefit": {"ready": 0, "progress": 0, "frequency": 7},
+        },
+    }
+    market = {
+        "14": {"name": "Test Stock", "acronym": "TST", "current_price": 600.0},
+    }
+
+    async def slow_market():
+        await asyncio.sleep(0.1)
+        return market
+
+    async def slow_user_stocks(_api_key):
+        await asyncio.sleep(0.1)
+        return portfolio
+
+    mock_client = AsyncMock()
+    mock_client.fetch_stock_market = AsyncMock(side_effect=slow_market)
+    mock_client.fetch_user_stocks = AsyncMock(side_effect=slow_user_stocks)
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store), \
+         patch("api.routers.stocks.torn_client", mock_client), patch("api.routers.stocks.key_store", mock_store):
+        transport = ASGITransport(app=__import__("api.main", fromlist=["app"]).app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            t0 = time.perf_counter()
+            resp = await ac.get("/api/stocks/portfolio", headers=AUTH_HEADERS)
+            elapsed = time.perf_counter() - t0
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["count"] == 1
+    assert data["holdings"][0]["stock_id"] == 14
+    # Concurrency assertion: serial would be ~0.2s, concurrent ~0.1s. 0.18s leaves CI headroom.
+    assert elapsed < 0.18, (
+        f"Expected concurrent execution (<0.18s), got {elapsed:.3f}s — "
+        "fetch_stock_market and fetch_user_stocks are running serially."
+    )
