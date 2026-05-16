@@ -256,7 +256,17 @@ class TornClient:
         except Exception as e:
             self._log_integration("torn_api", f"/v2/faction/{faction_id}/members", False, (time.time() - start) * 1000, str(e))
             raise
-        members = [FactionMember(**m) for m in raw["members"]]
+        # Same defensive shape as fetch_members — Torn v2 occasionally returns
+        # 200 with a payload missing the `members` key. Don't 500 /api/enemy.
+        raw_members = raw.get("members") if isinstance(raw, dict) else None
+        if not isinstance(raw_members, list):
+            self._log_integration(
+                "torn_api", f"/v2/faction/{faction_id}/members", False, (time.time() - start) * 1000,
+                f"malformed response: members={type(raw_members).__name__}",
+            )
+            self._set_cached(cache_key, [])
+            return []
+        members = [FactionMember(**m) for m in raw_members]
         self._set_cached(cache_key, members)
         return members
 

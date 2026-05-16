@@ -52,9 +52,28 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.6";
+export const CURRENT_VERSION = "1.41.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.41.0",
+    date: "2026-05-16",
+    title: "Companion v0.18 — TM Hub pills now appear wherever player names show up on Torn",
+    changes: [
+      {
+        type: "feat",
+        summary: "Pills inline on /messages, /forums, /friendlist, /searchresults",
+        detail: "Anywhere a profile link appears on Torn, the Companion now drops a tiny pill next to the name if we know the player: 🚫 OFF-LIMITS during war, 🎯 saved target (with your tag), 👁 stakeout, plus spy total + age when we have it. No background tints, no decoration on people we don't know — keeps the page quiet.",
+      },
+      {
+        type: "fix",
+        summary: "/api/enemy no longer 500s when Torn returns a malformed members payload",
+        before: "fetch_enemy_members used the same bare-index pattern as fetch_members — when Torn's faction members endpoint returned a 200 without the 'members' key, /api/enemy crashed with KeyError.",
+        after: "Same defensive shape as the fetch_members fix from v1.40.2: missing-key responses now return an empty list and log as an integration failure, no 500.",
+        cause: "Follow-up debt surfaced during the post-mortem of the 2026-05-15 outage — same pattern, different function, only matter of time before it'd fire on prod too.",
+      },
+    ],
+  },
   {
     version: "1.40.6",
     date: "2026-05-16",

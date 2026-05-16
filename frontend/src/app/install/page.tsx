@@ -48,6 +48,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Armoury competition card</span> on /factions.php?step=armoury — active competitions with top-5 leaderboard, your rank highlighted, time remaining</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Retal queue intel</span> on /factions.php?step=retals — OFF-LIMITS, target tag, and spy total pills on attackers we know</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Travel arbitrage card</span> on /travelagency.php — top-3 destinations by best item profit, with abroad cost / sell value / travel time</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Ambient pills wherever player names appear</span> — /messages, /forums, /friendlist, /searchresults all get inline OFF-LIMITS / target / stakeout / spy total pills next to known players</span></li>
             </ul>
           </div>
 

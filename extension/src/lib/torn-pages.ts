@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'ambient' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -56,6 +56,17 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   }
   if (path === '/index.php' && url.searchParams.get('page') === 'travel') {
     return { kind: 'travel', player_id: null };
+  }
+  // "Ambient" pages — anywhere a player name appears as a /profiles.php?XID=
+  // link, sprinkle pills via the row-decorator helper. These pages don't have
+  // a dedicated overlay; we just decorate whoever we know on the page.
+  if (
+    path === '/messages.php' ||
+    path === '/forums.php' ||
+    path === '/friendlist.php' ||
+    path === '/searchresults.php'
+  ) {
+    return { kind: 'ambient', player_id: null };
   }
   if (path === '/factions.php') {
     const step = url.searchParams.get('step');

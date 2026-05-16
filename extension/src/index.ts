@@ -22,6 +22,7 @@ import { applyHospitalOverlay } from './inject/hospital-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
+import { applyAmbientPillsOverlay } from './inject/ambient-pills-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -125,6 +126,15 @@ async function refresh(): Promise<void> {
   if (match.kind === 'travel') {
     if (getAuth()) {
       void renderTravelOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'ambient') {
+    const auth = getAuth();
+    if (auth) {
+      const warId = await getWarId(auth);
+      void applyAmbientPillsOverlay({ warId });
     }
     return;
   }
