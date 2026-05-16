@@ -357,6 +357,11 @@ class TornClient:
 
     async def fetch_training_data(self, api_key: str) -> dict | None:
         """Fetch user's training-related data from Torn API."""
+        cache_key = f"training:{self._cache_scope(api_key)}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         start = time.time()
         try:
             resp = await self._http.get(
@@ -397,7 +402,7 @@ class TornClient:
                         for stat in steadfast:
                             steadfast[stat] = max(steadfast[stat], pct)
 
-        return {
+        result = {
             "profile": {
                 "player_id": raw.get("player_id", 0),
                 "name": raw.get("name", ""),
@@ -445,6 +450,8 @@ class TornClient:
             },
             "level": raw.get("level", 0),
         }
+        self._set_cached(cache_key, result)
+        return result
 
     async def fetch_bounties(self) -> list[dict]:
         """Fetch available bounties from Torn global bounty list."""

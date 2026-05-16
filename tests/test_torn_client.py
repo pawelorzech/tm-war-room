@@ -902,3 +902,50 @@ async def test_fetch_tornstats_faction_battle_stats_coerces_non_numeric(client):
     for f in ("strength", "defense", "speed", "dexterity"):
         assert isinstance(battle[111][f], (int, float)) and battle[111][f] == 0.0
     assert battle[111]["total"] == 2669168643.0
+
+
+# Regression: fetch_training_data lacked caching, so /api/stats/user +
+# /api/company/director/training + /api/company/faction firing within seconds
+# for the same player hit Torn's /v1/user/ endpoint N times. Mirror the cache
+# pattern used by fetch_members (cache_key prefix + _cache_scope(api_key) + TTL).
+FAKE_TRAINING_RESPONSE = {
+    "player_id": 2362436,
+    "name": "Bombel",
+    "level": 70,
+    "strength": 1_000_000,
+    "defense": 2_000_000,
+    "speed": 1_500_000,
+    "dexterity": 1_200_000,
+    "active_gym": 9,
+    "energy": {"current": 150, "maximum": 150},
+    "happy": {"current": 5000, "maximum": 5025},
+    "merits": {"Brawn": 10, "Protection": 10, "Sharpness": 10, "Evasion": 10},
+    "personalstats": {
+        "xantaken": 50, "refills": 100, "statenhancersused": 200, "rehabs": 1,
+        "gymstrength": 1, "gymdefense": 1, "gymspeed": 1, "gymdexterity": 1,
+    },
+    "education_completed": [1, 2, 3],
+    "education_perks": [],
+    "book_perks": [],
+    "company_perks": [],
+    "faction_perks": [],
+    "job": {"company_id": 0, "company_name": "", "company_type": 0, "position": ""},
+    "company": {"company_id": 0, "name": "", "company_type": 0},
+}
+
+
+@pytest.mark.asyncio
+async def test_fetch_training_data_caches_within_ttl(client):
+    """Same player_id requested by multiple routers within TTL must hit Torn once."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = FAKE_TRAINING_RESPONSE
+    mock_resp.raise_for_status = lambda: None
+
+    with patch.object(client._http, "get", return_value=mock_resp) as mock_get:
+        first = await client.fetch_training_data("user_key_abc")
+        second = await client.fetch_training_data("user_key_abc")
+
+    assert mock_get.await_count == 1
+    assert first == second
+    assert first is not None
+    assert first["battlestats"]["strength"] == 1_000_000

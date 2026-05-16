@@ -7,6 +7,7 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 const RecentActivityChart = dynamic(
   () => import('@/components/chain/RecentActivityChart').then(m => ({ default: m.RecentActivityChart })),
@@ -238,7 +239,7 @@ export default function ChainPage() {
         </div>
 
         {loading ? (
-          <div className="text-text-secondary text-sm animate-pulse">Loading attack data...</div>
+          <TableSkeleton rows={8} cols={5} />
         ) : error ? (
           <ErrorBanner message={error} onRetry={() => selectedChain ? openChain(selectedChain) : loadData(true)} />
         ) : tab === 'chains' ? (
@@ -421,7 +422,7 @@ function ChainDetailView({
       </div>
 
       {loading ? (
-        <div className="text-text-secondary text-sm animate-pulse">Loading chain details...</div>
+        <TableSkeleton rows={8} cols={8} />
       ) : detailTab === 'members' ? (
         sortedMembers.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
