@@ -50,15 +50,19 @@ class ActivityRepository(BaseRepository):
     # ── activity_tracked_outsiders ─────────────────────────────
 
     def enroll_outsider(self, player_id: int, now: int) -> None:
-        """Idempotent enrollment. Re-enrolling refreshes enrolled_at so the
-        idle-purge clock restarts when a faction member shows fresh interest."""
+        """Idempotent enrollment.
+
+        Phase 3 contract: ``enrolled_at`` is set only on the first insert so the
+        14-day purge anchor reflects when we *started* tracking the player —
+        not the most recent profile view. Re-enrollment is a no-op; profile
+        views still bump ``last_bin_at`` indirectly via the tick job.
+        """
         conn = self._conn()
         conn.execute(
             """
-            INSERT INTO activity_tracked_outsiders (player_id, enrolled_at, last_bin_at)
+            INSERT OR IGNORE INTO activity_tracked_outsiders
+                (player_id, enrolled_at, last_bin_at)
             VALUES (?, ?, NULL)
-            ON CONFLICT(player_id) DO UPDATE SET
-                enrolled_at = excluded.enrolled_at
             """,
             (player_id, now),
         )
@@ -78,6 +82,10 @@ class ActivityRepository(BaseRepository):
             "UPDATE activity_tracked_outsiders SET last_bin_at = ? WHERE player_id = ?",
             (last_bin_at, player_id),
         )
+
+    # Phase 3A naming alias — callers reading the spec expect this name.
+    def update_outsider_last_bin(self, player_id: int, last_bin_at: int) -> None:
+        self.update_last_bin(player_id, last_bin_at)
 
     def purge_idle_outsiders(self, now: int, idle_seconds: int) -> int:
         """Drop outsiders whose last_bin_at is older than (now - idle_seconds).
