@@ -1071,6 +1071,52 @@ async def test_push_subscribe(mock_client, mock_store):
     )
 
 
+@pytest.mark.asyncio
+async def test_push_subscribe_rejects_empty_keys(mock_client, mock_store):
+    """Client posting {"keys": {}} must be rejected with 422 — accepting it
+    silently writes a useless DB row with empty p256dh+auth, the user thinks
+    they're subscribed, and push dispatch later fails silently in webpush."""
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.push as push_mod
+        mock_push_repo = MagicMock()
+        push_mod.push_repo = mock_push_repo
+        push_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/push/subscribe", json={
+                "endpoint": "https://push.example.com/abc",
+                "keys": {},
+                "preferences": {},
+            }, headers=AUTH_HEADERS)
+    assert resp.status_code == 422, (
+        f"Expected 422 for empty keys, got {resp.status_code}: {resp.text[:300]}"
+    )
+    mock_push_repo.save.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_push_subscribe_rejects_empty_endpoint(mock_client, mock_store):
+    """Empty endpoint string is meaningless — webpush has nothing to POST to."""
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.push as push_mod
+        mock_push_repo = MagicMock()
+        push_mod.push_repo = mock_push_repo
+        push_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.post("/api/push/subscribe", json={
+                "endpoint": "",
+                "keys": {"p256dh": "key123", "auth": "auth123"},
+                "preferences": {},
+            }, headers=AUTH_HEADERS)
+    assert resp.status_code == 422, (
+        f"Expected 422 for empty endpoint, got {resp.status_code}: {resp.text[:300]}"
+    )
+    mock_push_repo.save.assert_not_called()
+
+
 def test_chat_websocket_requires_valid_token(mock_store):
     manager = StubChatManager()
     with patch("api.routers.chat.chat_repo", object()), \
