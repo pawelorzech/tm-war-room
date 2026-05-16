@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { WebVitalsReporter } from "@/components/WebVitalsReporter";
+import { PerfReporter } from "@/components/PerfReporter";
 import { SentryReporter } from "@/components/SentryReporter";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className="min-h-full bg-bg-primary text-text-primary">
         <AppShell>{children}</AppShell>
         <WebVitalsReporter />
+        <PerfReporter />
         <SentryReporter />
         {/* F-12: SRI hash pinned. Recompute on Umami upgrade:
             curl -fsSL https://analityka.tri.ovh/script.js | openssl dgst -sha384 -binary | openssl base64 -A */}

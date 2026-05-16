@@ -6,6 +6,8 @@
  * users who block analytics or never load the listener.
  */
 
+import { getContextTags } from "./perf-context";
+
 type UmamiTrack = (eventName: string, eventData?: Record<string, unknown>) => void;
 
 interface WindowWithUmami extends Window {
@@ -15,13 +17,13 @@ interface WindowWithUmami extends Window {
 function reportToUmami(metric: { name: string; value: number; rating: string; id: string }) {
   const w = window as WindowWithUmami;
   if (!w.umami?.track) return;
-  // Round value to keep payload small; CLS is ratio (3 decimals), others ms (int).
   const value = metric.name === "CLS" ? Math.round(metric.value * 1000) / 1000 : Math.round(metric.value);
   w.umami.track(`webvital-${metric.name.toLowerCase()}`, {
     value,
     rating: metric.rating,
     id: metric.id,
     path: window.location.pathname,
+    ...getContextTags(),
   });
 }
 
