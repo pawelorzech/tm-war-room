@@ -668,6 +668,17 @@ async def test_fetch_members_http_error_still_raises(client):
 
 
 @pytest.mark.asyncio
+async def test_fetch_enemy_members_missing_key_returns_empty(client):
+    """Same defensive shape as fetch_members for /v2/faction/{id}/members."""
+    mock_resp = AsyncMock()
+    mock_resp.json.return_value = {}  # no `members` key
+    mock_resp.raise_for_status = lambda: None
+    with patch.object(client._http, "get", return_value=mock_resp):
+        members = await client.fetch_enemy_members(12345)
+    assert members == []
+
+
+@pytest.mark.asyncio
 async def test_fetch_honor_catalog_normalizes_list_drift(client):
     """If Torn ever returns honors/medals as lists (v2 drift leaking into v1 frozen API
     or an error payload), normalize to dict-keyed-by-id so collect_circulation's
