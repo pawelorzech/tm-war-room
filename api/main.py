@@ -708,7 +708,12 @@ async def enforce_api_auth(request: Request, call_next):
             return JSONResponse({"detail": "Missing X-Player-Id header"}, status_code=400)
         if not player_id_raw.isdigit():
             return JSONResponse({"detail": "Invalid X-Player-Id header"}, status_code=400)
-        if int(player_id_raw) != payload["sub"]:
+        player_id_int = int(player_id_raw)
+        # Defensive: Torn never issues player_id 0. Reject before the sub-vs-header
+        # equality check below, so a forged JWT with sub=0 can't bypass.
+        if player_id_int <= 0:
+            return JSONResponse({"detail": "Invalid X-Player-Id header"}, status_code=400)
+        if player_id_int != payload["sub"]:
             return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
 
         request.state.auth = payload
