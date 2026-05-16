@@ -185,6 +185,12 @@ async def lifespan(app: FastAPI):
     ff_mod.key_store = key_store
     ff_mod.torn_client = torn_client
     ff_mod.ff_repo = FFRepository(db_path="data/keys.db")
+    # Phase 1A: FF compute prefers a real spy estimate or a faction-snapshot
+    # row (exact stats from the player's own key) over the personalstats
+    # heuristic. Pass both — compute_ff is None-safe but the spy path can't
+    # fire without them, leaving us stuck on the formula fallback in prod.
+    ff_mod.spy_service = spy_mod.spy_service
+    ff_mod.stats_repo = stats_repo
     flights_mod.key_store = key_store
     flights_mod.torn_client = torn_client
     flights_mod.flight_repo = FlightRepository(db_path="data/keys.db")
