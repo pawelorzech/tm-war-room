@@ -20,11 +20,12 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from api.auth import rate_limiter
 from api.config import ENABLE_FF_SCORE
 from api.ff import FF_TTL_SECONDS, compute_ff
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.ff")
 
@@ -47,7 +48,7 @@ async def healthz() -> dict[str, bool]:
 
 
 @router.get("/{player_id}")
-async def get_ff_score(player_id: int, x_player_id: int = Header()) -> dict:
+async def get_ff_score(player_id: int, request: Request, x_player_id: int = Header()):
     """Return a cached or freshly-computed fair-fight score for *player_id*.
 
     Response shape::
@@ -82,14 +83,18 @@ async def get_ff_score(player_id: int, x_player_id: int = Header()) -> dict:
     if ff_repo is not None:
         cached = ff_repo.get(player_id)
         if cached and cached.get("expires_at", 0) > now:
-            return {
-                "player_id": player_id,
-                "score": cached["score"],
-                "dom_stat": cached["dom_stat"],
-                "source": cached["source"],
-                "computed_at": cached["computed_at"],
-                "expires_at": cached["expires_at"],
-            }
+            return etag_response(
+                {
+                    "player_id": player_id,
+                    "score": cached["score"],
+                    "dom_stat": cached["dom_stat"],
+                    "source": cached["source"],
+                    "computed_at": cached["computed_at"],
+                    "expires_at": cached["expires_at"],
+                },
+                request,
+                cache_control="private, max-age=300, stale-while-revalidate=600",
+            )
 
     if torn_client is None or key_store is None:
         # Phase 0 wiring should always set these; missing means a deploy bug.
@@ -122,11 +127,15 @@ async def get_ff_score(player_id: int, x_player_id: int = Header()) -> dict:
             # call will recompute, no user-visible breakage.
             logger.warning("ff_repo.upsert failed for pid=%d: %s", player_id, exc)
 
-    return {
-        "player_id": player_id,
-        "score": result["score"],
-        "dom_stat": result["dom_stat"],
-        "source": result["source"],
-        "computed_at": result["computed_at"],
-        "expires_at": result["expires_at"],
-    }
+    return etag_response(
+        {
+            "player_id": player_id,
+            "score": result["score"],
+            "dom_stat": result["dom_stat"],
+            "source": result["source"],
+            "computed_at": result["computed_at"],
+            "expires_at": result["expires_at"],
+        },
+        request,
+        cache_control="private, max-age=300, stale-while-revalidate=600",
+    )

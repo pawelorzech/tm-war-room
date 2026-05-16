@@ -6,9 +6,11 @@ boundary so the function never makes a real HTTP call.
 """
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from starlette.requests import Request
 
 from api.ff import (
     _dom_stat_from_personalstats,
@@ -16,6 +18,13 @@ from api.ff import (
     _ff_formula,
     compute_ff,
 )
+
+
+def _stub_request(headers: dict[str, str] | None = None) -> Request:
+    """Build a minimal Starlette Request usable in direct-call unit tests.
+    The ETag helper only reads request.headers, so the scope can be sparse."""
+    h = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    return Request({"type": "http", "method": "GET", "headers": h})
 
 
 def _mock_torn_client(personalstats: dict | None = None, level: int = 50, age: int = 1000):
@@ -261,9 +270,10 @@ async def test_router_cache_hit_short_circuits_compute(monkeypatch):
     monkeypatch.setattr(ff_mod, "torn_client", MagicMock())
     monkeypatch.setattr(ff_mod, "key_store", MagicMock())
 
-    result = await ff_mod.get_ff_score(player_id=42, x_player_id=1)
-    assert result["score"] == 1.5
-    assert result["dom_stat"] == "DEX"
+    result = await ff_mod.get_ff_score(player_id=42, request=_stub_request(), x_player_id=1)
+    body = json.loads(result.body)
+    assert body["score"] == 1.5
+    assert body["dom_stat"] == "DEX"
     assert called["compute"] == 0
 
 
@@ -294,8 +304,9 @@ async def test_router_cache_expired_triggers_recompute(monkeypatch):
     monkeypatch.setattr(ff_mod, "torn_client", MagicMock())
     monkeypatch.setattr(ff_mod, "key_store", MagicMock())
 
-    result = await ff_mod.get_ff_score(player_id=42, x_player_id=1)
+    result = await ff_mod.get_ff_score(player_id=42, request=_stub_request(), x_player_id=1)
+    body = json.loads(result.body)
 
-    assert result["score"] == 2.0
-    assert result["source"] == "formula"
+    assert body["score"] == 2.0
+    assert body["source"] == "formula"
     ff_repo.upsert.assert_called_once()
