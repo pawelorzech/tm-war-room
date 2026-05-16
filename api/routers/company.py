@@ -1,6 +1,9 @@
 from __future__ import annotations
+import asyncio
 import logging
 from fastapi import APIRouter, HTTPException, Header
+
+from api.routers.company_director import _FACTION_PROFILE_CONCURRENCY
 
 logger = logging.getLogger("tm-hub.company")
 
@@ -39,31 +42,42 @@ async def company_faction(x_player_id: int = Header()):
         raise HTTPException(status_code=401, detail="Register your API key first")
 
     all_keys = key_store.get_all_keys()
-    members_by_company: dict[int, dict] = {}
 
-    for kd in all_keys:
-        try:
-            training = await torn_client.fetch_training_data(kd["api_key"])
-            if not training or "job" not in training:
-                continue
-            job = training["job"]
-            cid = job.get("company_id", 0)
-            if not cid:
-                continue
-            if cid not in members_by_company:
-                members_by_company[cid] = {
-                    "company_id": cid,
-                    "company_name": job.get("company_name", "Unknown"),
-                    "company_type": job.get("company_type", 0),
-                    "members": [],
-                }
-            members_by_company[cid]["members"].append({
-                "player_id": kd["player_id"],
-                "player_name": kd.get("player_name", f"#{kd['player_id']}"),
-                "position": job.get("position", "Unknown"),
-            })
-        except Exception as e:
-            logger.warning("Failed to fetch job data for %s: %s", kd["player_id"], e)
+    # Fan out per-member training-data fetches in parallel. Sequential was
+    # N × ~150ms (~7.5s for a 50-member faction). Bounded by a semaphore so
+    # we don't hammer Torn API as the faction grows.
+    training_semaphore = asyncio.Semaphore(_FACTION_PROFILE_CONCURRENCY)
+
+    async def _fetch_training(kd: dict) -> tuple[dict, dict | None]:
+        async with training_semaphore:
+            try:
+                return kd, await torn_client.fetch_training_data(kd["api_key"])
+            except Exception as e:
+                logger.warning("Failed to fetch job data for %s: %s", kd["player_id"], e)
+                return kd, None
+
+    training_results = await asyncio.gather(*(_fetch_training(kd) for kd in all_keys))
+
+    members_by_company: dict[int, dict] = {}
+    for kd, training in training_results:
+        if not training or "job" not in training:
+            continue
+        job = training["job"]
+        cid = job.get("company_id", 0)
+        if not cid:
+            continue
+        if cid not in members_by_company:
+            members_by_company[cid] = {
+                "company_id": cid,
+                "company_name": job.get("company_name", "Unknown"),
+                "company_type": job.get("company_type", 0),
+                "members": [],
+            }
+        members_by_company[cid]["members"].append({
+            "player_id": kd["player_id"],
+            "player_name": kd.get("player_name", f"#{kd['player_id']}"),
+            "position": job.get("position", "Unknown"),
+        })
 
     companies = sorted(members_by_company.values(), key=lambda c: len(c["members"]), reverse=True)
     return {"companies": companies, "count": len(companies)}

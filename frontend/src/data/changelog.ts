@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.1";
+export const CURRENT_VERSION = "1.42.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.2",
+    date: "2026-05-16",
+    title: "Companies-by-faction loads roughly three times faster",
+    changes: [
+      {
+        type: "improve",
+        summary: "/api/company/faction parallelizes member training-data fetches",
+        detail: "The endpoint that powers the Companies-by-faction view used to fetch each member's training data one after the other. It now fans them out concurrently, capped at five in flight at a time. For a faction with dozens of registered keys this turns ~7 seconds of waiting into something closer to two, matching the pattern already used by the company-director endpoint.",
+      },
+    ],
+  },
   {
     version: "1.42.1",
     date: "2026-05-16",
