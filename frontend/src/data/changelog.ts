@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.45.0";
+export const CURRENT_VERSION = "1.45.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.45.1",
+    date: "2026-05-16",
+    title: "Spy estimate stops showing 7B for everyone without a real spy",
+    changes: [
+      {
+        type: "fix",
+        summary: "Heuristic stat estimate now reflects the target player, not the TM Hub key owner",
+        before: "Every player without a TornStats or YATA spy was shown with the same 7.02B total, split 1.76B per stat — including level 39 nine-month-old accounts.",
+        after: "The estimate is computed from the target player's own xanax, refills, level and account age, so a fresh account no longer shows endgame numbers.",
+        cause: "The Torn API call passed the player id as a query parameter, which it silently ignores — the response was the API key owner's stats.",
+      },
+    ],
+  },
   {
     version: "1.45.0",
     date: "2026-05-16",
