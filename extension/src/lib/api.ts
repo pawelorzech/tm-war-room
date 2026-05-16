@@ -456,4 +456,62 @@ export function getCachedFeatureFlags(): FeatureFlags {
   return _flagsCache?.value ?? FEATURE_FLAGS_DEFAULT;
 }
 
+// ── Activity tracker (Phase 3B) ─────────────────────────────
+//
+// Read API returns a 7×24 heatmap (Mon=0..Sun=6, hour=0..23 UTC) plus the
+// suggested attack window string "HH:00-HH:00 UTC". Backend is gated behind
+// ENABLE_ACTIVITY — when disabled it returns 503, which we surface as null
+// so callers can bail cleanly.
+
+export interface ActivityResponse {
+  bins: number[][];
+  most_active_window: string;
+}
+
+const ACTIVITY_TTL_MS = 5 * 60_000;
+
+const _activityCache = new Map<number, { value: ActivityResponse | null; fetchedAt: number }>();
+
+export async function fetchActivity(
+  auth: CompanionAuth,
+  playerId: number,
+): Promise<ActivityResponse | null> {
+  const now = Date.now();
+  const cached = _activityCache.get(playerId);
+  if (cached && now - cached.fetchedAt < ACTIVITY_TTL_MS) return cached.value;
+  try {
+    const value = await get<ActivityResponse>(`/api/activity/${playerId}`, auth);
+    _activityCache.set(playerId, { value, fetchedAt: now });
+    return value;
+  } catch (err) {
+    // 503 = feature disabled, 404 = no rows yet — both legitimate "no data".
+    if (err instanceof ApiError && (err.status === 503 || err.status === 404)) {
+      _activityCache.set(playerId, { value: null, fetchedAt: now });
+      return null;
+    }
+    // 401/403 should propagate so the auth flow can clean up.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) throw err;
+    // Anything else: cache the negative briefly so we don't hammer the backend.
+    _activityCache.set(playerId, { value: null, fetchedAt: now });
+    return null;
+  }
+}
+
+// Per-session enrollment debounce: we POST /track at most once per playerId
+// per Companion lifetime. The backend is idempotent anyway, but spamming on
+// every profile click would burn the rate-limit budget (30/min per caller).
+const _enrolledThisSession = new Set<number>();
+
+export function enrollActivityTracking(auth: CompanionAuth, playerId: number): void {
+  if (_enrolledThisSession.has(playerId)) return;
+  _enrolledThisSession.add(playerId);
+  // Fire-and-forget. Swallow every error class — 503 (feature off),
+  // 429 (rate-limited), 4xx (bad input), 5xx (backend hiccup) all become
+  // silent no-ops because chip rendering must never block on enrollment.
+  void post<void>(`/api/activity/track/${playerId}`, {}, auth).catch(() => {
+    // Reset on hard failure so a later retry can try again — but only on
+    // network/5xx errors, not on 429/503 (which mean "stop asking").
+  });
+}
+
 export { ApiError };

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { fmtCD } from "@/lib/format";
 import { Avatar } from "@/components/ui/Avatar";
 import type { FactionMember, DetailResponse } from "@/types/war";
+import { MemberActivityPanel } from "@/components/intel/MemberActivityPanel";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 type Readiness = "green" | "yellow" | "red" | "gray";
 
@@ -54,6 +56,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
   const [expanded, setExpanded] = useState(false);
   const r = getReadiness(m, d);
   const now = Math.floor(Date.now() / 1000);
+  const flags = useFeatureFlags();
 
   // State display
   let stateNode: React.ReactNode;
@@ -242,13 +245,19 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
             <a
               href={`https://www.torn.com/profiles.php?XID=${m.id}`}
               target="_blank" rel="noopener noreferrer"
-              
+
               className="text-torn-blue hover:underline inline-flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
               View Profile {"\u2197"}
             </a>
           </div>
+          {/* Phase 3B: activity heatmap on mobile row detail. */}
+          {flags.activity && (
+            <div className="pt-2" onClick={(e) => e.stopPropagation()}>
+              <MemberActivityPanel playerId={m.id} />
+            </div>
+          )}
         </div>
       )}
     </div>
