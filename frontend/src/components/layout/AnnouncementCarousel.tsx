@@ -75,23 +75,17 @@ export function AnnouncementCarousel({ announcements, onDismiss }: Props) {
 
   const announcement = announcements[current];
   const canDismiss = announcement.type !== "alert";
-  const isAlert = announcement.type === "alert";
 
   return (
     <div className="w-full px-2 py-1">
       <div
         className={[
-          "border rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+          "border rounded-lg px-3 py-2.5 text-sm transition-[opacity,transform] duration-200",
           typeStyles[announcement.type],
           isTransitioning ? "opacity-0 translate-x-1" : "opacity-100 translate-x-0",
         ]
           .filter(Boolean)
           .join(" ")}
-        style={
-          isAlert
-            ? { animation: "tm-alert-border 2s ease-in-out infinite" }
-            : undefined
-        }
       >
         {/* Main row */}
         <div className="flex items-center gap-2">

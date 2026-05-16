@@ -61,7 +61,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         .then((data) => { if (!cancelled) setChatUnread(data.total); })
         .catch(() => {});
     }
-    const interval = setInterval(poll, 30_000);
+    // Jitter avoids every client (and every concurrent useEffect within one client) hitting the
+    // same tick after load — staggers re-renders across ~5s instead of bursting.
+    const interval = setInterval(poll, 30_000 + Math.floor(Math.random() * 5_000));
     return () => { cancelled = true; clearInterval(interval); };
   }, [isLoggedIn, canAccessChat, onChatPage, visible]);
 
@@ -140,8 +142,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         <Sidebar unreadCount={unreadCount} chatUnread={chatUnread} showVersionBadge={showNotice} />
       </div>
 
-      {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface/80 backdrop-blur-md border-b border-border z-40 flex items-center px-3 gap-3">
+      {/* Mobile header — solid bg over backdrop-blur: blur on a fixed header re-paints on every scroll. */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-12 bg-bg-surface/95 border-b border-border z-40 flex items-center px-3 gap-3">
         <Link
           href="/dashboard"
           className="text-sm font-extrabold tracking-tight text-torn-green"

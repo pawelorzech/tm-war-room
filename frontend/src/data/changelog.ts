@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.5";
+export const CURRENT_VERSION = "1.40.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.6",
+    date: "2026-05-16",
+    title: "Browser no longer hitches every few seconds while TM Hub is open",
+    changes: [
+      {
+        type: "fix",
+        summary: "Chrome stutter every dozen seconds — removed always-on paint pressure",
+        before: "Across every page, on both desktop and mobile, Chrome would briefly hitch every 10–20 seconds whether you were idle or interacting. Heavy users felt it most after the tab had been open a while.",
+        after: "The pulsing glow on the TM Hub logo is now a static glow, the alert-banner box-shadow no longer animates infinitely, the chat-unread badge only pops once when the count changes, and the mobile header drops the expensive backdrop-blur. The 30s background poll also adds a small random jitter so multiple tabs/clients don't burst-render in lockstep. Users who set 'Reduce motion' in their OS now get a fully static UI.",
+        cause: "Several CSS animations (text-shadow pulse, box-shadow pulse) ran infinitely on always-mounted shell elements, and `text-shadow` can't be GPU-accelerated — every frame triggered a main-thread repaint. On weaker GPUs (mobile, busy machines) this baseline cost made any other small task visible as a hitch.",
+      },
+    ],
+  },
   {
     version: "1.40.5",
     date: "2026-05-16",
