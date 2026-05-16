@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'ambient' | 'imarket' | 'oc' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'ambient' | 'imarket' | 'oc' | 'jail' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -47,6 +47,9 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
     if (sid === 'imarket' || sid === 'iMarket') {
       return { kind: 'imarket', player_id: null };
     }
+    if (sid === 'jailView' || sid === 'jail') {
+      return { kind: 'jail', player_id: null };
+    }
   }
   if (path === '/bounties.php') {
     return { kind: 'bounties', player_id: null };
@@ -56,6 +59,9 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
   }
   if (path === '/imarket.php') {
     return { kind: 'imarket', player_id: null };
+  }
+  if (path === '/jailview.php') {
+    return { kind: 'jail', player_id: null };
   }
   if (path === '/travelagency.php') {
     return { kind: 'travel', player_id: null };

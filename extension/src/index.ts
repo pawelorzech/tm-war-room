@@ -19,6 +19,7 @@ import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
+import { applyJailOverlay } from './inject/jail-overlay';
 import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
@@ -105,6 +106,15 @@ async function refresh(): Promise<void> {
     if (auth) {
       const warId = await getWarId(auth);
       void applyHospitalOverlay({ warId });
+    }
+    return;
+  }
+
+  if (match.kind === 'jail') {
+    const auth = getAuth();
+    if (auth) {
+      const warId = await getWarId(auth);
+      void applyJailOverlay({ warId });
     }
     return;
   }
