@@ -17,6 +17,7 @@ import { ApiError, fetchPinnedNavs, savePinnedNavs } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { HUB_ORIGIN } from '../env';
 import { escapeHtml } from '../lib/format';
+import { loadSettings } from '../lib/settings';
 
 // 14 most-pinned routes — tight subset of the TM Hub frontend nav, chosen
 // to keep the picker scroll-free at default zoom and the bundle string
@@ -75,6 +76,10 @@ function label(h: string): string {
 }
 
 export async function applyPinnedNavsOverlay(): Promise<void> {
+  if (!loadSettings().pinsEnabled) {
+    document.querySelector<HTMLElement>(`[${HOST_ATTR}]`)?.remove();
+    return;
+  }
   const hrefs = await load();
   if (hrefs === null) return;
   const key = hrefs.join('|');
