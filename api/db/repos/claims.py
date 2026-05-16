@@ -104,19 +104,73 @@ class ClaimRepository(BaseRepository):
         _ = now
         return cur.rowcount > 0
 
-    def expire_stale(self, now: int) -> int:
+    def expire_stale(self, now: int) -> list[dict]:
         """Flip active claims whose TTL has elapsed to 'expired'.
 
-        Returns the number of rows updated. Cheap because the partial index
-        `ix_hit_claims_active` is scanned for active rows only.
+        Returns the rows that were flipped (each as a dict matching ``get()``).
+        The sweeper needs the rows themselves — not just a count — so it can
+        publish a ``claim.expired`` event per row over the pub/sub channel.
+
+        Implementation: snapshot the IDs first (inside the same connection so
+        we see a consistent view), then UPDATE in one statement, then re-read
+        each row. Cheap because the partial index ``ix_hit_claims_active``
+        keeps the SELECT small even on a populated faction.
         """
         conn = self._conn()
-        cur = conn.execute(
-            """
-            UPDATE hit_claims SET status = 'expired'
-            WHERE status = 'active' AND expires_at <= ?
-            """,
-            (now,),
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            stale_rows = conn.execute(
+                """
+                SELECT target_id, claimer_id, claimed_at, expires_at, status, note
+                FROM hit_claims
+                WHERE status = 'active' AND expires_at <= ?
+                """,
+                (now,),
+            ).fetchall()
+            if not stale_rows:
+                conn.commit()
+                return []
+            target_ids = [r["target_id"] for r in stale_rows]
+            placeholders = ",".join("?" * len(target_ids))
+            conn.execute(
+                f"UPDATE hit_claims SET status = 'expired' "
+                f"WHERE status = 'active' AND target_id IN ({placeholders})",
+                tuple(target_ids),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        # Return rows with the new status — callers (sweeper) inject `expired`
+        # into the published event envelope.
+        return [
+            {
+                "target_id": r["target_id"],
+                "claimer_id": r["claimer_id"],
+                "claimed_at": r["claimed_at"],
+                "expires_at": r["expires_at"],
+                "status": "expired",
+                "note": r["note"],
+            }
+            for r in stale_rows
+        ]
+
+    def active_claims_for_faction(self, faction_member_ids: list[int]) -> list[dict]:
+        """Return active claims where the claimer is in ``faction_member_ids``.
+
+        We don't store a faction_id on hit_claims (claimers are always TM
+        members — registration enforces this), so the caller passes the list
+        of player_ids to filter on. Empty input → empty result without
+        round-tripping to SQLite.
+        """
+        if not faction_member_ids:
+            return []
+        placeholders = ",".join("?" * len(faction_member_ids))
+        rows = self.execute(
+            f"SELECT target_id, claimer_id, claimed_at, expires_at, status, note "
+            f"FROM hit_claims "
+            f"WHERE status = 'active' AND claimer_id IN ({placeholders}) "
+            f"ORDER BY claimed_at DESC",
+            tuple(faction_member_ids),
         )
-        conn.commit()
-        return cur.rowcount
+        return [dict(r) for r in rows]

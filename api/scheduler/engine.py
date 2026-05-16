@@ -134,6 +134,20 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         id="backup_keys_db_schedule",
     )
 
+    # === Intel Pack jobs (Phase 1-4) ===
+    # Each Intel Pack phase contributes one or more periodic jobs gated on its
+    # own feature flag. Keep registrations grouped here so future phases (2A,
+    # 3A, …) can append without conflicting on the surrounding block.
+    from api.config import ENABLE_HIT_CALLING
+    if ENABLE_HIT_CALLING:
+        from api.scheduler.jobs.claims_sweeper import run_claims_sweeper
+        await scheduler.configure_task("claims_sweeper", func=run_claims_sweeper)
+        await scheduler.add_schedule(
+            "claims_sweeper",
+            IntervalTrigger(seconds=60),
+            id="claims_sweeper_schedule",
+        )
+
     # Track every completed job so /api/admin/scheduler/status can answer
     # "is the collector still running?" without grepping container logs.
     try:
