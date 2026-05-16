@@ -6,14 +6,15 @@ import { ChainStatus } from "@/components/war/ChainStatus";
 import { MemberTable } from "@/components/war/MemberTable";
 import { PageExplainer } from "@/components/layout/PageExplainer";
 import { RefreshButton } from "@/components/layout/RefreshButton";
+import { TableSkeleton } from "@/components/layout/LoadingSkeleton";
 
 export default function TeamPage() {
   const { overview, detail, loading, lastUpdate, refresh } = useTeamData();
 
   if (loading && !overview) {
     return (
-      <div className="p-4 flex items-center justify-center min-h-[200px]">
-        <div className="text-text-secondary text-sm">Loading team data...</div>
+      <div className="p-4 max-w-7xl mx-auto space-y-4">
+        <TableSkeleton rows={10} cols={6} />
       </div>
     );
   }

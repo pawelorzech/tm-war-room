@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.6";
+export const CURRENT_VERSION = "1.42.7";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.7",
+    date: "2026-05-16",
+    title: "Team page shows a skeleton while loading",
+    changes: [
+      {
+        type: "improve",
+        summary: "Loading state on Our Team now shows a table skeleton instead of a centered 'Loading team data…' line",
+        detail: "Opening Our Team used to show a single line of text in the middle of an otherwise empty box while data loaded. It now shows ten placeholder rows matching the eventual member table, same pattern Awards, OC, Chain, and the Item Market already use.",
+      },
+    ],
+  },
   {
     version: "1.42.6",
     date: "2026-05-16",
