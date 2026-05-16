@@ -23,6 +23,7 @@ import type {
   ArmouryLeaderboardResponse,
   KnownSpiesResponse,
   TravelResponse,
+  MarketPricesResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -297,6 +298,10 @@ export function fetchArmouryLeaderboard(
 
 export function fetchTravel(auth: CompanionAuth): Promise<TravelResponse> {
   return get<TravelResponse>('/api/travel', auth);
+}
+
+export function fetchMarketPrices(auth: CompanionAuth): Promise<MarketPricesResponse> {
+  return get<MarketPricesResponse>('/api/market/prices', auth);
 }
 
 export function reserveLoot(

@@ -6,7 +6,7 @@
 // fallback (if the anchor is missing, we just skip injection rather than
 // throw).
 
-export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'ambient' | 'unknown';
+export type PageKind = 'profile' | 'attack' | 'bounties' | 'stocks' | 'faction' | 'hospital' | 'armoury' | 'retals' | 'travel' | 'ambient' | 'imarket' | 'unknown';
 
 export interface PageMatch {
   kind: PageKind;
@@ -44,12 +44,18 @@ export function matchPage(url: URL = new URL(window.location.href)): PageMatch {
     if (sid === 'hospitalView' || sid === 'hospital') {
       return { kind: 'hospital', player_id: null };
     }
+    if (sid === 'imarket' || sid === 'iMarket') {
+      return { kind: 'imarket', player_id: null };
+    }
   }
   if (path === '/bounties.php') {
     return { kind: 'bounties', player_id: null };
   }
   if (path === '/hospitalview.php') {
     return { kind: 'hospital', player_id: null };
+  }
+  if (path === '/imarket.php') {
+    return { kind: 'imarket', player_id: null };
   }
   if (path === '/travelagency.php') {
     return { kind: 'travel', player_id: null };

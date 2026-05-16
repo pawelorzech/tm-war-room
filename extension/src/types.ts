@@ -353,3 +353,24 @@ export interface TravelResponse {
   countries: TravelCountry[];
   count: number;
 }
+
+export interface MarketPriceItem {
+  id: number;
+  name: string;
+  type: string;
+  market_value: number;
+  buy_price: number;
+  sell_price: number;
+  circulation: number;
+  profit_buy_sell: number;
+  profit_margin_pct: number;
+  is_shop: boolean;
+  country_slug: string | null;
+  country_name: string | null;
+  country_flag: string | null;
+}
+
+export interface MarketPricesResponse {
+  items: MarketPriceItem[];
+  count: number;
+}
