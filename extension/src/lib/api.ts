@@ -24,6 +24,7 @@ import type {
   KnownSpiesResponse,
   TravelResponse,
   MarketPricesResponse,
+  OcResponse,
   TargetsResponse,
   StakeoutsResponse,
   BountiesResponse,
@@ -302,6 +303,14 @@ export function fetchTravel(auth: CompanionAuth): Promise<TravelResponse> {
 
 export function fetchMarketPrices(auth: CompanionAuth): Promise<MarketPricesResponse> {
   return get<MarketPricesResponse>('/api/market/prices', auth);
+}
+
+export function fetchOcPlanning(auth: CompanionAuth): Promise<OcResponse> {
+  return get<OcResponse>('/api/oc?cat=planning', auth);
+}
+
+export function fetchOcExecuting(auth: CompanionAuth): Promise<OcResponse> {
+  return get<OcResponse>('/api/oc?cat=executing', auth);
 }
 
 export function reserveLoot(

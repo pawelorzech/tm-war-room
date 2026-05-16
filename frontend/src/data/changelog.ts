@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.7";
+export const CURRENT_VERSION = "1.43.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.43.0",
+    date: "2026-05-16",
+    title: "Companion v0.20 — OC 2.0 readiness card on Torn's crimes page",
+    changes: [
+      {
+        type: "feat",
+        summary: "Planning + executing OCs surface inline on /factions.php?step=crimes",
+        detail: "Open the faction crimes page and TM Hub now mounts a card above Torn's own list: a top pill tells you whether you're already booked into an OC or free to join, then each planning OC shows its slot fill (filled/total), average CPR across the filled slots, difficulty, and the next ready-at countdown. Executing OCs show alongside with member count and how long ago they kicked off. Skip the click into TM Hub when you just want to know 'is there anything I should join right now?'",
+      },
+    ],
+  },
   {
     version: "1.42.7",
     date: "2026-05-16",
