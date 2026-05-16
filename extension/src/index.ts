@@ -10,10 +10,10 @@
 // server, but each tab on torn.com runs its own userscript instance, so
 // hot paths still need to be cheap.
 
-import { fetchCurrentWar, fetchOffLimits, ApiError } from './lib/api';
+import { fetchCurrentWar, fetchOffLimits, ApiError, fetchFeatureFlags } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
-import { renderProfileBadge } from './inject/profile-badges';
+import { renderProfileBadge, renderProfileFlightPill } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
@@ -217,6 +217,13 @@ async function refresh(): Promise<void> {
   if (match.kind === 'profile') {
     void renderLootOverlay(match.player_id);
   }
+
+  // Phase 2B flight pill — self-gated on flags.flights. Surfaces on both
+  // profile and attack pages because the attacker still wants to know if the
+  // target is mid-flight (you can't hit travelers).
+  if (match.kind === 'profile' || match.kind === 'attack') {
+    void renderProfileFlightPill(match.player_id);
+  }
 }
 
 /** Clear server-data caches so the next refresh() pulls fresh state.
@@ -231,6 +238,14 @@ function invalidateAndRefresh(): void {
 }
 
 function bootstrap(): void {
+  // FFScouter-parity feature flags: prime the cache on boot and refresh
+  // every 60 s. ``getFeatureFlags()`` (the sync accessor used by overlays)
+  // returns all-false until this resolves, which is the desired "dark by
+  // default" behaviour. We don't await — overlays gate themselves and
+  // re-run after the first poll.
+  void fetchFeatureFlags();
+  setInterval(() => void fetchFeatureFlags(), 60_000);
+
   // Inject modules trigger this when they mutate server state, so the main
   // refresh loop re-fetches before its next interval tick.
   window.addEventListener('tm-companion-refresh', () => invalidateAndRefresh());

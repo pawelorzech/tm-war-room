@@ -7,6 +7,56 @@ import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
 import { calculateRehabCostPerXanax } from '@/lib/formulas';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { usePageVisible } from '@/hooks/usePageVisible';
+
+interface ActiveFlightRow {
+  id: number;
+  player_id: number;
+  departed_at: number;
+  destination: string;
+  ticket_class: string;
+  landed_at: number | null;
+  observed_at: number;
+  source: string;
+  predicted_landed_at?: number;
+}
+
+function prettyDestinationLabel(raw: string): string {
+  const tidy = raw.replace(/_/g, ' ').trim();
+  return tidy
+    .split(' ')
+    .map((w) => (w.length === 0 ? w : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+function prettyTicketClassLabel(raw: string): string {
+  switch (raw) {
+    case 'standard':
+      return 'Standard';
+    case 'business':
+      return 'Business';
+    case 'wlt':
+      return 'WLT';
+    case 'book':
+      return 'Travel Book';
+    default:
+      return raw || 'Standard';
+  }
+}
+
+function fmtCountdown(secs: number): string {
+  if (secs <= 0) return 'landing now';
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  if (m < 60) {
+    const s = secs % 60;
+    return s > 0 && m < 5 ? `${m}m ${s}s` : `${m}m`;
+  }
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}
 
 interface TravelItem {
   name: string;
@@ -64,10 +114,18 @@ function timeAgo(ts: number): string {
 }
 
 export default function TravelPage() {
+  const flags = useFeatureFlags();
+  const pageVisible = usePageVisible();
   const [data, setData] = useState<TravelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [travelers, setTravelers] = useState<{ id: number; name: string; status: string }[]>([]);
+  const [nameById, setNameById] = useState<Map<number, string>>(new Map());
+  const [activeFlights, setActiveFlights] = useState<ActiveFlightRow[]>([]);
+  // Re-render every second so the countdown ticks without a refetch. Only
+  // when the tab is visible AND the feature flag is on, to keep idle tabs
+  // cheap.
+  const [tick, setTick] = useState(0);
   const [capacity, setCapacity] = useState(5);
   const [capacityInput, setCapacityInput] = useState('5');
   const [sortBy, setSortBy] = useState<'profit' | 'time' | 'perHour'>('perHour');
@@ -92,6 +150,19 @@ export default function TravelPage() {
       if (overview) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const members = ((overview as any).members || []) as Record<string, unknown>[];
+        // Build a name lookup for the airborne section (and anywhere else we
+        // need to label a player_id). We merge it with existing entries so a
+        // race between overview() and flightsActive() doesn't blank prior
+        // lookups.
+        setNameById(prev => {
+          const next = new Map(prev);
+          for (const m of members) {
+            const id = m.id as number;
+            const name = m.name as string;
+            if (id && name) next.set(id, name);
+          }
+          return next;
+        });
         setTravelers(members.filter(m => {
           const st = m.status;
           const desc = typeof st === 'string' ? st : (st && typeof st === 'object') ? ((st as Record<string, string>).description || '') : '';
@@ -107,6 +178,47 @@ export default function TravelPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Active-flights polling: 30s cadence, visibility-aware, flag-gated.
+  // Empty array when the flag is off so the airborne section can render
+  // its disabled state without extra branching.
+  useEffect(() => {
+    if (!flags.flights) {
+      setActiveFlights([]);
+      return;
+    }
+    let cancelled = false;
+    const pull = () => {
+      api.flightsActive()
+        .then(resp => {
+          if (!cancelled) setActiveFlights(resp.flights as ActiveFlightRow[]);
+        })
+        .catch(() => {
+          // 503 (feature flipped off mid-session), 401, network — collapse
+          // to empty list rather than show stale data.
+          if (!cancelled) setActiveFlights([]);
+        });
+    };
+    pull();
+    if (!pageVisible) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    const id = window.setInterval(pull, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [flags.flights, pageVisible]);
+
+  // 1-second tick for live countdowns. Stopped when the tab is hidden so
+  // a backgrounded tab doesn't keep re-rendering.
+  useEffect(() => {
+    if (!flags.flights || !pageVisible || activeFlights.length === 0) return;
+    const id = window.setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [flags.flights, pageVisible, activeFlights.length]);
 
   // Auto-load rehab count from training stats API
   useEffect(() => {
@@ -136,6 +248,20 @@ export default function TravelPage() {
     const dailySessionCost = sessionsPerDay * 250000;
     return { rehabs, costPerAP, addictionPerXanax, dailyDecay, netDailyAddiction, rehabCostPerXanax, dailyRehabCost, monthlyRehabCost, apPerSession, sessionsPerDay, dailySessionCost };
   }, [rehabCount, hasToleration, xanaxPerDay]);
+
+  const sortedAirborne = useMemo(() => {
+    // Sort by predicted landing time so the soonest-to-land sits at the
+    // top. ``tick`` is in the dep array purely so the countdown re-renders
+    // every second; the underlying sort is stable across ticks.
+    void tick;
+    const now = Math.floor(Date.now() / 1000);
+    return [...activeFlights]
+      .map(f => {
+        const lands = f.predicted_landed_at ?? f.departed_at + 1560;
+        return { ...f, lands_at: lands, secs_left: lands - now };
+      })
+      .sort((a, b) => a.lands_at - b.lands_at);
+  }, [activeFlights, tick]);
 
   const sortedCountries = useMemo(() => {
     if (!data) return [];
@@ -235,6 +361,69 @@ export default function TravelPage() {
                 </a>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Airborne section (FFScouter parity, Phase 2B). Hidden entirely
+            when the flights feature flag is off so dark launches stay dark. */}
+        {flags.flights && (
+          <div className="bg-bg-card border border-torn-blue/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-torn-blue">
+                <span aria-hidden>✈️ </span>Currently airborne
+                {sortedAirborne.length > 0 && (
+                  <span className="ml-2 text-text-muted font-normal">({sortedAirborne.length})</span>
+                )}
+              </h2>
+              <span className="text-[10px] text-text-muted">via scheduler · 60s tick</span>
+            </div>
+            {sortedAirborne.length === 0 ? (
+              <p className="text-xs text-text-muted">No tracked enemies in transit.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[480px]">
+                  <thead>
+                    <tr className="text-left text-text-muted text-xs uppercase tracking-wider">
+                      <th className="py-1.5 pr-3">Player</th>
+                      <th className="py-1.5 pr-3">Destination</th>
+                      <th className="py-1.5 pr-3 text-right">Class</th>
+                      <th className="py-1.5 pr-3 text-right">Lands in</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedAirborne.map(f => {
+                      const name = nameById.get(f.player_id);
+                      const label = name ?? `Player ${f.player_id}`;
+                      const soon = f.secs_left > 0 && f.secs_left < 5 * 60;
+                      const landed = f.secs_left <= 0;
+                      return (
+                        <tr key={f.id} className="border-t border-border-light/50">
+                          <td className="py-1.5 pr-3">
+                            <a
+                              href={`https://www.torn.com/profiles.php?XID=${f.player_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-torn-blue hover:underline font-medium"
+                            >
+                              {label}
+                            </a>
+                            <span className="text-text-muted text-[10px] ml-1">[{f.player_id}]</span>
+                          </td>
+                          <td className="py-1.5 pr-3 text-text-primary">{prettyDestinationLabel(f.destination)}</td>
+                          <td className="py-1.5 pr-3 text-right text-text-secondary tabular-nums">{prettyTicketClassLabel(f.ticket_class)}</td>
+                          <td className={`py-1.5 pr-3 text-right tabular-nums font-medium ${landed ? 'text-torn-green' : soon ? 'text-warning' : 'text-text-primary'}`}>
+                            {landed ? 'landed' : fmtCountdown(f.secs_left)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="text-[10px] text-text-muted mt-2">
+              Source: TM Hub flight tracker. Polled from Torn API status every 60s; destinations + ticket classes inferred from flight duration.
+            </p>
           </div>
         )}
 
