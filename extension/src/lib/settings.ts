@@ -14,6 +14,8 @@ export interface CompanionSettings {
   heartbeatEnabled: boolean;
   notificationsEnabled: boolean;
   mentionsEnabled: boolean;
+  /** Floating TM Hub pinned-navs panel on torn.com. */
+  pinsEnabled: boolean;
   /** Epoch ms after which mute expires; 0 = not muted. */
   notificationsMutedUntil: number;
   /** Epoch ms after which mute expires; 0 = not muted. */
@@ -26,6 +28,7 @@ const DEFAULTS: CompanionSettings = {
   heartbeatEnabled: true,
   notificationsEnabled: true,
   mentionsEnabled: true,
+  pinsEnabled: true,
   notificationsMutedUntil: 0,
   mentionsMutedUntil: 0,
   nativePermissionRequestedAt: 0,

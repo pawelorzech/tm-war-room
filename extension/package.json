@@ -1,6 +1,6 @@
 {
   "name": "tm-hub-companion",
-  "version": "0.27.1",
+  "version": "0.27.2",
   "description": "TM Hub Companion \u2014 userscript that injects faction intel into torn.com",
   "private": true,
   "type": "module",

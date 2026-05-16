@@ -21,6 +21,7 @@ import {
   unmute,
 } from '../lib/settings';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
+import { applyPinnedNavsOverlay } from './pinned-navs-overlay';
 import type { CompanionAuth } from '../types';
 
 const HOST_KIND = 'status-chip';
@@ -254,6 +255,9 @@ function renderMenu(shadow: ShadowRoot): void {
     ${rowToggle('mentionsEnabled', 'Chat @mentions', s.mentionsEnabled, s.mentionsMutedUntil)}
     ${rowToggle('heartbeatEnabled', 'Show me as online', s.heartbeatEnabled, 0)}
     <div class="sep"></div>
+    <h4>Overlays</h4>
+    ${rowToggle('pinsEnabled', 'TM Hub pins', s.pinsEnabled, 0)}
+    <div class="sep"></div>
     <h4>Quick mute</h4>
     ${notifMuted
       ? `<div class="row" data-act="unmute-notif"><span class="label">Unmute notifications</span><span class="pill muted">${formatRemaining(s.notificationsMutedUntil)} left</span></div>`
@@ -274,11 +278,18 @@ function renderMenu(shadow: ShadowRoot): void {
 
   // Toggle handlers
   menu.querySelectorAll<HTMLElement>('[data-toggle]').forEach((el) => {
-    const key = el.dataset.toggle as 'notificationsEnabled' | 'mentionsEnabled' | 'heartbeatEnabled';
+    const key = el.dataset.toggle as
+      | 'notificationsEnabled'
+      | 'mentionsEnabled'
+      | 'heartbeatEnabled'
+      | 'pinsEnabled';
     el.addEventListener('click', () => {
       const cur = loadSettings()[key];
       updateSettings({ [key]: !cur });
       renderMenu(shadow);
+      // Pins overlay isn't part of the chip — reapply so it appears/disappears
+      // immediately instead of waiting for the next 30s refresh tick.
+      if (key === 'pinsEnabled') void applyPinnedNavsOverlay();
     });
   });
 

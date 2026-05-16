@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.1";
+export const CURRENT_VERSION = "1.50.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.2",
+    date: "2026-05-16",
+    title: "Companion v0.27.2 — hide the TM Hub pins panel on torn.com if you don't want it",
+    changes: [
+      {
+        type: "feat",
+        summary: "Companion settings now have a 'TM Hub pins' toggle to hide the floating pins panel",
+        detail: "If the floating TM Hub Pins panel in the top-left of every Torn page is in your way, you can now turn it off from the gear menu on the Companion chip (Overlays → TM Hub pins). Default stays on, the pin shortcuts in TM Hub itself are unaffected, and flipping the toggle takes effect immediately without a page reload.",
+      },
+    ],
+  },
   {
     version: "1.50.1",
     date: "2026-05-16",
