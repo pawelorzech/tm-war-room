@@ -14,6 +14,7 @@ import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { injectPreconnect } from './lib/preconnect';
+import { startRumWire } from './lib/rum-wire';
 import { HUB_ORIGIN } from './env';
 import { ensureProfileStack } from './lib/profile-stack';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
@@ -277,6 +278,11 @@ function bootstrap(): void {
   // anything else runs. The cost is one <link> tag in <head>; the win is
   // ~50-200ms shaved off the first fetch on a fresh tab.
   injectPreconnect(HUB_ORIGIN);
+
+  // Sprint 1.5 quick win: anonymous RUM beacon. Dark by default on the
+  // backend (ENABLE_RUM=False) — beacons fly but the endpoint drops them
+  // until privacy review is signed off. See extension/docs/rum-privacy-review.md.
+  startRumWire();
 
   // FFScouter-parity feature flags: prime the cache on boot and refresh
   // every 60 s. ``getFeatureFlags()`` (the sync accessor used by overlays)

@@ -432,7 +432,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TM Hub", lifespan=lifespan)
-app.add_middleware(GZipMiddleware, minimum_size=500)
+# Sprint 1.5 perf tune: lowered from 500 → 200. The Companion's hottest
+# endpoints (/api/wars/current ~200 B, /api/ff/{id} ~200 B,
+# /api/extension/feature-flags ~250 B) all fell BELOW the previous floor
+# and were shipping uncompressed. nginx in front also compresses at 256 B
+# (nginx.conf), so this just brings the FastAPI layer in line and saves
+# bytes on the loopback hop.
+app.add_middleware(GZipMiddleware, minimum_size=200)
 app.include_router(admin_router)
 from api.routers.admin_push import router as admin_push_router
 app.include_router(admin_push_router)
