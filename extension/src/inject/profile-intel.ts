@@ -298,6 +298,8 @@ const STYLES = `
     gap: 8px;
   }
   .action-primary { width: 100%; }
+  .action-pair { display: flex; gap: 6px; }
+  .action-pair .action-btn { flex: 1; }
   .action-secondary-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -484,9 +486,17 @@ function actionsRow(
   ctx: ProfileIntelContext,
   intel: CachedIntel,
 ): string {
-  // Primary action: target toggle (Save ↔ Saved/remove).
+  // Primary action: target toggle. When unsaved, one big "Save to targets"
+  // button. When already saved, split into two side-by-side actions — Edit
+  // (re-opens the modal pre-filled with current tag/difficulty/notes so you
+  // can adjust without retyping) and Remove (confirm + delete). Replaces the
+  // earlier single "tap to remove" button which forced a save-from-scratch
+  // workflow whenever you wanted to tweak a tag.
   const primary = intel.target
-    ? `<button class="action-btn active action-primary" data-act="remove-target"><span class="check">✓</span>&nbsp;🎯&nbsp;Saved<span class="hint">tap to remove</span></button>`
+    ? `<div class="action-pair action-primary">
+         <button class="action-btn active" data-act="edit-target">✏️&nbsp;Edit target</button>
+         <button class="action-btn" data-act="remove-target">🗑&nbsp;Remove</button>
+       </div>`
     : `<button class="action-btn primary action-primary" data-act="save-target">🎯&nbsp;Save to targets</button>`;
 
   // Secondary actions: watch toggle + (in war) flag toggle.
@@ -597,12 +607,23 @@ function bindActions(
     }
   });
 
-  shadow.querySelector('[data-act="save-target"]')?.addEventListener('click', async () => {
+  // Save and Edit share the modal — the only difference is whether the
+  // fields start blank or pre-populated with the existing target's values.
+  const openTargetForm = async (mode: 'save' | 'edit'): Promise<void> => {
+    const existing = mode === 'edit' ? intel.target : null;
     const result = await showFormModal({
-      title: '🎯 Save to your targets',
-      description: 'Persists with a tag + optional notes. Visible only to you.',
+      title: mode === 'edit' ? '✏️ Edit target' : '🎯 Save to your targets',
+      description:
+        mode === 'edit'
+          ? 'Update tag, difficulty, or notes. Only you see these.'
+          : 'Persists with a tag + optional notes. Visible only to you.',
       fields: [
-        { name: 'tag', label: 'Tag', placeholder: 'e.g. farm, war-enemy, avoid' },
+        {
+          name: 'tag',
+          label: 'Tag',
+          placeholder: 'e.g. farm, war-enemy, avoid',
+          initialValue: existing?.tag ?? '',
+        },
         {
           name: 'difficulty',
           label: 'Difficulty',
@@ -613,11 +634,17 @@ function bindActions(
             { value: 'medium', label: 'Medium' },
             { value: 'hard', label: 'Hard' },
           ],
-          initialValue: '',
+          initialValue: existing?.difficulty ?? '',
         },
-        { name: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional context' },
+        {
+          name: 'notes',
+          label: 'Notes',
+          type: 'textarea',
+          placeholder: 'Optional context',
+          initialValue: existing?.notes ?? '',
+        },
       ],
-      submitLabel: 'Save',
+      submitLabel: mode === 'edit' ? 'Update' : 'Save',
     });
     if (!result || result.kind !== 'submit') return;
     try {
@@ -628,13 +655,26 @@ function bindActions(
         difficulty: result.values.difficulty || undefined,
         notes: result.values.notes || undefined,
       });
-      showToast({ title: 'Saved to targets', body: resolveName(), icon: '🎯', tone: 'info' });
+      showToast({
+        title: mode === 'edit' ? 'Target updated' : 'Saved to targets',
+        body: resolveName(),
+        icon: '🎯',
+        tone: 'info',
+      });
       _targetsCache = null;
       _intelCache.delete(playerId);
       rerender();
     } catch {
       showToast({ title: 'Could not save target', body: 'Backend error.', icon: '⚠️', tone: 'warn' });
     }
+  };
+
+  shadow.querySelector('[data-act="save-target"]')?.addEventListener('click', () => {
+    void openTargetForm('save');
+  });
+
+  shadow.querySelector('[data-act="edit-target"]')?.addEventListener('click', () => {
+    void openTargetForm('edit');
   });
 
   shadow.querySelector('[data-act="remove-target"]')?.addEventListener('click', async () => {

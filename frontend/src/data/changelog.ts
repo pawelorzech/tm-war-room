@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.48.0";
+export const CURRENT_VERSION = "1.49.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.49.0",
+    date: "2026-05-16",
+    title: "Companion v0.26 — Edit a saved target without removing and re-saving it",
+    changes: [
+      {
+        type: "feat",
+        summary: "Profile intel card now exposes Edit and Remove side-by-side for saved targets",
+        detail: "Until now, tweaking a target's tag, difficulty, or notes meant clicking 'Saved → tap to remove' and going through the save flow from scratch. The card on /profile.php now shows two buttons when a target is saved — ✏️ Edit target opens the same modal pre-filled with the current tag, difficulty, and notes; 🗑 Remove still asks for confirmation. Saves an annoying round-trip when you just want to bump a difficulty.",
+      },
+    ],
+  },
   {
     version: "1.48.0",
     date: "2026-05-16",
