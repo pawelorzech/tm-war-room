@@ -63,7 +63,7 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
             <Link href="/dashboard">
               <h1
                 className="text-lg font-extrabold tracking-tight text-torn-green"
-                style={{ animation: "tm-glow-pulse 4s ease-in-out infinite" }}
+                style={{ textShadow: "0 0 14px rgba(63, 185, 80, 0.55)" }}
               >
                 TM Hub
               </h1>
@@ -136,8 +136,9 @@ export function Sidebar({ unreadCount = 0, chatUnread = 0, showVersionBadge = fa
                 <span>Faction Chat</span>
                 {chatUnread > 0 && (
                   <span
+                    key={chatUnread}
                     className="ml-auto min-w-[20px] h-5 flex items-center justify-center text-[10px] bg-torn-green text-white px-1.5 rounded-full font-bold"
-                    style={{ animation: "tm-badge-pop 2s ease-in-out infinite" }}
+                    style={{ animation: "tm-badge-pop 0.6s ease-in-out 1" }}
                   >
                     {chatUnread > 99 ? "99+" : chatUnread}
                   </span>
