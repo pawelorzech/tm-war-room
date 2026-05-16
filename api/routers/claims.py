@@ -206,7 +206,19 @@ async def list_active(x_player_id: int = Header()):
 
 
 @router.get("/stream")
-async def stream_claims(request: Request, x_player_id: int = Header()):
+async def stream_claims(
+    request: Request,
+    x_player_id: Optional[int] = Header(default=None),
+):
+    # SSE endpoint: the browser's EventSource can't set headers, so the
+    # middleware (api/main.py:enforce_api_auth) also accepts ``?token=...&pid=...``
+    # and stashes the resolved pid on request.state.resolved_player_id.
+    # When neither is present we fall back to the (missing) header path so the
+    # route still 400s cleanly outside the SSE flow.
+    if x_player_id is None:
+        x_player_id = getattr(request.state, "resolved_player_id", None)
+        if x_player_id is None:
+            raise HTTPException(status_code=400, detail="Missing X-Player-Id header")
     _require_flag()
     _require_member(x_player_id)
     if claim_manager is None:

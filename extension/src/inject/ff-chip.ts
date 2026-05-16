@@ -96,6 +96,7 @@ function buildChip(result: FFScore): HTMLSpanElement {
   chip.title =
     `FFScouter-style estimate (no fresh spy data)\n` +
     `Dominant stat: ${DOM_HINTS[result.dom_stat]}\n` +
+    `Source: TM Hub FF formula (battle stats / level)\n` +
     `Updated ${ago}`;
   chip.innerHTML =
     `<span class="ff-label">FF</span>` +

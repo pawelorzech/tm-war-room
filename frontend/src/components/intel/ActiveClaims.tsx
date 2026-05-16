@@ -1,17 +1,16 @@
 'use client';
 
-// Active hit-claims widget — flag-gated, polls /api/claims/active every 5s.
+// Active hit-claims widget — flag-gated.
 //
-// Why polling and not EventSource: the backend SSE stream requires the
-// X-Player-Id header (enforced by `enforce_api_auth` middleware in
-// api/main.py). The browser EventSource API can't set custom headers, so a
-// straight `new EventSource(...)` would 400 every time. Until the backend
-// either accepts the player id via cookie-bound JWT subject or exposes a
-// query-param fallback, we mirror the Companion's polling cadence.
+// Transport: SSE-first via EventSource (the backend's `/api/claims/stream`
+// now accepts `?token=...&pid=...` query-string auth as a narrow exception
+// in `enforce_api_auth`). Falls back to a 5s poll on /api/claims/active
+// when SSE fails to connect or the browser drops the connection — useful
+// behind aggressive corporate proxies that strip text/event-stream.
 //
 // Hidden when feature flag `hit_calling` is off.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 interface ClaimRow {
@@ -27,6 +26,14 @@ interface ClaimRow {
 interface ClaimActiveResponse {
   claims: ClaimRow[];
   cached_at: number;
+}
+
+interface ClaimStreamEvent {
+  type: 'claim.snapshot' | 'claim.created' | 'claim.released' | 'claim.hit' | 'claim.expired';
+  claim?: ClaimRow;
+  claims?: ClaimRow[];
+  faction_id?: number;
+  ts?: number;
 }
 
 const POLL_MS = 5_000;
@@ -90,16 +97,96 @@ export function ActiveClaims({ variant = 'full' }: ActiveClaimsProps) {
     }
   }, []);
 
+  // Track whether SSE is currently live so we can suspend the polling
+  // fallback. ref instead of state — we don't want a re-render to toggle the
+  // poller midway through a tick.
+  const sseLiveRef = useRef(false);
+
   useEffect(() => {
     if (!flags.hit_calling) return;
-    // Initial fetch + interval. We also tick a second-resolution clock so the
-    // m:ss countdown updates between poll cycles.
-    void refresh();
-    const pollHandle = setInterval(() => void refresh(), POLL_MS);
+    // Second-resolution clock for the m:ss countdown — independent of
+    // transport, always running while the panel is mounted.
     const tickHandle = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1_000);
+
+    let cancelled = false;
+    let es: EventSource | null = null;
+    let pollHandle: ReturnType<typeof setInterval> | null = null;
+
+    const applyEvent = (evt: ClaimStreamEvent) => {
+      if (cancelled) return;
+      if (evt.type === 'claim.snapshot' && evt.claims) {
+        setClaims(evt.claims);
+      } else if (evt.type === 'claim.created' && evt.claim) {
+        setClaims((prev) => {
+          const exists = prev.some((c) => c.target_id === evt.claim!.target_id);
+          return exists ? prev : [...prev, evt.claim!];
+        });
+      } else if (
+        (evt.type === 'claim.released' || evt.type === 'claim.hit' || evt.type === 'claim.expired') &&
+        evt.claim
+      ) {
+        setClaims((prev) => prev.filter((c) => c.target_id !== evt.claim!.target_id));
+      }
+      setError(null);
+    };
+
+    const startPolling = () => {
+      if (pollHandle !== null) return;
+      void refresh();
+      pollHandle = setInterval(() => {
+        if (!sseLiveRef.current) void refresh();
+      }, POLL_MS);
+    };
+
+    const startSse = () => {
+      const pid = typeof window === 'undefined' ? null : localStorage.getItem('myKeyPlayer');
+      const token = typeof window === 'undefined' ? null : localStorage.getItem('sessionToken');
+      if (!pid || !token) {
+        // No auth → polling won't help either, but try (cookie-auth fallback).
+        startPolling();
+        return;
+      }
+      try {
+        es = new EventSource(
+          `/api/claims/stream?token=${encodeURIComponent(token)}&pid=${encodeURIComponent(pid)}`,
+        );
+      } catch {
+        startPolling();
+        return;
+      }
+      es.onopen = () => {
+        sseLiveRef.current = true;
+      };
+      es.onmessage = (ev) => {
+        try {
+          applyEvent(JSON.parse(ev.data) as ClaimStreamEvent);
+        } catch {
+          /* malformed frame — ignore, next snapshot reconciles */
+        }
+      };
+      es.onerror = () => {
+        // Connection dropped — fall back to polling. Some browsers auto-
+        // reconnect; we close explicitly so we don't double-process events.
+        sseLiveRef.current = false;
+        if (es) {
+          es.close();
+          es = null;
+        }
+        startPolling();
+      };
+    };
+
+    startSse();
+    // Belt-and-braces: kick off an initial /active fetch so we paint
+    // immediately, even before SSE finishes its handshake.
+    void refresh();
+
     return () => {
-      clearInterval(pollHandle);
+      cancelled = true;
       clearInterval(tickHandle);
+      if (pollHandle) clearInterval(pollHandle);
+      if (es) es.close();
+      sseLiveRef.current = false;
     };
   }, [flags.hit_calling, refresh]);
 
@@ -127,7 +214,10 @@ export function ActiveClaims({ variant = 'full' }: ActiveClaimsProps) {
 
   if (variant === 'compact') {
     return (
-      <div className="bg-bg-card border border-border rounded-lg p-3 text-xs">
+      <div
+        className="bg-bg-card border border-border rounded-lg p-3 text-xs"
+        title="Source: TM Hub claims service — 15-min TTL per claim, faction-wide visibility"
+      >
         <div className="flex items-center justify-between mb-2">
           <span className="font-semibold text-text-primary">
             <span className="mr-1">🎯</span>
@@ -176,7 +266,14 @@ export function ActiveClaims({ variant = 'full' }: ActiveClaimsProps) {
           <span className="mr-1">🎯</span>
           Active hit claims
         </h2>
-        <span className="text-xs text-text-muted">
+        <span
+          className="text-xs text-text-muted cursor-help"
+          title={
+            sseLiveRef.current
+              ? 'Source: TM Hub claims service (live SSE stream, 15-min TTL per claim)'
+              : 'Source: TM Hub claims service (polling every 5s, 15-min TTL per claim)'
+          }
+        >
           {visible.length} active · 15-min TTL
         </span>
       </header>
