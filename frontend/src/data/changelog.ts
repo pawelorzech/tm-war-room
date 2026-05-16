@@ -52,9 +52,28 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.3";
+export const CURRENT_VERSION = "1.42.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.4",
+    date: "2026-05-16",
+    title: "Chain page loading skeleton + fewer redundant Torn API calls for training data",
+    changes: [
+      {
+        type: "improve",
+        summary: "Chain page now shows a table skeleton while loading",
+        detail: "Both the main chain view and the chain detail view used to show a single line of pulsing gray text while loading. They now show table-shaped skeletons matching the columns of the eventual table, same pattern as Awards and Stocks.",
+      },
+      {
+        type: "fix",
+        summary: "Opening pages that all read your training data no longer multiplies Torn API hits",
+        before: "Several screens (Your Stats, Company Director / Training, Company / Faction) each read the same Torn training endpoint for the same player. Because that endpoint wasn't cached on our side, every screen opening within a minute triggered its own round-trip to Torn — wasted bandwidth and a faster path to Torn's per-key rate limit.",
+        after: "The training data fetcher now caches per-key for one minute, matching every other user-scoped endpoint. The first screen pays the upstream call; subsequent ones served instantly from memory.",
+        cause: "When the training fetcher was added it was the lone outlier in the API client — every sibling fetcher had the cache lookup, this one didn't. Easy miss, no test catching it until now.",
+      },
+    ],
+  },
   {
     version: "1.42.3",
     date: "2026-05-16",
