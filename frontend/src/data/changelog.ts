@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.40.3";
+export const CURRENT_VERSION = "1.40.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.40.4",
+    date: "2026-05-16",
+    title: "Spy deep-link page hydrates instead of stalling on the loading spinner",
+    changes: [
+      {
+        type: "fix",
+        summary: "/spy/<player_id> stopped getting stuck on the loading dots",
+        before: "After the v1.40.3 re-ship the URL loaded but the page never hydrated — three dots animated forever and the spy lookup never started. The browser console showed multiple Content-Security-Policy violations blocking Next.js inline hydration scripts.",
+        after: "The deep-link route now returns a CSP that allows the inline scripts the Next.js RSC payload needs (same as the rest of the static export), so the page hydrates and the spy lookup fires immediately.",
+        cause: "The strict API-side CSP blocked the inline self.__next_f.push(...) tags that Next.js 16 emits to ship hydration data; static pages served directly by nginx never had that CSP applied, but the new FastAPI route did.",
+      },
+    ],
+  },
   {
     version: "1.40.3",
     date: "2026-05-16",

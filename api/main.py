@@ -1322,7 +1322,29 @@ async def serve_spy_deep_link(player_id: int):
     target = _resolve_static_path(static_root, "spy", "_.html")
     if not target or not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Spy page not built")
-    return FileResponse(target, media_type="text/html", headers={"Cache-Control": "public, max-age=0, must-revalidate"})
+    return FileResponse(
+        target,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            # Override the strict CSP from enforce_api_auth (F-07): Next.js
+            # 16 RSC emits inline <script> tags carrying hydration data
+            # (self.__next_f.push(...)), which the strict policy blocks
+            # and leaves the page stuck on the loading spinner. nginx
+            # serves the same _.html for /spy/_/ without CSP at all, so
+            # this matches the static-fallback behaviour rather than the
+            # API behaviour. uses setdefault upstream, our header wins.
+            "Content-Security-Policy": (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://analityka.tri.ovh; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https://www.torn.com https://*.backblazeb2.com; "
+                "connect-src 'self' wss://hub.tri.ovh https://analityka.tri.ovh; "
+                "font-src 'self'; frame-ancestors 'none'; base-uri 'self'; "
+                "form-action 'self'; object-src 'none'"
+            ),
+        },
+    )
 
 
 @app.head("/{path:path}")
