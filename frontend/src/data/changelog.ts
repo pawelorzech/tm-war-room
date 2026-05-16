@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.3";
+export const CURRENT_VERSION = "1.50.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.4",
+    date: "2026-05-17",
+    title: "Companion is now on Greasy Fork — true 1-click install on Chrome",
+    changes: [
+      {
+        type: "feat",
+        summary: "TM Hub Companion published on Greasy Fork — Chrome no longer demands Developer Mode",
+        detail: "The Companion is listed at greasyfork.org/scripts/578482-tm-hub-companion. /install now shows a green 1-click 'Open Greasy Fork →' hero card as the recommended desktop path: Tampermonkey trusts GF natively, so the install prompt opens without the Chrome 130+ 'cannot install scripts from this website' wall. Greasy Fork's automatic sync polls hub.tri.ovh/companion.user.js every hour, so every Companion release lands on GF within an hour — nothing to do per release. The direct-link and Manual-install fallbacks shipped yesterday stay in place as the kill-switch path.",
+      },
+      {
+        type: "improve",
+        summary: "Companion userscript now declares @license MIT and @supportURL in its header",
+        detail: "Greasy Fork's policy requires an explicit license tag; without it, the listing warns that users cannot redistribute or modify the script. The build now injects // @license MIT and a @supportURL pointing at /install on every Companion build, so future syncs go through without manual edits.",
+      },
+    ],
+  },
   {
     version: "1.50.3",
     date: "2026-05-17",
