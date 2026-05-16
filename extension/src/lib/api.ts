@@ -102,7 +102,7 @@ function authHeaders(auth: CompanionAuth, withJson = false): Record<string, stri
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'DELETE' | 'PATCH',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   path: string,
   auth: CompanionAuth,
   body?: unknown,
@@ -144,6 +144,10 @@ export function post<T>(path: string, body: unknown, auth: CompanionAuth): Promi
 
 export function del<T>(path: string, auth: CompanionAuth): Promise<T> {
   return request<T>('DELETE', path, auth);
+}
+
+export function put<T>(path: string, body: unknown, auth: CompanionAuth): Promise<T> {
+  return request<T>('PUT', path, auth, body);
 }
 
 // ── Concrete endpoints ──────────────────────────────────────
@@ -310,6 +314,17 @@ export function submitSpyReport(
   body: { player_id: number; strength: number; defense: number; speed: number; dexterity: number },
 ): Promise<{ status: string; player_id: number }> {
   return post<{ status: string; player_id: number }>('/api/spy/submit', body, auth);
+}
+
+export function fetchPinnedNavs(auth: CompanionAuth): Promise<{ hrefs: string[] }> {
+  return get<{ hrefs: string[] }>('/api/preferences/pinned-navs', auth);
+}
+
+export function savePinnedNavs(
+  auth: CompanionAuth,
+  hrefs: string[],
+): Promise<{ hrefs: string[] }> {
+  return put<{ hrefs: string[] }>('/api/preferences/pinned-navs', { hrefs }, auth);
 }
 
 export function fetchOcPlanning(auth: CompanionAuth): Promise<OcResponse> {

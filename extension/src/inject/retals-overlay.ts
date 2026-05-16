@@ -16,6 +16,7 @@ import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { SpyEstimate, WarOffLimits, Target } from '../types';
 import { escapeHtml, formatTotal } from '../lib/format';
+import { pillBase } from '../lib/card-styles';
 
 interface RetalRow {
   off_limits: WarOffLimits | null;
@@ -98,30 +99,7 @@ async function buildMap(warId: number | null): Promise<Map<number, RetalRow>> {
   return out;
 }
 
-const STYLES = `
-  [data-tm-retals-badge] {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 2px 6px;
-    margin: 4px 0;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    border-radius: 10px;
-    background: rgba(22, 27, 34, 0.85);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #c9d1d9;
-    white-space: nowrap;
-  }
-  [data-tm-retals-badge] .pill {
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+const STYLES = pillBase('retals') + `
   [data-tm-retals-badge] .pill-offlimits {
     background: rgba(248,81,73,0.22);
     color: #f85149;

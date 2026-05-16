@@ -126,6 +126,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Hall of Fame marker</span> on /halloffame.php — small TM pill on faction mates and ☠ pill on current war enemies across all leaderboard tabs, no row tinting</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Mark-all-read footer</span> in the notification toast tray — clear every TM Hub inbox toast in one click; button auto-hides when the tray is empty</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Submit-spy chip on attack pages</span> — after a fight where the opponent's STR/DEF/SPD/DEX showed up in the outcome, one click ships the stats to TM Hub so the rest of the faction sees them</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">TM Hub pin shortcuts on Torn</span> — floating quick-links panel for your TM Hub pinned routes, with an inline picker over 14 popular pages; pins sync with TM Hub's /preferences/pinned-navs</span></li>
             </ul>
           </div>
 

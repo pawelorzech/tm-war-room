@@ -20,6 +20,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { cardBase } from '../lib/card-styles';
 import { showFormModal } from '../lib/modal';
 import { showToast } from '../lib/notifications';
 import type { LootNpc } from '../types';
@@ -46,37 +47,7 @@ async function getLootMap(): Promise<Map<number, LootNpc>> {
   }
 }
 
-const STYLES = `
-  :host { all: initial; }
-  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .card {
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-    border: 1px solid #30363d;
-    border-left: 3px solid #d29922;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px 0;
-    color: #c9d1d9;
-    font-size: 12px;
-    line-height: 1.45;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .title {
-    font-weight: 700;
-    color: #d29922;
-    font-size: 13px;
-  }
-  .link {
-    color: #6e7681;
-    font-size: 11px;
-    text-decoration: none;
-  }
-  .link:hover { color: #58a6ff; text-decoration: underline; }
+const STYLES = cardBase('#d29922') + `
   .level-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
