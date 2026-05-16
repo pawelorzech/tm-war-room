@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.0";
+export const CURRENT_VERSION = "1.50.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.1",
+    date: "2026-05-16",
+    title: "Companion profile page no longer jumps around while loading",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion profile pages stopped lagging the browser with visible jank",
+        before: "Opening a profile on torn.com made the page visibly jump several times as Companion overlays (FF chip, intel card, flight pill, claim button, activity chip, loot panel) faded in one by one — players reported the script making the browser feel slow.",
+        after: "All Companion overlays now mount into a single pre-allocated container with reserved height, so they fill in without shifting anything around them.",
+        cause: "Each overlay waited for its own network request before claiming layout space, so every response triggered a fresh shift.",
+      },
+    ],
+  },
   {
     version: "1.50.0",
     date: "2026-05-16",
