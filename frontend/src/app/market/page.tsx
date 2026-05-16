@@ -7,6 +7,7 @@ import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ErrorBanner } from '@/components/layout/ErrorBanner';
+import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 interface MarketItem {
   id: number;
@@ -151,7 +152,7 @@ export default function MarketPage() {
         {error && <ErrorBanner message={error} onRetry={loadData} />}
 
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading market data...</p>
+          <TableSkeleton rows={10} cols={7} />
         ) : error ? null : displayItems.length > 0 ? (
           <div className="bg-bg-card border border-text-secondary/20 rounded-xl overflow-hidden">
             <div className="md:hidden divide-y divide-border-light">

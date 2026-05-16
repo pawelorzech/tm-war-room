@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.5";
+export const CURRENT_VERSION = "1.42.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.6",
+    date: "2026-05-16",
+    title: "Item Market page shows a skeleton while loading + tighter auth header validation",
+    changes: [
+      {
+        type: "improve",
+        summary: "Loading state on /market now shows table-shaped skeleton instead of plain text",
+        detail: "Opening the Item Market used to show a single pulsing 'Loading market data...' line while the API call resolved. It now shows ten placeholder rows matching the table's seven columns, same pattern Awards, OC and Chain already use. Less likely to feel broken on slow networks.",
+      },
+      {
+        type: "improve",
+        summary: "Authentication middleware now rejects 'X-Player-Id: 0' instead of letting it through",
+        detail: "Torn never issues player_id 0 — every real player has a positive ID. The middleware already validated that the header was a number and matched the token's subject, but didn't enforce the domain rule. A forged token (only possible with our JWT secret) could otherwise impersonate a non-existent 'player 0'. Defensive hardening rather than a live exploit, but cheap.",
+      },
+    ],
+  },
   {
     version: "1.42.5",
     date: "2026-05-16",
