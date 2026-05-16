@@ -7,6 +7,7 @@ import { MemberTable } from "@/components/war/MemberTable";
 import { PageExplainer } from "@/components/layout/PageExplainer";
 import { RefreshButton } from "@/components/layout/RefreshButton";
 import { TableSkeleton } from "@/components/layout/LoadingSkeleton";
+import { ActiveClaims } from "@/components/intel/ActiveClaims";
 
 export default function TeamPage() {
   const { overview, detail, loading, lastUpdate, refresh } = useTeamData();
@@ -44,6 +45,9 @@ export default function TeamPage() {
           <ChainStatus overview={overview} />
         </div>
       )}
+
+      {/* Phase 4B (intel-pack): compact active-claim panel. Hidden when flag off. */}
+      <ActiveClaims variant="compact" />
 
       {overview && (
         <MemberTable
