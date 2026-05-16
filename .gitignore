@@ -44,3 +44,7 @@ PENTEST_PLAN.md
 
 # Keep frontend source data (distinct from backend runtime data/)
 !frontend/src/data/
+
+# Local scratch / dev artifacts (do not commit)
+MEMORY/
+tmp/
