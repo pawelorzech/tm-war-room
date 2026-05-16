@@ -285,27 +285,28 @@ const STYLES = `
   .msg .text.mentioned { background: rgba(210, 153, 34, 0.12); padding: 2px 4px; border-radius: 3px; }
 
   .date-sep {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     display: flex;
-    justify-content: center;
-    pointer-events: none;
-    margin: 4px 0 2px;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 2px 2px;
   }
-  .date-sep span {
-    pointer-events: auto;
+  .date-sep .line {
+    flex: 1 1 auto;
+    height: 1px;
+    background: #30363d;
+  }
+  .date-sep span.label {
+    flex: 0 0 auto;
     font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #c9d1d9;
-    background: rgba(33, 38, 45, 0.95);
+    background: #21262d;
     border: 1px solid #30363d;
     border-radius: 999px;
-    padding: 3px 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    backdrop-filter: blur(4px);
+    padding: 2px 10px;
+    white-space: nowrap;
   }
 
   .new-pill {
@@ -870,7 +871,7 @@ function renderMessages(shadow: ShadowRoot): void {
       const dateLabel = formatDateSep(m.created_at);
       const separator =
         dateLabel !== lastDateLabel
-          ? `<div class="date-sep"><span>${escapeHtml(dateLabel)}</span></div>`
+          ? `<div class="date-sep"><span class="line"></span><span class="label">${escapeHtml(dateLabel)}</span><span class="line"></span></div>`
           : '';
       lastDateLabel = dateLabel;
       const time = formatChatTime(m.created_at);
