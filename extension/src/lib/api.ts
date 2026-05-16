@@ -305,6 +305,13 @@ export function fetchMarketPrices(auth: CompanionAuth): Promise<MarketPricesResp
   return get<MarketPricesResponse>('/api/market/prices', auth);
 }
 
+export function submitSpyReport(
+  auth: CompanionAuth,
+  body: { player_id: number; strength: number; defense: number; speed: number; dexterity: number },
+): Promise<{ status: string; player_id: number }> {
+  return post<{ status: string; player_id: number }>('/api/spy/submit', body, auth);
+}
+
 export function fetchOcPlanning(auth: CompanionAuth): Promise<OcResponse> {
   return get<OcResponse>('/api/oc?cat=planning', auth);
 }
