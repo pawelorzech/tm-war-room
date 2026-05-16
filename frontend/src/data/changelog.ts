@@ -52,9 +52,22 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.5";
+export const CURRENT_VERSION = "1.50.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.6",
+    date: "2026-05-17",
+    title: "Companion chat dock — date headers so you can tell today from last week",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion chat now shows day labels and sticky date headers, not just a bare time",
+        before: "Inside the Torn-page chat dock, every message showed only a HH:MM time with no day attached and no divider between conversations from different days. A message you sent today at 00:30 looked indistinguishable from one sent at 22:00 the night before — chat scrollback was effectively undated.",
+        after: "Each timestamp now carries its day when it's not today: \"Yesterday 22:00\", \"Mon 22:00\", or a full date for anything older than a week. A sticky \"Today / Yesterday / Monday\" pill rides the top of the chat dock as you scroll, so you always see which day's messages you're reading. Update via Tampermonkey (Greasy Fork auto-syncs within an hour) or reload your direct install at hub.tri.ovh/install.",
+      },
+    ],
+  },
   {
     version: "1.50.5",
     date: "2026-05-17",
