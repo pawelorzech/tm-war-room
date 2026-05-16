@@ -8,6 +8,7 @@ import { SortableHeader } from '@/components/layout/SortableHeader';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { ExportButton } from '@/components/layout/ExportButton';
+import { TableSkeleton } from '@/components/layout/LoadingSkeleton';
 
 /* ── Types ── */
 
@@ -145,7 +146,7 @@ export default function AwardsPage() {
         />
 
         {loading ? (
-          <p className="text-text-secondary text-sm animate-pulse">Loading awards data from Torn API...</p>
+          <TableSkeleton rows={12} cols={5} />
         ) : error ? (
           <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 text-danger text-sm">{error}</div>
         ) : view ? (

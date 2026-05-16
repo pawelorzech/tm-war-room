@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.0";
+export const CURRENT_VERSION = "1.42.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.1",
+    date: "2026-05-16",
+    title: "Awards page now shows a proper skeleton while loading",
+    changes: [
+      {
+        type: "improve",
+        summary: "Loading state on /awards matches the rest of the app — table skeleton instead of plain text",
+        detail: "Opening the Awards page used to show a single line of pulsing gray text while data loaded. It now shows a 12-row table skeleton — the same pattern Bounties, Revives and Stocks already use. Less likely to feel broken on slow networks, especially on mobile.",
+      },
+    ],
+  },
   {
     version: "1.42.0",
     date: "2026-05-16",
