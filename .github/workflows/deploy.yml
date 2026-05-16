@@ -56,6 +56,31 @@ jobs:
             -v "${{ github.workspace }}/nginx.conf:/etc/nginx/nginx.conf:ro" \
             nginx-validator nginx -t
 
+  # Sprint 1.5 perf gate: Lighthouse CI on the /install static export.
+  # Record-only — warns on regressions, never blocks merge. Sprint 2 flips
+  # the `assert` thresholds from `warn` to `error` once we have a 2-week
+  # baseline of stable scores to gate against.
+  lighthouse:
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: 20
+      - name: Build frontend (static export)
+        run: cd frontend && npm ci && npm run build
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.14 autorun --config=./lighthouserc.json
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+
   deploy:
     needs: test
     # Only deploy on push to master, not on every PR.

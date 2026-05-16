@@ -7,6 +7,7 @@
 
 import type { WarOffLimits } from '../types';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
+import { findFirstAnchor } from '../lib/anchor-cache';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { escapeHtml } from '../lib/format';
 import { maybeRenderFFChip } from './ff-chip';
@@ -29,13 +30,8 @@ export function renderProfileFFChip(playerId: number): void {
     host.style.display = 'inline-block';
     host.style.margin = '4px 0';
     if (!attachToProfileStack(host)) {
-      for (const sel of PROFILE_ANCHOR_SELECTORS) {
-        const anchor = document.querySelector(sel);
-        if (anchor) {
-          anchor.insertBefore(host, anchor.firstChild);
-          break;
-        }
-      }
+      const anchor = findFirstAnchor(PROFILE_ANCHOR_SELECTORS, 'profile');
+      if (anchor) anchor.insertBefore(host, anchor.firstChild);
       if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
     }
   }
@@ -72,12 +68,10 @@ export function renderProfileBadge(off: WarOffLimits | null): void {
   // Place host above the profile content.
   if (!host.parentElement) {
     if (attachToProfileStack(host)) return;
-    for (const sel of PROFILE_ANCHOR_SELECTORS) {
-      const anchor = document.querySelector(sel);
-      if (anchor) {
-        anchor.insertBefore(host, anchor.firstChild);
-        return;
-      }
+    const anchor = findFirstAnchor(PROFILE_ANCHOR_SELECTORS, 'profile');
+    if (anchor) {
+      anchor.insertBefore(host, anchor.firstChild);
+      return;
     }
     // Last resort — pin to top of body.
     document.body.insertBefore(host, document.body.firstChild);
@@ -96,13 +90,8 @@ export async function renderProfileFlightPill(playerId: number): Promise<void> {
     host.setAttribute(FLIGHT_HOST_ATTR, '1');
     host.style.margin = '6px 0';
     if (!attachToProfileStack(host)) {
-      for (const sel of PROFILE_ANCHOR_SELECTORS) {
-        const anchor = document.querySelector(sel);
-        if (anchor) {
-          anchor.insertBefore(host, anchor.firstChild);
-          break;
-        }
-      }
+      const anchor = findFirstAnchor(PROFILE_ANCHOR_SELECTORS, 'profile');
+      if (anchor) anchor.insertBefore(host, anchor.firstChild);
       if (!host.parentElement) document.body.insertBefore(host, document.body.firstChild);
     }
   }
@@ -128,16 +117,9 @@ export function renderProfileClaimButton(targetId: number, targetName: string): 
 
   // Anchor above the profile content alongside the OFF-LIMITS card (when present).
   if (!host.parentElement && !attachToProfileStack(host)) {
-    let placed = false;
-    for (const sel of PROFILE_ANCHOR_SELECTORS) {
-      const anchor = document.querySelector(sel);
-      if (anchor) {
-        anchor.insertBefore(host, anchor.firstChild);
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) document.body.insertBefore(host, document.body.firstChild);
+    const anchor = findFirstAnchor(PROFILE_ANCHOR_SELECTORS, 'profile');
+    if (anchor) anchor.insertBefore(host, anchor.firstChild);
+    else document.body.insertBefore(host, document.body.firstChild);
   }
 
   // The button itself lives inside a slot in the shadow root — claim-button
