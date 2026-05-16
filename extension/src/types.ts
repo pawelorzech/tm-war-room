@@ -403,3 +403,33 @@ export interface OcResponse {
   count: number;
   category: string;
 }
+
+// ── Flights (Phase 2A/2B, FFScouter parity) ─────────────────
+//
+// Mirrors api/routers/flights.py shape. ``predicted_landed_at`` is appended
+// server-side from api/flights.py::predict_landing — the route handler adds it
+// to every row before serialising.
+
+export interface FlightRow {
+  id: number;
+  player_id: number;
+  departed_at: number;
+  destination: string;
+  ticket_class: string;
+  landed_at: number | null;
+  observed_at: number;
+  source: string;
+  /** Only present on rows currently in the air (the route handler omits it
+   * for completed history rows). */
+  predicted_landed_at?: number;
+}
+
+export interface FlightPlayerResponse {
+  current: FlightRow | null;
+  history: FlightRow[];
+}
+
+export interface ActiveFlightsResponse {
+  flights: FlightRow[];
+  cached_at: number;
+}

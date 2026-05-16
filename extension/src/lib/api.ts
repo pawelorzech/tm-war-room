@@ -31,6 +31,8 @@ import type {
   LootResponse,
   StockPortfolioResponse,
   StockRoiResponse,
+  FlightPlayerResponse,
+  ActiveFlightsResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -521,6 +523,61 @@ export async function fetchFeatureFlags(): Promise<FeatureFlags> {
 
 export function getCachedFeatureFlags(): FeatureFlags {
   return _flagsCache?.value ?? FEATURE_FLAGS_DEFAULT;
+}
+
+// ── Flights (Phase 2B, FFScouter parity) ────────────────────
+//
+// Both endpoints 503 when ENABLE_FLIGHTS is off. We soft-fail to "no data"
+// rather than bubble the error so callers can render the pill conditionally
+// without try/catch blocks at every call site. 30 s cache mirrors the
+// scheduler's 60 s tick — the worst stale window is one tick.
+
+const FLIGHTS_TTL_MS = 30_000;
+
+interface PerPlayerFlightCache {
+  ts: number;
+  value: FlightPlayerResponse | null;
+}
+
+const _perPlayerFlightCache = new Map<number, PerPlayerFlightCache>();
+let _activeFlightsCache: { ts: number; value: ActiveFlightsResponse } | null = null;
+
+export async function fetchFlight(
+  auth: CompanionAuth,
+  playerId: number,
+): Promise<FlightPlayerResponse | null> {
+  const cached = _perPlayerFlightCache.get(playerId);
+  const now = Date.now();
+  if (cached && now - cached.ts < FLIGHTS_TTL_MS) return cached.value;
+  try {
+    const value = await get<FlightPlayerResponse>(`/api/flights/${playerId}`, auth);
+    _perPlayerFlightCache.set(playerId, { ts: now, value });
+    return value;
+  } catch {
+    // 503 (feature off), 404 (no row), network error — all collapse to "no
+    // data". Cache the null briefly so we don't hammer the endpoint while
+    // the flag is dark.
+    _perPlayerFlightCache.set(playerId, { ts: now, value: null });
+    return null;
+  }
+}
+
+export async function fetchActiveFlights(
+  auth: CompanionAuth,
+): Promise<ActiveFlightsResponse> {
+  const now = Date.now();
+  if (_activeFlightsCache && now - _activeFlightsCache.ts < FLIGHTS_TTL_MS) {
+    return _activeFlightsCache.value;
+  }
+  try {
+    const value = await get<ActiveFlightsResponse>('/api/flights/active', auth);
+    _activeFlightsCache = { ts: now, value };
+    return value;
+  } catch {
+    const empty: ActiveFlightsResponse = { flights: [], cached_at: Math.floor(now / 1000) };
+    _activeFlightsCache = { ts: now, value: empty };
+    return empty;
+  }
 }
 
 export { ApiError };
