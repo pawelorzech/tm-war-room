@@ -7,10 +7,14 @@
 // AFTER they connected. (Future enhancement: small "you have N unread"
 // summary on first connect.)
 
-import { ApiError, fetchNotificationsUnread } from '../lib/api';
+import { ApiError, fetchNotificationsUnread, markAllNotificationsRead } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
-import { showToast } from '../lib/notifications';
+import {
+  showToast,
+  setMarkAllReadHandler,
+  dismissAllToasts,
+} from '../lib/notifications';
 import { loadSettings, notificationsActive } from '../lib/settings';
 import type { NotificationItem } from '../types';
 
@@ -90,7 +94,27 @@ async function pollOnce(): Promise<void> {
   }
 }
 
+async function markAllAndClear(): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  try {
+    await markAllNotificationsRead(auth);
+    // Empty the tray immediately so the click feels responsive — the next
+    // poll will see no unread, so nothing comes back. We also bump lastSeen
+    // to the current max so if the poll lands mid-flight it doesn't re-toast.
+    dismissAllToasts();
+  } catch (err) {
+    // Soft-fail: backend marked nothing, leave the tray alone so the user
+    // can retry. Auth errors clear the token via the polling path's normal
+    // error handling on the next tick.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      clearAuth();
+    }
+  }
+}
+
 export function startNotificationToasts(): PollHandle {
+  setMarkAllReadHandler(markAllAndClear);
   return startPolling({
     name: 'notifications',
     intervalMs: 45_000,

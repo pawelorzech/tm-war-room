@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.45.1";
+export const CURRENT_VERSION = "1.46.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.46.0",
+    date: "2026-05-16",
+    title: "Companion v0.23 — Clear all inbox toasts in one click",
+    changes: [
+      {
+        type: "feat",
+        summary: "Mark-all-read button in the Companion notification toast tray",
+        detail: "When you have one or more TM Hub inbox toasts on screen (bottom-right corner), a small \"Mark all read\" pill now sits below them. Click it once and the tray clears immediately — and the unread badge in TM Hub follows on its next poll. Button auto-hides when the tray is empty so it never lingers with nothing to do.",
+      },
+    ],
+  },
   {
     version: "1.45.1",
     date: "2026-05-16",
