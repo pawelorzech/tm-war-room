@@ -99,7 +99,9 @@ export function renderClaimButton(opts: RenderOpts): void {
           : BTN_STYLE_BASE);
       btn.disabled = false;
       btn.innerHTML = '🎯 Claim';
-      btn.title = `Claim ${opts.targetName} for 15 minutes`;
+      btn.title =
+        `Claim ${opts.targetName} for 15 minutes\n` +
+        `Source: TM Hub claims service (faction-wide, auto-expires at 15:00)`;
       return;
     }
     const secondsLeft = Math.max(0, claim.expires_at - Math.floor(Date.now() / 1000));
@@ -112,7 +114,7 @@ export function renderClaimButton(opts: RenderOpts): void {
           : BTN_STYLE_BASE + BTN_STYLE_OWN);
       btn.disabled = false;
       btn.innerHTML = `🎯 Release (${escapeHtml(mmss)} left)`;
-      btn.title = 'Cancel your claim';
+      btn.title = 'Cancel your claim (Source: TM Hub claims service)';
     } else {
       btn.style.cssText =
         (opts.variant === 'block'
@@ -121,7 +123,9 @@ export function renderClaimButton(opts: RenderOpts): void {
       btn.disabled = true;
       const who = claim.claimer_name || `[${claim.claimer_id}]`;
       btn.innerHTML = `🎯 Claimed by ${escapeHtml(who)} (${escapeHtml(mmss)})`;
-      btn.title = `${who} claimed this target — wait or pick another`;
+      btn.title =
+        `${who} claimed this target — wait or pick another\n` +
+        `Source: TM Hub claims service (faction-wide, 15-min TTL)`;
     }
   };
 

@@ -52,9 +52,36 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.49.0";
+export const CURRENT_VERSION = "1.50.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.0",
+    date: "2026-05-16",
+    title: "Intel Pack — server-backed scouting suite (FF fallback, flights, activity, hit claims)",
+    changes: [
+      {
+        type: "feat",
+        summary: "Intel Pack — FF score fallback when no spy estimate is available",
+        detail: "When a target has no fresh spy data, the Companion now shows a FFScouter-style FF chip on profile, attack, and roster pages with the dominant stat (STR / DEF / SPD / DEX) you should counter. Spy data still wins everywhere we have it — the FF chip only kicks in as a fallback, so you no longer click blind on un-scouted targets. Flag-gated, server-computed, cached 60s.",
+      },
+      {
+        type: "feat",
+        summary: "Intel Pack — flight tracker with 60s server-side polling and ticket-class detection",
+        detail: "TM Hub now polls Torn every 60s for faction departures and renders a ✈️ flight pill on roster/profile/attack pages with the destination, ticket class (standard / private / business / WLT / book), and predicted landing time. The /travel page surfaces an airborne section listing everyone currently in flight. Server-side detection means a departure is captured even when nobody has the tab open — useful for chasing landings during ranked wars.",
+      },
+      {
+        type: "feat",
+        summary: "Intel Pack — 7x24 activity heatmap of when each player is online",
+        detail: "Backend now samples last_action.timestamp every 5 minutes and bins the result into a 7-day x 24-UTC-hour matrix (14-day rolling retention). /team row details show the full heatmap; the Companion drops an 'Most active 14:00-18:00 UTC' chip on /profile.php. Outsiders the faction is scoping get enrolled organically the first time a member opens their profile in TM Hub or the Companion — so the dataset grows without leadership doing anything.",
+      },
+      {
+        type: "feat",
+        summary: "Intel Pack — hit-call claims to stop two teammates wasting energy on the same kill",
+        detail: "One-click 🎯 Claim button on the Companion (profile, hospital rows, attack-end screen) reserves a target for 15 minutes — faction-wide visibility, auto-expires, can be released manually any time. The /chain page embeds an Active Claims panel with a live SSE stream so updates arrive instantly; the frontend falls back to 5s polling if SSE drops. Bundled with a new /guide/intel-pack explainer page and an FAQ covering how spy/FF interplay works, who can see your heatmap, and what happens to expired claims.",
+      },
+    ],
+  },
   {
     version: "1.49.0",
     date: "2026-05-16",
