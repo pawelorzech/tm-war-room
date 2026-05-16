@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { fmtCD } from "@/lib/format";
 import { Avatar } from "@/components/ui/Avatar";
 import { MemberCard, getReadiness } from "./MemberCard";
@@ -8,6 +8,8 @@ import type { Readiness } from "./MemberCard";
 import type { FactionMember, DetailResponse } from "@/types/war";
 import { isWarActive } from "./ChainStatus";
 import type { OverviewResponse } from "@/types/war";
+import { MemberActivityPanel } from "@/components/intel/MemberActivityPanel";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 type SortCol = "name" | "level" | "online" | "state" | "energy" | "position" | null;
 
@@ -56,11 +58,24 @@ const DOT_GLOW: Record<Readiness, string> = {
 
 export function MemberTable({ members, detail, overview }: MemberTableProps) {
   const [sort, setSort] = useState<SortState>({ col: null, asc: true });
+  // Phase 3B: row expansion for the activity heatmap (and any future row-
+  // detail panels Phase 4B adds — see the dedicated section below).
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const flags = useFeatureFlags();
 
   const dm = detail?.members || {};
   const yataDown = detail?.yata_down || false;
   const warActive = isWarActive(overview);
   const now = Math.floor(Date.now() / 1000);
+
+  const toggleExpanded = (id: number) =>
+    setExpandedId((prev) => (prev === id ? null : id));
+  // Don't show the disclosure column at all when no row-detail feature flag
+  // is on — keeps the table identical to today's layout in production until
+  // ENABLE_ACTIVITY (or a future Phase 4B flag) flips on.
+  const hasRowDetail = flags.activity;
+  // Column span for the expanded detail row. Update if column count changes.
+  const TABLE_COLSPAN = hasRowDetail ? 14 : 13;
 
   const sorted = useMemo(() => {
     const ord: Record<Readiness, number> = {
@@ -188,6 +203,9 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-text-muted text-xs uppercase tracking-wider">
+              {/* Phase 3B: row-detail disclosure column — only present when at
+                  least one row-detail feature flag is on. */}
+              {hasRowDetail && <th className="py-2.5 px-1 w-6"></th>}
               <th className="py-2.5 px-2 w-6"></th>
               <th
                 className="py-2.5 px-2 cursor-pointer hover:text-text-primary transition-colors select-none"
@@ -391,11 +409,25 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                 m.last_action.status === "Offline" &&
                 m.status.state !== "Hospital";
 
+              const isExpanded = expandedId === m.id;
               return (
+                <React.Fragment key={m.id}>
                 <tr
-                  key={m.id}
                   className="border-b border-border-light hover:bg-bg-elevated/50 transition-colors group"
                 >
+                  {hasRowDetail && (
+                    <td className="py-2 px-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(m.id)}
+                        className="text-text-muted hover:text-torn-green transition-colors px-1 py-0.5 rounded select-none"
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                      >
+                        {isExpanded ? "▼" : "▶"}
+                      </button>
+                    </td>
+                  )}
                   <td className="py-2 px-2">
                     <span
                       className={`w-2.5 h-2.5 rounded-full inline-block ${DOT_GLOW[r]} ${
@@ -473,6 +505,24 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
                     )}
                   </td>
                 </tr>
+                {/* Phase 3B: row-detail panel. Keep this section clearly
+                    delimited \u2014 Phase 4B (hit-claims) will add its own panel
+                    in the same expanded row. */}
+                {isExpanded && hasRowDetail && (
+                  <tr className="bg-bg-elevated/30">
+                    <td colSpan={TABLE_COLSPAN} className="py-3 px-4">
+                      <div className="space-y-3 max-w-3xl">
+                        {/* \u2500\u2500 Phase 3B: Activity heatmap \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+                        {flags.activity && <MemberActivityPanel playerId={m.id} />}
+                        {/* \u2500\u2500 /Phase 3B \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+
+                        {/* \u2500\u2500 Phase 4B claim-list slot (reserved) \u2500\u2500\u2500\u2500\u2500\u2500 */}
+                        {/* \u2500\u2500 /Phase 4B \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               );
             })}
           </tbody>

@@ -5,10 +5,7 @@
 //
 // One-shot fetch on mount, then re-poll every 60s. The endpoint
 // (`/api/extension/feature-flags`) is in PUBLIC_API_PATHS — no auth header
-// needed, no X-Player-Id needed, safe to call before the user logs in. We
-// still go through the shared apiFetch path so credentials are sent (no-op
-// here) and sliding-session renewal is handled if the user happens to be
-// logged in.
+// needed, no X-Player-Id needed, safe to call before the user logs in.
 //
 // All-false defaults mean a page can render and bail on the feature in the
 // same paint — no hydration mismatch.
@@ -31,8 +28,6 @@ const DEFAULT_FLAGS: FeatureFlags = {
 
 const REFRESH_INTERVAL_MS = 60_000;
 
-// Module-level cache shared across hook callers so a /travel page + a
-// future /flights page don't double-fetch.
 let _cached: { value: FeatureFlags; fetchedAt: number } | null = null;
 let _inflight: Promise<FeatureFlags> | null = null;
 
@@ -54,7 +49,6 @@ async function loadFlags(): Promise<FeatureFlags> {
       _cached = { value, fetchedAt: Date.now() };
       return value;
     } catch {
-      // Backend down or the route hasn't deployed yet — keep dark.
       _cached = { value: DEFAULT_FLAGS, fetchedAt: Date.now() };
       return DEFAULT_FLAGS;
     } finally {
