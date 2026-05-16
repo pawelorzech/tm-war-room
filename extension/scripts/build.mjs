@@ -55,7 +55,9 @@ const options = {
   // (Tampermonkey, Violentmonkey, Torn PDA) work fine with minified IIFEs.
   // We keep readable identifiers so the rare bug report with a stack trace
   // is still useful — the size win comes mostly from whitespace + syntax
-  // shrinking anyway (~155KB → ~85KB observed).
+  // shrinking anyway. Sprint 0 baseline (2026-05-17): 184.5 KB raw,
+  // 44.1 KB gzipped, 37.0 KB brotli (q=11). Production nginx serves the
+  // brotli_static pre-compressed file. See extension/docs/perf-baseline.md.
   minifyWhitespace: true,
   minifySyntax: true,
   minifyIdentifiers: false,

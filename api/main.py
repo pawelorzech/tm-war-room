@@ -460,6 +460,8 @@ app.include_router(armoury_router)
 app.include_router(preferences_router)
 app.include_router(war_off_limits_router)
 app.include_router(extension_router)
+from api.routers.companion_rum import router as companion_rum_router
+app.include_router(companion_rum_router)
 app.include_router(ff_router)
 app.include_router(flights_router)
 app.include_router(activity_router)
@@ -498,6 +500,11 @@ PUBLIC_API_PATHS = {
     "/api/flights/healthz",
     "/api/activity/healthz",
     "/api/claims/healthz",
+    # Companion RUM beacon. The userscript fires anonymous performance
+    # signals without an Authorization header; schema enforces zero-PII at
+    # the boundary (api/routers/companion_rum.py). See
+    # extension/docs/rum-privacy-review.md.
+    "/api/companion/rum",
 }
 
 @app.get("/api/settings/public")

@@ -299,6 +299,50 @@ export default function InstallPage() {
           </ul>
         </section>
 
+        <section className="bg-bg-card border border-text-secondary/15 rounded-xl p-6 space-y-3">
+          <h2 className="text-lg font-semibold">Telemetry</h2>
+          <p className="text-sm text-text-secondary">
+            The Companion sends anonymous performance signals to{' '}
+            <span className="text-text-primary">hub.tri.ovh</span> so we can spot regressions without
+            asking everyone for bug reports. Zero PII. The exact field list is enumerated and signed off in{' '}
+            <a
+              href="https://github.com/Bombel/tm-war-room/blob/master/extension/docs/rum-privacy-review.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-torn-green underline"
+            >
+              the privacy review document
+            </a>
+            .
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3 text-xs">
+            <div className="bg-bg-primary/40 border border-text-secondary/10 rounded-lg p-3 space-y-1">
+              <p className="text-text-primary font-medium">What's sent</p>
+              <ul className="text-text-secondary space-y-1 list-disc list-inside">
+                <li>Time-to-first-overlay, blocking time, paint timings</li>
+                <li>Polls per minute (visible vs hidden tab)</li>
+                <li>Long-task counts and error counts (no messages)</li>
+                <li>Page kind: <code>profile</code>, <code>attack</code>, etc.</li>
+                <li>Companion version</li>
+              </ul>
+            </div>
+            <div className="bg-bg-primary/40 border border-text-secondary/10 rounded-lg p-3 space-y-1">
+              <p className="text-text-primary font-medium">What's never sent</p>
+              <ul className="text-text-secondary space-y-1 list-disc list-inside">
+                <li>Your player ID, faction ID, or names</li>
+                <li>Full URLs, search params, referrer</li>
+                <li>User-agent, IP, cookies</li>
+                <li>Message content from chat / forums / mail</li>
+                <li>Error stacks, file paths, line numbers</li>
+              </ul>
+            </div>
+          </div>
+          <p className="text-text-muted text-[11px] pt-2">
+            Opt-out is coming as a toggle in the status chip Settings sheet. Until then, the beacon is gated by a
+            backend kill switch and is dark by default — the privacy doc above explains the rollout plan.
+          </p>
+        </section>
+
         <footer className="text-text-muted text-xs text-center pt-4 border-t border-text-secondary/15">
           <p>
             TM Hub Companion is open source and runs locally in your browser.

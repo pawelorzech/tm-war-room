@@ -62,3 +62,8 @@ ENABLE_FF_SCORE: bool = os.getenv("ENABLE_FF_SCORE", "0") == "1"
 ENABLE_FLIGHTS: bool = os.getenv("ENABLE_FLIGHTS", "0") == "1"
 ENABLE_ACTIVITY: bool = os.getenv("ENABLE_ACTIVITY", "0") == "1"
 ENABLE_HIT_CALLING: bool = os.getenv("ENABLE_HIT_CALLING", "0") == "1"
+# Companion RUM beacon (Sprint 0 of the perf optimization plan). Defaults OFF
+# until the privacy review document (extension/docs/rum-privacy-review.md) is
+# signed off; then ramped 1% → 10% → 100% via this flag. See plan
+# Plans/chc-zadba-bardoz-snazzy-wave.md.
+ENABLE_RUM: bool = os.getenv("ENABLE_RUM", "0") == "1"

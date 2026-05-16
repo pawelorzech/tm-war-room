@@ -710,77 +710,22 @@ export function fetchActiveClaims(auth: CompanionAuth): Promise<ClaimActiveRespo
   return get<ClaimActiveResponse>('/api/claims/active', auth);
 }
 
-// SSE-equivalent. The browser's EventSource API cannot set the required
-// X-Player-Id header, and the userscript sandbox doesn't expose a streaming
-// fetch primitive — so we mirror the chat-dock pattern and poll
-// /api/claims/active every 5s. The signature still matches an event-stream
-// shape so the caller is identical to what a real EventSource would be.
-export interface ClaimStreamEvent {
-  type: 'claim.snapshot' | 'claim.created' | 'claim.released' | 'claim.hit' | 'claim.expired';
-  claim?: ClaimRow;
-  claims?: ClaimRow[];
-}
-
-const CLAIM_POLL_MS = 5_000;
-const CLAIM_BACKOFF_MAX_MS = 60_000;
+// Live stream of TM Hub faction claim events. Extracted to lib/claim-stream
+// in Sprint 1 so the polling + Page Visibility gating can be unit-tested.
+// The function here is a thin wrapper that wires the default fetcher; the
+// behaviour contract lives in lib/claim-stream.ts.
+import { createClaimStream, type ClaimStreamEvent } from './claim-stream';
+export type { ClaimStreamEvent };
 
 export function streamClaims(
   getAuthFn: () => CompanionAuth | null,
   onEvent: (e: ClaimStreamEvent) => void,
 ): () => void {
-  let stopped = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let backoff = CLAIM_POLL_MS;
-  // Local mirror so a poll tick can synthesize created/released/hit deltas.
-  const last = new Map<number, ClaimRow>();
-  let primed = false;
-
-  const tick = async () => {
-    if (stopped) return;
-    const auth = getAuthFn();
-    if (!auth) {
-      timer = setTimeout(tick, CLAIM_POLL_MS);
-      return;
-    }
-    try {
-      const r = await fetchActiveClaims(auth);
-      const current = new Map(r.claims.map((c) => [c.target_id, c]));
-      if (!primed) {
-        // First poll → emit a snapshot identical to the SSE replay frame.
-        onEvent({ type: 'claim.snapshot', claims: r.claims });
-        primed = true;
-      } else {
-        // Diff: anything new = created; anything missing = released or
-        // expired (we can't distinguish via /active; mark as released which
-        // the UI treats the same way — the cleanup is what matters).
-        for (const c of r.claims) {
-          if (!last.has(c.target_id)) onEvent({ type: 'claim.created', claim: c });
-        }
-        for (const [pid, prev] of last) {
-          if (!current.has(pid)) onEvent({ type: 'claim.released', claim: prev });
-        }
-      }
-      last.clear();
-      current.forEach((v, k) => last.set(k, v));
-      backoff = CLAIM_POLL_MS;
-    } catch (err) {
-      // Auth blew up — keep polling; the bus consumers will skip on null auth.
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        backoff = Math.min(backoff * 2, CLAIM_BACKOFF_MAX_MS);
-      } else {
-        backoff = Math.min(backoff * 2, CLAIM_BACKOFF_MAX_MS);
-      }
-    }
-    if (!stopped) timer = setTimeout(tick, backoff);
-  };
-
-  // Kick off on next tick so the caller can install listeners synchronously.
-  timer = setTimeout(tick, 0);
-
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-  };
+  const handle = createClaimStream(getAuthFn, onEvent, {
+    fetcher: fetchActiveClaims,
+    isAuthError: (err) => err instanceof ApiError && (err.status === 401 || err.status === 403),
+  });
+  return handle.stop;
 }
 
 export { ApiError };

@@ -18,7 +18,7 @@ def test_feature_flags_default_all_false():
     resp = client.get("/api/extension/feature-flags")
     assert resp.status_code == 200
     body = resp.json()
-    assert set(body.keys()) == {"ff_score", "flights", "activity", "hit_calling"}
+    assert set(body.keys()) == {"ff_score", "flights", "activity", "hit_calling", "rum_enabled"}
     for key, value in body.items():
         assert isinstance(value, bool), f"{key} is not a bool: {value!r}"
 
@@ -35,6 +35,7 @@ def test_feature_flags_reflect_config_module(monkeypatch):
     monkeypatch.setattr(ext_mod, "ENABLE_FLIGHTS", False)
     monkeypatch.setattr(ext_mod, "ENABLE_ACTIVITY", True)
     monkeypatch.setattr(ext_mod, "ENABLE_HIT_CALLING", False)
+    monkeypatch.setattr(ext_mod, "ENABLE_RUM", True)
 
     app = FastAPI()
     app.include_router(ext_mod.router)
@@ -46,6 +47,7 @@ def test_feature_flags_reflect_config_module(monkeypatch):
         "flights": False,
         "activity": True,
         "hit_calling": False,
+        "rum_enabled": True,
     }
 
 

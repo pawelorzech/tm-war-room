@@ -30,6 +30,7 @@ from api.config import (
     ENABLE_FF_SCORE,
     ENABLE_FLIGHTS,
     ENABLE_HIT_CALLING,
+    ENABLE_RUM,
     FACTION_ID,
     JWT_SECRET,
 )
@@ -88,4 +89,5 @@ async def feature_flags() -> dict[str, bool]:
         "flights": ENABLE_FLIGHTS,
         "activity": ENABLE_ACTIVITY,
         "hit_calling": ENABLE_HIT_CALLING,
+        "rum_enabled": ENABLE_RUM,
     }
