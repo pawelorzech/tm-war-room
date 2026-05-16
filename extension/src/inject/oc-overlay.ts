@@ -17,6 +17,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { OC_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { cardBase } from '../lib/card-styles';
 import type { OcCrime } from '../types';
 import { HUB_ORIGIN } from '../env';
 import { escapeHtml } from '../lib/format';
@@ -111,33 +112,7 @@ function viewerStatus(crimes: OcCrime[], viewerId: number): {
   return { inCrime: inCrime ?? null, isReady: !inCrime };
 }
 
-const STYLES = `
-  :host { all: initial; display: block; width: 100%; }
-  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .card {
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-    border: 1px solid #30363d;
-    border-left: 3px solid #58a6ff;
-    border-radius: 8px;
-    padding: 12px;
-    margin: 8px 0;
-    color: #c9d1d9;
-    font-size: 12px;
-    line-height: 1.45;
-    width: 100%;
-    display: block;
-  }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-  }
-  .title { font-weight: 700; color: #58a6ff; font-size: 13px; }
-  .link { color: #6e7681; font-size: 11px; text-decoration: none; white-space: nowrap; }
-  .link:hover { color: #58a6ff; text-decoration: underline; }
+const STYLES = cardBase('#58a6ff') + `
   .status-pill {
     display: inline-flex;
     align-items: center;
@@ -202,23 +177,7 @@ const STYLES = `
     color: #58a6ff;
     font-weight: 700;
   }
-  .empty { color: #6e7681; font-size: 11px; margin-top: 4px; }
-  .err {
-    background: rgba(248,81,73,0.08);
-    border: 1px solid rgba(248,81,73,0.3);
-    color: #c9d1d9;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    margin-top: 6px;
-  }
-  .footer {
-    color: #6e7681;
-    font-size: 10px;
-    margin-top: 10px;
-    padding-top: 6px;
-    border-top: 1px solid #21262d;
-  }
+  .footer { margin-top: 10px; }
 `;
 
 function cprBadgeClass(cpr: number | null): string {
