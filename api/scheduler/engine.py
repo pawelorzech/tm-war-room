@@ -165,6 +165,15 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
             id="activity_purge_schedule",
         )
         logger.info("Intel Pack: activity_tick (5min) + activity_purge (24h) registered")
+    if _intel_cfg.ENABLE_HIT_CALLING:
+        from api.scheduler.jobs.claims_sweeper import run_claims_sweeper
+        await scheduler.configure_task("claims_sweeper", func=run_claims_sweeper)
+        await scheduler.add_schedule(
+            "claims_sweeper",
+            IntervalTrigger(seconds=60),
+            id="claims_sweeper_schedule",
+        )
+        logger.info("Intel Pack: claims_sweeper registered (60s)")
 
     # Track every completed job so /api/admin/scheduler/status can answer
     # "is the collector still running?" without grepping container logs.

@@ -200,6 +200,13 @@ async def lifespan(app: FastAPI):
     claims_mod.key_store = key_store
     claims_mod.torn_client = torn_client
     claims_mod.claim_repo = ClaimRepository(db_path="data/keys.db")
+    # Phase 4A: claim SSE fan-out manager (mirror of chat_manager — local
+    # queues + Redis pub/sub for cross-worker). Started here so its Redis
+    # subscriber is up before the first claim request can arrive.
+    from api.claim_manager import ClaimManager
+    claim_mgr = ClaimManager(key_store=key_store)
+    claims_mod.claim_manager = claim_mgr
+    await claim_mgr.start()
 
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
@@ -416,6 +423,7 @@ async def lifespan(app: FastAPI):
     async with _mcp_app.lifespan(_mcp_app):
         yield
     await chat_mgr.close_all()
+    await claim_mgr.stop()
     await app_scheduler.__aexit__(None, None, None)
     await leader_election.release()
     await close_redis()
