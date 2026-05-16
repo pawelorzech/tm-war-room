@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.47.0";
+export const CURRENT_VERSION = "1.47.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.47.1",
+    date: "2026-05-16",
+    title: "Changelog page no longer triggers extra re-renders on open",
+    changes: [
+      {
+        type: "fix",
+        summary: "Opening the changelog stops the 'new version' banner without extra re-render cascade",
+        before: "Visiting /changelog tried to dismiss the 'new version' banner while the page was still rendering, which made React re-run the whole shell once or twice extra and showed a warning in the browser console.",
+        after: "The dismiss now runs once after the page has mounted, so the shell renders exactly once and the warning is gone.",
+        cause: "The dismiss call was placed in the component body instead of an effect, so each render scheduled another state update.",
+      },
+    ],
+  },
   {
     version: "1.47.0",
     date: "2026-05-16",

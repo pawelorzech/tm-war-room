@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CHANGELOG, CURRENT_VERSION } from '@/data/changelog';
 import type { ChangelogChange, ChangelogEntry } from '@/data/changelog';
 import { useVersionNotice } from '@/hooks/useVersionNotice';
@@ -103,10 +103,12 @@ function VersionCard({ entry, defaultOpen }: { entry: ChangelogEntry; defaultOpe
 export default function ChangelogPage() {
   const { dismiss, showNotice } = useVersionNotice();
 
-  // Auto-dismiss on visiting changelog
-  if (showNotice) {
-    dismiss();
-  }
+  // Auto-dismiss on visiting changelog. Must run in effect, not render body —
+  // calling dismiss() during render schedules setState on a parent (Shell reads
+  // showNotice too), triggering a re-render cascade React flags as a warning.
+  useEffect(() => {
+    if (showNotice) dismiss();
+  }, [showNotice, dismiss]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
