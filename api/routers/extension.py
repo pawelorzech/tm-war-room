@@ -25,7 +25,14 @@ from api.auth import (
     TOKEN_TYPE_EXTENSION,
     create_jwt,
 )
-from api.config import FACTION_ID, JWT_SECRET
+from api.config import (
+    ENABLE_ACTIVITY,
+    ENABLE_FF_SCORE,
+    ENABLE_FLIGHTS,
+    ENABLE_HIT_CALLING,
+    FACTION_ID,
+    JWT_SECRET,
+)
 
 logger = logging.getLogger("tm-hub.extension")
 
@@ -63,4 +70,22 @@ async def issue_token(x_player_id: int = Header()):
         "player_id": x_player_id,
         "player_name": player_name,
         "expires_hours": EXTENSION_TTL_HOURS,
+    }
+
+
+@router.get("/feature-flags")
+async def feature_flags() -> dict[str, bool]:
+    """Public read of the FFScouter-parity feature flags.
+
+    The Companion fetches this on startup (no token required, see
+    PUBLIC_API_PATHS in main.py) and caches the result for 60s. Flags are
+    non-secret booleans — the only thing leaking by serving this anonymously
+    is which features are currently on, which is fine. Phases 1-4 flip these
+    via env vars on the production deploy.
+    """
+    return {
+        "ff_score": ENABLE_FF_SCORE,
+        "flights": ENABLE_FLIGHTS,
+        "activity": ENABLE_ACTIVITY,
+        "hit_calling": ENABLE_HIT_CALLING,
     }

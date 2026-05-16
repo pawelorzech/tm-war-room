@@ -85,6 +85,14 @@ from api.routers.war_off_limits import router as war_off_limits_router
 import api.routers.war_off_limits as war_off_limits_mod
 from api.routers.extension import router as extension_router
 import api.routers.extension as extension_mod
+from api.routers.ff import router as ff_router
+import api.routers.ff as ff_mod
+from api.routers.flights import router as flights_router
+import api.routers.flights as flights_mod
+from api.routers.activity import router as activity_router
+import api.routers.activity as activity_mod
+from api.routers.claims import router as claims_router
+import api.routers.claims as claims_mod
 from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
@@ -167,6 +175,25 @@ async def lifespan(app: FastAPI):
 
     extension_mod.key_store = key_store
     extension_mod.torn_client = torn_client
+
+    # FFScouter parity (Phase 0): stub routers wired with key_store + torn_client
+    # so Phases 1-4 can flesh out endpoints without touching this file again.
+    from api.db.repos.ff import FFRepository
+    from api.db.repos.flights import FlightRepository
+    from api.db.repos.activity import ActivityRepository
+    from api.db.repos.claims import ClaimRepository
+    ff_mod.key_store = key_store
+    ff_mod.torn_client = torn_client
+    ff_mod.ff_repo = FFRepository(db_path="data/keys.db")
+    flights_mod.key_store = key_store
+    flights_mod.torn_client = torn_client
+    flights_mod.flight_repo = FlightRepository(db_path="data/keys.db")
+    activity_mod.key_store = key_store
+    activity_mod.torn_client = torn_client
+    activity_mod.activity_repo = ActivityRepository(db_path="data/keys.db")
+    claims_mod.key_store = key_store
+    claims_mod.torn_client = torn_client
+    claims_mod.claim_repo = ClaimRepository(db_path="data/keys.db")
 
     loot_mod.torn_client = torn_client
     loot_mod.tornstats_key = TORNSTATS_API_KEY
@@ -414,6 +441,10 @@ app.include_router(armoury_router)
 app.include_router(preferences_router)
 app.include_router(war_off_limits_router)
 app.include_router(extension_router)
+app.include_router(ff_router)
+app.include_router(flights_router)
+app.include_router(activity_router)
+app.include_router(claims_router)
 
 # CORS for the TM Hub Companion (browser extension / userscript running on
 # torn.com). Origins are explicit — wildcard would forbid credentials and we
@@ -436,6 +467,10 @@ PUBLIC_API_PATHS = {
     "/api/keys",
     "/api/settings/public",
     "/api/logout",
+    # FFScouter parity (Phase 0): the Companion fetches feature flags before it
+    # has a token (it caches them for 60s and uses them to dark-launch
+    # overlays). Flags are non-secret booleans — safe to serve unauthenticated.
+    "/api/extension/feature-flags",
 }
 
 @app.get("/api/settings/public")

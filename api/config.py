@@ -54,3 +54,11 @@ VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY")
 VAPID_MAILTO = os.environ.get("VAPID_MAILTO", "mailto:admin@tri.ovh")
 
 MCP_SECRET: str = os.environ.get("MCP_SECRET", "")
+
+# FFScouter parity feature flags. All default OFF — Phases 1-4 flip these on
+# behind a deploy. Exposed to the Companion via /api/extension/feature-flags so
+# the userscript can dark-launch overlays without a rebuild.
+ENABLE_FF_SCORE: bool = os.getenv("ENABLE_FF_SCORE", "0") == "1"
+ENABLE_FLIGHTS: bool = os.getenv("ENABLE_FLIGHTS", "0") == "1"
+ENABLE_ACTIVITY: bool = os.getenv("ENABLE_ACTIVITY", "0") == "1"
+ENABLE_HIT_CALLING: bool = os.getenv("ENABLE_HIT_CALLING", "0") == "1"
