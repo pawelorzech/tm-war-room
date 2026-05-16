@@ -52,9 +52,26 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.8";
+export const CURRENT_VERSION = "1.51.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.51.0",
+    date: "2026-05-17",
+    title: "Chat — grouped messages and avatars",
+    changes: [
+      {
+        type: "improve",
+        summary: "Consecutive messages from the same person no longer repeat the nick and timestamp",
+        detail: "When the same player sends several messages in a row within five minutes, only the first one shows their avatar, name and time. The rest line up underneath as continuation lines, with the time still revealed on hover in the left gutter. Less visual noise, easier to read long bursts of conversation.",
+      },
+      {
+        type: "improve",
+        summary: "Companion chat dock now shows member avatars",
+        detail: "The floating chat panel injected into torn.com pages now displays the same circular member avatars as the full TM Hub chat, with initials as a fallback for members whose photo has not been cached yet. Same five-minute grouping rule applies — repeated authors collapse into a single block.",
+      },
+    ],
+  },
   {
     version: "1.50.8",
     date: "2026-05-17",
