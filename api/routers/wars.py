@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import logging
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -67,18 +68,32 @@ def _parse_factions(factions_data) -> list[dict]:
 
 @router.get("")
 async def war_history():
-    """Get faction war history: ranked wars, raids, territory wars."""
+    """Get faction war history: ranked wars, raids, territory wars.
+
+    The two Torn upstream calls (`fetch_war_history` for v2/faction/wars and
+    `fetch_ranked_wars` for v1/torn/rankedwars) are independent — we run them
+    concurrently via `asyncio.gather(return_exceptions=True)` so total latency
+    is one round-trip instead of two. `return_exceptions=True` preserves the
+    original per-call partial-error tolerance: one endpoint failing does not
+    tank the other's data.
+    """
     if not torn_client:
         raise HTTPException(status_code=503, detail="Not initialized")
 
-    try:
-        raw = await torn_client.fetch_war_history()
-    except Exception as e:
-        logger.error("Failed to fetch war history: %s", e)
-        return {"ranked": None, "raids": [], "territory": []}
+    raw, past_wars_raw = await asyncio.gather(
+        torn_client.fetch_war_history(),
+        torn_client.fetch_ranked_wars(),
+        return_exceptions=True,
+    )
+
+    if isinstance(raw, Exception):
+        logger.error("Failed to fetch war history: %s", raw)
+        raw = None
 
     if not raw or not isinstance(raw, dict):
-        return {"ranked": None, "raids": [], "territory": []}
+        # Still try to surface past ranked wars below — they're an independent call.
+        result = {"ranked": None, "raids": [], "territory": []}
+        return _attach_past_ranked(result, past_wars_raw)
 
     logger.info("War history keys: %s", list(raw.keys()))
 
@@ -160,20 +175,39 @@ async def war_history():
     result["raids"].sort(key=lambda r: r.get("start", 0), reverse=True)
     result["territory"].sort(key=lambda t: t.get("start", 0), reverse=True)
 
-    # Fetch past ranked wars from torn/rankedwars
+    return _attach_past_ranked(result, past_wars_raw)
+
+
+def _attach_past_ranked(result: dict, past_wars_raw) -> dict:
+    """Parse `past_wars_raw` (from torn/rankedwars) into `result["past_ranked"]`.
+
+    `past_wars_raw` is whatever `asyncio.gather(..., return_exceptions=True)`
+    handed us — could be a list (happy path), Exception (upstream failure),
+    or something unexpected. Always returns `result` with `past_ranked` set.
+    """
+    if isinstance(past_wars_raw, Exception):
+        logger.error("Failed to fetch past ranked wars: %s", past_wars_raw)
+        result["past_ranked"] = []
+        return result
+
     try:
-        past_wars_raw = await torn_client.fetch_ranked_wars()
-        logger.info("Past ranked wars: type=%s, len=%s", type(past_wars_raw).__name__, len(past_wars_raw) if past_wars_raw else 0)
+        logger.info(
+            "Past ranked wars: type=%s, len=%s",
+            type(past_wars_raw).__name__,
+            len(past_wars_raw) if past_wars_raw else 0,
+        )
         if past_wars_raw and len(past_wars_raw) > 0:
             first = past_wars_raw[0]
-            logger.info("First past war keys: %s", list(first.keys())[:10] if isinstance(first, dict) else "not dict")
+            logger.info(
+                "First past war keys: %s",
+                list(first.keys())[:10] if isinstance(first, dict) else "not dict",
+            )
         past_wars = []
-        for w in past_wars_raw:
+        for w in past_wars_raw or []:
             if not isinstance(w, dict):
                 continue
             factions = _parse_factions(w.get("factions", {}))
             # Check if our faction was involved
-            from api.config import FACTION_ID
             is_ours = any(f["faction_id"] == FACTION_ID for f in factions) if factions else False
             past_wars.append({
                 "is_ours": is_ours,
@@ -186,7 +220,7 @@ async def war_history():
         past_wars.sort(key=lambda w: w.get("start", 0), reverse=True)
         result["past_ranked"] = past_wars[:20]
     except Exception as e:
-        logger.error("Failed to fetch past ranked wars: %s", e)
+        logger.error("Failed to parse past ranked wars: %s", e)
         result["past_ranked"] = []
 
     return result
