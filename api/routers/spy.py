@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel
-from api.services.spy import SpyService, spy_reported_at
+from api.services.spy import SpyService, is_real_spy, spy_reported_at
 from api.admin import require_admin
 
 router = APIRouter(prefix="/api/spy", tags=["spy"])
@@ -224,7 +224,7 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
             continue
         m, ts_data, yata_data = result
         touched = False
-        if not isinstance(ts_data, Exception) and ts_data and ts_data.get("total", 0) > 0:
+        if not isinstance(ts_data, Exception) and is_real_spy(ts_data):
             svc.repo.upsert_report(
                 player_id=m.id, player_name=ts_data.get("player_name") or m.name,
                 source="tornstats", strength=ts_data["strength"], defense=ts_data["defense"],
@@ -233,7 +233,7 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
                 reported_at=spy_reported_at(ts_data.get("timestamp"), now_iso),
             )
             touched = True
-        if not isinstance(yata_data, Exception) and yata_data and yata_data.get("total", 0) > 0:
+        if not isinstance(yata_data, Exception) and is_real_spy(yata_data):
             svc.repo.upsert_report(
                 player_id=m.id, player_name=yata_data.get("player_name") or m.name,
                 source="yata", strength=yata_data["strength"], defense=yata_data["defense"],
@@ -297,7 +297,7 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
         now_iso = datetime.now(timezone.utc).isoformat()
         touched = False
         for (source, _), data in zip(tasks, results):
-            if isinstance(data, Exception) or not data or data.get("total", 0) <= 0:
+            if isinstance(data, Exception) or not is_real_spy(data):
                 continue
             svc.repo.upsert_report(
                 player_id=player_id, player_name=data.get("player_name"),

@@ -11,18 +11,27 @@ logger = logging.getLogger("tm-hub.jobs.refresh_spies")
 def _upsert_report(spy_service, player_id, stats, source, now_iso):
     """Upsert one source's spy report for a player. Returns True if written.
 
-    Skips empty (total<=0) responses so a missing spy in one source can't
-    overwrite a real estimate built from the other.
+    Two skip conditions:
+    1. Empty response (total<=0) — a missing spy in one source must not overwrite
+       a real estimate built from the other.
+    2. Estimate-only response (total>0 but per-stat all zero) — TornStats sometimes
+       returns a level-based total guess with "N/A" per-stat. After _num() in the
+       parser those become 0; we must not store the row, or refresh_estimate would
+       pick it as the freshest report and the UI would render a wrong total next
+       to four NaN/zero cells. See routers/spy._is_real_spy for the full rationale.
     """
     total = stats.get("total", 0) or 0
     if total <= 0:
         return False
+    strength = stats.get("strength", 0) or 0
+    defense = stats.get("defense", 0) or 0
+    speed = stats.get("speed", 0) or 0
+    dexterity = stats.get("dexterity", 0) or 0
+    if strength + defense + speed + dexterity <= 0:
+        return False
     spy_service.repo.upsert_report(
         player_id=player_id, player_name=stats.get("name"), source=source,
-        strength=stats.get("strength", 0) or 0,
-        defense=stats.get("defense", 0) or 0,
-        speed=stats.get("speed", 0) or 0,
-        dexterity=stats.get("dexterity", 0) or 0,
+        strength=strength, defense=defense, speed=speed, dexterity=dexterity,
         total=total,
         confidence="estimate",
         reported_at=spy_reported_at(stats.get("timestamp"), now_iso),
