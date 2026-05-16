@@ -52,6 +52,20 @@ const STYLES = `
     pointer-events: none;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
+  .mark-all {
+    pointer-events: auto;
+    align-self: flex-end;
+    background: rgba(22,27,34,0.92);
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font: 600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 4px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: none;
+  }
+  .mark-all:hover { color: #c9d1d9; border-color: #6e7681; }
+  .mark-all.visible { display: inline-block; }
   .toast {
     pointer-events: auto;
     background: #161b22;
@@ -112,6 +126,7 @@ let _initialized = false;
 const _shown = new Set<string>();
 const _queue: ToastInput[] = [];
 let _visibleCount = 0;
+let _markAllHandler: (() => void | Promise<void>) | null = null;
 
 function initHost(): ShadowRoot {
   const { shadow } = ensurePersistentHost({ kind: TOAST_HOST_KIND, zIndex: 999998 });
@@ -121,10 +136,28 @@ function initHost(): ShadowRoot {
     shadow.appendChild(style);
     const stack = document.createElement('div');
     stack.className = 'stack';
+    const button = document.createElement('button');
+    button.className = 'mark-all';
+    button.type = 'button';
+    button.textContent = 'Mark all read';
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void _markAllHandler?.();
+    });
+    stack.appendChild(button);
     shadow.appendChild(stack);
     _initialized = true;
   }
   return shadow;
+}
+
+function updateMarkAllVisibility(shadow: ShadowRoot): void {
+  const button = shadow.querySelector('.mark-all') as HTMLElement | null;
+  if (!button) return;
+  // Show only when we have a handler bound AND there's at least one toast on
+  // screen — clicking with nothing to clear would be a no-op.
+  if (_markAllHandler && _visibleCount > 0) button.classList.add('visible');
+  else button.classList.remove('visible');
 }
 
 function renderOne(input: ToastInput): void {
@@ -145,6 +178,7 @@ function renderOne(input: ToastInput): void {
   `;
   stack.appendChild(toast);
   _visibleCount += 1;
+  updateMarkAllVisibility(shadow);
 
   const dismiss = () => {
     toast.classList.add('leaving');
@@ -152,6 +186,7 @@ function renderOne(input: ToastInput): void {
       toast.remove();
       _visibleCount = Math.max(0, _visibleCount - 1);
       drainQueue();
+      updateMarkAllVisibility(shadow);
     }, 220);
   };
 
@@ -189,6 +224,36 @@ function drainQueue(): void {
     const next = _queue.shift()!;
     renderOne(next);
   }
+}
+
+/**
+ * Wire (or unwire) the "Mark all read" footer button in the toast tray.
+ * The button is shown only while there's at least one toast on screen AND
+ * a handler is bound, so it never sits there with nothing to do.
+ */
+export function setMarkAllReadHandler(handler: (() => void | Promise<void>) | null): void {
+  _markAllHandler = handler;
+  if (_initialized) {
+    const shadow = initHost();
+    updateMarkAllVisibility(shadow);
+  }
+}
+
+/** Immediately dismiss every toast currently in the tray. */
+export function dismissAllToasts(): void {
+  if (!_initialized) return;
+  const shadow = initHost();
+  const toasts = shadow.querySelectorAll('.toast');
+  toasts.forEach((t) => {
+    t.classList.add('leaving');
+    setTimeout(() => {
+      t.remove();
+      _visibleCount = Math.max(0, _visibleCount - 1);
+      updateMarkAllVisibility(shadow);
+    }, 220);
+  });
+  // Clear queued items too so the tray actually empties.
+  _queue.length = 0;
 }
 
 /**

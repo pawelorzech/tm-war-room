@@ -53,6 +53,7 @@ export default function InstallPage() {
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">OC 2.0 readiness card</span> on /factions.php?step=crimes — planning + executing OCs with slot fill, average CPR, ready-at countdown, and a pill telling you whether you're already booked</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Jail list intel</span> on /jailview.php — TM mate (green) / war enemy (red) / OFF-LIMITS / target pills inline on each row, same signals as the hospital list</span></li>
               <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Hall of Fame marker</span> on /halloffame.php — small TM pill on faction mates and ☠ pill on current war enemies across all leaderboard tabs, no row tinting</span></li>
+              <li className="flex gap-2"><span className="text-torn-green">✓</span><span><span className="text-text-primary font-semibold">Mark-all-read footer</span> in the notification toast tray — clear every TM Hub inbox toast in one click; button auto-hides when the tray is empty</span></li>
             </ul>
           </div>
 
