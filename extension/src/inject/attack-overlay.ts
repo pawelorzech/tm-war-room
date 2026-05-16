@@ -16,9 +16,11 @@ import { ATTACK_BUTTON_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { renderProfileBadge } from './profile-badges';
 import { escapeHtml, formatTotal } from '../lib/format';
-import { ApiError, submitSpyReport } from '../lib/api';
+import { ApiError, submitSpyReport, getCachedFeatureFlags, markClaimHit } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { showToast } from '../lib/notifications';
+import { renderClaimButton } from './claim-button';
+import { getActiveClaim, applyHit } from '../lib/claim-bus';
 
 const INTERCEPT_FLAG = 'tmCompanionIntercepted';
 
@@ -29,6 +31,11 @@ export function renderAttackOverlay(off: WarOffLimits | null): void {
   // Independent of off-limits state — if the fight is over and stats are
   // revealed in the DOM, offer a Submit chip. Both paths can coexist.
   void maybeOfferSpySubmit();
+
+  // Hit-call claim button for this attack target. Coexists with the
+  // v0.24.0 submit spy chip — uses a separate fixed position so it never
+  // overlaps. No-op when hit_calling is off.
+  void maybeOfferClaim();
 
   if (!off) return;
 
@@ -164,5 +171,74 @@ async function maybeOfferSpySubmit(): Promise<void> {
     }
   });
   document.body.appendChild(chip);
+}
+
+// --- Claim chip (Phase 4B) ------------------------------------------------
+//
+// Fixed-position container next to the spy submit chip. Hosts the shared
+// renderClaimButton(). Independent of OFF-LIMITS, gated on hit_calling.
+// After a successful fight, if we own the active claim on this target,
+// auto-call POST /api/claims/{id}/hit so the row clears on everyone's UI.
+
+const CLAIM_ATTR = 'data-tm-claim-host';
+
+async function maybeOfferClaim(): Promise<void> {
+  const auth = getAuth();
+  if (!auth || !getCachedFeatureFlags().hit_calling) return;
+  const uid = new URL(window.location.href).searchParams.get('user2ID');
+  if (!uid || !/^\d+$/.test(uid)) return;
+  const targetId = parseInt(uid, 10);
+  if (targetId === auth.player_id) return;
+
+  // Auto-mark-hit when a fight just ended and this user holds the claim.
+  // Detection: page reveals the loser's stats AND there's an active claim
+  // owned by us. We only fire once per page (guard via attribute).
+  const fightFinished =
+    document.body.dataset.tmClaimHitFired !== '1' &&
+    /Strength:\s+[\d,]+/.test(document.getElementById('mainContainer')?.textContent || '');
+  if (fightFinished) {
+    const c = getActiveClaim(targetId);
+    if (c && c.claimer_id === auth.player_id) {
+      document.body.dataset.tmClaimHitFired = '1';
+      try {
+        const ok = await markClaimHit(auth, targetId);
+        if (ok) applyHit(c);
+      } catch {
+        // Non-fatal — the claim will expire on its own.
+      }
+    }
+  }
+
+  // Ensure a single host on the page; the button inside is idempotent.
+  let host = document.querySelector<HTMLElement>(`[${CLAIM_ATTR}]`);
+  if (!host) {
+    host = document.createElement('div');
+    host.setAttribute(CLAIM_ATTR, '1');
+    host.style.cssText =
+      'position:fixed;right:16px;top:168px;z-index:999990;padding:6px 10px;' +
+      'background:#161b22;border:1px solid #30363d;border-left:3px solid #d29922;' +
+      'border-radius:8px;color:#c9d1d9;font:600 11px -apple-system,BlinkMacSystemFont,sans-serif;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.4);display:flex;align-items:center;gap:6px;';
+    host.innerHTML = '<span>Hit-call:</span>';
+    document.body.appendChild(host);
+  }
+  renderClaimButton({
+    host,
+    targetId,
+    targetName: detectTargetName() || `Player ${targetId}`,
+  });
+}
+
+function detectTargetName(): string | null {
+  // Try the standard Torn profile header anchor first; fall back to the
+  // attack page banner heading.
+  const a = document.querySelector<HTMLAnchorElement>(
+    'a[href*="profiles.php?XID="], a[href*="profile.php?XID="]',
+  );
+  if (a && a.textContent) {
+    const t = a.textContent.trim();
+    if (t) return t;
+  }
+  return null;
 }
 
