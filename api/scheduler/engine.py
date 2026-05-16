@@ -30,6 +30,8 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
     """
     from apscheduler import AsyncScheduler
     from apscheduler.triggers.interval import IntervalTrigger
+    from api.scheduler.jobs.activity import run_activity_tick
+    from api.scheduler.jobs.activity_purge import run_activity_purge
     from api.scheduler.jobs.collect_stats import run_collect_stats
     from api.scheduler.jobs.refresh_spies import run_refresh_spies
     from api.scheduler.jobs.refresh_stale_spies import run_refresh_stale_spies
@@ -149,6 +151,20 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
             id="flights_tick_schedule",
         )
         logger.info("Intel Pack: flights_tick registered (60s)")
+    if _intel_cfg.ENABLE_ACTIVITY:
+        await scheduler.configure_task("activity_tick", func=run_activity_tick)
+        await scheduler.add_schedule(
+            "activity_tick",
+            IntervalTrigger(minutes=5),
+            id="activity_tick_schedule",
+        )
+        await scheduler.configure_task("activity_purge", func=run_activity_purge)
+        await scheduler.add_schedule(
+            "activity_purge",
+            IntervalTrigger(hours=24),
+            id="activity_purge_schedule",
+        )
+        logger.info("Intel Pack: activity_tick (5min) + activity_purge (24h) registered")
 
     # Track every completed job so /api/admin/scheduler/status can answer
     # "is the collector still running?" without grepping container logs.
