@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.42.2";
+export const CURRENT_VERSION = "1.42.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.42.3",
+    date: "2026-05-16",
+    title: "Organised Crime page now shows skeleton cards while loading",
+    changes: [
+      {
+        type: "improve",
+        summary: "Loading state on /oc matches the rest of the app — skeleton cards instead of plain text",
+        detail: "Opening the Organised Crime page used to show a single line of pulsing gray text while data loaded. It now shows three card-shaped placeholders, matching the pattern Stakeout, Targets and the Company pages already use. Less likely to feel broken on slow networks, especially on mobile.",
+      },
+    ],
+  },
   {
     version: "1.42.2",
     date: "2026-05-16",
