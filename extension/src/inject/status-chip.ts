@@ -25,6 +25,7 @@ import type { CompanionAuth } from '../types';
 
 const HOST_KIND = 'status-chip';
 import { HUB_ORIGIN, COMPANION_VERSION } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const STYLES = `
   :host { all: initial; }
@@ -133,9 +134,6 @@ const STYLES = `
   .link:hover { text-decoration: underline; }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function formatRemaining(untilMs: number): string {
   const remainingMs = untilMs - Date.now();

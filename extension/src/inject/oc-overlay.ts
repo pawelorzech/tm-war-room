@@ -19,6 +19,7 @@ import { OC_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import type { OcCrime } from '../types';
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 60_000;
 const MAX_PLANNING = 6;
@@ -61,13 +62,6 @@ async function getOcData(): Promise<OcCache> {
   }
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function fmtRelative(ts: number, now: number): string {
   if (!ts) return '';

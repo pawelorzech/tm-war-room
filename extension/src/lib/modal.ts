@@ -13,6 +13,7 @@
 // Cancel button. Persists nothing — caller owns the data lifecycle.
 
 import { ensurePersistentHost } from './persistent-host';
+import { escapeHtml } from './format';
 
 const HOST_KIND = 'modal';
 
@@ -240,6 +241,3 @@ export function showFormModal(config: FormModalConfig): Promise<FormModalResult>
   });
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

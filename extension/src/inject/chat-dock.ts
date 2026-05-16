@@ -29,6 +29,7 @@ declare const GM_getValue: <T>(key: string, def?: T) => T;
 declare const GM_setValue: (key: string, value: unknown) => void;
 
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const HOST_KIND = 'chat-dock';
 const STATE_KEY = 'tm-hub-companion-chat-dock-state';
@@ -887,9 +888,6 @@ async function doSend(
   }
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function renderBody(content: string, mentions: number[], roster: Map<number, string>): string {
   // Only IDs that are BOTH in the message's mentions[] AND in our local

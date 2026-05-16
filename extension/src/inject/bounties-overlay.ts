@@ -11,6 +11,7 @@ import { ApiError, fetchBounties } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { BountyItem, ThreatLabel } from '../types';
+import { escapeHtml } from '../lib/format';
 
 const TIER_COLOR: Record<ThreatLabel, { bg: string; label: string }> = {
   trivial: { bg: 'rgba(63,185,80,0.08)', label: '#3fb950' },
@@ -68,9 +69,6 @@ const STYLES = `
   }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 export async function applyBountiesOverlay(): Promise<void> {
   await decorateRows<BountyItem>({

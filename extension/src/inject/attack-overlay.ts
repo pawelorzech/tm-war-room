@@ -10,6 +10,7 @@ import type { WarOffLimits } from '../types';
 import { ATTACK_BUTTON_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
 import { renderProfileBadge } from './profile-badges';
+import { escapeHtml } from '../lib/format';
 
 const INTERCEPT_FLAG = 'tmCompanionIntercepted';
 
@@ -88,10 +89,3 @@ function showConfirmModal(off: WarOffLimits, onConfirm: () => void): void {
   }
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

@@ -26,6 +26,7 @@ import type {
 } from '../types';
 
 import { HUB_ORIGIN } from '../env';
+import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 60_000;
 
@@ -91,9 +92,6 @@ function fmtPct(n: number): string {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 const STYLES = `
   :host { all: initial; display: block; width: 100%; }

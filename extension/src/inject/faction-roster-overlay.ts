@@ -23,6 +23,7 @@ import type {
   Target,
   Stakeout,
 } from '../types';
+import { escapeHtml, formatTotal } from '../lib/format';
 
 interface FactionRow {
   spy: FactionSpyMember | null;
@@ -201,16 +202,7 @@ const STYLES = `
   }
 `;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
-function formatTotal(total: number): string {
-  if (total >= 1_000_000_000) return `${(total / 1_000_000_000).toFixed(2)}B`;
-  if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
-  if (total >= 1_000) return `${(total / 1_000).toFixed(0)}K`;
-  return String(total);
-}
 
 export async function applyFactionRosterOverlay(opts: {
   factionId: number;

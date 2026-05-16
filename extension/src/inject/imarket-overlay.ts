@@ -15,6 +15,7 @@
 import { ApiError, fetchMarketPrices } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import type { MarketPriceItem } from '../types';
+import { escapeHtml } from '../lib/format';
 
 const TTL_MS = 5 * 60_000;
 const STYLE_ID = 'tm-companion-imarket-styles';
@@ -73,13 +74,6 @@ function ensureStyles(): void {
   document.head.appendChild(style);
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 // Listing rows. We try several selectors because Torn's imarket DOM has
 // historically shifted between an old <ul class="sellerList"> structure and
