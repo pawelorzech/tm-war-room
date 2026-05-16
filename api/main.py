@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Query, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -1319,11 +1319,23 @@ async def serve_spy_deep_link(player_id: int):
     if not os.path.isdir(static_dir):
         raise HTTPException(status_code=404, detail="Frontend not built")
     static_root = os.path.realpath(static_dir)
-    target = _resolve_static_path(static_root, "spy", "_.html")
-    if not target or not os.path.isfile(target):
+    target = os.path.join(static_root, "spy", "_.html")
+    logger.info("serve_spy_deep_link pid=%s target=%s exists=%s size=%s",
+                player_id, target, os.path.isfile(target),
+                os.path.getsize(target) if os.path.isfile(target) else None)
+    if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Spy page not built")
-    return FileResponse(
-        target,
+    # Direct file read so we have full control over body — FileResponse was
+    # somehow serving the catch-all index.html on prod even though route hit
+    # (custom Cache-Control header was reaching the client). Read explicitly.
+    try:
+        with open(target, "rb") as fh:
+            body = fh.read()
+    except OSError as e:
+        logger.error("serve_spy_deep_link read failed: %s", e)
+        raise HTTPException(status_code=500, detail="Spy page read failed") from e
+    return Response(
+        content=body,
         media_type="text/html",
         headers={
             "Cache-Control": "public, max-age=0, must-revalidate",
