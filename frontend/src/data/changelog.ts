@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.41.1";
+export const CURRENT_VERSION = "1.41.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.41.2",
+    date: "2026-05-16",
+    title: "Companion war polling no longer crashes when Torn's API flakes",
+    changes: [
+      {
+        type: "fix",
+        summary: "/api/wars/current stopped throwing 500s during Torn upstream hiccups",
+        before: "Every time Torn's API returned 504 Gateway Timeout or dropped the connection, the Companion extension's war-id poll surfaced as an UNHANDLED error in our monitoring — six events in 14 days, all upstream noise we couldn't act on.",
+        after: "Upstream 5xx, timeout, connect and read errors now return the same empty payload as 'no war right now'. The extension polls again on its next cycle and nothing is logged as a real error.",
+        cause: "The route called Torn's API without a try/except, so any httpx 5xx or timeout propagated up as an unhandled exception and got captured by Sentry's logger integration.",
+      },
+    ],
+  },
   {
     version: "1.41.1",
     date: "2026-05-16",
