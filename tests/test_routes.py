@@ -690,7 +690,11 @@ async def test_company_faction_fetches_in_parallel(mock_client, mock_store):
     assert len(data["companies"]) == 1
     assert len(data["companies"][0]["members"]) == 3
     assert mock_client.fetch_training_data.await_count == 3
-    assert elapsed < 0.18, f"expected parallel fan-out (<0.18s), got {elapsed:.3f}s — looks sequential"
+    # Serial = 3 × 0.1s = 0.3s. Parallel = ~0.1s. Threshold 0.25s gives
+    # enough headroom for CI / under-contention runs (observed 0.195s with
+    # the full suite competing for CPU) while still flagging a regression
+    # to serial as a clear ~3× overshoot.
+    assert elapsed < 0.25, f"expected parallel fan-out (<0.25s), got {elapsed:.3f}s — looks sequential"
 
 
 @pytest.mark.asyncio
