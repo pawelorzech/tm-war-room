@@ -25,6 +25,7 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { PROFILE_ANCHOR_SELECTORS } from '../lib/torn-pages';
 import { applyBaseStyles, ensureHost } from '../lib/shadow';
+import { attachToProfileStack } from '../lib/profile-stack';
 import { showFormModal } from '../lib/modal';
 import { showToast } from '../lib/notifications';
 import type { SpyEstimate, Stakeout, Target, WarOffLimits } from '../types';
@@ -786,6 +787,7 @@ export async function renderProfileIntel(
   });
 
   if (!host.parentElement) {
+    if (attachToProfileStack(host)) return;
     const offLimitsHost = document.querySelector('[data-tm-companion="profile-badge"]');
     if (offLimitsHost && offLimitsHost.parentElement) {
       offLimitsHost.parentElement.insertBefore(host, offLimitsHost.nextSibling);
