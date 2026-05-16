@@ -112,6 +112,45 @@ async def test_faction_snapshot_fallback_when_no_spy(setup_db):
 
 
 @pytest.mark.asyncio
+async def test_partial_tornstats_response_skipped(setup_db):
+    """Regression for player 575480 (2026-05-16): TornStats returned a partial
+    spy — 2 of 4 per-stat were real numbers, 2 were "N/A" (coerced to 0).
+    A loose sum-of-stats > 0 guard would accept the row; a strict per-field
+    guard rejects it. Storing partial data next to a real total still misleads
+    ("strength = 0?"), so we treat any missing per-stat as estimate-only."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+
+    mock_torn = MagicMock()
+    mock_torn.fetch_tornstats_spy_user = AsyncMock(return_value={
+        "player_id": 575480, "player_name": "PartialSpy",
+        "strength": 0.0, "defense": 1_202_543_783.0,
+        "speed": 0.0, "dexterity": 1_371_881_551.0,
+        "total": 7_058_029_689.0, "timestamp": None,
+    })
+    mock_torn.fetch_yata_spy_user = AsyncMock(return_value=None)
+    failing_resp = MagicMock()
+    failing_resp.status_code = 404
+    mock_torn._http.get = AsyncMock(return_value=failing_resp)
+
+    with patch("api.main.key_store", _mock_store()), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", mock_torn), \
+         patch("api.routers.spy.tornstats_key", "fake_key"), \
+         patch("api.routers.spy.stats_repo", None):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/575480", headers=AUTH_HEADERS)
+
+    assert spy_repo.get_reports(575480) == []
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_estimate_only_tornstats_response_skipped(setup_db):
     """Regression for player 348794 (2026-05-16): TornStats returned a
     "estimate-only" response — per-stat fields were coerced to 0 by the parser
