@@ -1,5 +1,7 @@
+import asyncio
 import pytest
 import tempfile
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -652,6 +654,43 @@ async def test_company_faction(mock_client, mock_store):
     assert len(data["companies"]) == 1
     assert data["companies"][0]["company_name"] == "Cool Farm"
     assert len(data["companies"][0]["members"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_company_faction_fetches_in_parallel(mock_client, mock_store):
+    """Per-member fetch_training_data must fan out concurrently.
+    Serial: 3 keys × 0.1s = ~0.3s. Parallel (sem >= 3): ~0.1s.
+    Assert wall-clock under 0.18s — gives healthy margin while still failing
+    the pre-fix serial implementation."""
+    mock_store.get_all_keys.return_value = [
+        {"player_id": 111, "player_name": "A", "api_key": "key1"},
+        {"player_id": 222, "player_name": "B", "api_key": "key2"},
+        {"player_id": 333, "player_name": "C", "api_key": "key3"},
+    ]
+
+    async def slow_training(*args, **kwargs):
+        await asyncio.sleep(0.1)
+        return {"job": {"company_id": 100, "company_name": "Cool Farm", "company_type": 34, "position": "Farmer"}}
+
+    mock_client.fetch_training_data = AsyncMock(side_effect=slow_training)
+
+    with patch("api.main.torn_client", mock_client), patch("api.main.key_store", mock_store):
+        import api.routers.company as company_mod
+        company_mod.torn_client = mock_client
+        company_mod.key_store = mock_store
+        from api.main import app
+        transport = ASGITransport(app=app)
+        start = time.perf_counter()
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/company/faction", headers=AUTH_HEADERS)
+        elapsed = time.perf_counter() - start
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["companies"]) == 1
+    assert len(data["companies"][0]["members"]) == 3
+    assert mock_client.fetch_training_data.await_count == 3
+    assert elapsed < 0.18, f"expected parallel fan-out (<0.18s), got {elapsed:.3f}s — looks sequential"
 
 
 @pytest.mark.asyncio
