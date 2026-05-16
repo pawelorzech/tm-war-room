@@ -490,6 +490,14 @@ PUBLIC_API_PATHS = {
     # has a token (it caches them for 60s and uses them to dark-launch
     # overlays). Flags are non-secret booleans — safe to serve unauthenticated.
     "/api/extension/feature-flags",
+    # FFScouter parity (Phase 5): per-feature healthz probes. Each router's
+    # docstring already advertises these as unauth liveness checks; the
+    # endpoints return only ``{"ok": true}`` so listing them here matches the
+    # docstring contract and the pattern used by /api/keys + /health.
+    "/api/ff/healthz",
+    "/api/flights/healthz",
+    "/api/activity/healthz",
+    "/api/claims/healthz",
 }
 
 @app.get("/api/settings/public")
@@ -739,6 +747,15 @@ def _bearer_or_cookie(request: Request, cookie_name: str) -> str:
 async def enforce_api_auth(request: Request, call_next):
     path = request.url.path
     renewed_token: str | None = None
+    # Narrow query-string-auth exception for the SSE stream endpoint:
+    # the browser's EventSource API cannot set custom headers, so we accept
+    # ``?token=<jwt>&pid=<player_id>`` instead of the Authorization + X-Player-Id
+    # pair. Scoped to /api/claims/stream only — every other endpoint still
+    # requires headers. The same JWT secret / token-type allow-list applies,
+    # so a token issued for the Companion (or the session) works here too,
+    # and tokens leaked into server logs / referers stay a concern (mitigated
+    # by short TTLs + the JWT revocation check inside require_bearer_token).
+    sse_query_auth = path == "/api/claims/stream"
     # OPTIONS = CORS preflight from the TM Hub Companion content script.
     # CORSMiddleware needs to respond with allow-headers etc. without auth
     # because preflight by spec never carries Authorization/X-Player-Id.
@@ -748,9 +765,21 @@ async def enforce_api_auth(request: Request, call_next):
         and path not in PUBLIC_API_PATHS
         and not path.startswith("/api/admin/")
     ):
+        # For the SSE endpoint, synthesize the auth header + player-id header
+        # from query params when the real headers aren't present.
+        if sse_query_auth:
+            qp_token = request.query_params.get("token")
+            qp_pid = request.query_params.get("pid")
+            auth_header_str = _bearer_or_cookie(request, SESSION_COOKIE_NAME)
+            if not auth_header_str and qp_token:
+                auth_header_str = f"Bearer {qp_token}"
+        else:
+            auth_header_str = _bearer_or_cookie(request, SESSION_COOKIE_NAME)
+            qp_pid = None
+
         try:
             payload = require_bearer_token(
-                _bearer_or_cookie(request, SESSION_COOKIE_NAME),
+                auth_header_str,
                 JWT_SECRET,
                 allowed_token_types=(TOKEN_TYPE_SESSION, TOKEN_TYPE_ADMIN, TOKEN_TYPE_EXTENSION),
             )
@@ -758,6 +787,8 @@ async def enforce_api_auth(request: Request, call_next):
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
         player_id_raw = request.headers.get("x-player-id")
+        if player_id_raw is None and sse_query_auth and qp_pid:
+            player_id_raw = qp_pid
         if player_id_raw is None:
             return JSONResponse({"detail": "Missing X-Player-Id header"}, status_code=400)
         if not player_id_raw.isdigit():
@@ -771,6 +802,10 @@ async def enforce_api_auth(request: Request, call_next):
             return JSONResponse({"detail": "Token subject does not match X-Player-Id"}, status_code=403)
 
         request.state.auth = payload
+        # For SSE query-auth, stash the resolved pid so the route's
+        # Header() dependency can read it (route reads from request.scope).
+        if sse_query_auth:
+            request.state.resolved_player_id = player_id_int
         renewed_token = maybe_renew_jwt(payload, JWT_SECRET)
 
     response = await call_next(request)

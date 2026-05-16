@@ -75,8 +75,18 @@ export function ActivityHeatmap({ bins, mostActiveWindow }: ActivityHeatmapProps
   return (
     <div className="rounded-lg border border-border bg-bg-surface p-3 sm:p-4">
       <div className="flex items-baseline justify-between flex-wrap gap-1 mb-3">
-        <h3 className="text-sm font-semibold text-text-primary">Activity heatmap</h3>
-        <span className="text-[11px] text-text-muted">UTC · last 14 days</span>
+        <h3
+          className="text-sm font-semibold text-text-primary cursor-help"
+          title="Activity heatmap — 7 days x 24 UTC hours, sampled by TM Hub scheduler every 5 min, retained 14 days"
+        >
+          Activity heatmap
+        </h3>
+        <span
+          className="text-[11px] text-text-muted cursor-help"
+          title="Source: 14-day activity history (last_action.timestamp polled every 5 min from Torn API)"
+        >
+          UTC · last 14 days
+        </span>
       </div>
 
       <div className="w-full overflow-x-auto">
