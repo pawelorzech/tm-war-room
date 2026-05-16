@@ -401,6 +401,58 @@ export function removeStakeout(
   return del<{ status: string }>(`/api/stakeout/${playerId}`, auth);
 }
 
+// ── FF score (Phase 1B — FFScouter parity) ─────────────────
+//
+// Public-ish endpoint: requires JWT + X-Player-Id like the rest of /api/*.
+// 503 = feature disabled at backend (ENABLE_FF_SCORE=0). Companion treats
+// that as "feature unavailable" and silently hides the chip. 4xx/5xx other
+// than 503 produce a single warn log + null so a transient backend hiccup
+// never noisy-floods the console on every profile view.
+//
+// 5-minute in-memory cache keyed by player id so re-rendering the same
+// profile (or opening it twice in a session) doesn't refetch.
+
+export type FFDomStat = 'STR' | 'DEF' | 'SPD' | 'DEX';
+
+export interface FFScore {
+  player_id: number;
+  score: number;
+  dom_stat: FFDomStat;
+  source: 'spy' | 'formula';
+  computed_at: number;
+  expires_at: number;
+}
+
+const FF_CACHE_TTL_MS = 5 * 60_000;
+const _ffCache = new Map<number, { value: FFScore | null; fetchedAt: number }>();
+let _ffWarnedOnce = false;
+
+export async function fetchFF(
+  auth: CompanionAuth,
+  playerId: number,
+): Promise<FFScore | null> {
+  const cached = _ffCache.get(playerId);
+  const now = Date.now();
+  if (cached && now - cached.fetchedAt < FF_CACHE_TTL_MS) {
+    return cached.value;
+  }
+  try {
+    const data = await get<FFScore>(`/api/ff/${playerId}`, auth);
+    _ffCache.set(playerId, { value: data, fetchedAt: now });
+    return data;
+  } catch (err) {
+    // 503 = feature disabled — cache a null so we don't hammer the endpoint
+    // on every page paint while the flag is off. Other errors also cached
+    // briefly as null to avoid retry storms.
+    if (!_ffWarnedOnce && err instanceof ApiError && err.status !== 503) {
+      console.warn('[tm-companion] fetchFF failed:', err.status);
+      _ffWarnedOnce = true;
+    }
+    _ffCache.set(playerId, { value: null, fetchedAt: now });
+    return null;
+  }
+}
+
 // ── Feature flags (Phase 0) ─────────────────────────────────
 //
 // Public endpoint — no auth, no X-Player-Id. We still go through
