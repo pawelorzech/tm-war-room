@@ -22,6 +22,10 @@ export function usePinnedNav() {
     DEFAULT_PINNED_HREFS,
   );
   const lastSyncedRef = useRef<string | null>(null);
+  // Gate the PUT effect until the initial server fetch resolves. Without this,
+  // the PUT below fires once with the initial DEFAULT_PINNED_HREFS as soon as
+  // playerId is known — overwriting whatever the user had saved server-side.
+  const hasLoadedRef = useRef<boolean>(false);
 
   // On login, fetch favorites from server. If the server is empty and we have
   // localStorage favorites, migrate them up. Otherwise, server wins so the
@@ -49,6 +53,8 @@ export function usePinnedNav() {
         }
       } catch {
         // Offline / 401 — keep localStorage value, hook keeps working.
+      } finally {
+        if (!cancelled) hasLoadedRef.current = true;
       }
     })();
     return () => { cancelled = true; };
@@ -58,6 +64,7 @@ export function usePinnedNav() {
   // Push local changes to server (debounced via the lastSynced check).
   useEffect(() => {
     if (!playerId) return;
+    if (!hasLoadedRef.current) return;
     const next = JSON.stringify(pinnedHrefs);
     if (next === lastSyncedRef.current) return;
     lastSyncedRef.current = next;

@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.50.7";
+export const CURRENT_VERSION = "1.50.8";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.50.8",
+    date: "2026-05-17",
+    title: "Sidebar pins survive page refresh",
+    changes: [
+      {
+        type: "fix",
+        summary: "Sidebar pins no longer reset to the default three on every page refresh",
+        before: "After pinning items like Spy, Awards, or Stocks to the sidebar, the next hard refresh quietly reset everyone's pin list back to the default Dashboard / Team / Chain trio. The reset hit both the on-server favorites and the local copy, so the customisation was unrecoverable — you had to re-pin from scratch every session, and a cross-device check on prod showed all 26 active users sitting on the exact same default list.",
+        after: "Pins are now read from the server first and only written back when you actually change something. Pin Spy once, refresh as many times as you want, switch devices, redeploy — your list stays exactly as you left it.",
+        cause: "The background sync was racing the initial server fetch and pushing the placeholder default list up before your real pins loaded.",
+      },
+    ],
+  },
   {
     version: "1.50.7",
     date: "2026-05-17",
