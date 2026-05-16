@@ -16,6 +16,7 @@ import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { renderProfileBadge } from './inject/profile-badges';
 import { renderAttackOverlay } from './inject/attack-overlay';
 import { renderProfileIntel } from './inject/profile-intel';
+import { maybeRenderActivityChip } from './inject/activity-chip';
 import { applyBountiesOverlay } from './inject/bounties-overlay';
 import { applyFactionRosterOverlay } from './inject/faction-roster-overlay';
 import { applyHospitalOverlay } from './inject/hospital-overlay';
@@ -216,6 +217,20 @@ async function refresh(): Promise<void> {
   // No-ops on regular player profiles, so it's safe to call unconditionally.
   if (match.kind === 'profile') {
     void renderLootOverlay(match.player_id);
+  }
+
+  // Most-active-window chip (Phase 3B). Self-gates on the `activity` feature
+  // flag and on whether the backend has any data for this player. Anchored to
+  // the profile-badge host so it visually clusters with the other profile
+  // overlay cards. Spec wanted this wired through profile-badges.ts itself —
+  // we lift it to the same call site as renderProfileIntel because that's
+  // where every other profile overlay is dispatched today.
+  if (match.kind === 'profile') {
+    const anchorEl =
+      document.querySelector<HTMLElement>('[data-tm-companion="profile-badge"]') ||
+      document.querySelector<HTMLElement>('[data-tm-companion="profile-intel"]') ||
+      document.body;
+    void maybeRenderActivityChip(anchorEl, match.player_id);
   }
 }
 
