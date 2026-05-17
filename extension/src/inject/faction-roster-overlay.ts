@@ -14,11 +14,13 @@ import {
   fetchTargets,
   fetchStakeouts,
   fetchActiveFlights,
+  fetchFFBulk,
+  type FFScore,
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { getFeatureFlags } from '../env';
 import { decorateRows } from '../lib/row-decorator';
-import { maybeRenderFFChip } from './ff-chip';
+import { renderFFChipFromScore } from './ff-chip';
 import type {
   FactionSpyMember,
   ThreatLabel,
@@ -203,13 +205,56 @@ const STYLES = pillBase('faction-roster') + `
 
 
 
+// Sprint 2 #9: bulk FF prefetch. Walk the visible XID anchors once before
+// kicking off decorateRows, fire a single POST /api/ff/bulk for every id
+// (chunked to 100), and stash the result in a closure-scoped Map. The render
+// callback below reads from that Map synchronously — no per-row HTTP fan-out.
+//
+// Empty Map is the safe fallback (no auth, feature off, network blip, etc.).
+// renderFFChipFromScore treats `null` as "skip", so missing ids no-op.
+async function prefetchFFForVisibleRoster(): Promise<Map<number, FFScore>> {
+  if (!getFeatureFlags().ff_score) return new Map();
+  const auth = getAuth();
+  if (!auth) return new Map();
+
+  const scope = document.getElementById('mainContainer') ?? document;
+  const anchors = scope.querySelectorAll<HTMLAnchorElement>(
+    'a[href*="profiles.php?XID="], a[href*="profile.php?XID="]',
+  );
+  const ids = new Set<number>();
+  anchors.forEach((a) => {
+    const m = a.href.match(/XID=(\d+)/);
+    if (m) ids.add(parseInt(m[1], 10));
+  });
+  if (ids.size === 0) return new Map();
+  try {
+    return await fetchFFBulk(Array.from(ids), auth);
+  } catch {
+    return new Map();
+  }
+}
+
 export async function applyFactionRosterOverlay(opts: {
   factionId: number;
   warId: number | null;
 }): Promise<void> {
+  // Prefetch FF scores for the whole visible roster in parallel with the
+  // other endpoint fan-out inside buildMap. Both promises start now; we only
+  // join them when decorateRows is ready to paint, so the FF round-trip
+  // overlaps with spies/off-limits/targets/stakeouts/flights.
+  const ffPromise = prefetchFFForVisibleRoster();
+  let ffMap: Map<number, FFScore> = new Map();
+
   await decorateRows<FactionRow>({
     featureId: 'faction-roster',
-    buildMap: () => buildMap(opts.factionId, opts.warId),
+    buildMap: async () => {
+      const [map, ff] = await Promise.all([
+        buildMap(opts.factionId, opts.warId),
+        ffPromise,
+      ]);
+      ffMap = ff;
+      return map;
+    },
     styles: STYLES,
     stateKey: (d) =>
       [
@@ -279,11 +324,13 @@ export async function applyFactionRosterOverlay(opts: {
 
       // FF fallback chip — only shows for rows where the backend has no
       // fresh spy estimate (otherwise the spy pill above already covers
-      // it). Fired per-row; maybeRenderFFChip handles the feature-flag
-      // gate + formula-only filter internally.
+      // it). Score was prefetched in one bulk POST above; we just look it
+      // up by player id here. renderFFChipFromScore handles the
+      // feature-flag gate + formula-only filter internally.
       const m = anchor.href.match(/XID=(\d+)/);
       if (m) {
-        void maybeRenderFFChip(badge, parseInt(m[1], 10));
+        const pid = parseInt(m[1], 10);
+        renderFFChipFromScore(badge, pid, ffMap.get(pid) ?? null);
       }
     },
   });

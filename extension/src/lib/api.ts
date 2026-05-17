@@ -463,6 +463,83 @@ export async function fetchFF(
   }
 }
 
+// Sprint 2 #9 — bulk FF lookup.
+//
+// Replaces the N parallel single-id fetches the faction-roster overlay was
+// doing for visible enemies (50-100 ids per page) with one POST per <=100-id
+// batch. Cuts JWT-auth + rate-limit budget by ~50-100x on the typical roster.
+//
+// Soft-fail behaviour mirrors fetchFF: 503 (feature flag off at the backend)
+// returns an empty Map so the overlay silently degrades. 429 gets one retry
+// with a short backoff — if that still 429s we return what we have rather
+// than throwing, because failing closed would tint every row "unknown".
+//
+// We deliberately don't share the per-id _ffCache here: the bulk path is
+// invoked by overlays that have their own TTL cache, and folding cache
+// reads in would force callers to dedupe themselves. Keep it transport-only.
+
+const FF_BULK_CHUNK = 100;
+const FF_BULK_RETRY_DELAY_MS = 500;
+
+interface FFBulkResponse {
+  scores: Record<string, Omit<FFScore, 'player_id'>>;
+}
+
+async function postFFBulkOnce(
+  ids: number[],
+  auth: CompanionAuth,
+): Promise<FFBulkResponse | null> {
+  // Returns null on 503 (feature disabled) or 429 (rate-limited) so the
+  // caller can decide between empty-map and retry. Other 4xx/5xx propagate
+  // as ApiError — they signal real bugs we want surfaced.
+  try {
+    return await post<FFBulkResponse>('/api/ff/bulk', { player_ids: ids }, auth);
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 503 || err.status === 429)) {
+      return err.status === 429 ? null : { scores: {} };
+    }
+    throw err;
+  }
+}
+
+export async function fetchFFBulk(
+  playerIds: number[],
+  auth: CompanionAuth,
+): Promise<Map<number, FFScore>> {
+  const out = new Map<number, FFScore>();
+  if (playerIds.length === 0) return out;
+
+  for (let i = 0; i < playerIds.length; i += FF_BULK_CHUNK) {
+    const batch = playerIds.slice(i, i + FF_BULK_CHUNK);
+    let resp: FFBulkResponse | null;
+    try {
+      resp = await postFFBulkOnce(batch, auth);
+    } catch {
+      // Any other transport / 4xx / 5xx error: skip this batch so one bad
+      // shard doesn't blank the whole overlay.
+      continue;
+    }
+    if (resp === null) {
+      // 429 — one retry with a small fixed backoff. Production rate-limit
+      // window is 60s; we don't want to block the UI that long, but a brief
+      // jittered delay handles the common "two overlays init at once" race.
+      await new Promise<void>((r) => setTimeout(r, FF_BULK_RETRY_DELAY_MS));
+      try {
+        resp = await postFFBulkOnce(batch, auth);
+      } catch {
+        resp = { scores: {} };
+      }
+      if (resp === null) resp = { scores: {} };
+    }
+    for (const [pidStr, value] of Object.entries(resp.scores)) {
+      const pid = Number(pidStr);
+      if (!Number.isFinite(pid)) continue;
+      out.set(pid, { player_id: pid, ...value });
+    }
+  }
+  return out;
+}
+
 // ── Feature flags (Phase 0) ─────────────────────────────────
 //
 // Public endpoint — no auth, no X-Player-Id. We still go through
