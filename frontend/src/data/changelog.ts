@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.53.2";
+export const CURRENT_VERSION = "1.53.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.53.3",
+    date: "2026-05-17",
+    title: "Companion v0.29.3 — settings gear reachable on mobile / Torn Companion app",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion settings gear is now tappable on phones and in the Torn Companion app",
+        before: "The persistent ⚡ TM Hub Companion chip at the bottom-left of every Torn page rendered the full label — \"TM Hub Companion v0.29 · @YourName\" plus the gear — and on a narrow phone screen the chip stretched far enough right that Torn's floating green chat bubble covered the settings gear. You could see TM Hub was loaded but couldn't open its settings menu without rotating to landscape or zooming.",
+        after: "On screens 600px wide and under, the chip collapses to a compact pill: just the ⚡ bolt and the ⚙ gear. Both are larger tap targets (28-32px) than the desktop version, the gear is clear of Torn's chat bubble, and tapping the bolt still opens hub.tri.ovh in a new tab. Desktop layout is unchanged — full label, version and username still show. Update via Tampermonkey Dashboard → TM Hub Companion → Check for updates (v0.29.3).",
+        cause: "The chip had no mobile breakpoint; it was sized for desktop and overflowed into the chat-bubble zone on small viewports.",
+      },
+    ],
+  },
   {
     version: "1.53.2",
     date: "2026-05-17",

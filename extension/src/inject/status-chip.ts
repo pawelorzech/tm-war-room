@@ -86,6 +86,32 @@ const STYLES = `
   }
   .chip .connect:hover { background: #e3b34d; }
 
+  /* Mobile compact mode — Torn Companion app + narrow phones.
+   * The full chip ("⚡ TM Hub Companion vX.X · @user [⚙]") is ~260px wide and
+   * the gear at the right edge gets hidden behind Torn's floating chat bubble
+   * on small screens. Collapse to a tappable ⚡ + ⚙ pill (~64px). The bolt
+   * stays clickable so users can still jump to hub.tri.ovh. */
+  @media (max-width: 600px) {
+    .chip {
+      gap: 2px;
+      padding: 0 4px;
+      height: 32px;
+      opacity: 0.92;
+    }
+    .chip .label { display: none; }
+    .chip .bolt {
+      font-size: 16px;
+      padding: 0 6px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .chip .btn { width: 32px; height: 28px; }
+    .chip .btn svg { width: 15px; height: 15px; }
+    .chip .connect { height: 24px; padding: 0 8px; font-size: 11px; }
+  }
+
   /* Settings popover */
   .menu {
     position: fixed;
@@ -188,7 +214,7 @@ function renderChip(shadow: ShadowRoot, auth: CompanionAuth | null): void {
 
   if (auth) {
     chip.innerHTML = `
-      <span class="bolt">⚡</span>
+      <span class="bolt" data-act="open-hub" title="Open TM Hub">⚡</span>
       <span class="label" data-act="open-hub">
         TM Hub Companion
         <span class="ver">v${COMPANION_VERSION}</span>
@@ -201,7 +227,7 @@ function renderChip(shadow: ShadowRoot, auth: CompanionAuth | null): void {
     `;
   } else {
     chip.innerHTML = `
-      <span class="bolt" style="opacity:0.6">⚡</span>
+      <span class="bolt" data-act="connect" style="opacity:0.6;cursor:pointer" title="Connect TM Hub">⚡</span>
       <span class="label" style="color:#8b949e">TM Hub Companion · not connected</span>
       <button class="connect" data-act="connect">Connect</button>
     `;
@@ -209,8 +235,10 @@ function renderChip(shadow: ShadowRoot, auth: CompanionAuth | null): void {
 
   shadow.appendChild(chip);
 
-  chip.querySelector('[data-act="open-hub"]')?.addEventListener('click', () => {
-    window.open(HUB_ORIGIN, '_blank');
+  chip.querySelectorAll('[data-act="open-hub"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      window.open(HUB_ORIGIN, '_blank');
+    });
   });
   chip.querySelector('[data-act="settings"]')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -221,8 +249,10 @@ function renderChip(shadow: ShadowRoot, auth: CompanionAuth | null): void {
       openSettingsMenu(shadow);
     }
   });
-  chip.querySelector('[data-act="connect"]')?.addEventListener('click', () => {
-    openAuthPage(HUB_ORIGIN);
+  chip.querySelectorAll('[data-act="connect"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      openAuthPage(HUB_ORIGIN);
+    });
   });
 
   // Ensure menu element exists (rendered lazily on first open, but the

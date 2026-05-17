@@ -20,6 +20,7 @@ extension/dist/
 
 # Built companion userscript (emitted by extension build, served by Next.js static export)
 frontend/public/companion.user.js
+frontend/public/companion.user.js.map
 
 # Debug screenshots (root-level)
 /*.png
