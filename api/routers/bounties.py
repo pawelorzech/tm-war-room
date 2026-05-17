@@ -1,11 +1,12 @@
 from __future__ import annotations
 import asyncio
 import logging
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, HTTPException, Header, Query, Request
 
 from api.threat import compute_threat, compute_stat_threat
 from api.models import PersonalStats
 from api.stat_estimator import estimate_stats
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.bounties")
 
@@ -20,6 +21,7 @@ MAX_PROFILE_LOOKUPS = 15
 
 @router.get("")
 async def list_bounties(
+    request: Request,
     x_player_id: int | None = Header(default=None),
 ):
     """Get available bounties with threat assessment."""
@@ -149,9 +151,13 @@ async def list_bounties(
         status = target_status.get(tid, "")
         b["target_status"] = status.lower() if status else "unknown"
 
-    return {
-        "bounties": bounties,
-        "count": len(bounties),
-        "total_value": total_value,
-        "threat_mode": threat_mode,
-    }
+    return etag_response(
+        {
+            "bounties": bounties,
+            "count": len(bounties),
+            "total_value": total_value,
+            "threat_mode": threat_mode,
+        },
+        request,
+        cache_control="private, max-age=30, stale-while-revalidate=60",
+    )

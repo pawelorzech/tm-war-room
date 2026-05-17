@@ -1,9 +1,10 @@
 """Tests for bounties router and threat scoring integration."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from httpx import Response
+from unittest.mock import AsyncMock, MagicMock
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from api.routers.bounties import router, list_bounties
+from api.routers.bounties import router
 from api.models import PersonalStats
 
 
@@ -33,7 +34,13 @@ FAKE_BOUNTIES = [
 
 @pytest.fixture
 def bounties_setup(monkeypatch):
-    """Set up bounties router with mocked dependencies."""
+    """Set up bounties router with mocked dependencies.
+
+    Sprint 2 #12: route now goes through ``etag_response`` and returns a
+    ``Response`` object, so we exercise it via ``TestClient`` instead of
+    calling the handler directly (would otherwise need to fabricate a
+    Starlette ``Request`` per test).
+    """
     import api.routers.bounties as mod
 
     mock_client = MagicMock()
@@ -49,6 +56,10 @@ def bounties_setup(monkeypatch):
     mock_key_store.get_all_keys.return_value = [
         {"player_id": 42, "api_key": "user_key", "player_name": "TestUser"},
     ]
+    mock_key_store.get_key.side_effect = lambda pid: (
+        {"player_id": 42, "api_key": "user_key", "player_name": "TestUser"}
+        if pid == 42 else None
+    )
 
     mock_spy = MagicMock()
     mock_spy.repo.get_estimate.return_value = None
@@ -59,11 +70,26 @@ def bounties_setup(monkeypatch):
     monkeypatch.setattr(mod, "key_store", mock_key_store)
     monkeypatch.setattr(mod, "spy_service", mock_spy)
 
-    return {"client": mock_client, "key_store": mock_key_store, "spy": mock_spy}
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+    return {
+        "client": mock_client,
+        "key_store": mock_key_store,
+        "spy": mock_spy,
+        "http": client,
+    }
 
 
-async def test_bounties_returns_threat_labels(bounties_setup):
-    result = await list_bounties(x_player_id=42)
+def _get_bounties(http: TestClient, player_id: int | None) -> dict:
+    headers = {"X-Player-Id": str(player_id)} if player_id is not None else {}
+    resp = http.get("/api/bounties", headers=headers)
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+def test_bounties_returns_threat_labels(bounties_setup):
+    result = _get_bounties(bounties_setup["http"], 42)
     assert result["count"] == 2
     for b in result["bounties"]:
         assert "threat_label" in b
@@ -71,23 +97,23 @@ async def test_bounties_returns_threat_labels(bounties_setup):
         assert b["threat_label"] in ("easy", "medium", "hard", "avoid", "unknown")
 
 
-async def test_bounties_relative_mode_with_player(bounties_setup):
-    result = await list_bounties(x_player_id=42)
+def test_bounties_relative_mode_with_player(bounties_setup):
+    result = _get_bounties(bounties_setup["http"], 42)
     assert result["threat_mode"] == "relative"
 
 
-async def test_bounties_no_player_no_relative(bounties_setup):
-    result = await list_bounties(x_player_id=None)
+def test_bounties_no_player_no_relative(bounties_setup):
+    result = _get_bounties(bounties_setup["http"], None)
     assert result["threat_mode"] == "none"
 
 
-async def test_bounties_sorted_by_reward(bounties_setup):
-    result = await list_bounties(x_player_id=None)
+def test_bounties_sorted_by_reward(bounties_setup):
+    result = _get_bounties(bounties_setup["http"], None)
     rewards = [b["reward"] for b in result["bounties"]]
     assert rewards == sorted(rewards, reverse=True)
 
 
-async def test_bounties_with_spy_data(bounties_setup):
+def test_bounties_with_spy_data(bounties_setup):
     """When spy data exists, it should be used for threat scoring."""
     mock_spy = bounties_setup["spy"]
     mock_spy.repo.get_estimates_bulk.return_value = {
@@ -95,12 +121,12 @@ async def test_bounties_with_spy_data(bounties_setup):
               "speed": 15e6, "dexterity": 15e6, "confidence": "estimate", "source": "tornstats"},
     }
 
-    result = await list_bounties(x_player_id=42)
+    result = _get_bounties(bounties_setup["http"], 42)
     target_100 = next(b for b in result["bounties"] if b["target_id"] == 100)
     assert target_100["estimated_total"] == 50_000_000
 
 
-async def test_bounties_with_profile_lookup(bounties_setup):
+def test_bounties_with_profile_lookup(bounties_setup):
     """When no spy data, falls back to personalstats lookup."""
     mock_client = bounties_setup["client"]
     mock_client.fetch_user_profile_stats.return_value = {
@@ -111,27 +137,21 @@ async def test_bounties_with_profile_lookup(bounties_setup):
         "name": "Target",
     }
 
-    result = await list_bounties(x_player_id=42)
+    result = _get_bounties(bounties_setup["http"], 42)
     # At least one bounty should have threat data from profile lookup
     has_estimated = any(b["estimated_total"] and b["estimated_total"] > 0 for b in result["bounties"])
     assert has_estimated
 
 
-async def test_bounties_no_torn_client():
+def test_bounties_no_torn_client(bounties_setup):
     """Should return 503 when not initialized."""
     import api.routers.bounties as mod
-    old_client = mod.torn_client
     mod.torn_client = None
-    try:
-        from fastapi import HTTPException
-        with pytest.raises(HTTPException) as exc_info:
-            await list_bounties(x_player_id=None)
-        assert exc_info.value.status_code == 503
-    finally:
-        mod.torn_client = old_client
+    resp = bounties_setup["http"].get("/api/bounties")
+    assert resp.status_code == 503
 
 
-async def test_bounties_total_value(bounties_setup):
-    result = await list_bounties(x_player_id=None)
+def test_bounties_total_value(bounties_setup):
+    result = _get_bounties(bounties_setup["http"], None)
     expected = sum(b["reward"] for b in FAKE_BOUNTIES)
     assert result["total_value"] == expected

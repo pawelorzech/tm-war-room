@@ -2,9 +2,10 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 from api.db.repos.loot_reservations import LootReservationRepository
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.loot")
 
@@ -20,7 +21,7 @@ CACHE_TTL = 30  # seconds
 
 
 @router.get("")
-async def loot_timers():
+async def loot_timers(request: Request):
     """Get current NPC loot timer data from TornStats."""
     global _cache, _cache_ts
     if not torn_client or not tornstats_key:
@@ -28,7 +29,7 @@ async def loot_timers():
 
     now = time.time()
     if _cache and now - _cache_ts < CACHE_TTL:
-        return _cache
+        return etag_response(_cache, request, cache_control="private, max-age=15, stale-while-revalidate=30")
 
     start = time.time()
     try:
@@ -41,7 +42,7 @@ async def loot_timers():
     except Exception as e:
         logger.error("TornStats loot fetch failed: %s", e)
         if _cache:
-            return _cache
+            return etag_response(_cache, request, cache_control="private, max-age=15, stale-while-revalidate=30")
         raise HTTPException(status_code=502, detail="Failed to fetch loot data")
 
     if not raw.get("status"):
@@ -126,7 +127,7 @@ async def loot_timers():
     }
     _cache = result
     _cache_ts = now
-    return result
+    return etag_response(result, request, cache_control="private, max-age=15, stale-while-revalidate=30")
 
 
 class ReserveRequest(BaseModel):

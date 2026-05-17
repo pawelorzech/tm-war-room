@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel
 
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS  # noqa: F401  (SUPERADMIN_ID kept for legacy created_by)
 from api.armoury import VALID_CATEGORIES, CATEGORY_TO_ITEMS
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.armoury")
 
@@ -25,15 +26,19 @@ class CreateCompetition(BaseModel):
 
 
 @router.get("/competitions")
-async def list_competitions(x_player_id: int = Header()):
+async def list_competitions(request: Request, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
     competitions = repo.get_all_competitions()
-    return {"competitions": competitions, "count": len(competitions)}
+    return etag_response(
+        {"competitions": competitions, "count": len(competitions)},
+        request,
+        cache_control="private, max-age=60, stale-while-revalidate=300",
+    )
 
 
 @router.get("/competitions/{comp_id}/leaderboard")
-async def get_leaderboard(comp_id: int, x_player_id: int = Header()):
+async def get_leaderboard(comp_id: int, request: Request, x_player_id: int = Header()):
     if not key_store or not key_store.has_key(x_player_id):
         raise HTTPException(status_code=401, detail="Register your API key first")
     comp = repo.get_competition(comp_id)
@@ -51,12 +56,16 @@ async def get_leaderboard(comp_id: int, x_player_id: int = Header()):
             "last_deposit": r["last_deposit"],
         })
     total_deposited = sum(r["total"] for r in leaderboard)
-    return {
-        "competition": comp,
-        "leaderboard": leaderboard,
-        "total_deposited": total_deposited,
-        "participants": len(leaderboard),
-    }
+    return etag_response(
+        {
+            "competition": comp,
+            "leaderboard": leaderboard,
+            "total_deposited": total_deposited,
+            "participants": len(leaderboard),
+        },
+        request,
+        cache_control="private, max-age=30, stale-while-revalidate=60",
+    )
 
 
 @router.post("/competitions")

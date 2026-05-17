@@ -1,7 +1,8 @@
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from api.db.repos.notifications import NotificationRepository
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.notifications")
 
@@ -26,9 +27,13 @@ async def list_notifications(x_player_id: int = Header()):
 
 
 @router.get("/unread")
-async def unread_count(x_player_id: int = Header()):
+async def unread_count(request: Request, x_player_id: int = Header()):
     _verify_member(x_player_id)
-    return {"unread": notification_repo.get_unread_count(x_player_id)}
+    return etag_response(
+        {"unread": notification_repo.get_unread_count(x_player_id)},
+        request,
+        cache_control="private, max-age=5, stale-while-revalidate=30",
+    )
 
 
 @router.post("/read-all")
