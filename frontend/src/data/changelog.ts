@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.59.0";
+export const CURRENT_VERSION = "1.60.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.60.0",
+    date: "2026-05-17",
+    title: "Chat — OC 2.0 readiness digest pinned to #general (Companion 0.35.0)",
+    changes: [
+      {
+        type: "feat",
+        summary: "#general and #leadership now pin a live OC 2.0 digest — ready crimes, missing tools, traveling members at a glance",
+        detail: "When you have organized crimes in the planning queue, the top of #general (and #leadership) shows a yellow digest card: how many crimes are ready to fire right now, how many are still waiting, which slots are blocked because nobody brought the Drug Pack / Lockpick / etc., and which crime participants are currently traveling abroad (so the crime can't execute). Collapsible per-member (your collapse preference persists). Auto-refreshes every 5 minutes. Same card + same data in the floating Companion chat dock on torn.com. When the queue is empty the card hides itself so #general looks normal.",
+      },
+    ],
+  },
   {
     version: "1.59.0",
     date: "2026-05-17",

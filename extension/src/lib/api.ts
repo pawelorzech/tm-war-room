@@ -268,6 +268,20 @@ export function fetchWarRoomCard(auth: CompanionAuth): Promise<WarRoomCardRespon
   return get<WarRoomCardResponse>('/api/chat/war-room-card', auth);
 }
 
+export interface OcDigestResponse {
+  active: boolean;
+  error?: string;
+  ready?: { id: number; name: string; ready_at: number; filled: number; total: number }[];
+  waiting?: { id: number; name: string; ready_at: number; filled: number; total: number; empty_roles: string[] }[];
+  blocked_by_tool?: { tool: string; count: number }[];
+  traveling_members?: { id: number; name: string; status_text: string }[];
+  counts?: { ready: number; waiting: number; blocked_tools: number; traveling: number };
+}
+
+export function fetchOcDigest(auth: CompanionAuth): Promise<OcDigestResponse> {
+  return get<OcDigestResponse>('/api/chat/oc-digest', auth);
+}
+
 export interface ChainAssistResponse {
   id: number;
   channel_id: number;

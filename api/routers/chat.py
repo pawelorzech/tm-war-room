@@ -18,6 +18,7 @@ from api import chat_resolver
 from api.chat_manager import ChatManager
 from api.chat_search import parse_query, build_search_sql, MAX_LIMIT as SEARCH_MAX_LIMIT
 from api import chat_war_card
+from api import chat_oc_digest
 # Import for side-effect: registers the /chain handler into default_registry.
 from api import chat_chain  # noqa: F401
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
@@ -453,6 +454,31 @@ async def end_chain_assist(assist_id: int, x_player_id: int = Header()):
 
 
 # ── War-room pinned card (Task #9) ────────────────────────────
+
+
+@router.get("/oc-digest")
+async def get_oc_digest(x_player_id: int = Header()):
+    """OC 2.0 digest card payload — ready/waiting OCs, blocking tools,
+    traveling participants. Refresh every ~5 min on the frontend."""
+    _verify_member(x_player_id)
+    if torn_client is None:
+        raise HTTPException(status_code=503, detail="Torn client not initialized")
+
+    async def _fetch_team():
+        try:
+            members = await torn_client.fetch_members()
+        except Exception:  # noqa: BLE001
+            return []
+        # Flatten to the shape build_oc_digest_card expects.
+        out = []
+        for m in members:
+            d = m.model_dump() if hasattr(m, "model_dump") else dict(m)
+            out.append(d)
+        return out
+
+    return await chat_oc_digest.build_oc_digest_card(
+        torn_client=torn_client, fetch_team=_fetch_team,
+    )
 
 
 @router.get("/war-room-card")

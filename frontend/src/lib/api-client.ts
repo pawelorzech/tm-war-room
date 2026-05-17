@@ -426,6 +426,16 @@ export const api = {
       `/api/chat/assist/${assistId}/end`,
       { method: "POST" },
     ),
+  chatOcDigest: () =>
+    apiFetch<{
+      active: boolean;
+      error?: string;
+      ready?: { id: number; name: string; ready_at: number; filled: number; total: number }[];
+      waiting?: { id: number; name: string; ready_at: number; filled: number; total: number; empty_roles: string[] }[];
+      blocked_by_tool?: { tool: string; count: number }[];
+      traveling_members?: { id: number; name: string; status_text: string }[];
+      counts?: { ready: number; waiting: number; blocked_tools: number; traveling: number };
+    }>("/api/chat/oc-digest"),
   chatWarRoomCard: () =>
     apiFetch<{
       active: boolean;

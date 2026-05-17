@@ -22,6 +22,7 @@ import {
   fetchChatMessages,
   fetchChatUnread,
   fetchMemberAvatars,
+  fetchOcDigest,
   fetchOverview,
   fetchWarRoomCard,
   joinChainAssist,
@@ -31,6 +32,7 @@ import {
   searchChatMessages,
   sendChatMessage,
   type ChainAssistResponse,
+  type OcDigestResponse,
   type WarRoomCardResponse,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
@@ -349,6 +351,49 @@ const STYLES = `
   .war-room-card .wrc-target:hover { background: rgba(248, 81, 73, 0.1); }
   .war-room-card .wrc-target .lvl { color: #6e7681; }
   .war-room-card .wrc-empty { font-size: 11px; color: #6e7681; font-style: italic; }
+
+  .oc-digest-card {
+    border-bottom: 1px solid rgba(210, 153, 34, 0.4);
+    background: rgba(210, 153, 34, 0.06);
+    padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .oc-digest-card.hidden { display: none; }
+  .oc-digest-card .oc-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .oc-digest-card .oc-tag {
+    font-size: 9px; padding: 1px 6px; border-radius: 3px;
+    background: #d29922; color: #0d1117; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .oc-digest-card .oc-summary { color: #c9d1d9; font-size: 12px; }
+  .oc-digest-card .oc-summary .ready { color: #56d364; font-weight: 500; }
+  .oc-digest-card .oc-summary .waiting { color: #6e7681; }
+  .oc-digest-card .oc-summary .tool { color: #ff7b72; }
+  .oc-digest-card .oc-summary .travel { color: #79c0ff; }
+  .oc-digest-card .oc-toggle {
+    margin-left: auto; background: transparent; border: 0; color: #6e7681;
+    cursor: pointer; font-size: 13px;
+  }
+  .oc-digest-card .oc-toggle:hover { color: #c9d1d9; }
+  .oc-digest-card .oc-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .oc-digest-card .oc-row-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .oc-digest-card .oc-row-label.ready { color: #56d364; }
+  .oc-digest-card .oc-row-label.tool { color: #ff7b72; }
+  .oc-digest-card .oc-row-label.travel { color: #79c0ff; }
+  .oc-digest-card .oc-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: 4px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    font-size: 11px;
+  }
+  .oc-digest-card .oc-chip.ready { border-color: rgba(35, 134, 54, 0.4); }
+  .oc-digest-card .oc-chip.tool { border-color: rgba(248, 81, 73, 0.4); }
+  .oc-digest-card .oc-chip.travel { border-color: rgba(56, 139, 253, 0.4); }
+  .oc-digest-card .oc-chip .name { color: #c9d1d9; }
+  .oc-digest-card .oc-chip .meta { color: #6e7681; }
 
   .chain-assist-card {
     margin-top: 4px;
@@ -1126,6 +1171,7 @@ function applyState(shadow: ShadowRoot): void {
     panel.classList.add('hidden');
     stopMessagePolling();
     stopWarCardPolling(shadow);
+    stopOcDigestPolling(shadow);
   }
 }
 
@@ -1169,6 +1215,7 @@ async function initOpenChannel(shadow: ShadowRoot): Promise<void> {
     await loadChannelInitial(shadow, _state.channelId);
     startMessagePolling(shadow);
     startWarCardPolling(shadow, _state.channelId);
+    startOcDigestPolling(shadow, _state.channelId);
   }
 }
 
@@ -1382,6 +1429,117 @@ async function handleAssistEndClick(shadow: ShadowRoot, assistId: number, btn: H
       renderChainAssistInto(slot, assistId, _assistCache.get(assistId) ?? null, errMsg);
     }
   }
+}
+
+// ── OC 2.0 digest card (Task #12) ───────────────────────────
+let _ocCardPoller: PollHandle | null = null;
+const OC_COLLAPSED_KEY = 'tm-hub-companion-oc-collapsed';
+
+function isOcDigestChannel(channelId: number): boolean {
+  const ch = _channels.find((c) => c.id === channelId);
+  return ch?.name === 'general' || ch?.name === 'leadership';
+}
+
+function renderOcDigest(shadow: ShadowRoot, data: OcDigestResponse | null): void {
+  const el = shadow.querySelector<HTMLElement>('.oc-digest-card');
+  if (!el) return;
+  if (!data || !data.active) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  const c = data.counts ?? { ready: 0, waiting: 0, blocked_tools: 0, traveling: 0 };
+  // Empty queue → hide the card; no signal to share.
+  if (c.ready === 0 && c.waiting === 0) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(OC_COLLAPSED_KEY) === '1';
+  } catch { /* ignore */ }
+
+  const toolPart = c.blocked_tools > 0
+    ? ` · <span class="tool">${c.blocked_tools}</span> tool gap${c.blocked_tools === 1 ? '' : 's'}`
+    : '';
+  const travelPart = c.traveling > 0
+    ? ` · <span class="travel">${c.traveling}</span> traveling`
+    : '';
+  const summary = `<span class="oc-summary">
+    <span class="ready">${c.ready}</span> ready · <span class="waiting">${c.waiting} waiting</span>${toolPart}${travelPart}
+  </span>`;
+
+  let body = '';
+  if (!collapsed) {
+    const rows: string[] = [];
+    if (data.ready && data.ready.length > 0) {
+      rows.push(`<div class="oc-row"><span class="oc-row-label ready">Ready:</span>${
+        data.ready.map((o) => `<span class="oc-chip ready"><span class="name">${escapeHtml(o.name)}</span><span class="meta">${o.filled}/${o.total}</span></span>`).join('')
+      }</div>`);
+    }
+    if (data.blocked_by_tool && data.blocked_by_tool.length > 0) {
+      rows.push(`<div class="oc-row"><span class="oc-row-label tool">Missing tools:</span>${
+        data.blocked_by_tool.map((t) => `<span class="oc-chip tool"><span class="name">${escapeHtml(t.tool)}</span>${t.count > 1 ? `<span class="meta">×${t.count}</span>` : ''}</span>`).join('')
+      }</div>`);
+    }
+    if (data.traveling_members && data.traveling_members.length > 0) {
+      rows.push(`<div class="oc-row"><span class="oc-row-label travel">Traveling:</span>${
+        data.traveling_members.map((m) => `<span class="oc-chip travel"><span class="name">${escapeHtml(m.name)}</span><span class="meta">${escapeHtml(m.status_text)}</span></span>`).join('')
+      }</div>`);
+    }
+    body = rows.join('');
+  }
+
+  el.innerHTML = `
+    <div class="oc-head">
+      <span class="oc-tag">OC 2.0</span>
+      ${summary}
+      <button type="button" class="oc-toggle" data-act="oc-toggle">${collapsed ? '▾' : '▴'}</button>
+    </div>
+    ${body}
+  `;
+  el.classList.remove('hidden');
+
+  el.querySelector<HTMLButtonElement>('[data-act="oc-toggle"]')?.addEventListener('click', () => {
+    try {
+      const next = localStorage.getItem(OC_COLLAPSED_KEY) === '1' ? '0' : '1';
+      localStorage.setItem(OC_COLLAPSED_KEY, next);
+    } catch { /* ignore */ }
+    // Re-render with the toggled state without re-fetching.
+    renderOcDigest(shadow, data);
+  });
+}
+
+async function refreshOcDigest(shadow: ShadowRoot): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  try {
+    const data = await fetchOcDigest(auth);
+    renderOcDigest(shadow, data);
+  } catch {
+    renderOcDigest(shadow, null);
+  }
+}
+
+function startOcDigestPolling(shadow: ShadowRoot, channelId: number): void {
+  stopOcDigestPolling(shadow);
+  if (!isOcDigestChannel(channelId)) return;
+  _ocCardPoller = startPolling({
+    name: 'chat-oc-digest',
+    intervalMs: 300_000,
+    fn: () => refreshOcDigest(shadow),
+    immediate: true,
+  });
+}
+
+function stopOcDigestPolling(shadow: ShadowRoot): void {
+  if (_ocCardPoller) {
+    _ocCardPoller.stop();
+    _ocCardPoller = null;
+  }
+  renderOcDigest(shadow, null);
 }
 
 // ── War-room card (Task #9) ─────────────────────────────────
@@ -1601,6 +1759,7 @@ function renderPanel(shadow: ShadowRoot): void {
       <div class="search-results"></div>
     </div>
     <div class="war-room-card hidden"></div>
+    <div class="oc-digest-card hidden"></div>
     <div class="messages"><div class="empty">Loading messages…</div></div>
     <button class="new-pill hidden" data-act="scroll-new">↓ New messages</button>
     <div class="composer">
@@ -1618,9 +1777,11 @@ function renderPanel(shadow: ShadowRoot): void {
     saveState(_state);
     stopMessagePolling();
     stopWarCardPolling(shadow);
+    stopOcDigestPolling(shadow);
     await loadChannelInitial(shadow, val);
     startMessagePolling(shadow);
     startWarCardPolling(shadow, val);
+    startOcDigestPolling(shadow, val);
     updatePlaceholder(shadow);
   });
 
@@ -1723,9 +1884,11 @@ function renderPanel(shadow: ShadowRoot): void {
       saveState(_state);
       stopMessagePolling();
       stopWarCardPolling(shadow);
+      stopOcDigestPolling(shadow);
       await loadChannelInitial(shadow, chId);
       startMessagePolling(shadow);
       startWarCardPolling(shadow, chId);
+      startOcDigestPolling(shadow, chId);
       const sel = panel.querySelector<HTMLSelectElement>('.ch-select');
       if (sel) sel.value = String(chId);
       updatePlaceholder(shadow);
