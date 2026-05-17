@@ -17,11 +17,9 @@ interface Props {
 }
 
 /** Curated shortlist — covers ack / agreement / war-room / chain patterns. */
-const QUICK_EMOJIS = [
-  "👍", "❤️", "😂", "🎉", "🔥",
-  "✅", "❌", "👀", "💀", "🚀",
-  "🟢", "🟡", "🔴",
-] as const;
+const QUICK_EMOJIS_TOP = ["👍", "❤️", "😂", "🎉", "🔥", "✅", "👀"] as const;
+const QUICK_EMOJIS_REST = ["❌", "💀", "🚀", "🟢", "🟡", "🔴"] as const;
+const QUICK_EMOJIS_ALL = [...QUICK_EMOJIS_TOP, ...QUICK_EMOJIS_REST] as const;
 
 export function MessageReactions({
   messageId,
@@ -39,7 +37,11 @@ export function MessageReactions({
     else setPickerOpenLocal(resolved);
   }, [onPickerOpenChange, pickerOpen]);
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Reset to top-7 view whenever the picker closes so the next open starts compact.
+  useEffect(() => { if (!pickerOpen) setExpanded(false); }, [pickerOpen]);
 
   // Close picker on outside click
   useEffect(() => {
@@ -110,8 +112,8 @@ export function MessageReactions({
         );
       })}
       {pickerOpen && (
-        <div className="absolute z-20 bottom-full left-0 mb-1 flex flex-wrap gap-1 max-w-[14rem] p-1.5 bg-bg-surface border border-border rounded-lg shadow-lg">
-          {QUICK_EMOJIS.map(emoji => {
+        <div className="absolute z-20 bottom-full left-0 mb-1 flex items-center gap-1 p-1.5 bg-bg-surface border border-border rounded-full shadow-lg">
+          {(expanded ? QUICK_EMOJIS_ALL : QUICK_EMOJIS_TOP).map(emoji => {
             const existing = list.find(r => r.emoji === emoji);
             const mine = !!(existing && selfId != null && existing.players.some(p => p.id === selfId));
             return (
@@ -119,7 +121,7 @@ export function MessageReactions({
                 key={emoji}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); toggle(emoji, mine); }}
-                className={`w-7 h-7 rounded text-base leading-none hover:bg-bg-elevated ${mine ? "bg-torn-green/15" : ""}`}
+                className={`w-7 h-7 rounded-md text-lg leading-none flex items-center justify-center transition-all hover:bg-bg-elevated hover:scale-110 ${mine ? "bg-torn-green/15" : ""}`}
                 aria-label={`React with ${emoji}`}
                 title={emoji}
               >
@@ -127,6 +129,17 @@ export function MessageReactions({
               </button>
             );
           })}
+          {!expanded && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+              className="w-7 h-7 rounded-md text-base font-bold text-text-muted hover:bg-bg-elevated transition-colors flex items-center justify-center"
+              aria-label="More reactions"
+              title="More reactions"
+            >
+              ⋯
+            </button>
+          )}
         </div>
       )}
     </div>

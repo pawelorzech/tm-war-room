@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.60.0";
+export const CURRENT_VERSION = "1.60.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.60.1",
+    date: "2026-05-17",
+    title: "Chat — reaction picker is a clean horizontal row (Companion 0.35.1)",
+    changes: [
+      {
+        type: "improve",
+        summary: "The reaction picker is now a single horizontal row with the 7 most-used emojis and a '⋯' button for the rest",
+        detail: "Replaced the cramped three-row tile that wrapped 13 emojis into a narrow box. The picker now shows 👍 ❤️ 😂 🎉 🔥 ✅ 👀 in one row — tap '⋯' to reveal the full set (❌ 💀 🚀 🟢 🟡 🔴). Hover bumps each emoji up slightly so it's easier to aim at. Same redesign in the companion chat dock on torn.com.",
+      },
+    ],
+  },
   {
     version: "1.60.0",
     date: "2026-05-17",

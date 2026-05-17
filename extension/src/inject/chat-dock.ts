@@ -659,21 +659,33 @@ const STYLES = `
   .msg .reaction-add-trigger:hover { color: #c9d1d9; border-color: #6e7681; }
   .reaction-picker {
     position: fixed; z-index: 2147483646;
-    display: flex; flex-wrap: wrap; gap: 2px;
-    max-width: 200px;
-    padding: 4px;
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px;
     background: #21262d;
     border: 1px solid #30363d;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border-radius: 999px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    animation: reactionPickerIn 120ms ease-out;
   }
   .reaction-picker button {
-    width: 24px; height: 24px;
-    background: transparent; border: none; border-radius: 4px;
-    color: #c9d1d9; font-size: 14px; line-height: 1;
+    width: 28px; height: 28px;
+    background: transparent; border: none; border-radius: 8px;
+    color: #c9d1d9; font-size: 18px; line-height: 1;
     cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 80ms ease, background 80ms ease;
   }
-  .reaction-picker button:hover { background: #30363d; }
+  .reaction-picker button:hover {
+    transform: scale(1.15);
+    background: rgba(255,255,255,0.08);
+  }
+  .reaction-picker button.more-btn {
+    color: #8b949e; font-size: 16px; font-weight: 700;
+  }
+  @keyframes reactionPickerIn {
+    from { opacity: 0; transform: scale(0.92) translateY(4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
 
   .composer { position: relative; }
   .cmd-autocomplete {
@@ -2152,7 +2164,15 @@ function renderMessages(shadow: ShadowRoot): void {
   void resolveVisibleEntities(shadow);
 }
 
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '❌', '👀', '💀', '🚀', '🟢', '🟡', '🔴'];
+const QUICK_EMOJIS_TOP = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '👀'];
+const QUICK_EMOJIS_REST = ['❌', '💀', '🚀', '🟢', '🟡', '🔴'];
+const QUICK_EMOJIS_ALL = [...QUICK_EMOJIS_TOP, ...QUICK_EMOJIS_REST];
+
+function emojiButtonsHtml(emojis: readonly string[]): string {
+  return emojis
+    .map((e) => `<button type="button" data-pick="${escapeHtml(e)}">${escapeHtml(e)}</button>`)
+    .join('');
+}
 
 function renderReactions(m: ChatMessage, me: number): string {
   const list = m.reactions ?? [];
@@ -2180,9 +2200,11 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
   anchor.classList.add('open');
   const picker = document.createElement('div');
   picker.className = 'reaction-picker';
-  picker.innerHTML = QUICK_EMOJIS
-    .map((e) => `<button type="button" data-pick="${escapeHtml(e)}">${escapeHtml(e)}</button>`)
-    .join('');
+  // Default: top-7 most-used emojis + "⋯" trigger to expand to full set.
+  // Single-row pill — no flex-wrap — beats the old 3-row 200px tile.
+  picker.innerHTML =
+    emojiButtonsHtml(QUICK_EMOJIS_TOP) +
+    '<button type="button" class="more-btn" data-more aria-label="More reactions" title="More reactions">⋯</button>';
   // Mount at shadow-root level, NOT inside .messages: renderMessages() rewrites
   // .messages.innerHTML on every poll / websocket / entity-resolve cycle and
   // would silently delete the picker before the user can pick an emoji
@@ -2190,9 +2212,22 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
   // picker tethered visually to the trigger across those re-renders.
   const rect = anchor.getBoundingClientRect();
   picker.style.left = `${rect.left}px`;
-  picker.style.top = `${rect.top - 36}px`;
+  picker.style.top = `${rect.top - 44}px`;
   picker.addEventListener('click', async (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLElement>('button[data-pick]');
+    const target = e.target as HTMLElement;
+    if (target.closest('button[data-more]')) {
+      // Expand in place — keep the picker element so the entry animation and
+      // outside-click handler stay valid. closePicker() would tear it down.
+      picker.innerHTML = emojiButtonsHtml(QUICK_EMOJIS_ALL);
+      // Re-clamp horizontal position so the now-wider picker doesn't spill
+      // past the viewport edge.
+      const margin = 8;
+      const maxLeft = window.innerWidth - picker.offsetWidth - margin;
+      const desiredLeft = rect.left;
+      picker.style.left = `${Math.max(margin, Math.min(desiredLeft, maxLeft))}px`;
+      return;
+    }
+    const btn = target.closest<HTMLElement>('button[data-pick]');
     if (!btn) return;
     const emoji = btn.dataset.pick ?? '';
     await toggleReaction(shadow, msgId, emoji);
