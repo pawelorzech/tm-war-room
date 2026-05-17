@@ -22,7 +22,25 @@ const STYLE_ID = 'tm-companion-imarket-styles';
 const ROW_ATTR = 'data-tm-imarket-styled';
 const BADGE_ATTR = 'data-tm-imarket-badge';
 
+// Bargain/cheap thresholds. Calibrated to match TornTools' default behaviour
+// while leaving the existing fair-pill / overpriced-pill behaviour intact:
+//   ratio = listed / market_value
+//   ratio <= BARGAIN_RATIO              → green "BARGAIN -X%"
+//   BARGAIN_RATIO < ratio <= CHEAP_RATIO → yellow "CHEAP -X%"
+//   above CHEAP_RATIO, +OVERPRICED_DELTA → grey "fair" (existing)
+//   above 1 + OVERPRICED_DELTA           → red "overpriced" (existing)
+const BARGAIN_RATIO = 0.80;
+const CHEAP_RATIO = 0.95;
+const OVERPRICED_DELTA = 0.10;
+
 let _cache: { ts: number; map: Map<number, MarketPriceItem> } | null = null;
+
+/** Test-only — reset the module-level prices cache so unit tests can stub a
+ * fresh response per case without waiting out the 5-min TTL. Production code
+ * must not call this. */
+export function _resetImarketCacheForTests(): void {
+  _cache = null;
+}
 
 async function getPricesMap(): Promise<Map<number, MarketPriceItem>> {
   if (_cache && Date.now() - _cache.ts < TTL_MS) return _cache.map;
@@ -57,12 +75,19 @@ const STYLES = `
     white-space: nowrap;
     vertical-align: middle;
   }
-  [${BADGE_ATTR}].tm-under { color: #3fb950; border-color: rgba(63,185,80,0.45); }
-  [${BADGE_ATTR}].tm-over  { color: #f85149; border-color: rgba(248,81,73,0.45); }
-  [${BADGE_ATTR}].tm-fair  { color: #8b949e; }
+  [${BADGE_ATTR}].tm-bargain { color: #3fb950; border-color: rgba(63,185,80,0.55); background: rgba(63,185,80,0.12); }
+  [${BADGE_ATTR}].tm-cheap   { color: #e8b339; border-color: rgba(210,153,34,0.50); background: rgba(210,153,34,0.10); }
+  [${BADGE_ATTR}].tm-over    { color: #f85149; border-color: rgba(248,81,73,0.45); }
+  [${BADGE_ATTR}].tm-fair    { color: #8b949e; }
   [${BADGE_ATTR}] .tm-delta {
     font-variant-numeric: tabular-nums;
     font-weight: 700;
+  }
+  /* Mobile compact mode: strip the BARGAIN/CHEAP/fair text label below 600px
+     so the colored chip + percentage stay readable in Torn's narrow mobile
+     listing rows. Matches the precedent in inject/status-chip.ts. */
+  @media (max-width: 600px) {
+    [${BADGE_ATTR}] .tm-label { display: none; }
   }
 `;
 
@@ -139,21 +164,28 @@ function formatPct(n: number): string {
   return `${sign}${Math.round(abs)}%`;
 }
 
-function buildPill(deltaPct: number): HTMLElement {
+function buildPill(ratio: number, deltaPct: number): HTMLElement {
   const pill = document.createElement('span');
   pill.setAttribute(BADGE_ATTR, '1');
   let label: string;
-  if (deltaPct < -10) {
-    label = '⬇ underpriced';
-    pill.classList.add('tm-under');
-  } else if (deltaPct > 10) {
+  // Bargain/cheap eat the old underpriced bucket. We pick by ratio (not delta)
+  // so the threshold semantics read naturally: "≤80% of market" = BARGAIN.
+  if (ratio <= BARGAIN_RATIO) {
+    label = 'BARGAIN';
+    pill.classList.add('tm-bargain');
+  } else if (ratio <= CHEAP_RATIO) {
+    label = 'CHEAP';
+    pill.classList.add('tm-cheap');
+  } else if (deltaPct > OVERPRICED_DELTA * 100) {
     label = '⬆ overpriced';
     pill.classList.add('tm-over');
   } else {
     label = 'fair';
     pill.classList.add('tm-fair');
   }
-  pill.innerHTML = `${escapeHtml(label)} <span class="tm-delta">${escapeHtml(formatPct(deltaPct))}</span>`;
+  // .tm-label wraps the text so the mobile @media rule can hide it without
+  // touching the chip background or the .tm-delta percentage.
+  pill.innerHTML = `<span class="tm-label">${escapeHtml(label)}</span> <span class="tm-delta">${escapeHtml(formatPct(deltaPct))}</span>`;
   pill.title = 'TM Hub fair-price compares the listing against Torn\'s market value for this item.';
   return pill;
 }
@@ -184,21 +216,25 @@ export async function applyImarketOverlay(): Promise<void> {
 
   const rows = collectListingRows();
   for (const row of rows) {
-    const stateKey = String(fair.market_value);
-    if (row.getAttribute(ROW_ATTR) === stateKey) continue;
-
     const priceEl = findPriceElement(row);
     if (!priceEl) continue;
     const listed = parsePriceText(priceEl.textContent ?? '');
     if (listed === null) continue;
 
+    // stateKey must include the listing price — a Torn in-place re-render that
+    // mutates the price (e.g. seller drops by $10k) should re-paint the badge.
+    // The earlier `String(fair.market_value)` key would have kept a stale
+    // BARGAIN badge on a row that just became CHEAP.
+    const stateKey = `${fair.market_value}:${listed}`;
+    if (row.getAttribute(ROW_ATTR) === stateKey) continue;
     row.setAttribute(ROW_ATTR, stateKey);
 
     // Replace any prior pill on this row before inserting the fresh one.
     row.querySelectorAll(`[${BADGE_ATTR}]`).forEach((b) => b.remove());
 
-    const deltaPct = ((listed - fair.market_value) / fair.market_value) * 100;
-    const pill = buildPill(deltaPct);
+    const ratio = listed / fair.market_value;
+    const deltaPct = (ratio - 1) * 100;
+    const pill = buildPill(ratio, deltaPct);
     priceEl.insertAdjacentElement('afterend', pill);
   }
 }
