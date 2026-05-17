@@ -205,3 +205,55 @@ describe('wireReactionHandlers', () => {
     expect(toggle).toHaveBeenCalledWith(99, '🔥');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Picker mount invariant — captures the 0.31.2 fix.
+//
+// Bug 0.28.0 → 0.31.1: openPickerNear did `messages.appendChild(picker)`. Every
+// renderMessages() (chat poll, websocket update, entity resolve) does
+// `messages.innerHTML = …`, deleting the picker before the user can click an
+// emoji. Symptom: tap "+" → nothing visible → "+ is broken".
+//
+// 0.31.2 fix: mount the picker at the shadow-root level. These tests document
+// the invariant in both directions so a future regression is loud.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('picker mount invariant', () => {
+  it('a picker mounted at shadow-root level survives a .messages innerHTML rewrite', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const shadow = host.attachShadow({ mode: 'open' });
+
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    const messages = document.createElement('div');
+    messages.className = 'messages';
+    messages.innerHTML = '<div class="msg" data-msg-id="1">hi</div>';
+    panel.appendChild(messages);
+    shadow.appendChild(panel);
+
+    const picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    shadow.appendChild(picker);
+
+    // Simulate renderMessages() rewriting .messages.innerHTML mid-render.
+    messages.innerHTML = '<div class="msg" data-msg-id="2">new</div>';
+
+    expect(shadow.querySelector('.reaction-picker')).toBe(picker);
+    expect(messages.contains(picker)).toBe(false);
+  });
+
+  it('REGRESSION GUARD: a picker mounted INSIDE .messages is destroyed by innerHTML rewrite', () => {
+    // The old (broken) mounting strategy. If this test ever starts failing,
+    // happy-dom semantics have shifted — confirm the production fix still
+    // applies before "fixing" this test.
+    const messages = document.createElement('div');
+    messages.innerHTML = '<div class="msg">hi</div>';
+    const picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    messages.appendChild(picker);
+
+    expect(messages.querySelector('.reaction-picker')).toBe(picker);
+    messages.innerHTML = '<div class="msg">new</div>';
+    expect(messages.querySelector('.reaction-picker')).toBeNull();
+  });
+});

@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.56.0";
+export const CURRENT_VERSION = "1.56.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.56.1",
+    date: "2026-05-17",
+    title: "Companion v0.32.1 — the '+ add reaction' button finally opens the picker",
+    changes: [
+      {
+        type: "fix",
+        summary: "The smiley '+ add reaction' button on chat messages now opens the emoji picker — and the picker stays open until you pick or click away",
+        before: "Even after yesterday's v0.31.1 click-listener fix, tapping the '+' button in the companion chat dock still did nothing visible — no picker would appear. Existing reaction chips (the ones with counts) toggled fine, but adding a new reaction was impossible.",
+        after: "The picker now appears anchored above the '+' you tapped and stays open. Tap an emoji to react, or click anywhere else to dismiss it.",
+        cause: "The picker was being mounted inside the chat message list, but the message list rewrites its own HTML on every poll, websocket update and entity-resolve cycle — usually within milliseconds — silently deleting the picker before you could see it, let alone click an emoji.",
+      },
+    ],
+  },
   {
     version: "1.56.0",
     date: "2026-05-17",

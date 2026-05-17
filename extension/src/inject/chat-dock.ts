@@ -504,7 +504,7 @@ const STYLES = `
   .msg:hover .reaction-add-trigger, .msg .reaction-add-trigger.open { opacity: 1; }
   .msg .reaction-add-trigger:hover { color: #c9d1d9; border-color: #6e7681; }
   .reaction-picker {
-    position: absolute; z-index: 5;
+    position: fixed; z-index: 2147483646;
     display: flex; flex-wrap: wrap; gap: 2px;
     max-width: 200px;
     padding: 4px;
@@ -1633,13 +1633,14 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
   picker.innerHTML = QUICK_EMOJIS
     .map((e) => `<button type="button" data-pick="${escapeHtml(e)}">${escapeHtml(e)}</button>`)
     .join('');
-  // Position above the + button.
-  const messages = shadow.querySelector<HTMLElement>('.messages');
-  if (!messages) return;
+  // Mount at shadow-root level, NOT inside .messages: renderMessages() rewrites
+  // .messages.innerHTML on every poll / websocket / entity-resolve cycle and
+  // would silently delete the picker before the user can pick an emoji
+  // (symptom: "+" looks dead). Viewport-relative `position: fixed` keeps the
+  // picker tethered visually to the trigger across those re-renders.
   const rect = anchor.getBoundingClientRect();
-  const wrapRect = messages.getBoundingClientRect();
-  picker.style.left = `${rect.left - wrapRect.left + messages.scrollLeft}px`;
-  picker.style.top = `${rect.top - wrapRect.top + messages.scrollTop - 36}px`;
+  picker.style.left = `${rect.left}px`;
+  picker.style.top = `${rect.top - 36}px`;
   picker.addEventListener('click', async (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('button[data-pick]');
     if (!btn) return;
@@ -1647,7 +1648,7 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
     await toggleReaction(shadow, msgId, emoji);
     closePicker(shadow);
   });
-  messages.appendChild(picker);
+  shadow.appendChild(picker);
 }
 
 async function toggleReaction(shadow: ShadowRoot, msgId: number, emoji: string): Promise<void> {
