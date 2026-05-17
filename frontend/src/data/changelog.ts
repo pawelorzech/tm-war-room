@@ -52,9 +52,31 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.64.0";
+export const CURRENT_VERSION = "1.65.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.65.0",
+    date: "2026-05-17",
+    title: "Companion Sprint 1 — spy badges on more Torn pages, bargain alerts on the item market, useful browser tab titles",
+    changes: [
+      {
+        type: "feat",
+        summary: "Spy bucket badges on bounty, hospital, and jail rows",
+        detail: "When you have spy data on an enemy, you now see a colored bucket pill (VERIFIED / ESTIMATE / ROUGH GUESS / ENDGAME PLAYER) right on the bounty list, hospital list, and jail list — no need to click into the profile. War off-limits targets get a strike-through + red border so they don't look attractive even when the bucket says easy. Mobile compact: the caption text drops below 600px while the colored chip + range stay readable.",
+      },
+      {
+        type: "feat",
+        summary: "BARGAIN / CHEAP highlights on the item market",
+        detail: "Listings at ≤80% of TM Hub's market value get a green BARGAIN badge with the discount percentage. Listings at 80–95% get a yellow CHEAP badge. Quiet on missing data — no false 'unknown' chips. Mobile compact strips the text label but keeps the colored chip + percentage so a thumb scroll still surfaces the deals.",
+      },
+      {
+        type: "feat",
+        summary: "Browser tab title shows your hospital / jail / travel state",
+        detail: "While you're in hospital, jail, or traveling, the browser tab title becomes 'Hospital — 12m left | TM Hub', 'Jail — 1h 03m | TM Hub', or '→ UK 28m | TM Hub'. Pure tab-tracking convenience — no extra API calls. Honest signal: when the state is unknown we leave the title alone instead of guessing.",
+      },
+    ],
+  },
   {
     version: "1.64.0",
     date: "2026-05-17",
