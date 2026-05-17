@@ -186,6 +186,105 @@ class ChatRepository(BaseRepository):
             m["mentions"] = json.loads(m.get("mentions") or "[]")
         return result
 
+    # ── Reactions ─────────────────────────────────────────────
+
+    def add_reaction(
+        self, message_id: int, player_id: int, player_name: str, emoji: str,
+    ) -> dict | None:
+        """Add a (message, player, emoji) reaction. Idempotent.
+
+        Returns the aggregate reaction state for that emoji on that message
+        (so the caller can broadcast a complete chip snapshot to other
+        clients), or ``None`` if the underlying message doesn't exist or
+        was deleted.
+        """
+        row = self.execute_one(
+            "SELECT id FROM chat_messages WHERE id = ? AND deleted = 0",
+            (message_id,),
+        )
+        if not row:
+            return None
+        self.mutate(
+            """INSERT OR IGNORE INTO chat_reactions
+               (message_id, player_id, player_name, emoji, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (message_id, player_id, player_name, emoji, int(time.time())),
+        )
+        return self._reaction_aggregate(message_id, emoji)
+
+    def remove_reaction(
+        self, message_id: int, player_id: int, emoji: str,
+    ) -> dict | None:
+        """Remove a (message, player, emoji) reaction.
+
+        Returns ``{"emoji": ..., "count": N, "players": [...]}`` after the
+        delete (count may be 0 — the chip should be removed client-side),
+        or ``None`` if the reaction didn't exist (so the caller can 404
+        instead of broadcasting a no-op).
+        """
+        row = self.execute_one(
+            """SELECT 1 FROM chat_reactions
+               WHERE message_id = ? AND player_id = ? AND emoji = ?""",
+            (message_id, player_id, emoji),
+        )
+        if not row:
+            return None
+        self.mutate(
+            """DELETE FROM chat_reactions
+               WHERE message_id = ? AND player_id = ? AND emoji = ?""",
+            (message_id, player_id, emoji),
+        )
+        return self._reaction_aggregate(message_id, emoji)
+
+    def _reaction_aggregate(self, message_id: int, emoji: str) -> dict:
+        rows = self.execute(
+            """SELECT player_id, player_name FROM chat_reactions
+               WHERE message_id = ? AND emoji = ?
+               ORDER BY created_at ASC""",
+            (message_id, emoji),
+        )
+        players = [{"id": r["player_id"], "name": r["player_name"]} for r in rows]
+        return {"emoji": emoji, "count": len(players), "players": players}
+
+    def get_reactions_for_messages(
+        self, message_ids: list[int],
+    ) -> dict[int, list[dict]]:
+        """Return per-message aggregated reaction chips.
+
+        Shape:
+
+            {
+                message_id: [
+                    {"emoji": "👍", "count": 3, "players": [{"id": ..., "name": ...}, ...]},
+                    ...
+                ],
+                ...
+            }
+
+        Empty list / missing key both mean "no reactions on that message".
+        Emojis within a message are ordered by first-reaction time so the
+        chip layout is stable across renders.
+        """
+        if not message_ids:
+            return {}
+        qmarks = ",".join("?" * len(message_ids))
+        rows = self.execute(
+            f"""SELECT message_id, emoji, player_id, player_name, created_at
+                FROM chat_reactions
+                WHERE message_id IN ({qmarks})
+                ORDER BY message_id ASC, created_at ASC""",
+            tuple(message_ids),
+        )
+        out: dict[int, dict[str, dict]] = {}
+        for r in rows:
+            mid = r["message_id"]
+            emoji = r["emoji"]
+            bucket = out.setdefault(mid, {})
+            agg = bucket.setdefault(emoji, {"emoji": emoji, "count": 0, "players": []})
+            agg["count"] += 1
+            agg["players"].append({"id": r["player_id"], "name": r["player_name"]})
+        return {mid: list(bucket.values()) for mid, bucket in out.items()}
+
     # ── Threads ───────────────────────────────────────────────
 
     def get_threads(

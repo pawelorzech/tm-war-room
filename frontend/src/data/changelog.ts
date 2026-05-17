@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.52.0";
+export const CURRENT_VERSION = "1.53.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.53.0",
+    date: "2026-05-17",
+    title: "Chat — emoji reactions on every message",
+    changes: [
+      {
+        type: "feat",
+        summary: "Tap any chat message to react with an emoji",
+        detail: "A '+' button now appears on hover next to every chat message; tap it and pick from a curated palette (👍 ❤️ 🎉 ✅ ❌ 👀 💀 🔴 🟡 🟢 and friends). Reactions render as compact chips below the message with a count and the names of everyone who reacted on hover; tap your own chip to take it back. Works the same in the floating Companion chat dock on torn.com — reactions sync live across both surfaces. Foundation for the upcoming /poll command (🟢🟡🔴 quick polls).",
+      },
+    ],
+  },
   {
     version: "1.52.0",
     date: "2026-05-17",

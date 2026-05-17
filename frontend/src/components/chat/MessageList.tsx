@@ -159,6 +159,7 @@ export function MessageList({
                 onDeleted={onMessageDeleted}
                 memberMap={memberMap}
                 adminIds={adminIds}
+                selfId={playerId}
                 grouped={grouped}
               />
             </div>

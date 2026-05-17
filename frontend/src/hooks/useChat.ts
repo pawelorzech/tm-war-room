@@ -242,6 +242,26 @@ export function useChat() {
         ));
         break;
       }
+      case "reaction_add":
+      case "reaction_remove": {
+        const rid = p.message_id as number;
+        const emoji = p.emoji as string;
+        const reaction = p.reaction as { emoji: string; count: number; players: { id: number; name: string }[] };
+        setMessages(prev => prev.map(m => {
+          if (m.id !== rid) return m;
+          const others = (m.reactions ?? []).filter(r => r.emoji !== emoji);
+          const nextList = reaction.count > 0 ? [...others, reaction] : others;
+          // Preserve original order: only append when this is a fresh emoji.
+          const existedAt = (m.reactions ?? []).findIndex(r => r.emoji === emoji);
+          if (existedAt >= 0 && reaction.count > 0) {
+            const reordered = [...(m.reactions ?? [])];
+            reordered[existedAt] = reaction;
+            return { ...m, reactions: reordered };
+          }
+          return { ...m, reactions: nextList };
+        }));
+        break;
+      }
     }
   }, []);
 

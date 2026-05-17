@@ -402,6 +402,20 @@ export const api = {
     apiFetch<{ status: string }>(`/api/chat/messages/${messageId}`, { method: "DELETE" }),
   chatTogglePin: (messageId: number) =>
     apiFetch<{ status: string; pinned: boolean }>(`/api/chat/messages/${messageId}/pin`, { method: "POST" }),
+  chatAddReaction: (messageId: number, emoji: string) =>
+    apiFetch<{ status: string; reaction: import("@/types/chat").Reaction }>(
+      `/api/chat/messages/${messageId}/reactions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      },
+    ),
+  chatRemoveReaction: (messageId: number, emoji: string) =>
+    apiFetch<{ status: string; reaction: import("@/types/chat").Reaction }>(
+      `/api/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+      { method: "DELETE" },
+    ),
   chatPinnedMessages: (channelId: number) =>
     apiFetch<{ messages: Message[] }>(`/api/chat/channels/${channelId}/pinned`),
   chatThreads: (channelId: number, before?: number) =>

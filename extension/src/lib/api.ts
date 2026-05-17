@@ -223,6 +223,29 @@ export function fetchChatUnread(auth: CompanionAuth): Promise<ChatUnreadResponse
   return get<ChatUnreadResponse>('/api/chat/unread', auth);
 }
 
+export function addChatReaction(
+  auth: CompanionAuth,
+  messageId: number,
+  emoji: string,
+): Promise<{ status: string; reaction: { emoji: string; count: number; players: { id: number; name: string }[] } }> {
+  return post(
+    `/api/chat/messages/${messageId}/reactions`,
+    { emoji },
+    auth,
+  );
+}
+
+export function removeChatReaction(
+  auth: CompanionAuth,
+  messageId: number,
+  emoji: string,
+): Promise<{ status: string; reaction: { emoji: string; count: number; players: { id: number; name: string }[] } }> {
+  return del(
+    `/api/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+    auth,
+  );
+}
+
 export function fetchMemberAvatars(
   auth: CompanionAuth,
 ): Promise<{ avatars: Record<string, string> }> {

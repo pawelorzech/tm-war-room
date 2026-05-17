@@ -13,6 +13,7 @@
 
 import { ensurePersistentHost } from '../lib/persistent-host';
 import {
+  addChatReaction,
   ApiError,
   fetchChatChannels,
   fetchChatMessages,
@@ -20,6 +21,7 @@ import {
   fetchMemberAvatars,
   fetchOverview,
   markChatRead,
+  removeChatReaction,
   sendChatMessage,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
@@ -328,6 +330,60 @@ const STYLES = `
     white-space: pre-wrap;
   }
   .msg .text.mentioned { background: rgba(210, 153, 34, 0.12); padding: 2px 4px; border-radius: 3px; }
+
+  .msg .reactions {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 4px;
+  }
+  .msg .reaction-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid #30363d;
+    background: #161b22;
+    color: #c9d1d9;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+  }
+  .msg .reaction-chip:hover { border-color: rgba(35, 134, 54, 0.4); }
+  .msg .reaction-chip.mine {
+    border-color: rgba(35, 134, 54, 0.6);
+    background: rgba(35, 134, 54, 0.12);
+    color: #56d364;
+  }
+  .msg .reaction-chip .count { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .msg .reaction-add {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 999px;
+    border: 1px dashed #30363d;
+    background: transparent;
+    color: #6e7681;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .msg:hover .reaction-add, .msg .reactions .reaction-add.open { opacity: 1; }
+  .msg .reaction-add:hover { color: #c9d1d9; border-color: #6e7681; }
+  .reaction-picker {
+    position: absolute; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 2px;
+    max-width: 200px;
+    padding: 4px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .reaction-picker button {
+    width: 24px; height: 24px;
+    background: transparent; border: none; border-radius: 4px;
+    color: #c9d1d9; font-size: 14px; line-height: 1;
+    cursor: pointer;
+  }
+  .reaction-picker button:hover { background: #30363d; }
 
   .date-sep {
     display: flex;
@@ -851,6 +907,32 @@ function renderPanel(shadow: ShadowRoot): void {
   });
   sendBtn.addEventListener('click', () => void doSend(shadow, ta, sendBtn));
 
+  // Reactions — delegated click on chips / + buttons / picker.
+  const messagesEl = panel.querySelector<HTMLElement>('.messages')!;
+  messagesEl.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const chip = target.closest<HTMLElement>('.reaction-chip');
+    if (chip) {
+      e.stopPropagation();
+      const msgId = findMessageId(chip);
+      const emoji = chip.dataset.emoji ?? '';
+      if (msgId && emoji) void toggleReaction(shadow, msgId, emoji);
+      return;
+    }
+    const addBtn = target.closest<HTMLElement>('.reaction-add');
+    if (addBtn) {
+      e.stopPropagation();
+      const msgId = findMessageId(addBtn);
+      if (msgId) {
+        if (addBtn.classList.contains('open')) closePicker(shadow);
+        else openPickerNear(shadow, addBtn, msgId);
+      }
+      return;
+    }
+    // Click anywhere else closes the picker.
+    if (shadow.querySelector('.reaction-picker')) closePicker(shadow);
+  });
+
   // Scroll tracking — when user scrolls to bottom, hide the "new messages"
   // pill AND mark the channel read since they've now seen everything.
   const messages = panel.querySelector<HTMLElement>('.messages')!;
@@ -976,18 +1058,111 @@ function renderMessages(shadow: ShadowRoot): void {
           }<span class="time">${formatChatTime(m.created_at)}</span>`;
 
       const cls = `msg${grouped ? '' : ' group-start'}`;
+      const reactionsHtml = renderReactions(m, me);
       return `
         ${separator}
-        <div class="${cls}">
+        <div class="${cls}" data-msg-id="${m.id}">
           ${avatarCol}
           <div class="body-col">
             ${headerHtml}
             <div class="text${mentioned ? ' mentioned' : ''}">${renderBody(m.content, m.mentions, _roster)}</div>
+            ${reactionsHtml}
           </div>
         </div>
       `;
     })
     .join('');
+}
+
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '❌', '👀', '💀', '🚀', '🟢', '🟡', '🔴'];
+
+function renderReactions(m: ChatMessage, me: number): string {
+  const list = m.reactions ?? [];
+  const chips = list
+    .map((r) => {
+      const mine = me > 0 && r.players.some((p) => p.id === me);
+      const names = r.players.map((p) => p.name).join(', ') || `${r.count}`;
+      return `<button type="button" class="reaction-chip${mine ? ' mine' : ''}" data-emoji="${escapeHtml(r.emoji)}" title="${escapeHtml(names)} reacted with ${escapeHtml(r.emoji)}"><span aria-hidden>${escapeHtml(r.emoji)}</span><span class="count">${r.count}</span></button>`;
+    })
+    .join('');
+  const addBtn = `<button type="button" class="reaction-add" data-add="1" title="Add reaction">+</button>`;
+  return `<div class="reactions">${chips}${addBtn}</div>`;
+}
+
+function findMessageId(target: Element | null): number | null {
+  let el: Element | null = target;
+  while (el) {
+    if (el instanceof HTMLElement && el.dataset.msgId) return Number(el.dataset.msgId);
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function closePicker(shadow: ShadowRoot): void {
+  shadow.querySelector('.reaction-picker')?.remove();
+  shadow.querySelectorAll('.reaction-add.open').forEach((el) => el.classList.remove('open'));
+}
+
+function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number): void {
+  closePicker(shadow);
+  anchor.classList.add('open');
+  const picker = document.createElement('div');
+  picker.className = 'reaction-picker';
+  picker.innerHTML = QUICK_EMOJIS
+    .map((e) => `<button type="button" data-pick="${escapeHtml(e)}">${escapeHtml(e)}</button>`)
+    .join('');
+  // Position above the + button.
+  const messages = shadow.querySelector<HTMLElement>('.messages');
+  if (!messages) return;
+  const rect = anchor.getBoundingClientRect();
+  const wrapRect = messages.getBoundingClientRect();
+  picker.style.left = `${rect.left - wrapRect.left + messages.scrollLeft}px`;
+  picker.style.top = `${rect.top - wrapRect.top + messages.scrollTop - 36}px`;
+  picker.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('button[data-pick]');
+    if (!btn) return;
+    const emoji = btn.dataset.pick ?? '';
+    await toggleReaction(shadow, msgId, emoji);
+    closePicker(shadow);
+  });
+  messages.appendChild(picker);
+}
+
+async function toggleReaction(shadow: ShadowRoot, msgId: number, emoji: string): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  const target = _messages.find((mm) => mm.id === msgId);
+  if (!target) return;
+  const existing = (target.reactions ?? []).find((r) => r.emoji === emoji);
+  const mineAlready = !!(existing && existing.players.some((p) => p.id === auth.player_id));
+  try {
+    const res = mineAlready
+      ? await removeChatReaction(auth, msgId, emoji)
+      : await addChatReaction(auth, msgId, emoji);
+    applyReactionUpdate(msgId, emoji, res.reaction);
+    renderMessages(shadow);
+  } catch {
+    // Server is the source of truth — next poll will reconcile.
+  }
+}
+
+function applyReactionUpdate(
+  msgId: number,
+  emoji: string,
+  reaction: { emoji: string; count: number; players: { id: number; name: string }[] },
+): void {
+  const msg = _messages.find((m) => m.id === msgId);
+  if (!msg) return;
+  const list = msg.reactions ? [...msg.reactions] : [];
+  const idx = list.findIndex((r) => r.emoji === emoji);
+  if (reaction.count === 0) {
+    if (idx >= 0) list.splice(idx, 1);
+  } else if (idx >= 0) {
+    list[idx] = reaction;
+  } else {
+    list.push(reaction);
+  }
+  msg.reactions = list;
 }
 
 function date24Hm(ts: number): string {
