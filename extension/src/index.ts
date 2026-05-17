@@ -15,8 +15,8 @@ import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { shouldSkipRefresh } from './lib/refresh-dedupe';
 import { injectPreconnect } from './lib/preconnect';
-import { startRumWire } from './lib/rum-wire';
 import { startPolling } from './lib/poll';
+import { startRumWire } from './lib/rum-wire';
 import { HUB_ORIGIN } from './env';
 import { ensureProfileStack } from './lib/profile-stack';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
@@ -330,23 +330,22 @@ function bootstrap(): void {
   // until privacy review is signed off. See extension/docs/rum-privacy-review.md.
   startRumWire();
 
-  // FFScouter-parity feature flags: prime the cache on boot and refresh
-  // every 60 s. ``getFeatureFlags()`` (the sync accessor used by overlays)
-  // returns all-false until this resolves, which is the desired "dark by
-  // default" behaviour. We don't await — overlays gate themselves and
-  // re-run after the first poll.
+  // FFScouter-parity feature flags with stale-while-revalidate (Plan #15)
+  // routed through the visibility-aware scheduler (Sprint 1.5 #7).
   //
-  // Routed through `startPolling` (Sprint 1.5 #7) so background torn.com tabs
-  // stop polling while hidden. `immediate: false` keeps the existing cadence
-  // since the line below already primes the cache at t=0.
-  void fetchFeatureFlags();
+  // ``getCachedFeatureFlags()`` hydrates lazily from GM_setValue so the first
+  // paint on a cold tab uses the last-seen flags instead of all-false — no
+  // manual prime needed here, the SWR cache handles the cold-start case. The
+  // poll below runs the network refresh on a 60s cadence; `startPolling`
+  // fires fn() immediately at t=0 (default) and skips ticks while the tab is
+  // hidden. fetchFeatureFlags dispatches `tm-companion-refresh` when the
+  // payload actually changes so overlays re-evaluate.
   startPolling({
     name: 'feature-flags',
     intervalMs: 60_000,
-    fn: async () => {
-      await fetchFeatureFlags();
+    fn: () => {
+      void fetchFeatureFlags();
     },
-    immediate: false,
   });
 
   // Inject modules trigger this when they mutate server state, so the main
@@ -370,12 +369,6 @@ function bootstrap(): void {
     // for the browser permission prompt.
     void ensureNativePermission();
   });
-
-  // Warm the feature-flag cache up front (60s TTL inside fetchFeatureFlags).
-  // Overlays that gate on flags (FF chip, etc.) read getFeatureFlags()
-  // synchronously — without this prefetch the first paint after a fresh
-  // page load would always see all-false and silently skip the overlay.
-  void fetchFeatureFlags();
 
   // Initial render + URL-change re-trigger.
   void refresh();

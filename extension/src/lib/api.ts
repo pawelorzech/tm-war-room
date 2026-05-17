@@ -540,10 +540,24 @@ export async function fetchFFBulk(
   return out;
 }
 
-// ── Feature flags (Phase 0) ─────────────────────────────────
+// ── Feature flags (Phase 0 + Plan item #15 SWR) ─────────────
 //
 // Public endpoint — no auth, no X-Player-Id. We still go through
 // gmRequest/plainRequest so the Companion uses one transport for everything.
+//
+// Stale-while-revalidate: the last successful flag payload is persisted to
+// GM_setValue under FEATURE_FLAGS_STORAGE_KEY. `getCachedFeatureFlags()`
+// lazily hydrates the in-memory cache from that storage on first call so the
+// first paint on a cold tab uses the flags the user saw last session — no
+// 50-150ms wait while the background fetch races first paint. The background
+// fetch always runs (driven by `lib/poll.ts startPolling` from index.ts) and
+// re-publishes both in-memory + GM storage. When the new payload differs
+// from the cached one we dispatch `tm-companion-refresh` so overlays that
+// gate on flags re-evaluate.
+//
+// We deliberately do NOT enforce a TTL on the cached value. The background
+// poll runs unconditionally on the 60s cadence, so "stale-but-usable" is the
+// default; the only ceiling on staleness is the next visibility-aware tick.
 
 export interface FeatureFlags {
   ff_score: boolean;
@@ -559,9 +573,100 @@ const FEATURE_FLAGS_DEFAULT: FeatureFlags = {
   hit_calling: false,
 };
 
-const FEATURE_FLAGS_TTL_MS = 60_000;
+const FEATURE_FLAGS_STORAGE_KEY = 'tm-companion:feature-flags-cache';
+
+interface PersistedFlagsPayload {
+  value: FeatureFlags;
+  savedAt: string;
+}
+
+// GM_* shims — declared once here (auth.ts has its own copy; harmless dup).
+declare const GM_getValue: <T>(key: string, def?: T) => T;
+declare const GM_setValue: (key: string, value: unknown) => void;
 
 let _flagsCache: { value: FeatureFlags; fetchedAt: number } | null = null;
+let _flagsHydrated = false;
+
+function coerceFlags(raw: unknown): FeatureFlags | null {
+  // Strict coercion: every field must be a real boolean. Anything else is a
+  // corrupted/legacy payload and should fall back to defaults rather than be
+  // silently widened (a stray "yes" string would otherwise look truthy and
+  // accidentally light up a dark-launched feature).
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.ff_score !== 'boolean' ||
+    typeof r.flights !== 'boolean' ||
+    typeof r.activity !== 'boolean' ||
+    typeof r.hit_calling !== 'boolean'
+  ) {
+    return null;
+  }
+  return {
+    ff_score: r.ff_score,
+    flights: r.flights,
+    activity: r.activity,
+    hit_calling: r.hit_calling,
+  };
+}
+
+function readPersistedFlags(): FeatureFlags | null {
+  try {
+    if (typeof GM_getValue !== 'function') return null;
+    const raw = GM_getValue<PersistedFlagsPayload | null>(
+      FEATURE_FLAGS_STORAGE_KEY,
+      null,
+    );
+    if (!raw || typeof raw !== 'object') return null;
+    const payload = raw as Partial<PersistedFlagsPayload>;
+    if (typeof payload.savedAt !== 'string') return null;
+    return coerceFlags(payload.value);
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedFlags(value: FeatureFlags): void {
+  try {
+    if (typeof GM_setValue !== 'function') return;
+    const payload: PersistedFlagsPayload = {
+      value,
+      savedAt: new Date().toISOString(),
+    };
+    GM_setValue(FEATURE_FLAGS_STORAGE_KEY, payload);
+  } catch {
+    // GM storage unavailable (rare — but PDA/MV3 sandboxes change shape).
+    // Memory cache still works for the lifetime of this tab.
+  }
+}
+
+function hydrateFlagsFromStorage(): void {
+  if (_flagsHydrated) return;
+  _flagsHydrated = true;
+  const persisted = readPersistedFlags();
+  if (persisted) {
+    _flagsCache = { value: persisted, fetchedAt: Date.now() };
+  }
+}
+
+function flagsEqual(a: FeatureFlags, b: FeatureFlags): boolean {
+  return (
+    a.ff_score === b.ff_score &&
+    a.flights === b.flights &&
+    a.activity === b.activity &&
+    a.hit_calling === b.hit_calling
+  );
+}
+
+function dispatchRefreshEvent(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new Event('tm-companion-refresh'));
+  } catch {
+    // dispatchEvent failing is exotic (e.g. window proxied away during
+    // teardown). Swallow — the next poll tick will try again.
+  }
+}
 
 async function rawGetFlags(): Promise<FeatureFlags> {
   const url = `${HUB_ORIGIN}/api/extension/feature-flags`;
@@ -588,25 +693,32 @@ async function rawGetFlags(): Promise<FeatureFlags> {
 }
 
 export async function fetchFeatureFlags(): Promise<FeatureFlags> {
-  const now = Date.now();
-  if (_flagsCache && now - _flagsCache.fetchedAt < FEATURE_FLAGS_TTL_MS) {
-    return _flagsCache.value;
-  }
+  // Make sure any previously-persisted value is in memory before we compute
+  // the "previous value" used for change detection. Otherwise a cold tab
+  // with cached flags { ff_score: true } would compare against all-false
+  // defaults and dispatch a spurious refresh on the very first tick.
+  hydrateFlagsFromStorage();
+  const prev = _flagsCache?.value ?? null;
   try {
     const value = await rawGetFlags();
-    _flagsCache = { value, fetchedAt: now };
+    _flagsCache = { value, fetchedAt: Date.now() };
+    writePersistedFlags(value);
+    if (prev && !flagsEqual(prev, value)) {
+      dispatchRefreshEvent();
+    }
     return value;
   } catch {
-    // Backend unreachable or returned non-2xx: fall back to all-off so the
-    // Companion never accidentally lights up a dark-launched overlay just
-    // because the network blipped. Cache the default briefly to avoid
-    // hammering the endpoint while it's down.
-    _flagsCache = { value: FEATURE_FLAGS_DEFAULT, fetchedAt: now };
-    return FEATURE_FLAGS_DEFAULT;
+    // Backend unreachable or returned non-2xx: keep whatever cached value we
+    // already have (could be the hydrated persistent one, could be null).
+    // Falling back to defaults here would defeat the SWR — a single network
+    // blip would wipe out user-visible flag state. If nothing is cached yet,
+    // return defaults but don't poison the cache.
+    return _flagsCache?.value ?? FEATURE_FLAGS_DEFAULT;
   }
 }
 
 export function getCachedFeatureFlags(): FeatureFlags {
+  hydrateFlagsFromStorage();
   return _flagsCache?.value ?? FEATURE_FLAGS_DEFAULT;
 }
 
