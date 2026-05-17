@@ -16,6 +16,7 @@ import { matchPage, watchUrlChanges } from './lib/torn-pages';
 import { shouldSkipRefresh } from './lib/refresh-dedupe';
 import { injectPreconnect } from './lib/preconnect';
 import { startRumWire } from './lib/rum-wire';
+import { startPolling } from './lib/poll';
 import { HUB_ORIGIN } from './env';
 import { ensureProfileStack } from './lib/profile-stack';
 import { renderProfileBadge, renderProfileFFChip, renderProfileFlightPill, renderProfileClaimButton } from './inject/profile-badges';
@@ -334,8 +335,19 @@ function bootstrap(): void {
   // returns all-false until this resolves, which is the desired "dark by
   // default" behaviour. We don't await — overlays gate themselves and
   // re-run after the first poll.
+  //
+  // Routed through `startPolling` (Sprint 1.5 #7) so background torn.com tabs
+  // stop polling while hidden. `immediate: false` keeps the existing cadence
+  // since the line below already primes the cache at t=0.
   void fetchFeatureFlags();
-  setInterval(() => void fetchFeatureFlags(), 60_000);
+  startPolling({
+    name: 'feature-flags',
+    intervalMs: 60_000,
+    fn: async () => {
+      await fetchFeatureFlags();
+    },
+    immediate: false,
+  });
 
   // Inject modules trigger this when they mutate server state, so the main
   // refresh loop re-fetches before its next interval tick.
@@ -373,7 +385,17 @@ function bootstrap(): void {
 
   // Periodic re-poll for off-limits data so a teammate's flag set in TM Hub
   // becomes visible without the user reloading.
-  setInterval(() => void refresh(), OFFLIMITS_TTL_MS);
+  //
+  // Routed through `startPolling` (Sprint 1.5 #7) so a backgrounded torn.com
+  // tab doesn't keep hitting /api/war-off-limits while the user isn't looking.
+  // `immediate: false` because `void refresh()` above already fires at t=0;
+  // the scheduled first tick at OFFLIMITS_TTL_MS preserves the prior cadence.
+  startPolling({
+    name: 'refresh',
+    intervalMs: OFFLIMITS_TTL_MS,
+    fn: refresh,
+    immediate: false,
+  });
 
   // Communication channels — independent polling loops with Page Visibility
   // awareness. Each runs as long as we have an auth token; they self-skip
