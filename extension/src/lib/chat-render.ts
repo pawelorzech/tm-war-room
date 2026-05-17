@@ -173,6 +173,18 @@ export function wireReactionHandlers(
   messagesEl: HTMLElement,
   deps: ReactionHandlerDeps,
 ): (e: Event) => void {
+  // Opt-in diagnostic — set `localStorage.setItem('tm-debug', '1')` on
+  // torn.com to log every click that reaches this listener. Lets users
+  // self-diagnose "the chip does nothing" without us being on a debugging
+  // call together. Wrapped in try/catch because some test/sandbox envs
+  // expose a `localStorage` global without a working `.getItem`.
+  let debug = false;
+  try {
+    debug = typeof localStorage !== 'undefined' && localStorage.getItem('tm-debug') === '1';
+  } catch {
+    /* SecurityError in sandboxed contexts — debug stays off. */
+  }
+
   const handler = (e: Event): void => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
@@ -182,6 +194,7 @@ export function wireReactionHandlers(
       e.stopPropagation();
       const msgId = findMessageId(chip);
       const emoji = chip.dataset.emoji ?? '';
+      if (debug) console.debug('[tm-companion:reaction] chip click', { msgId, emoji });
       if (msgId !== null && emoji) deps.onToggleReaction(msgId, emoji);
       return;
     }
@@ -190,13 +203,21 @@ export function wireReactionHandlers(
     if (trigger && messagesEl.contains(trigger)) {
       e.stopPropagation();
       const msgId = findMessageId(trigger);
+      if (debug) console.debug('[tm-companion:reaction] trigger click', { msgId });
       if (msgId !== null) deps.onOpenPicker(trigger, msgId);
       return;
     }
 
+    if (debug)
+      console.debug(
+        '[tm-companion:reaction] click on .messages but not a chip/trigger',
+        target.tagName,
+        target.className,
+      );
     if (deps.isPickerOpen()) deps.onClosePicker();
   };
 
   messagesEl.addEventListener('click', handler);
+  if (debug) console.debug('[tm-companion:reaction] listener installed on', messagesEl);
   return handler;
 }

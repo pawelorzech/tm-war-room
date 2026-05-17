@@ -1150,6 +1150,15 @@ function setBadge(shadow: ShadowRoot, count: number): void {
 }
 
 function renderPanel(shadow: ShadowRoot): void {
+  // Idempotent — if startChatDock ran more than once (SPA re-init, hot reload),
+  // a stale .panel can linger with its delegated click listener bound to a
+  // detached `.messages`. Then `shadow.querySelector('.panel')` returns the
+  // stale one (or the new one, depending on order) while clicks land on the
+  // other panel's `.messages` and never reach the bound handler. The visible
+  // symptom: reaction chips look right but clicks do nothing. Strip prior
+  // panels first; renderLaunchButton already follows this pattern.
+  shadow.querySelectorAll('.panel').forEach((n) => n.remove());
+
   const panel = document.createElement('div');
   panel.className = 'panel hidden';
   panel.innerHTML = `
@@ -1480,8 +1489,20 @@ async function toggleReaction(shadow: ShadowRoot, msgId: number, emoji: string):
       : await addChatReaction(auth, msgId, emoji);
     applyReactionUpdate(msgId, emoji, res.reaction);
     renderMessages(shadow);
-  } catch {
-    // Server is the source of truth — next poll will reconcile.
+  } catch (err) {
+    // Surface failures instead of swallowing them — a silent catch hid a
+    // multi-panel listener-binding bug for an entire deploy cycle. We still
+    // want next-poll reconciliation as the eventual source of truth, but the
+    // user needs to know their tap did something.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      clearAuth();
+      showError(shadow, 'Session expired — reconnect TM Hub Companion.');
+    } else if (err instanceof ApiError && err.status === 429) {
+      showError(shadow, 'Slow down — reaction rate limit hit.');
+    } else {
+      showError(shadow, `Reaction failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+    }
+    console.warn('[tm-companion:reaction] toggleReaction failed', { msgId, emoji, err });
   }
 }
 

@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.55.0";
+export const CURRENT_VERSION = "1.55.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.55.1",
+    date: "2026-05-17",
+    title: "Companion v0.31.1 — reaction chips actually clickable again",
+    changes: [
+      {
+        type: "fix",
+        summary: "Reaction chips and the '+ add reaction' button respond to clicks in the companion chat dock — for real this time",
+        before: "Even after the v0.29.2 reaction-click refactor, the v0.30.0 slash-command framework and the v0.31.0 live entity cards release, tapping an existing reaction chip in the floating chat dock inside torn.com still did nothing. The smiley '+ add reaction' trigger in the top-right of a message was equally dead. Backend logs confirmed not a single reaction request was reaching the API — the click was being swallowed before any HTTP call left the browser.",
+        after: "The dock now strips any stale .panel from its shadow root before rendering a fresh one, so the delegated click listener is guaranteed to be bound to the .messages container you actually see and click. Failed reactions now surface an in-dock error (expired session, rate limit, etc.) instead of being silently swallowed. Set localStorage['tm-debug']='1' on torn.com to see every reaction click logged to the console.",
+        cause: "startChatDock could run more than once during a Torn SPA navigation; the first run's panel lingered alongside the second run's panel inside the same shadow root. The click listener was bound to the first .messages — but rendering and visible clicks targeted the second one, so nothing happened.",
+      },
+    ],
+  },
   {
     version: "1.55.0",
     date: "2026-05-17",
