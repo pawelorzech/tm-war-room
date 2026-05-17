@@ -14,11 +14,14 @@ import {
   fetchEnemy,
   fetchOffLimits,
   fetchTargets,
+  fetchKnownSpies,
   getCachedFeatureFlags,
 } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { WarOffLimits, Target } from '../types';
+import type { SpyEstimate as SpyEstimateDisplay, Bucket } from '../lib/spy-display';
+import { bucketStyle, formatTotalRange, bucketCaption } from '../lib/spy-display';
 import { escapeHtml } from '../lib/format';
 import { pillBase } from '../lib/card-styles';
 import { renderClaimButton } from './claim-button';
@@ -28,6 +31,7 @@ interface HospitalRow {
   war_enemy: boolean;
   off_limits: WarOffLimits | null;
   target: Target | null;
+  spy: SpyEstimateDisplay | null;
 }
 
 const TTL_MS = 60_000;
@@ -37,6 +41,16 @@ let keysCache: Cache<Set<number>> = null;
 let enemyCache: Cache<Set<number>> = null;
 const offLimitsCache = new Map<number, { ts: number; data: Map<number, WarOffLimits> }>();
 let targetsCache: Cache<Map<number, Target>> = null;
+let spyCache: Cache<Map<number, SpyEstimateDisplay>> = null;
+
+/** Test-only — reset all module-level caches between unit tests. */
+export function _resetHospitalCacheForTests(): void {
+  keysCache = null;
+  enemyCache = null;
+  offLimitsCache.clear();
+  targetsCache = null;
+  spyCache = null;
+}
 
 async function getKeys(): Promise<Set<number>> {
   if (keysCache && Date.now() - keysCache.ts < TTL_MS) return keysCache.data;
@@ -100,24 +114,49 @@ async function getTargets(): Promise<Map<number, Target>> {
   }
 }
 
+async function getKnownSpies(): Promise<Map<number, SpyEstimateDisplay>> {
+  if (spyCache && Date.now() - spyCache.ts < TTL_MS) return spyCache.data;
+  const auth = getAuth();
+  if (!auth) return new Map();
+  try {
+    const resp = await fetchKnownSpies(auth);
+    const map = new Map<number, SpyEstimateDisplay>();
+    for (const e of resp.estimates as unknown as SpyEstimateDisplay[]) {
+      map.set(e.player_id, e);
+    }
+    spyCache = { ts: Date.now(), data: map };
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 async function buildMap(warId: number | null): Promise<Map<number, HospitalRow>> {
-  const [mates, enemies, off, targets] = await Promise.all([
+  const [mates, enemies, off, targets, spies] = await Promise.all([
     getKeys(),
     getEnemy(),
     warId ? getOffLimits(warId) : Promise.resolve(new Map<number, WarOffLimits>()),
     getTargets(),
+    getKnownSpies(),
   ]);
 
   // Only decorate players that have at least one signal. Hospital lists
   // can be ~100 rows; we don't want to attach badges to randoms.
   const out = new Map<number, HospitalRow>();
-  const known = new Set<number>([...mates, ...enemies, ...off.keys(), ...targets.keys()]);
+  const known = new Set<number>([
+    ...mates,
+    ...enemies,
+    ...off.keys(),
+    ...targets.keys(),
+    ...spies.keys(),
+  ]);
   for (const pid of known) {
     out.set(pid, {
       tm_mate: mates.has(pid),
       war_enemy: enemies.has(pid),
       off_limits: off.get(pid) ?? null,
       target: targets.get(pid) ?? null,
+      spy: spies.get(pid) ?? null,
     });
   }
   return out;
@@ -140,7 +179,57 @@ const STYLES = pillBase('hospital') + `
     background: rgba(139,92,246,0.18);
     color: #a78bfa;
   }
+  [data-tm-hospital-badge] .pill-spy {
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  [data-tm-hospital-badge] .pill-spy.tm-bucket-verified    { color: #56d364; border-color: #3fb950; }
+  [data-tm-hospital-badge] .pill-spy.tm-bucket-estimate    { color: #e8b339; border-color: #d29922; }
+  [data-tm-hospital-badge] .pill-spy.tm-bucket-rough_guess { color: #f5a05a; border-color: #f5a05a; }
+  [data-tm-hospital-badge] .pill-spy.tm-bucket-endgame     { color: #ff7b72; border-color: #b62324; background: rgba(182,35,36,0.18); }
+  [data-tm-hospital-badge] .pill-spy.tm-off-limits {
+    text-decoration: line-through;
+    border-color: #f85149;
+    color: #f85149;
+    opacity: 0.85;
+  }
+  [data-tm-hospital-badge] .pill-spy .spy-bucket-label {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  /* Mobile: drop the caption text below 599px — chip + range stay visible. */
+  @media (max-width: 599px) {
+    [data-tm-hospital-badge] .pill-spy .spy-caption { display: none; }
+  }
 `;
+
+function buildSpyPill(spy: SpyEstimateDisplay, offLimits: WarOffLimits | null): HTMLElement {
+  const pill = document.createElement('span');
+  pill.classList.add('pill', 'pill-spy');
+  const bucket: Bucket = spy.bucket ?? 'rough_guess';
+  pill.classList.add(`tm-bucket-${bucket}`);
+  const style = bucketStyle(bucket);
+  const rangeText = formatTotalRange(spy.total, spy.total_range, bucket);
+  const caption = bucketCaption(spy);
+  const range = rangeText ? `<span class="spy-range">${escapeHtml(rangeText)}</span>` : '';
+  const cap = caption ? `<span class="spy-caption">${escapeHtml(caption)}</span>` : '';
+  pill.innerHTML = `<span class="spy-bucket-label">${escapeHtml(style.badgeText)}</span> ${range} ${cap}`.trim();
+  if (offLimits) {
+    pill.classList.add('tm-off-limits');
+    pill.setAttribute(
+      'title',
+      `WAR OFF-LIMITS — ${offLimits.reason || 'medded/dipped'} (flagged by ${offLimits.set_by_name || 'faction'})`,
+    );
+  } else {
+    pill.setAttribute('title', caption);
+  }
+  return pill;
+}
 
 
 export async function applyHospitalOverlay(opts: { warId: number | null }): Promise<void> {
@@ -148,12 +237,19 @@ export async function applyHospitalOverlay(opts: { warId: number | null }): Prom
     featureId: 'hospital',
     buildMap: () => buildMap(opts.warId),
     styles: STYLES,
+    // Spy bucket + total_range fingerprint widens the stateKey so async spy
+    // arrivals re-paint correctly.
+    anchorSelector: 'a[href*="XID="]',
     stateKey: (d) =>
       [
         d.tm_mate ? '1' : '0',
         d.war_enemy ? '1' : '0',
         d.off_limits ? '1' : '0',
         d.target ? (d.target.tag ?? '1') : '0',
+        d.spy?.bucket ?? '0',
+        d.spy?.total_range?.[0] ?? '',
+        d.spy?.total_range?.[1] ?? '',
+        d.spy?.range_width_pct ?? '',
       ].join('|'),
     render: ({ row, data, anchor, appendBadge }) => {
       if (data.tm_mate) {
@@ -163,17 +259,18 @@ export async function applyHospitalOverlay(opts: { warId: number | null }): Prom
       }
       row.style.transition = 'background-color 0.2s ease-out';
 
-      const pills: string[] = [];
-      if (data.tm_mate) pills.push(`<span class="pill pill-mate">TM mate</span>`);
-      if (data.war_enemy) pills.push(`<span class="pill pill-enemy">war enemy</span>`);
-      if (data.off_limits) pills.push(`<span class="pill pill-offlimits">🚫 OFF-LIMITS</span>`);
+      const badge = document.createElement('span');
+      if (data.tm_mate) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-mate">TM mate</span>`);
+      if (data.war_enemy) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-enemy">war enemy</span>`);
+      if (data.off_limits) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-offlimits">🚫 OFF-LIMITS</span>`);
       if (data.target) {
         const tag = data.target.tag ? ` ${escapeHtml(data.target.tag)}` : '';
-        pills.push(`<span class="pill pill-target">🎯 target${tag}</span>`);
+        badge.insertAdjacentHTML('beforeend', `<span class="pill pill-target">🎯 target${tag}</span>`);
       }
-      const badge = document.createElement('span');
-      badge.innerHTML = pills.join('');
-      if (pills.length > 0) appendBadge(badge);
+      if (data.spy) {
+        badge.appendChild(buildSpyPill(data.spy, data.off_limits));
+      }
+      if (badge.children.length > 0) appendBadge(badge);
 
       // Hit-claim button: only paint for war enemies that aren't off-limits.
       // Off-limits already telegraphs "don't shoot", and claiming a faction
