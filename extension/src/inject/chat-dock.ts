@@ -569,8 +569,8 @@ const STYLES = `
     margin-top: 4px;
   }
   .msg .entity-card {
-    display: inline-flex; align-items: stretch;
-    max-width: 100%; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: stretch;
+    width: 100%; max-width: 360px; min-width: 0;
     background: #161b22;
     border: 1px solid #30363d;
     border-radius: 6px;
@@ -579,37 +579,42 @@ const STYLES = `
     color: inherit;
   }
   .msg .entity-card:hover { background: #21262d; }
-  .msg .entity-card .ec-main { display: flex; align-items: center; gap: 6px; padding: 4px 8px; min-width: 0; text-decoration: none; color: inherit; flex: 1; }
-  .msg .entity-card .ec-body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-  .msg .entity-card .ec-line1 { display: flex; align-items: center; gap: 4px; font-size: 12px; }
-  .msg .entity-card .ec-line2 { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+  .msg .entity-card .ec-main { display: flex; align-items: center; gap: 6px; padding: 4px 8px; min-width: 0; text-decoration: none; color: inherit; flex: 1 1 200px; }
+  .msg .entity-card .ec-body { display: flex; flex-direction: column; min-width: 0; gap: 2px; line-height: 1.25; }
+  .msg .entity-card .ec-line1 { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .msg .entity-card .ec-line2 { display: flex; align-items: center; gap: 6px; font-size: 11px; min-width: 0; flex-wrap: wrap; }
   .msg .entity-card .ec-name { color: #c9d1d9; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
-  .msg .entity-card .ec-muted { color: #6e7681; }
+  .msg .entity-card .ec-muted { color: #6e7681; flex-shrink: 0; }
   .msg .entity-card .ec-tag {
     font-size: 10px; padding: 0 4px; border-radius: 3px;
-    background: rgba(35, 134, 54, 0.15); color: #56d364;
-    white-space: nowrap;
+    background: rgba(110, 118, 129, 0.15); color: #8b949e;
+    white-space: nowrap; flex-shrink: 0;
   }
   .msg .entity-card .ec-war-tag {
     background: rgba(248, 81, 73, 0.15); color: #ff7b72;
     text-transform: uppercase;
   }
   .msg .entity-card .ec-chip {
-    font-size: 10px; padding: 0 4px; border-radius: 3px;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    min-width: 0;
   }
+  .msg .entity-card .ec-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .msg .entity-card .ec-chip .ec-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .msg .entity-card .ec-money { color: #56d364; }
   .msg .entity-card .ec-up { color: #56d364; }
   .msg .entity-card .ec-down { color: #ff7b72; }
   .msg .entity-card .ec-action {
-    display: inline-flex; align-items: center;
-    padding: 0 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; min-width: 64px;
+    padding: 0 12px;
     font-size: 11px; font-weight: 500;
     color: #ff7b72;
     border-left: 1px solid #30363d;
     text-decoration: none;
   }
   .msg .entity-card .ec-action:hover { background: rgba(248, 81, 73, 0.1); }
+  .msg .entity-card .ec-action:active { background: rgba(248, 81, 73, 0.18); }
   .msg .entity-card.ec-item img { width: 24px; height: 24px; object-fit: contain; margin: 4px 0 4px 8px; }
   .msg .entity-card.ec-item { padding: 0; align-items: center; gap: 0; }
   .msg .entity-card.ec-item .ec-body { padding: 4px 8px 4px 6px; }
@@ -940,15 +945,52 @@ function fmtRemaining(secs: number): string {
   return `${m}m left`;
 }
 
+// Inline lucide SVG paths — mirror of frontend/src/components/chat/entities/StatusIcon.tsx.
+// Both renderers must stay byte-identical (same lucide source).
+const STATUS_ICON_PATHS: Record<string, string> = {
+  circle: '<circle cx="12" cy="12" r="5" fill="currentColor" />',
+  plane:
+    '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />',
+  'heart-pulse':
+    '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />',
+  lock:
+    '<rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />',
+  'shield-alert':
+    '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="M12 8v4" /><path d="M12 16h.01" />',
+  skull:
+    '<circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><path d="M8 20v2h8v-2" /><path d="m12.5 17-.5-1-.5 1h1z" /><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20" />',
+};
+
+function statusIconSvg(key: string | undefined): string {
+  const path = STATUS_ICON_PATHS[key ?? 'circle'] ?? STATUS_ICON_PATHS.circle;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+}
+
+function compactAge(seconds: number | null | undefined, fallback: string): string {
+  if (seconds == null || seconds < 0) return fallback;
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 365) return `${d}d`;
+  return fallback;
+}
+
 function renderEntityCard(card: EntityCard): string {
   if (card.kind === 'player') {
     const bg = STATUS_BG[card.status_color];
     const fg = STATUS_FG[card.status_color];
+    const factionTitle = card.faction_name || 'Faction tag';
     const tag = card.faction_tag
-      ? `<span class="ec-tag">${escapeHtml(card.faction_tag)}</span>`
+      ? `<span class="ec-tag" title="${escapeHtml(factionTitle)}">[${escapeHtml(card.faction_tag)}]</span>`
       : '';
-    const last = card.last_action_text
-      ? `<span class="ec-muted">· ${escapeHtml(card.last_action_text)}</span>`
+    const statusShort = card.status_short || card.status_text;
+    const statusFull = card.status_full || card.status_text;
+    const ageShort = compactAge(card.last_action_seconds, card.last_action_text || '');
+    const last = ageShort
+      ? `<span class="ec-muted" title="${escapeHtml(card.last_action_text || '')}">· ${escapeHtml(ageShort)}</span>`
       : '';
     return `
       <div class="entity-card ec-player">
@@ -960,12 +1002,12 @@ function renderEntityCard(card: EntityCard): string {
               ${tag}
             </div>
             <div class="ec-line2">
-              <span class="ec-chip" style="background:${bg};color:${fg}">${escapeHtml(card.status_text)}</span>
+              <span class="ec-chip" style="background:${bg};color:${fg}" title="${escapeHtml(statusFull)}">${statusIconSvg(card.status_icon)}<span class="ec-chip-text">${escapeHtml(statusShort)}</span></span>
               ${last}
             </div>
           </div>
         </a>
-        <a class="ec-action" href="${escapeHtml(card.attack_url)}" target="_blank" rel="noopener noreferrer" title="Attack">Attack</a>
+        <a class="ec-action" href="${escapeHtml(card.attack_url)}" target="_blank" rel="noopener noreferrer" title="Attack ${escapeHtml(card.name)}">Attack</a>
       </div>
     `;
   }
@@ -2168,13 +2210,23 @@ function renderMessages(shadow: ShadowRoot): void {
       const chainSlot = chainAssistId
         ? `<div class="chain-assist-slot" data-assist-id="${chainAssistId}"></div>`
         : '';
+      // Hide raw URLs whose entity card has already resolved — the card
+      // below the message replaces the URL. Mirrors the main hub.tri.ovh
+      // frontend so users see one representation, not two.
+      const hiddenUrls = new Set<string>();
+      for (const e of m.entities ?? []) {
+        if (!e.raw) continue;
+        if (typeof e.id !== 'number' || e.id <= 0) continue;
+        const entry = _entityCache.get(entityKey(e.kind, e.id));
+        if (entry && entry.card) hiddenUrls.add(e.raw);
+      }
       return `
         ${separator}
         <div class="${cls}" data-msg-id="${m.id}">
           ${avatarCol}
           <div class="body-col">
             ${headerHtml}
-            <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(bodyText, m.mentions, _roster)}</div>
+            <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(bodyText, m.mentions, _roster, hiddenUrls)}</div>
             ${chainSlot}
             ${entitiesHtml}
             ${reactionsHtml}

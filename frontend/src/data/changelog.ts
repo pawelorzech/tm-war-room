@@ -52,9 +52,31 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.62.4";
+export const CURRENT_VERSION = "1.63.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.63.0",
+    date: "2026-05-17",
+    title: "Chat — entity cards readable on mobile, raw URL replaced by the card",
+    changes: [
+      {
+        type: "improve",
+        summary: "Player cards in chat redesigned for narrow screens",
+        detail: "Status text is now a compact pill with an icon (plane for travel, hospital for hosp, lock for jail). Long phrases like 'Traveling from Torn to United Kingdom' shrink to '→ UK' with the full sentence in the tooltip — no more vertical-stacked timestamps. The faction tag is wrapped in brackets and tooltipped with the faction name so it's no longer cryptic.",
+      },
+      {
+        type: "improve",
+        summary: "Raw URL hidden once its entity card loads",
+        detail: "When a Torn profile/item/faction link in chat resolves into a live card, the duplicate raw URL above it disappears. The card itself is the link. Both the hub and the companion dock behave the same way.",
+      },
+      {
+        type: "improve",
+        summary: "Attack button on entity cards meets the touch-target guideline",
+        detail: "The card's Attack button is now at least 44×64px and gets a press feedback on tap, so it's reliably hittable with a thumb.",
+      },
+    ],
+  },
   {
     version: "1.62.4",
     date: "2026-05-17",

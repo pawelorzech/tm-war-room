@@ -136,6 +136,137 @@ async def test_resolve_player_caches_between_calls(tc: _FakeTornClient) -> None:
     assert tc.fetch_user_basic.call_count == 1
 
 
+@pytest.mark.asyncio
+async def test_resolve_player_new_card_fields_present(tc: _FakeTornClient) -> None:
+    """The mobile-friendly card needs status_short/icon/full + faction_name +
+    last_action_seconds. Older clients that still consume status_text/
+    last_action_text keep working — both shapes coexist."""
+    tc.fetch_user_basic.return_value = {
+        "name": "Bombel", "level": 100,
+        "faction": {"faction_tag": "TM", "faction_name": "The Masters", "faction_id": 11559},
+        "status": {"state": "Okay", "description": "Okay"},
+        "last_action": {"relative": "5 minutes ago", "timestamp": int(__import__("time").time()) - 300},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_full"] == "Okay"
+    assert card["status_short"] == "Okay"
+    assert card["status_icon"] == "circle"
+    assert card["faction_name"] == "The Masters"
+    # 5 min ago ±5s slack
+    assert 295 <= card["last_action_seconds"] <= 305
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_traveling_parsed(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "T", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Traveling", "description": "Traveling from Torn to United Kingdom"},
+        "last_action": {"relative": "15 minutes ago"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "→ UK"
+    assert card["status_icon"] == "plane"
+    assert card["status_full"] == "Traveling from Torn to United Kingdom"
+    assert card["status_color"] == "blue"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_traveling_to_short(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "T", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Traveling", "description": "Traveling to Mexico"},
+        "last_action": {"relative": "now"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "→ MX"
+    assert card["status_icon"] == "plane"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_returning_parsed(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "T", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Traveling", "description": "Returning to Torn from Switzerland"},
+        "last_action": {"relative": "now"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "← CH"
+    assert card["status_icon"] == "plane"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_hospital_duration_extracted(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "H", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Hospital", "description": "In hospital for 2 hours 14 minutes"},
+        "last_action": {"relative": "1 hour ago"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "2h 14m"
+    assert card["status_icon"] == "heart-pulse"
+    assert card["status_color"] == "red"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_jail_short(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "J", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Jail", "description": "In jail for 1 hour"},
+        "last_action": {"relative": "now"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "1h"
+    assert card["status_icon"] == "lock"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_federal_days(tc: _FakeTornClient) -> None:
+    tc.fetch_user_basic.return_value = {
+        "name": "F", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Federal", "description": "In federal jail for 24 days"},
+        "last_action": {"relative": "now"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "24d"
+    assert card["status_icon"] == "shield-alert"
+    assert card["status_color"] == "red"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_unknown_status_falls_back(tc: _FakeTornClient) -> None:
+    """If Torn invents a new state we never block — just render whatever they sent."""
+    tc.fetch_user_basic.return_value = {
+        "name": "X", "level": 50,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Quantum", "description": "Doing science"},
+        "last_action": {"relative": "now"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["status_short"] == "Doing science"
+    assert card["status_icon"] == "circle"  # default
+    assert card["status_color"] == "gray"
+
+
+@pytest.mark.asyncio
+async def test_resolve_player_handles_missing_timestamp(tc: _FakeTornClient) -> None:
+    """No last_action.timestamp -> seconds is None, doesn't crash."""
+    tc.fetch_user_basic.return_value = {
+        "name": "X", "level": 1,
+        "faction": {"faction_tag": "", "faction_id": 0},
+        "status": {"state": "Okay", "description": "Okay"},
+        "last_action": {"relative": "ages ago"},
+    }
+    card = await chat_resolver.resolve_player(tc, 1)
+    assert card["last_action_seconds"] is None
+    assert card["last_action_text"] == "ages ago"
+
+
 # ---------------------------------------------------------------------------
 # Item resolver
 # ---------------------------------------------------------------------------

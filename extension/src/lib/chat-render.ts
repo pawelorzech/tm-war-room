@@ -123,15 +123,25 @@ function renderMention(raw: string, mentions: number[], roster: Map<number, stri
  *     roster knows the name              → <a class="mention">
  *
  * All other text is HTML-escaped.
+ *
+ * `hiddenUrls` — set of exact URL substrings (matching what the tokenizer
+ * extracts, i.e. with trailing punctuation already stripped) that should be
+ * suppressed from the rendered output. Used by the chat dock to elide a URL
+ * when its entity card has already resolved and is being rendered below the
+ * message. Default empty set = identical behaviour to pre-`hiddenUrls`.
  */
 export function renderMessageBody(
   content: string,
   mentions: number[],
   roster: Map<number, string>,
+  hiddenUrls: Set<string> = new Set(),
 ): string {
   return tokenize(content)
     .map((t) => {
-      if (t.kind === 'url') return renderUrlAnchor(t.raw);
+      if (t.kind === 'url') {
+        if (hiddenUrls.has(t.raw)) return '';
+        return renderUrlAnchor(t.raw);
+      }
       if (t.kind === 'mention') return renderMention(t.raw, mentions, roster);
       return escapeHtml(t.raw);
     })

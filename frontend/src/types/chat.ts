@@ -29,15 +29,28 @@ export interface EntityRef {
   span: [number, number];
 }
 
+export type StatusIcon =
+  | "circle"
+  | "plane"
+  | "heart-pulse"
+  | "lock"
+  | "shield-alert"
+  | "skull";
+
 export interface PlayerCard {
   kind: "player";
   id: number;
   name: string;
   level: number;
   faction_tag: string;
+  faction_name?: string;
   status_text: string;
+  status_full?: string;
+  status_short?: string;
+  status_icon?: StatusIcon;
   status_color: "green" | "red" | "blue" | "gray";
   last_action_text: string;
+  last_action_seconds?: number | null;
   attack_url: string;
   profile_url: string;
 }

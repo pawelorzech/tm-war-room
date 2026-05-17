@@ -97,15 +97,28 @@ export interface EntityRef {
   span: [number, number];
 }
 
+export type StatusIconKey =
+  | 'circle'
+  | 'plane'
+  | 'heart-pulse'
+  | 'lock'
+  | 'shield-alert'
+  | 'skull';
+
 export interface PlayerEntityCard {
   kind: 'player';
   id: number;
   name: string;
   level: number;
   faction_tag: string;
+  faction_name?: string;
   status_text: string;
+  status_full?: string;
+  status_short?: string;
+  status_icon?: StatusIconKey;
   status_color: 'green' | 'red' | 'blue' | 'gray';
   last_action_text: string;
+  last_action_seconds?: number | null;
   attack_url: string;
   profile_url: string;
 }

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any
 
@@ -87,6 +88,117 @@ def _status_color(state: str) -> str:
     return _STATUS_COLORS.get(state, "gray")
 
 
+# Lucide icon key per status state. Frontend (React) maps via lucide-react;
+# companion (Tampermonkey) maps to inline SVG path strings — keys must match.
+_STATUS_ICONS = {
+    "Okay": "circle",
+    "Traveling": "plane",
+    "Abroad": "plane",
+    "Hospital": "heart-pulse",
+    "Jail": "lock",
+    "Federal": "shield-alert",
+    "Fallen": "skull",
+}
+
+
+def _status_icon(state: str) -> str:
+    return _STATUS_ICONS.get(state, "circle")
+
+
+# 2-letter codes for the Torn travel destinations. Anything not listed falls
+# back to the first two letters of the country name uppercased.
+_COUNTRY_CODES = {
+    "Mexico": "MX",
+    "Cayman Islands": "CI",
+    "Canada": "CA",
+    "Hawaii": "HI",
+    "United Kingdom": "UK",
+    "Argentina": "AR",
+    "Switzerland": "CH",
+    "Japan": "JP",
+    "China": "CN",
+    "United Arab Emirates": "AE",
+    "South Africa": "ZA",
+    "Torn": "TC",
+}
+
+
+def _country_code(name: str) -> str:
+    if not name:
+        return ""
+    if name in _COUNTRY_CODES:
+        return _COUNTRY_CODES[name]
+    # Fallback: first two letters of the longest word.
+    cleaned = name.strip().replace("-", " ")
+    parts = [p for p in cleaned.split() if p]
+    base = max(parts, key=len) if parts else cleaned
+    return base[:2].upper()
+
+
+# Torn travel descriptions follow exactly two shapes — we anchor on those.
+_TRAVELING_RE = re.compile(r"^Traveling to (?P<dest>.+)$|^Traveling from .+ to (?P<dest2>.+)$")
+_RETURNING_RE = re.compile(r"^Returning to Torn from (?P<from>.+)$")
+_DURATION_PARTS_RE = re.compile(r"(\d+)\s*(day|hour|minute)s?", re.IGNORECASE)
+
+
+def _short_duration(text: str) -> str:
+    """Extract "2h 14m" / "1d" / "45m" from a duration phrase.
+
+    Returns "" if no numbers are found; caller falls back to the raw text.
+    """
+    if not text:
+        return ""
+    parts = _DURATION_PARTS_RE.findall(text)
+    if not parts:
+        return ""
+    unit_letter = {"day": "d", "hour": "h", "minute": "m"}
+    has_days = any(unit.lower() == "day" for _, unit in parts)
+    out: list[str] = []
+    for n, unit in parts:
+        unit_l = unit.lower()
+        if unit_l == "minute" and has_days:
+            # Too noisy in the chip — drop minutes when days are present.
+            continue
+        out.append(f"{n}{unit_letter[unit_l]}")
+    return " ".join(out)
+
+
+def _status_short(state: str, description: str) -> str:
+    """Compact one-line status for the entity-card chip.
+
+    Falls back to the raw description if nothing matches — better to render
+    the full string than render nothing.
+    """
+    desc = (description or "").strip()
+    state = (state or "").strip()
+
+    if state == "Okay":
+        return "Okay"
+
+    if state in ("Traveling", "Abroad"):
+        m = _TRAVELING_RE.match(desc)
+        if m:
+            dest = m.group("dest") or m.group("dest2") or ""
+            return f"→ {_country_code(dest)}" if dest else desc
+        m = _RETURNING_RE.match(desc)
+        if m:
+            origin = m.group("from") or ""
+            return f"← {_country_code(origin)}" if origin else desc
+        # "In <country>" — Abroad with no travel in progress.
+        if desc.startswith("In "):
+            return desc[3:5].upper() if len(desc) >= 5 else desc
+        return desc
+
+    if state in ("Hospital", "Jail", "Federal"):
+        dur = _short_duration(desc)
+        return dur or desc
+
+    if state == "Fallen":
+        return "Fallen"
+
+    return desc or state or "Unknown"
+
+
 # ---------------------------------------------------------------------------
 # Per-kind resolvers
 # ---------------------------------------------------------------------------
@@ -122,26 +234,38 @@ async def resolve_player(tc, player_id: int) -> dict | None:
     state = status.get("state", "") if isinstance(status, dict) else str(status)
     desc = status.get("description", "") if isinstance(status, dict) else ""
     last_action = raw.get("last_action") or {}
-    last_action_text = (
-        last_action.get("relative", "")
-        if isinstance(last_action, dict)
-        else str(last_action)
+    if isinstance(last_action, dict):
+        last_action_text = last_action.get("relative", "")
+        last_action_ts = int(last_action.get("timestamp", 0) or 0)
+    else:
+        last_action_text = str(last_action)
+        last_action_ts = 0
+    last_action_seconds = (
+        max(0, int(time.time()) - last_action_ts) if last_action_ts > 0 else None
     )
     faction = raw.get("faction") or {}
     if isinstance(faction, dict):
         faction_tag = faction.get("faction_tag", "") or faction.get("tag", "")
+        faction_name = faction.get("faction_name", "") or faction.get("name", "")
     else:
         faction_tag = ""
+        faction_name = ""
 
+    status_full = desc or state or "Unknown"
     card = {
         "kind": "player",
         "id": player_id,
         "name": raw.get("name", "") or f"Player {player_id}",
         "level": int(raw.get("level", 0) or 0),
         "faction_tag": faction_tag,
-        "status_text": (desc or state or "Unknown"),
+        "faction_name": faction_name,
+        "status_text": status_full,
+        "status_full": status_full,
+        "status_short": _status_short(state or "", desc or ""),
+        "status_icon": _status_icon(state or ""),
         "status_color": _status_color(state or ""),
         "last_action_text": last_action_text,
+        "last_action_seconds": last_action_seconds,
         # 2026-05-17: Torn deprecated /loader.php?sid=attack — clicking it now
         # returns "This endpoint is no longer available. Please use the new
         # endpoints instead (page.php)." Use /page.php?sid=attack instead.

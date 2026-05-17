@@ -91,6 +91,23 @@ describe('renderMessageBody', () => {
     expect(out).toContain('class="mention"');
     expect(out).toContain('href="https://www.torn.com/item.php?XID=180"');
   });
+
+  it('elides a URL listed in hiddenUrls but keeps surrounding prose', () => {
+    // When the entity card for this URL has already resolved, the dock
+    // renders the card below the message and asks renderMessageBody to drop
+    // the raw URL anchor — otherwise the user sees both the URL and the
+    // card side-by-side. Surrounding prose ("see" / "thanks") must survive.
+    const out = renderMessageBody(
+      'see https://www.torn.com/profiles.php?XID=42 thanks',
+      [],
+      new Map(),
+      new Set(['https://www.torn.com/profiles.php?XID=42']),
+    );
+    expect(out).not.toContain('<a class="link"');
+    expect(out).not.toContain('href="https://www.torn.com/profiles.php?XID=42"');
+    expect(out).toContain('see');
+    expect(out).toContain('thanks');
+  });
 });
 
 describe('wireReactionHandlers', () => {

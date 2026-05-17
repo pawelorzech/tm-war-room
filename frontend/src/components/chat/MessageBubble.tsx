@@ -59,7 +59,8 @@ function normaliseUrl(raw: string): string {
 function renderContent(
   content: string,
   mentions: number[],
-  memberMap: Record<number, string> = {}
+  memberMap: Record<number, string> = {},
+  hiddenUrls: Set<string> = new Set()
 ): React.ReactNode {
   // Build a name→id lookup from mentions + memberMap
   const nameToId: Record<string, number> = {};
@@ -85,17 +86,19 @@ function renderContent(
       trailing = trail[0];
       raw = raw.slice(0, raw.length - trailing.length);
     }
-    out.push(
-      <a
-        key={key++}
-        href={normaliseUrl(raw)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-torn-blue underline underline-offset-2 break-all hover:text-torn-green"
-      >
-        {raw}
-      </a>,
-    );
+    if (!hiddenUrls.has(raw)) {
+      out.push(
+        <a
+          key={key++}
+          href={normaliseUrl(raw)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-torn-blue underline underline-offset-2 break-all hover:text-torn-green"
+        >
+          {raw}
+        </a>,
+      );
+    }
     if (trailing) out.push(trailing);
     lastIndex = start + m[0].length;
   }
@@ -159,6 +162,17 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
   }, [message.entities]);
 
   const resolvedCards = useEntityResolver(message.entities, visible);
+
+  const hiddenUrls = (() => {
+    if (!message.entities) return new Set<string>();
+    const out = new Set<string>();
+    for (const e of message.entities) {
+      if (typeof e.id !== "number" || e.id <= 0) continue;
+      if (!resolvedCards[`${e.kind}:${e.id}`]) continue;
+      if (e.raw) out.add(e.raw);
+    }
+    return out;
+  })();
 
   /* Touch support: tap message to toggle actions, tap outside to dismiss */
   const isCoarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
@@ -287,14 +301,14 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
                   <>
                     {rest && (
                       <span className="block text-[11px] text-text-muted">
-                        {renderContent(rest, message.mentions, memberMap)}
+                        {renderContent(rest, message.mentions, memberMap, hiddenUrls)}
                       </span>
                     )}
                     <ChainAssistCard assistId={assistId} selfId={selfId} />
                   </>
                 );
               }
-              return renderContent(message.content, message.mentions, memberMap);
+              return renderContent(message.content, message.mentions, memberMap, hiddenUrls);
             })()}
             {grouped && message.edited_at && (
               <span className="ml-1 text-[10px] text-text-muted">(edited)</span>
