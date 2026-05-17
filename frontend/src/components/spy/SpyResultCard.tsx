@@ -9,8 +9,8 @@ const CONFIDENCE_STYLES: Record<string, string> = {
   unknown: 'bg-bg-elevated text-text-muted border-text-secondary/30',
 };
 
-function formatStat(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '—';
+function formatStat(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
