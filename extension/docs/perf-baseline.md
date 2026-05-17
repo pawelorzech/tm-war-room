@@ -88,18 +88,20 @@ Each `setInterval` / poller in the Companion plus its cadence. Re-audit when add
 
 | Source (file:line) | Cadence | Visibility-aware (`lib/poll.ts`) | Notes |
 |---|---|---|---|
-| `src/index.ts:280` | 60 s | ❌ raw `setInterval` | feature flags |
-| `src/index.ts:318` | 30 s | ❌ raw `setInterval` | off-limits refresh |
-| `src/inject/status-chip.ts` | 5 s | TBD — confirm in Sprint 1 audit | corner chip update |
-| `src/inject/chat-dock.ts` | 5 s + visibility hooks | TBD | message poll |
-| `src/inject/notification-toasts.ts` | 5 s | TBD | toast tray |
-| `src/inject/mention-alerts.ts` | poll-interval | TBD | mentions |
-| `src/inject/heartbeat.ts` | 60 s | TBD | presence ping |
-| `src/inject/flight-pill.ts:154` | 30 s | TBD | flight tick |
-| `src/inject/claim-button.ts:137` | 1 s | n/a (UI countdown, not network) | claim countdown |
-| `src/lib/api.ts:streamClaims` | 5 s → 60 s backoff | ❌ raw timers, custom backoff | claims live stream |
+| `src/index.ts` (feature-flags) | 60 s | ✅ `startPolling` | Sprint 1.5 #7 |
+| `src/index.ts` (refresh / off-limits) | 30 s | ✅ `startPolling` | Sprint 1.5 #7 |
+| `src/inject/status-chip.ts:168` | 5 s | n/a — local DOM repaint (reads `getAuth()` from storage, no fetch) | corner chip update |
+| `src/inject/chat-dock.ts:510` | 5 s | n/a — local DOM repaint (launch-button heartbeat, reads `getAuth()`) | button connected/disconnected |
+| `src/inject/chat-dock.ts` (chat-unread) | 30 s | ✅ `startPolling` | unread badge |
+| `src/inject/chat-dock.ts` (chat-messages) | 5 s | ✅ `startPolling` | open-channel message poll |
+| `src/inject/notification-toasts.ts` | 45 s | ✅ `startPolling` | toast tray |
+| `src/inject/mention-alerts.ts` | 15 s | ✅ `startPolling` | mentions |
+| `src/inject/heartbeat.ts` | 60 s | ✅ `startPolling` | presence ping |
+| `src/inject/flight-pill.ts:154` | 30 s | n/a — UI countdown (recomputes seconds-left from a fixed timestamp, no fetch) | flight tick |
+| `src/inject/claim-button.ts:137` | 1 s | n/a — UI countdown, not network | claim countdown |
+| `src/lib/claim-stream.ts` | 5 s → 60 s backoff | ✅ inline visibility gate + custom backoff (Sprint 1) | claims live stream |
 
-Goal for Sprint 1: every network poller routes through `lib/poll.ts` so a hidden tab stops issuing requests within one cadence period.
+Sprint 1.5 #7 goal — met: every network poller routes through `lib/poll.ts` (or, in the case of `claim-stream`, replicates the same visibility-aware contract inline). A hidden tab stops issuing requests within one cadence period across every endpoint.
 
 ## Heap / memory baseline (long-running tabs)
 
