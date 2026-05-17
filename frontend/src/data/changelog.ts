@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.61.0";
+export const CURRENT_VERSION = "1.62.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.62.0",
+    date: "2026-05-17",
+    title: "Spy estimates — honest ranges, three trust levels",
+    changes: [
+      {
+        type: "improve",
+        summary: "Spy panels show a range instead of a single number when we're not 100% sure, plus a prominent badge so you can tell verified spy data from a rough guess at a glance",
+        detail: "Three buckets: VERIFIED SPY (green — recent real spy network data), ESTIMATE (yellow — older spy or our own snapshot), and ROUGH GUESS (orange — only public stats like level and xanax count). Each shows an adaptively-wide range: fresh spies are exact, mid-age spies show ±10%, and the weakest guesses span an order of magnitude (e.g., \"500M — 50B\") so you can't mistake a wild guess for a hard number. When all we have is the heuristic estimate the per-stat STR/DEF/SPD/DEX grid is hidden — it was just total÷4 anyway and looked misleadingly precise.",
+      },
+    ],
+  },
   {
     version: "1.61.0",
     date: "2026-05-17",
