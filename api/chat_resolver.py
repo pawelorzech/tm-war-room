@@ -142,7 +142,11 @@ async def resolve_player(tc, player_id: int) -> dict | None:
         "status_text": (desc or state or "Unknown"),
         "status_color": _status_color(state or ""),
         "last_action_text": last_action_text,
-        "attack_url": f"https://www.torn.com/loader.php?sid=attack&user2ID={player_id}",
+        # 2026-05-17: Torn deprecated /loader.php?sid=attack — clicking it now
+        # returns "This endpoint is no longer available. Please use the new
+        # endpoints instead (page.php)." Use /page.php?sid=attack instead.
+        # The rest of the codebase already uses this form (see torn-urls.ts).
+        "attack_url": f"https://www.torn.com/page.php?sid=attack&user2ID={player_id}",
         "profile_url": f"https://www.torn.com/profiles.php?XID={player_id}",
     }
     _cache_set(key, card)

@@ -83,6 +83,8 @@ async def test_resolve_player_returns_card_shape(tc: _FakeTornClient) -> None:
     assert card["status_color"] == "green"
     assert card["last_action_text"] == "5 minutes ago"
     assert card["attack_url"].endswith("user2ID=2362436")
+    # Must use the current /page.php router; /loader.php is deprecated.
+    assert "page.php?sid=attack" in card["attack_url"]
 
 
 @pytest.mark.asyncio

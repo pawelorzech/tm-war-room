@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.55.1";
+export const CURRENT_VERSION = "1.55.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.55.2",
+    date: "2026-05-17",
+    title: "Chat — Attack button on entity cards opens the right page",
+    changes: [
+      {
+        type: "fix",
+        summary: "Attack button on chat player cards opens the live attack page instead of showing an API error",
+        before: "Clicking the red \"Attack\" button on a player card in chat returned a JSON error: \"This endpoint is no longer available. Please use the new endpoints instead (page.php).\"",
+        after: "Attack button now opens the current attack page (page.php?sid=attack) — same one Torn's own profile-page \"Attack\" link uses.",
+        cause: "Torn deprecated the legacy /loader.php?sid=attack URL on May 17; the card was still pointing at the old form.",
+      },
+    ],
+  },
   {
     version: "1.55.1",
     date: "2026-05-17",
