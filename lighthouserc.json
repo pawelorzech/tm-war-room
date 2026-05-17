@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "staticDistDir": "./frontend/out",
-      "url": ["http://localhost/install/index.html"],
+      "url": ["http://localhost/install.html"],
       "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",
