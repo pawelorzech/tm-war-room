@@ -4,13 +4,62 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel
 from api.services.spy import SpyService, is_real_spy, spy_reported_at
+from api.torn_client import TornStatsAuthError
 from api.admin import require_admin
 
 router = APIRouter(prefix="/api/spy", tags=["spy"])
 spy_service: SpyService | None = None
 torn_client = None  # Set by main.py
-tornstats_key: str = ""  # Set by main.py
+tornstats_key: str = ""  # Set by main.py — global fallback key from TORNSTATS_API_KEY env
+key_store = None  # Set by main.py — KeyStore for per-user TornStats keys
 stats_repo = None  # Set by main.py — StatSnapshotRepository for faction-member fallback
+
+
+async def _try_tornstats_pool(player_id: int, caller_id: int | None) -> dict | None:
+    """Try TornStats /spy/user/{id} across a key pool, return first real spy.
+
+    Order matters:
+      1. Caller's own TornStats key — best signal that this user can see the
+         target (their faction may have spied it personally).
+      2. Other members' valid keys — round-robin over the pool. Different
+         keys see different faction-spy entries, so the union covers more
+         XIDs than any one key alone.
+      3. Global TORNSTATS_API_KEY from env — baseline fallback.
+
+    Keys that return 401/403 are marked status='invalid' in member_keys so
+    we stop wasting requests on them. The next time the owner re-sets their
+    key in Settings, it gets a fresh 'ok' status.
+    """
+    if not torn_client:
+        return None
+    tried: set[str] = set()
+    candidates: list[tuple[int | None, str]] = []
+
+    if caller_id and key_store:
+        my_key = key_store.get_tornstats_key(caller_id)
+        if my_key and my_key not in tried:
+            candidates.append((caller_id, my_key))
+            tried.add(my_key)
+
+    if key_store:
+        for pid, k in key_store.get_all_valid_tornstats_keys():
+            if k not in tried:
+                candidates.append((pid, k))
+                tried.add(k)
+
+    if tornstats_key and tornstats_key not in tried:
+        candidates.append((None, tornstats_key))
+
+    for owner_pid, k in candidates:
+        try:
+            result = await torn_client.fetch_tornstats_spy_user(player_id, k)
+        except TornStatsAuthError:
+            if owner_pid is not None and key_store:
+                key_store.mark_tornstats_key_status(owner_pid, "invalid")
+            continue
+        if result and is_real_spy(result):
+            return result
+    return None
 
 
 def _require_service() -> SpyService:
@@ -278,7 +327,11 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
 
 
 @router.get("/{player_id}")
-async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_service)):
+async def get_spy_estimate(
+    player_id: int,
+    x_player_id: int | None = Header(None),
+    svc: SpyService = Depends(_require_service),
+):
     if svc.repo.is_blocked(player_id):
         raise HTTPException(status_code=403, detail="This player is blocked from spy lookups")
     est = svc.repo.get_estimate(player_id)
@@ -290,17 +343,17 @@ async def get_spy_estimate(player_id: int, svc: SpyService = Depends(_require_se
     now_dt = datetime.now(timezone.utc)
     needs_refresh = (not est) or _is_stale(est, now_dt)
     if needs_refresh and torn_client:
-        # Query TornStats and YATA in parallel. They're independent spy networks
-        # — one can be stale while the other is fresh. refresh_estimate picks
-        # whichever report has the most recent actual spy timestamp.
-        tasks = []
-        if tornstats_key:
-            tasks.append(("tornstats", torn_client.fetch_tornstats_spy_user(player_id, tornstats_key)))
-        tasks.append(("yata", torn_client.fetch_yata_spy_user(player_id)))
-        results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
+        # TornStats via per-user key pool (caller → other members → global env),
+        # in parallel with YATA. The pool is what gives /api/spy/{id} parity with
+        # the native TornStats userscript: each user's own key sees faction-spy
+        # entries scoped to that user's TornStats account, so the union covers
+        # more XIDs than any single key alone.
+        ts_task = _try_tornstats_pool(player_id, x_player_id)
+        yata_task = torn_client.fetch_yata_spy_user(player_id)
+        ts_data, yata_data = await asyncio.gather(ts_task, yata_task, return_exceptions=True)
         now_iso = datetime.now(timezone.utc).isoformat()
         touched = False
-        for (source, _), data in zip(tasks, results):
+        for source, data in (("tornstats", ts_data), ("yata", yata_data)):
             if isinstance(data, Exception) or not is_real_spy(data):
                 continue
             svc.repo.upsert_report(

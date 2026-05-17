@@ -15,6 +15,10 @@ YATA_BASE = "https://yata.yt/api/v1"
 YATA_CACHE_TTL = 3600
 
 
+class TornStatsAuthError(Exception):
+    """TornStats rejected the API key (401/403). Distinct from "no data" (200 + status:false) so callers can mark the key invalid and try the next one in the pool."""
+
+
 async def _json(resp: Any) -> Any:
     """Call resp.json() — handles both sync (real httpx) and async (mocks)."""
     result = resp.json()
@@ -1128,8 +1132,16 @@ class TornClient:
 
     async def fetch_tornstats_spy_user(self, player_id: int, ts_key: str) -> dict | None:
         """Fetch estimated battle stats for a single player from TornStats.
-        Returns dict with strength/defense/speed/dexterity/total or None."""
-        cache_key = f"tspy_user_{player_id}"
+
+        Returns dict with strength/defense/speed/dexterity/total, or None
+        when TornStats has no spy for this player. Raises TornStatsAuthError
+        on 401/403 so the caller (router) can mark the key invalid in the DB
+        and try the next one in the per-user pool.
+
+        Cache is per-(player_id, key prefix) so a bad key's empty result
+        doesn't poison a good key's lookup for the same XID.
+        """
+        cache_key = f"tspy_user_{player_id}_{ts_key[:8] if ts_key else 'none'}"
         cached = self._get_cached(cache_key, ttl=300)
         if cached is not None:
             return cached
@@ -1139,9 +1151,14 @@ class TornClient:
             resp = await self._http.get(
                 f"https://www.tornstats.com/api/v2/{ts_key}/spy/user/{player_id}",
             )
+            if resp.status_code in (401, 403):
+                self._log_integration("tornstats", f"/api/v2/spy/user/{player_id}", False, (time.time() - start) * 1000, f"HTTP {resp.status_code}")
+                raise TornStatsAuthError(f"TornStats rejected key (HTTP {resp.status_code})")
             resp.raise_for_status()
             raw = await _json(resp)
             self._log_integration("tornstats", f"/api/v2/spy/user/{player_id}", True, (time.time() - start) * 1000)
+        except TornStatsAuthError:
+            raise
         except Exception as e:
             self._log_integration("tornstats", f"/api/v2/spy/user/{player_id}", False, (time.time() - start) * 1000, str(e))
             return None

@@ -143,6 +143,7 @@ async def lifespan(app: FastAPI):
     spy_mod.spy_service = SpyService(spy_repo)
     spy_mod.torn_client = torn_client
     spy_mod.tornstats_key = TORNSTATS_API_KEY
+    spy_mod.key_store = key_store
 
     from api.db.repos.stats import StatSnapshotRepository
     stats_repo = StatSnapshotRepository(db_path="data/keys.db")
@@ -240,6 +241,7 @@ async def lifespan(app: FastAPI):
     pinned_navs_repo = PinnedNavsRepository(db_path="data/keys.db")
     preferences_mod.pinned_navs_repo = pinned_navs_repo
     preferences_mod.key_store = key_store
+    preferences_mod.torn_client = torn_client
     company_mod.torn_client = torn_client
     company_mod.key_store = key_store
     from api.db.repos.companies import CompanySnapshotRepository

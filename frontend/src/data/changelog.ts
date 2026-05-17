@@ -52,9 +52,33 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.60.2";
+export const CURRENT_VERSION = "1.61.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.61.0",
+    date: "2026-05-17",
+    title: "Spy intel — per-user TornStats keys for real-data parity with the native TornStats userscript",
+    changes: [
+      {
+        type: "feat",
+        summary: "Settings → TornStats Integration: paste your own TornStats key to unlock the spies you can already see on tornstats.com",
+        detail: "Each member can now register their personal TornStats API key in Settings. The /api/spy/{id} pipeline tries your key first, then pools other members' keys, then falls back to the shared TM Hub key. Different keys see different faction-spy entries on TornStats — pooling them dramatically widens coverage so the companion's TM HUB INTEL panel on torn.com profiles shows the same exact battle stats the native TornStats userscript renders just below it. Keys are encrypted at rest, validated before saving, and auto-marked invalid the moment TornStats starts rejecting them.",
+      },
+      {
+        type: "fix",
+        summary: "Profile intel panel no longer shows '—' on enemies that TornStats has clear data on",
+        before: "TM HUB INTEL on torn.com profiles showed '—' for STR/DEF/SPD/DEX even when the native TornStats card right below it displayed 3.95B/2.5B/3.4B/3.4B from the same source.",
+        after: "The intel panel pulls from a pool of member-owned TornStats keys, so whichever key has the spy report wins. The numbers now match what TornStats shows you.",
+        cause: "The single shared TornStats key the app used had been silently 403-ing for ~6 days; the scheduler kept overwriting real estimates with zero rows.",
+      },
+      {
+        type: "improve",
+        summary: "Cleaned up stale zero-stat spy estimates from the database",
+        detail: "Removed legacy spy_reports / spy_estimates rows where every battle stat was 0 — they were leftovers from the broken global TornStats key and were polluting the freshest-report picker. Real reports rebuild on the next scheduler tick or on-demand profile view.",
+      },
+    ],
+  },
   {
     version: "1.60.2",
     date: "2026-05-17",

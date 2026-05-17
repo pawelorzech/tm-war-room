@@ -221,3 +221,115 @@ async def test_submit_and_get_spy(setup_db):
             assert data["strength"] == 1e9
             assert data["confidence"] == "exact"
             assert data["source"] == "member_submit"
+
+
+# ---------------------------------------------------------------------------
+# Per-user TornStats key pool (migration 053).
+# ---------------------------------------------------------------------------
+
+def _real_spy(player_id: int = 117941, total: int = 13_000_000_000) -> dict:
+    per = total // 4
+    return {
+        "player_id": player_id, "player_name": "Andr3w",
+        "strength": per, "defense": per, "speed": per, "dexterity": per,
+        "total": total, "timestamp": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_tornstats_pool_prefers_caller_key(setup_db):
+    """Caller's own TornStats key is tried first; pool keys aren't touched if it hits."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+
+    fetch = AsyncMock(return_value=_real_spy())
+    mock_torn = MagicMock(fetch_tornstats_spy_user=fetch, fetch_yata_spy_user=AsyncMock(return_value=None))
+
+    store = MagicMock()
+    store.get_tornstats_key.return_value = "caller_key_xxxxx"
+    # Pool returns a different member's key — must not be called because caller already worked.
+    store.get_all_valid_tornstats_keys.return_value = [(999, "pool_key_xxxxx")]
+
+    with patch("api.main.key_store", store), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", mock_torn), \
+         patch("api.routers.spy.tornstats_key", "global_key_xxxxx"), \
+         patch("api.routers.spy.key_store", store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/117941", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 13_000_000_000
+    # Caller key tried first; succeeded; no other key in the candidate list got a call.
+    keys_used = [c.args[1] for c in fetch.call_args_list]
+    assert keys_used[0] == "caller_key_xxxxx"
+    assert len(keys_used) == 1, f"expected single call, got {keys_used}"
+
+
+@pytest.mark.asyncio
+async def test_tornstats_pool_marks_403_key_invalid_and_falls_through(setup_db):
+    """Caller's key returns 403 → marked invalid → next key in pool is tried."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    from api.torn_client import TornStatsAuthError
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+
+    async def fetch_side_effect(_pid, key):
+        if key == "bad_caller_key":
+            raise TornStatsAuthError("HTTP 403")
+        return _real_spy()
+    mock_torn = MagicMock(fetch_tornstats_spy_user=AsyncMock(side_effect=fetch_side_effect),
+                          fetch_yata_spy_user=AsyncMock(return_value=None))
+
+    store = MagicMock()
+    store.get_tornstats_key.return_value = "bad_caller_key"
+    store.get_all_valid_tornstats_keys.return_value = [(999, "good_pool_key")]
+
+    with patch("api.main.key_store", store), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", mock_torn), \
+         patch("api.routers.spy.tornstats_key", ""), \
+         patch("api.routers.spy.key_store", store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/117941", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    # Caller's key got marked invalid for player_id=123 (from auth_headers default).
+    store.mark_tornstats_key_status.assert_called_once_with(123, "invalid")
+
+
+@pytest.mark.asyncio
+async def test_tornstats_pool_falls_back_to_global_key(setup_db):
+    """No per-user keys configured → uses global TORNSTATS_API_KEY (existing behavior)."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+
+    fetch = AsyncMock(return_value=_real_spy())
+    mock_torn = MagicMock(fetch_tornstats_spy_user=fetch, fetch_yata_spy_user=AsyncMock(return_value=None))
+
+    store = MagicMock()
+    store.get_tornstats_key.return_value = None
+    store.get_all_valid_tornstats_keys.return_value = []
+
+    with patch("api.main.key_store", store), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", mock_torn), \
+         patch("api.routers.spy.tornstats_key", "global_env_key"), \
+         patch("api.routers.spy.key_store", store):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/117941", headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    keys_used = [c.args[1] for c in fetch.call_args_list]
+    assert keys_used == ["global_env_key"]

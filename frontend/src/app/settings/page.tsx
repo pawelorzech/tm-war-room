@@ -25,6 +25,12 @@ interface KeyInfoData {
   selections: Record<string, string[]>;
 }
 
+interface TornStatsKeyMeta {
+  has_key: boolean;
+  status: 'ok' | 'invalid' | null;
+  validated_at: string | null;
+}
+
 export default function SettingsPage() {
   const { playerId, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -37,6 +43,49 @@ export default function SettingsPage() {
 
   const [keyInfo, setKeyInfo] = useState<KeyInfoData | null>(null);
   const [keyInfoError, setKeyInfoError] = useState(false);
+
+  const [tsKeyMeta, setTsKeyMeta] = useState<TornStatsKeyMeta | null>(null);
+  const [tsKeyInput, setTsKeyInput] = useState('');
+  const [tsKeySaving, setTsKeySaving] = useState(false);
+  const [tsKeyError, setTsKeyError] = useState<string | null>(null);
+
+  const loadTsKey = () => {
+    api.tornStatsKeyGet()
+      .then(d => setTsKeyMeta(d))
+      .catch(() => setTsKeyMeta({ has_key: false, status: null, validated_at: null }));
+  };
+  useEffect(() => { loadTsKey(); }, []);
+
+  const submitTsKey = async () => {
+    const key = tsKeyInput.trim();
+    if (!key) return;
+    setTsKeySaving(true);
+    setTsKeyError(null);
+    try {
+      const meta = await api.tornStatsKeySet(key);
+      setTsKeyMeta(meta);
+      setTsKeyInput('');
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'Failed to save key';
+      setTsKeyError(detail);
+    } finally {
+      setTsKeySaving(false);
+    }
+  };
+
+  const removeTsKey = async () => {
+    setTsKeySaving(true);
+    setTsKeyError(null);
+    try {
+      await api.tornStatsKeyDelete();
+      setTsKeyMeta({ has_key: false, status: null, validated_at: null });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'Failed to remove key';
+      setTsKeyError(detail);
+    } finally {
+      setTsKeySaving(false);
+    }
+  };
 
   const loadProfile = () => {
     setProfileLoading(true);
@@ -128,6 +177,95 @@ export default function SettingsPage() {
             </p>
           </div>
         )}
+
+        {/* TornStats Integration Section */}
+        <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5">
+          <p className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">TornStats Integration</p>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">Your TornStats API key</h2>
+              <p className="text-[10px] text-text-muted mt-0.5">
+                Lets TM Hub query <span className="font-mono">/spy/user/...</span> with your key — gives the intel panel parity with what the native TornStats userscript shows you on torn.com profiles.
+              </p>
+            </div>
+            {tsKeyMeta?.has_key && (
+              <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${
+                tsKeyMeta.status === 'ok' ? 'bg-torn-green/15 text-torn-green'
+                : tsKeyMeta.status === 'invalid' ? 'bg-torn-red/15 text-torn-red'
+                : 'bg-torn-yellow/15 text-torn-yellow'
+              }`}>
+                {tsKeyMeta.status === 'ok' ? 'Active' : tsKeyMeta.status === 'invalid' ? 'Rejected by TornStats' : 'Stored'}
+              </span>
+            )}
+          </div>
+
+          {tsKeyMeta?.has_key ? (
+            <div className="space-y-2">
+              <p className="text-xs text-text-secondary">
+                Key on file. Validated {tsKeyMeta.validated_at ? new Date(tsKeyMeta.validated_at).toLocaleString() : '—'}.
+              </p>
+              {tsKeyMeta.status === 'invalid' && (
+                <p className="text-[11px] text-torn-red">
+                  TornStats started rejecting this key (HTTP 401/403). Generate a new one and paste it below to replace.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Paste a new key to replace…"
+                  value={tsKeyInput}
+                  onChange={(e) => setTsKeyInput(e.target.value)}
+                  className="flex-1 min-w-[200px] px-3 py-1.5 text-sm rounded-lg bg-bg-elevated border border-text-secondary/20 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50"
+                />
+                <button
+                  onClick={submitTsKey}
+                  disabled={tsKeySaving || !tsKeyInput.trim()}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-torn-green/15 text-torn-green font-medium hover:bg-torn-green/25 disabled:opacity-50 transition-colors"
+                >
+                  Replace
+                </button>
+                <button
+                  onClick={removeTsKey}
+                  disabled={tsKeySaving}
+                  className="px-3 py-1.5 text-sm rounded-lg text-torn-red border border-torn-red/20 hover:bg-torn-red/10 disabled:opacity-50 transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Paste TornStats API key…"
+                  value={tsKeyInput}
+                  onChange={(e) => setTsKeyInput(e.target.value)}
+                  className="flex-1 min-w-[200px] px-3 py-1.5 text-sm rounded-lg bg-bg-elevated border border-text-secondary/20 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-torn-green/50"
+                />
+                <button
+                  onClick={submitTsKey}
+                  disabled={tsKeySaving || !tsKeyInput.trim()}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-torn-green/15 text-torn-green font-medium hover:bg-torn-green/25 disabled:opacity-50 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tsKeyError && (
+            <p className="mt-2 text-[11px] text-torn-red">{tsKeyError}</p>
+          )}
+
+          <p className="text-[10px] text-text-muted mt-3">
+            Generate at <a href="https://www.tornstats.com/profile" target="_blank" rel="noopener noreferrer" className="text-torn-green hover:underline">tornstats.com → Profile → API Key</a>. Stored encrypted (Fernet). Optional — TM Hub still works without it, but the panel will lean on whichever pooled member key has data.
+          </p>
+        </div>
 
         {/* Push Notifications Section */}
         <div className="bg-bg-card border border-text-secondary/15 rounded-xl p-5">

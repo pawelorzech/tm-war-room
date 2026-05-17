@@ -256,6 +256,17 @@ export const api = {
   pinnedNavsGet: () => apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs'),
   pinnedNavsPut: (hrefs: string[]) =>
     apiFetch<{ hrefs: string[] }>('/api/preferences/pinned-navs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hrefs }) }),
+  tornStatsKeyGet: () =>
+    apiFetch<{ has_key: boolean; status: 'ok' | 'invalid' | null; validated_at: string | null }>(
+      '/api/preferences/tornstats-key',
+    ),
+  tornStatsKeySet: (key: string) =>
+    apiFetch<{ has_key: boolean; status: 'ok' | 'invalid' | null; validated_at: string | null }>(
+      '/api/preferences/tornstats-key',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) },
+    ),
+  tornStatsKeyDelete: () =>
+    apiFetch<{ has_key: boolean }>('/api/preferences/tornstats-key', { method: 'DELETE' }),
   warOffLimitsList: (warId: number) =>
     apiFetch<import("@/types/war").WarOffLimitsResponse>(`/api/war-off-limits/${warId}`),
   warOffLimitsAdd: (warId: number, data: { player_id: number; player_name: string; reason?: string }) =>
