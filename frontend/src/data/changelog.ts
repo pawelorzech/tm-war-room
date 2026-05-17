@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.55.2";
+export const CURRENT_VERSION = "1.56.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.56.0",
+    date: "2026-05-17",
+    title: "Chat — full-text search with Slack-style filters (Companion 0.32.0)",
+    changes: [
+      {
+        type: "feat",
+        summary: "Search across all chat history — tap the magnifier, type 'from:Bombel has:link xanax', jump to any past message",
+        detail: "The magnifier next to the channel name (Cmd+F on desktop) opens a search panel. Plain text searches every channel you can see; filters compose freely: from:Name limits by author, in:channel-name by channel, has:link or has:reaction or has:pin by what the message contains, before:YYYY-MM-DD and after:YYYY-MM-DD by date, and -word excludes results containing word. Hits are ranked by relevance with the matched fragment highlighted (snippet view). Click a result to jump straight to its channel. Same panel + same syntax in the floating Companion chat dock on torn.com — the icon is in the dock header next to the channel picker.",
+      },
+    ],
+  },
   {
     version: "1.55.2",
     date: "2026-05-17",

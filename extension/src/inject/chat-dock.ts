@@ -24,6 +24,7 @@ import {
   markChatRead,
   removeChatReaction,
   resolveChatEntities,
+  searchChatMessages,
   sendChatMessage,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
@@ -239,6 +240,68 @@ const STYLES = `
   }
   .panel-header .header-btn:hover { color: #f0f6fc; background: #21262d; }
   .panel-header .header-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+  .search-panel {
+    border-bottom: 1px solid #30363d;
+    background: #161b22;
+    padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .search-panel.hidden { display: none; }
+  .search-panel .search-row {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .search-panel input.search-input {
+    flex: 1;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    outline: none;
+  }
+  .search-panel input.search-input:focus { border-color: #58a6ff; }
+  .search-panel .search-close {
+    background: transparent; border: none; color: #6e7681;
+    font-size: 11px; cursor: pointer; padding: 0 4px;
+  }
+  .search-panel .search-chips {
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .search-panel .search-chips span {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: rgba(56, 139, 253, 0.15); color: #79c0ff;
+  }
+  .search-panel .search-results {
+    max-height: 280px; overflow-y: auto;
+    display: flex; flex-direction: column;
+    border-top: 1px solid #30363d;
+    margin: 0 -8px -6px -8px;
+  }
+  .search-panel .search-row-empty {
+    font-size: 11px; color: #6e7681; padding: 8px;
+  }
+  .search-panel .search-result {
+    text-align: left; background: transparent; border: 0;
+    border-bottom: 1px solid #30363d;
+    padding: 6px 8px; cursor: pointer; color: inherit;
+    font-family: inherit;
+  }
+  .search-panel .search-result:hover { background: #21262d; }
+  .search-panel .search-result:last-child { border-bottom: 0; }
+  .search-panel .search-result .meta {
+    font-size: 10px; color: #6e7681;
+  }
+  .search-panel .search-result .meta .name { color: #56d364; font-weight: 500; }
+  .search-panel .search-result .snippet {
+    font-size: 12px; color: #c9d1d9; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .search-panel .search-result mark {
+    background: rgba(210, 153, 34, 0.4); color: #f0f6fc;
+    padding: 0 1px; border-radius: 2px;
+  }
 
   .messages {
     flex: 1;
@@ -1164,12 +1227,23 @@ function renderPanel(shadow: ShadowRoot): void {
   panel.innerHTML = `
     <div class="panel-header">
       <select class="ch-select"><option value="">Loading…</option></select>
+      <button class="header-btn" data-act="search" title="Search chat">
+        <svg viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+      </button>
       <button class="header-btn" data-act="open-full" title="Open full TM Hub chat">
         <svg viewBox="0 0 16 16"><path d="M3.5 3a.5.5 0 0 0 0 1H12v8.5a.5.5 0 0 0 1 0V3.5a.5.5 0 0 0-.5-.5h-9z"/><path d="M11.854 5.146a.5.5 0 0 1 0 .708L4.207 13.5H10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5V7a.5.5 0 0 1 1 0v5.793l7.646-7.647a.5.5 0 0 1 .708 0z"/></svg>
       </button>
       <button class="header-btn" data-act="close" title="Close">
         <svg viewBox="0 0 16 16"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>
       </button>
+    </div>
+    <div class="search-panel hidden">
+      <div class="search-row">
+        <input class="search-input" placeholder='Search… try "from:Bombel has:link xanax"' />
+        <button class="search-close" data-act="search-close">Esc</button>
+      </div>
+      <div class="search-chips"></div>
+      <div class="search-results"></div>
     </div>
     <div class="messages"><div class="empty">Loading messages…</div></div>
     <button class="new-pill hidden" data-act="scroll-new">↓ New messages</button>
@@ -1196,6 +1270,106 @@ function renderPanel(shadow: ShadowRoot): void {
   panel.querySelector('[data-act="close"]')?.addEventListener('click', () => closeDock(shadow));
   panel.querySelector('[data-act="open-full"]')?.addEventListener('click', () => {
     window.open(`${HUB_ORIGIN}/chat`, '_blank');
+  });
+  // Search panel toggle + handlers (Roadmap Task #5 — companion parity).
+  const searchPanel = panel.querySelector<HTMLElement>('.search-panel');
+  const searchInput = panel.querySelector<HTMLInputElement>('.search-input');
+  const searchChips = panel.querySelector<HTMLElement>('.search-chips');
+  const searchResults = panel.querySelector<HTMLElement>('.search-results');
+  let _searchTimer: number | null = null;
+  let _searchSeq = 0;
+
+  function setSearchOpen(open: boolean): void {
+    if (!searchPanel) return;
+    searchPanel.classList.toggle('hidden', !open);
+    if (open) {
+      searchInput?.focus();
+    } else {
+      if (searchInput) searchInput.value = '';
+      if (searchChips) searchChips.innerHTML = '';
+      if (searchResults) searchResults.innerHTML = '';
+    }
+  }
+
+  async function runSearch(query: string): Promise<void> {
+    if (!searchResults || !searchChips) return;
+    const auth = getAuth();
+    if (!auth) return;
+    if (!query.trim()) {
+      searchChips.innerHTML = '';
+      searchResults.innerHTML = '';
+      return;
+    }
+    const myReq = ++_searchSeq;
+    searchResults.innerHTML = '<div class="search-row-empty">Searching…</div>';
+    try {
+      const r = await searchChatMessages(auth, query, 30);
+      if (myReq !== _searchSeq) return; // stale response
+      const chips: string[] = [];
+      if (r.parsed.from_name) chips.push(`from:${escapeHtml(r.parsed.from_name)}`);
+      if (r.parsed.in_channel) chips.push(`in:${escapeHtml(r.parsed.in_channel)}`);
+      for (const h of r.parsed.has) chips.push(`has:${escapeHtml(h)}`);
+      if (r.parsed.before_ts_max)
+        chips.push(`before:${new Date(r.parsed.before_ts_max * 1000).toISOString().slice(0, 10)}`);
+      if (r.parsed.after_ts_min)
+        chips.push(`after:${new Date(r.parsed.after_ts_min * 1000).toISOString().slice(0, 10)}`);
+      for (const n of r.parsed.neg_text) chips.push(`-${escapeHtml(n)}`);
+      searchChips.innerHTML = chips.map((c) => `<span>${c}</span>`).join('');
+
+      if (r.messages.length === 0) {
+        searchResults.innerHTML = '<div class="search-row-empty">No matches.</div>';
+        return;
+      }
+      const channelMap = new Map<number, string>();
+      for (const ch of _channels) channelMap.set(ch.id, ch.name);
+      searchResults.innerHTML = r.messages.map((m) => {
+        const ch = channelMap.get(m.channel_id) ?? String(m.channel_id);
+        const when = new Date(m.created_at * 1000).toLocaleString();
+        // m.snippet from FTS5 already contains <mark> tags around hits and
+        // no user-controllable HTML; falling back to escaped body otherwise.
+        const body = m.snippet ?? escapeHtml(m.content.slice(0, 200));
+        return `<button type="button" class="search-result" data-channel-id="${m.channel_id}" data-msg-id="${m.id}">
+          <div class="meta"><span class="name">${escapeHtml(m.player_name)}</span> · #${escapeHtml(ch)} · ${escapeHtml(when)}</div>
+          <div class="snippet">${body}</div>
+        </button>`;
+      }).join('');
+    } catch (err) {
+      if (myReq !== _searchSeq) return;
+      const msg = err instanceof ApiError ? `${err.status} ${err.message}` : String(err);
+      searchResults.innerHTML = `<div class="search-row-empty">Error: ${escapeHtml(msg)}</div>`;
+    }
+  }
+
+  panel.querySelector('[data-act="search"]')?.addEventListener('click', () => {
+    if (!searchPanel) return;
+    setSearchOpen(searchPanel.classList.contains('hidden'));
+  });
+  panel.querySelector('[data-act="search-close"]')?.addEventListener('click', () => setSearchOpen(false));
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setSearchOpen(false);
+  });
+  searchInput?.addEventListener('input', () => {
+    if (_searchTimer) window.clearTimeout(_searchTimer);
+    _searchTimer = window.setTimeout(() => {
+      void runSearch(searchInput.value);
+    }, 250);
+  });
+  searchResults?.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('.search-result');
+    if (!btn) return;
+    const chId = Number(btn.dataset.channelId);
+    if (!chId) return;
+    setSearchOpen(false);
+    if (chId !== _state.channelId) {
+      _state.channelId = chId;
+      saveState(_state);
+      stopMessagePolling();
+      await loadChannelInitial(shadow, chId);
+      startMessagePolling(shadow);
+      const sel = panel.querySelector<HTMLSelectElement>('.ch-select');
+      if (sel) sel.value = String(chId);
+      updatePlaceholder(shadow);
+    }
   });
   panel.querySelector('[data-act="scroll-new"]')?.addEventListener('click', () => {
     scrollToBottom(shadow);

@@ -219,6 +219,31 @@ export function resolveChatEntities(
   );
 }
 
+export interface ChatSearchResponse {
+  query: string;
+  parsed: {
+    text: string;
+    neg_text: string[];
+    from_name: string | null;
+    in_channel: string | null;
+    has: string[];
+    before_ts_max: number | null;
+    after_ts_min: number | null;
+  };
+  messages: (ChatMessage & { snippet?: string | null })[];
+  limit: number;
+  offset: number;
+}
+
+export function searchChatMessages(
+  auth: CompanionAuth,
+  q: string,
+  limit = 30,
+): Promise<ChatSearchResponse> {
+  const qs = `q=${encodeURIComponent(q)}&limit=${limit}`;
+  return get<ChatSearchResponse>(`/api/chat/search?${qs}`, auth);
+}
+
 export function sendChatMessage(
   auth: CompanionAuth,
   channelId: number,

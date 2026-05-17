@@ -16,6 +16,7 @@ from api.chat_commands import (
 from api.chat_entities import find_entities_as_dicts
 from api import chat_resolver
 from api.chat_manager import ChatManager
+from api.chat_search import parse_query, build_search_sql, MAX_LIMIT as SEARCH_MAX_LIMIT
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
 logger = logging.getLogger("tm-hub.chat")
@@ -373,6 +374,55 @@ async def list_commands(x_player_id: int = Header()):
     autocomplete dropdown when a user types ``/``."""
     _verify_member(x_player_id)
     return {"commands": chat_command_registry.list()}
+
+
+# ── Search (Task #5) ──────────────────────────────────────────
+
+
+@router.get("/search")
+async def search_messages(
+    q: str = Query(..., min_length=1, max_length=500),
+    limit: int = Query(50, ge=1, le=SEARCH_MAX_LIMIT),
+    offset: int = Query(0, ge=0, le=5000),
+    x_player_id: int = Header(),
+):
+    """Full-text search across chat history with Slack-syntax filters.
+
+    Supports ``from:Name``, ``in:channel``, ``has:link|reaction|pin``,
+    ``before:YYYY-MM-DD``, ``after:YYYY-MM-DD``, free-text and ``-negation``.
+
+    Non-admin members never see results from admin-only channels.
+    """
+    _verify_member(x_player_id)
+    parsed = parse_query(q)
+    sql, params = build_search_sql(parsed, limit=limit, offset=offset)
+
+    excluded: list[int] = []
+    if not _is_admin(x_player_id):
+        for ch in chat_repo.get_channels():
+            if ch.get("admin_only"):
+                excluded.append(ch["id"])
+
+    messages = chat_repo.search_messages(sql, params, excluded_channel_ids=excluded)
+    if messages:
+        reactions_map = chat_repo.get_reactions_for_messages([m["id"] for m in messages])
+        for m in messages:
+            m["reactions"] = reactions_map.get(m["id"], [])
+    return {
+        "query": q,
+        "parsed": {
+            "text": parsed.text,
+            "neg_text": parsed.neg_text,
+            "from_name": parsed.from_name,
+            "in_channel": parsed.in_channel,
+            "has": parsed.has,
+            "before_ts_max": parsed.before_ts_max,
+            "after_ts_min": parsed.after_ts_min,
+        },
+        "messages": messages,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 # ── Entity-card resolver (Task #4) ────────────────────────────

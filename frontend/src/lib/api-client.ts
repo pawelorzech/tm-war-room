@@ -401,6 +401,22 @@ export const api = {
         body: JSON.stringify({ entities }),
       },
     ),
+  chatSearch: (q: string, limit = 50, offset = 0) =>
+    apiFetch<{
+      query: string;
+      parsed: {
+        text: string;
+        neg_text: string[];
+        from_name: string | null;
+        in_channel: string | null;
+        has: string[];
+        before_ts_max: number | null;
+        after_ts_min: number | null;
+      };
+      messages: (Message & { snippet?: string })[];
+      limit: number;
+      offset: number;
+    }>(`/api/chat/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`),
   chatSendMessage: (channelId: number, content: string, mentions: number[] = []) =>
     apiFetch<import("@/types/chat").Message>(`/api/chat/channels/${channelId}/messages`, {
       method: "POST", headers: { "Content-Type": "application/json" },

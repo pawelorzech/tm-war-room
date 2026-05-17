@@ -12,6 +12,7 @@ import { ThreadList } from "./ThreadList";
 import { ThreadPanel } from "./ThreadPanel";
 import { CreateThreadDialog } from "./CreateThreadDialog";
 import { ChatAdmin } from "./ChatAdmin";
+import { SearchBar } from "./SearchBar";
 import { api } from "@/lib/api-client";
 import { getOverview } from "@/lib/overview-cache";
 import { Avatar } from "@/components/ui/Avatar";
@@ -258,7 +259,7 @@ export function ChatLayout() {
           /* Chat view */
           <>
             {/* Channel header */}
-            <div className="border-b border-border shrink-0 keyboard-open-chat-hide">
+            <div className="relative border-b border-border shrink-0 keyboard-open-chat-hide">
               <div className="p-3 flex items-center gap-2">
                 <button
                   onClick={() => setMobileView("channels")}
@@ -272,6 +273,10 @@ export function ChatLayout() {
                     <div className="text-[11px] text-text-muted">{activeChannel.description}</div>
                   )}
                 </div>
+                <SearchBar
+                  channels={channels}
+                  onJumpToMessage={(cid) => { selectChannel(cid); }}
+                />
               </div>
               {activeChannel.name === "traveling" && (
                 <div className="px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">

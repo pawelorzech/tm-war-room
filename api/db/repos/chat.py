@@ -246,6 +246,30 @@ class ChatRepository(BaseRepository):
         players = [{"id": r["player_id"], "name": r["player_name"]} for r in rows]
         return {"emoji": emoji, "count": len(players), "players": players}
 
+    def search_messages(
+        self,
+        sql: str,
+        params: list,
+        *,
+        excluded_channel_ids: list[int] | None = None,
+    ) -> list[dict]:
+        """Run a search built by ``api.chat_search.build_search_sql``.
+
+        Optionally filters out admin-only channel results for non-admins —
+        passed as a post-query filter so the SQL builder stays
+        permissions-unaware.
+        """
+        rows = self.execute(sql, tuple(params))
+        excluded = set(excluded_channel_ids or [])
+        out: list[dict] = []
+        for r in rows:
+            d = dict(r)
+            if excluded and d.get("channel_id") in excluded:
+                continue
+            d["mentions"] = json.loads(d.get("mentions") or "[]")
+            out.append(d)
+        return out
+
     def get_reactions_for_messages(
         self, message_ids: list[int],
     ) -> dict[int, list[dict]]:
