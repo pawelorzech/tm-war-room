@@ -42,6 +42,7 @@ import { startHeartbeat } from './inject/heartbeat';
 import { startStatusChip } from './inject/status-chip';
 import { startMentionAlerts } from './inject/mention-alerts';
 import { startChatDock } from './inject/chat-dock';
+import { startPageTitle } from './inject/page-title';
 import { ensureNativePermission } from './lib/notifications';
 import type { CompanionAuth, WarOffLimits } from './types';
 
@@ -388,6 +389,10 @@ function bootstrap(): void {
   startNotificationToasts();
   startMentionAlerts();
   startHeartbeat();
+  // Browser tab title clearer: surfaces hospital/jail/travel countdown in
+  // document.title for tab-switcher visibility. Visibility-gated polling
+  // means a backgrounded tab doesn't burn cycles on this.
+  startPageTitle();
   // Live claim banner + bus pump. Internally feature-flag gated and a no-op
   // when hit_calling is off, so it's safe to start unconditionally.
   void startClaimBanner();
