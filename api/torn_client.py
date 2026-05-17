@@ -43,6 +43,86 @@ def _num(v: Any) -> float:
         return 0.0
 
 
+# Torn rank ladder (wiki: https://wiki.torn.com/wiki/Rank). v1 `user/?selections=profile`
+# returns a single concatenated string like ``"Invincible Damage Dealer"`` — tier + title
+# fused together. v2 returns them as separate fields. We parse v1's string by
+# greedy-matching the longest known tier prefix; multi-word tiers come first.
+#
+# Used by ``extract_rank_tier`` to feed ``api.stat_estimator.estimate_stats(rank=...)``
+# without adding a v2 fetch (per docs/torn-api-v2-migration.md, v2 user/profile is
+# nested and would break the rest of our consumers).
+_RANK_TIERS_LONGEST_FIRST: tuple[str, ...] = (
+    "Absolute beginner",
+    "Highly distinguished",
+    "Highly competent",
+    "Above average",
+    "Below average",
+    "Highly Respected",
+    # Single-word tiers, in ladder order (descending in difficulty/prestige)
+    "Invincible",
+    "Legendary",
+    "Heroic",
+    "Champion",
+    "Idolised",
+    "Idolized",
+    "Supreme",
+    "Celebrity",
+    "Outstanding",
+    "Master",
+    "Star",
+    "Professional",
+    "Distinguished",
+    "Veteran",
+    "Elite",  # NOTE: "Elite" placed late on purpose — does not conflict with longer prefixes
+    "Competent",
+    "Reasonable",
+    "Average",
+    "Novice",
+    "Rookie",
+    "Inexperienced",
+    "Beginner",
+)
+
+
+def extract_rank_tier(profile: dict | None) -> str | None:
+    """Return the rank tier string (e.g. ``"Invincible"``) from a v1 profile dict.
+
+    The v1 ``user/?selections=profile`` endpoint returns ``rank`` as a single
+    concatenated string ``"<tier> <title>"`` — e.g. ``"Invincible Damage Dealer"``.
+    We split on the longest known tier prefix.
+
+    Returns:
+        The tier string (always one of the canonical Torn rank names), or
+        ``None`` when *profile* is empty, missing the ``rank`` field, or the
+        rank string starts with an unrecognized prefix.
+
+    Examples:
+        >>> extract_rank_tier({"rank": "Invincible Damage Dealer"})
+        'Invincible'
+        >>> extract_rank_tier({"rank": "Legendary Outcast"})
+        'Legendary'
+        >>> extract_rank_tier({"rank": "Highly Respected Tank"})
+        'Highly Respected'
+        >>> extract_rank_tier({"rank": ""}) is None
+        True
+        >>> extract_rank_tier({}) is None
+        True
+    """
+    if not profile or not isinstance(profile, dict):
+        return None
+    raw = profile.get("rank")
+    if not raw or not isinstance(raw, str):
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    for tier in _RANK_TIERS_LONGEST_FIRST:
+        # Exact match (no title) or tier-prefix followed by space + title
+        if text == tier or text.startswith(tier + " "):
+            return tier
+    return None
+
+
 class TornClient:
     def __init__(self, api_key: str, cache_ttl: int = 60, analytics_store=None) -> None:
         self._api_key = api_key
@@ -393,7 +473,20 @@ class TornClient:
         return result
 
     async def fetch_user_profile_stats(self, player_id: int) -> dict | None:
-        """Fetch a player's personalstats + profile by ID (using faction key)."""
+        """Fetch a player's personalstats + profile by ID (using faction key).
+
+        NB: v1 ``/user/?id=NNN`` is silently ignored by Torn — the response
+        carries the API key OWNER's data, not the target's. We hit the **path
+        form** ``/v1/user/<id>/`` which is the only working way to look up an
+        arbitrary player by ID. Same bug-class as the 2026-05-16 "everyone
+        shows 7B" outage; see ``api/routers/spy.py`` and
+        ``reference_torn_api_user_id_path.md`` in agent memory.
+
+        Returns the raw v1 fields the caller needs PLUS a ``rank`` string
+        (concatenated tier+title, e.g. ``"Invincible Damage Dealer"``).
+        Callers that need the tier alone should use
+        :func:`api.torn_client.extract_rank_tier`.
+        """
         cache_key = f"user_profile_{player_id}"
         cached = self._get_cached(cache_key, ttl=300)
         if cached is not None:
@@ -401,8 +494,8 @@ class TornClient:
         start = time.time()
         try:
             resp = await self._http.get(
-                f"{V1_BASE}/user/",
-                params={"selections": "personalstats,profile", "key": self._api_key, "id": player_id},
+                f"{V1_BASE}/user/{player_id}/",
+                params={"selections": "personalstats,profile", "key": self._api_key},
             )
             resp.raise_for_status()
             raw = await _json(resp)
@@ -416,6 +509,7 @@ class TornClient:
             "level": raw.get("level", 0),
             "age": raw.get("age", 0),
             "name": raw.get("name", ""),
+            "rank": raw.get("rank", "") or "",
             "status_state": status.get("state", "") if isinstance(status, dict) else str(status),
             "status_until": status.get("until", 0) if isinstance(status, dict) else 0,
             "last_action": raw.get("last_action", {}).get("relative", "") if isinstance(raw.get("last_action"), dict) else "",

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Header, Query, Request
 from api.threat import compute_threat, compute_stat_threat
 from api.models import PersonalStats
 from api.stat_estimator import estimate_stats
+from api.torn_client import extract_rank_tier
 from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.bounties")
@@ -99,7 +100,11 @@ async def list_bounties(
             b["target_level"] = level
             target_status[tid] = profile.get("status_state", "")
             ps = PersonalStats.from_torn_api(ps_raw)
-            est_data = estimate_stats(ps_raw, level, profile.get("age", 0))
+            # Pass rank tier so endgame floor + SE-uncap apply when relevant
+            # (fetch_user_profile_stats now correctly returns the target's
+            # profile — see torn_client comment about the path-form fix).
+            rank_tier = extract_rank_tier(profile)
+            est_data = estimate_stats(ps_raw, level, profile.get("age", 0), rank=rank_tier)
             spy_data[tid] = {
                 "total": est_data["estimated_total"],
                 "confidence": est_data["confidence"],

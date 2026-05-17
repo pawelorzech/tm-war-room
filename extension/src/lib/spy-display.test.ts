@@ -50,6 +50,11 @@ describe('bucketStyle', () => {
     expect(s.badgeText).toBe('ROUGH GUESS');
     expect(s.color).toBe('orange');
   });
+  it('endgame → red palette with explicit ENDGAME PLAYER label', () => {
+    const s = bucketStyle('endgame');
+    expect(s.badgeText).toBe('ENDGAME PLAYER');
+    expect(s.color).toBe('red');
+  });
 });
 
 describe('formatTotalRange', () => {
@@ -77,6 +82,18 @@ describe('formatTotalRange', () => {
     const out = formatTotalRange(5_000_000_000, undefined, 'estimate');
     expect(out).toBe('5.00B');
   });
+
+  it('endgame renders empty string — caller must skip the hero row', () => {
+    // The API ships range=[null,null] for endgame. We don't want a stray
+    // "0 — 0" or "? — ?" sneaking into the UI; the contract is no number.
+    const out = formatTotalRange(0, [null, null], 'endgame');
+    expect(out).toBe('');
+  });
+
+  it('endgame with no range still renders empty string', () => {
+    const out = formatTotalRange(0, undefined, 'endgame');
+    expect(out).toBe('');
+  });
 });
 
 describe('formatPerStat', () => {
@@ -87,6 +104,17 @@ describe('formatPerStat', () => {
 
   it('returns null when any per-stat is null', () => {
     const spy = makeSpy({ bucket: 'estimate', strength: 1_000_000_000, defense: null });
+    expect(formatPerStat(spy)).toBeNull();
+  });
+
+  it('returns null for endgame regardless of per-stat presence', () => {
+    const spy = makeSpy({
+      bucket: 'endgame',
+      strength: 4_200_000_000,
+      defense: 10_000_000,
+      speed: 1_770_000_000,
+      dexterity: 1_000_000_000,
+    });
     expect(formatPerStat(spy)).toBeNull();
   });
 
@@ -140,5 +168,28 @@ describe('bucketCaption', () => {
     const caption = bucketCaption(spy);
     expect(caption).toContain('14 days old');
     expect(caption).toContain('yata');
+  });
+
+  it('endgame prefers server-supplied caption', () => {
+    const spy = makeSpy({
+      bucket: 'endgame',
+      caption: 'Endgame player — stats T-scale, no estimate available. Get a spy.',
+    });
+    const caption = bucketCaption(spy);
+    expect(caption).toMatch(/Endgame player/);
+    expect(caption).toMatch(/Get a spy/);
+  });
+
+  it('endgame falls back to hardcoded caption when API omits the field', () => {
+    const spy = makeSpy({ bucket: 'endgame', caption: null });
+    const caption = bucketCaption(spy);
+    expect(caption).toMatch(/Endgame player/);
+    expect(caption).toMatch(/Get a spy/);
+  });
+
+  it('endgame falls back when caption is empty string', () => {
+    const spy = makeSpy({ bucket: 'endgame', caption: '   ' });
+    const caption = bucketCaption(spy);
+    expect(caption).toMatch(/Endgame player/);
   });
 });

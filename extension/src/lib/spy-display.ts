@@ -9,7 +9,7 @@
  * tests live in extension/src/lib/spy-display.test.ts.
  */
 
-export type Bucket = 'verified' | 'estimate' | 'rough_guess';
+export type Bucket = 'verified' | 'estimate' | 'rough_guess' | 'endgame';
 
 // Minimal subset of the API's SpyEstimate that this module touches.
 export interface SpyEstimate {
@@ -20,20 +20,24 @@ export interface SpyEstimate {
   speed: number | null;
   dexterity: number | null;
   total: number;
-  confidence: 'exact' | 'estimate' | 'stale' | 'unknown';
+  confidence: 'exact' | 'estimate' | 'stale' | 'unknown' | 'low';
   source: string;
   reported_at: string | null;
   age_days: number | null;
   level?: number;
+  rank?: string | null;
   bucket?: Bucket;
-  total_range?: [number, number];
+  total_range?: [number, number] | [null, null];
   range_width_pct?: number;
   heuristic_confidence?: 'medium' | 'low' | 'very low' | null;
+  // Endgame bucket carries the human caption from the API; fallback string is
+  // used when the field is missing (older backend or wire-format drift).
+  caption?: string | null;
 }
 
 export interface BucketDisplay {
   badgeText: string;
-  color: 'green' | 'yellow' | 'orange';
+  color: 'green' | 'yellow' | 'orange' | 'red';
   borderColor: string;
   badgeBg: string;
   badgeFg: string;
@@ -60,6 +64,17 @@ const STYLE: Record<Bucket, BucketDisplay> = {
     borderColor: '#f5a05a',
     badgeBg: 'rgba(245,160,90,0.18)',
     badgeFg: '#f5a05a',
+  },
+  // Endgame: Invincible/Heroic/Elite/Legendary players whose real stats sit
+  // in trillions — the linear estimator structurally cannot produce that
+  // number, so we deliberately render NO range. Burgundy / red palette is
+  // the "back off, get a real spy" visual signal.
+  endgame: {
+    badgeText: 'ENDGAME PLAYER',
+    color: 'red',
+    borderColor: '#b62324',
+    badgeBg: 'rgba(182,35,36,0.22)',
+    badgeFg: '#ff7b72',
   },
 };
 
@@ -93,9 +108,13 @@ function fmtRangeEndpoint(n: number): string {
 
 export function formatTotalRange(
   total: number,
-  range: [number, number] | undefined,
+  range: [number, number] | [null, null] | undefined,
   bucket: Bucket,
 ): string {
+  // Endgame: no numeric estimate is honest, the linear model can't produce
+  // T-scale. Caller is expected to skip the hero-number row entirely; we
+  // return an empty string so any accidental render is at least silent.
+  if (bucket === 'endgame') return '';
   if (bucket === 'verified') {
     if (total <= 0) return '—';
     return total.toLocaleString('en-US');
@@ -104,6 +123,7 @@ export function formatTotalRange(
     return fmtBig(total);
   }
   const [low, high] = range;
+  if (low == null || high == null) return '? — ?';
   if (low === 0 && high === 0) return '? — ?';
   return `${fmtRangeEndpoint(low)} — ${fmtRangeEndpoint(high)}`;
 }
@@ -116,7 +136,8 @@ export interface PerStatGrid {
 }
 
 export function formatPerStat(spy: SpyEstimate): PerStatGrid | null {
-  if (spy.bucket === 'rough_guess') return null;
+  // Endgame + rough_guess: no per-stat grid (we don't have the numbers).
+  if (spy.bucket === 'rough_guess' || spy.bucket === 'endgame') return null;
   const { strength, defense, speed, dexterity } = spy;
   if (strength == null || defense == null || speed == null || dexterity == null) {
     return null;
@@ -130,7 +151,18 @@ export function formatPerStat(spy: SpyEstimate): PerStatGrid | null {
   };
 }
 
+// Hardcoded fallback when API omits the caption field on an endgame payload.
+// Keep in sync with `api/services/spy_display.py` (Phase 1, Plan §C trigger).
+const ENDGAME_FALLBACK_CAPTION =
+  'Endgame player — stats T-scale, no estimate available. Get a spy.';
+
 export function bucketCaption(spy: SpyEstimate): string {
+  if (spy.bucket === 'endgame') {
+    // Server-supplied caption is authoritative; fall back to the hardcoded
+    // string when the field is missing (older backend / payload drift).
+    const fromApi = typeof spy.caption === 'string' ? spy.caption.trim() : '';
+    return fromApi || ENDGAME_FALLBACK_CAPTION;
+  }
   if (spy.bucket === 'rough_guess') {
     const bits: string[] = [];
     if (spy.level) bits.push(`level ${spy.level}`);

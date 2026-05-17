@@ -11,12 +11,19 @@ upstream `confidence` label is emitted inconsistently across spy sources
 while only faction_snapshot ≤7d ever produces 'exact'. Using `source`
 + `age_days` directly gives a UI bucket that matches the actual data
 trustworthiness rather than which upstream label happened to be applied.
+
+The "endgame" bucket is a special opt-in path that fires ONLY for heuristic
+estimates (source='estimated') of high-rank, high-level players. Calibration
+on 2026-05-17 showed our heuristic ladder cannot represent rank≥Heroic, L≥95
+players within an order of magnitude (Akenomics: real 83T, estimated 8.6B,
+9631x off). Rather than publish a number we know is wrong, we surface the
+'endgame' bucket and let the UI render a 'no estimate — get a spy' message.
 """
 from __future__ import annotations
 
 from typing import Literal
 
-Bucket = Literal["verified", "estimate", "rough_guess"]
+Bucket = Literal["verified", "estimate", "rough_guess", "endgame"]
 
 # Real spy sources — verified when fresh, estimate when older.
 # `member_submit` is included because it represents a teammate manually
@@ -24,6 +31,11 @@ Bucket = Literal["verified", "estimate", "rough_guess"]
 # api/services/spy.py). Excluding it would force the most accurate data
 # we have into the rough_guess bucket and null its per-stat.
 _REAL_SPY_SOURCES = frozenset({"faction_snapshot", "tornstats", "yata", "member_submit"})
+
+# Endgame ranks — rank-tier names from the Torn ladder where the linear
+# heuristic in api/stat_estimator.py breaks down. Must match
+# api.stat_estimator.ENDGAME_RANKS exactly.
+_ENDGAME_RANKS = frozenset({"Heroic", "Legendary", "Elite", "Invincible"})
 
 # Width % for heuristic confidence (rough_guess paths).
 _HEURISTIC_WIDTH = {
@@ -38,7 +50,9 @@ def bucket_and_range(
     age_days: int | None,
     total: int,
     heuristic_conf: str | None = None,
-) -> tuple[Bucket, tuple[int, int], int]:
+    rank: str | None = None,
+    level: int = 0,
+) -> tuple[Bucket, tuple[int | None, int | None], int]:
     """Classify a spy estimate and compute its display range.
 
     Args:
@@ -51,12 +65,23 @@ def bucket_and_range(
         heuristic_conf: When source='estimated', the stat_estimator's own
             confidence ('medium' | 'low' | 'very low'). None means
             no confidence info, treated as widest range.
+        rank: Rank tier string (e.g. 'Invincible'). Only used to trigger
+            the 'endgame' bucket when combined with high level and
+            heuristic source.
+        level: Player level. Endgame bucket requires level >= 95.
 
     Returns:
-        (bucket, (low, high), width_pct).
+        (bucket, (low, high), width_pct). For the 'endgame' bucket
+        ``(low, high) == (None, None)`` — there's no numeric range to display.
 
     See tests/test_spy_display.py for the exhaustive decision table.
     """
+    # Endgame bucket short-circuits everything: a heuristic estimate for a
+    # rank≥Heroic, L≥95 player is so far off that we suppress the number
+    # entirely. The UI/Companion render a 'get a spy' badge in its place.
+    if source == "estimated" and rank in _ENDGAME_RANKS and level >= 95:
+        return "endgame", (None, None), 0
+
     width_pct = _width_pct(source, age_days, heuristic_conf)
     bucket = _bucket(source, age_days)
     low, high = _range_from_width(total, width_pct)

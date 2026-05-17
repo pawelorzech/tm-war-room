@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.63.0";
+export const CURRENT_VERSION = "1.64.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.64.0",
+    date: "2026-05-17",
+    title: "TM Hub Intel — accurate stats for mid-tier and a clear warning for endgame",
+    changes: [
+      {
+        type: "improve",
+        summary: "Accurate stat estimation for endgame and mid-tier players",
+        detail: "Previously: low-mid level enemies were overestimated 100-1000x (a level 40 with light xanax usage showed as having billions in stats they didn't have), and endgame Invincibles like Akenomics were drastically underestimated (showing 8B when their actual total is in the trillions). New empirical calibration corrects mid-tier downward and introduces a distinct ENDGAME PLAYER warning for top-tier opponents where precise estimation isn't possible — the right call is to get a spy.",
+      },
+    ],
+  },
   {
     version: "1.63.0",
     date: "2026-05-17",

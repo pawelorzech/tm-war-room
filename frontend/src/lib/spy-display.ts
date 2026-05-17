@@ -9,7 +9,7 @@
  * tests live in extension/src/lib/spy-display.test.ts.
  */
 
-export type Bucket = 'verified' | 'estimate' | 'rough_guess';
+export type Bucket = 'verified' | 'estimate' | 'rough_guess' | 'endgame';
 
 // Minimal subset of the API's SpyEstimate that this module touches.
 export interface SpyEstimate {
@@ -20,20 +20,25 @@ export interface SpyEstimate {
   speed: number | null;
   dexterity: number | null;
   total: number;
-  confidence: 'exact' | 'estimate' | 'stale' | 'unknown';
+  confidence: 'exact' | 'estimate' | 'stale' | 'unknown' | 'low';
   source: string;
   reported_at: string | null;
   age_days: number | null;
   level?: number;
+  rank?: string | null;
   bucket?: Bucket;
   total_range?: [number, number];
   range_width_pct?: number;
   heuristic_confidence?: 'medium' | 'low' | 'very low' | null;
+  // Server-supplied caption — when bucket === 'endgame' the backend ships a
+  // ready-made warning sentence. Optional so the existing buckets that build
+  // their caption client-side keep working unchanged.
+  caption?: string | null;
 }
 
 export interface BucketDisplay {
   badgeText: string;
-  color: 'green' | 'yellow' | 'orange';
+  color: 'green' | 'yellow' | 'orange' | 'red';
   borderColor: string;
   badgeBg: string;
   badgeFg: string;
@@ -60,6 +65,16 @@ const STYLE: Record<Bucket, BucketDisplay> = {
     borderColor: '#f5a05a',
     badgeBg: 'rgba(245,160,90,0.18)',
     badgeFg: '#f5a05a',
+  },
+  endgame: {
+    // The leading icon is decorative — the word ENDGAME PLAYER carries the
+    // meaning. Consumers should still pair this badge with an aria-label like
+    // "warning: endgame player" so screen readers announce the severity.
+    badgeText: '⚠ ENDGAME PLAYER',
+    color: 'red',
+    borderColor: '#dc2626',
+    badgeBg: 'rgba(220,38,38,0.18)',
+    badgeFg: '#f87171',
   },
 };
 
@@ -96,6 +111,11 @@ export function formatTotalRange(
   range: [number, number] | undefined,
   bucket: Bucket,
 ): string {
+  // Endgame players are intentionally numberless — stats are T-scale and the
+  // estimator can't honestly produce a range. The badge + caption carry the
+  // message; this returns an empty string so consumers can suppress the row
+  // entirely, and a sentinel for cases where a label must still appear (lists).
+  if (bucket === 'endgame') return '';
   if (bucket === 'verified') {
     if (total <= 0) return '—';
     return total.toLocaleString('en-US');
@@ -116,7 +136,10 @@ export interface PerStatGrid {
 }
 
 export function formatPerStat(spy: SpyEstimate): PerStatGrid | null {
-  if (spy.bucket === 'rough_guess') return null;
+  // Rough heuristics and endgame both lack a trustworthy per-stat split, so we
+  // render no grid for either — the badge already tells the user the data is
+  // an approximation (or a "go spy" prompt).
+  if (spy.bucket === 'rough_guess' || spy.bucket === 'endgame') return null;
   const { strength, defense, speed, dexterity } = spy;
   if (strength == null || defense == null || speed == null || dexterity == null) {
     return null;
@@ -130,7 +153,16 @@ export function formatPerStat(spy: SpyEstimate): PerStatGrid | null {
   };
 }
 
+// Fallback for the endgame bucket when the API omits its own caption text —
+// mirrors the wording the backend emits so hub and companion stay in sync.
+const ENDGAME_FALLBACK_CAPTION =
+  'Endgame player — stats are off the charts and we cannot estimate them. Get a spy or skip the fight.';
+
 export function bucketCaption(spy: SpyEstimate): string {
+  if (spy.bucket === 'endgame') {
+    // Prefer the server-supplied caption so backend can A/B the wording.
+    return spy.caption?.trim() || ENDGAME_FALLBACK_CAPTION;
+  }
   if (spy.bucket === 'rough_guess') {
     const bits: string[] = [];
     if (spy.level) bits.push(`level ${spy.level}`);

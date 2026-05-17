@@ -192,6 +192,8 @@ const STYLES = `
   .spy-card.spy-bucket-verified { --bucket-color: #3fb950; }
   .spy-card.spy-bucket-estimate { --bucket-color: #d29922; }
   .spy-card.spy-bucket-rough_guess { --bucket-color: #f5a05a; }
+  /* Endgame: deep burgundy left rail — back off, get a real spy. */
+  .spy-card.spy-bucket-endgame { --bucket-color: #b62324; }
 
   .bucket-badge {
     display: inline-flex; align-items: center; gap: 6px;
@@ -204,6 +206,18 @@ const STYLES = `
   .bucket-badge.color-green { background: rgba(63,185,80,0.18); color: #56d364; }
   .bucket-badge.color-yellow { background: rgba(210,153,34,0.18); color: #e8b339; }
   .bucket-badge.color-orange { background: rgba(245,160,90,0.18); color: #f5a05a; }
+  .bucket-badge.color-red {
+    background: rgba(182,35,36,0.22);
+    color: #ff7b72;
+    border: 1px solid rgba(182,35,36,0.45);
+  }
+
+  /* Endgame caption gets slightly more weight than the muted grey we use
+     for age/source — it's the user's only signal for this bucket. */
+  .spy-card.spy-bucket-endgame .spy-caption {
+    color: #c9d1d9;
+    font-style: italic;
+  }
 
   .spy-total {
     display: flex; align-items: baseline; gap: 6px;
@@ -412,9 +426,28 @@ function spyBlock(spy: SpyEstimate, target: Target | null, stakeout: Stakeout | 
   const s = spy as unknown as SpyEstimateDisplay;
   const bucket = s.bucket ?? 'estimate';
   const style = bucketStyle(bucket);
+  const caption = escapeHtml(bucketCaption(s));
+
+  const inlines: string[] = [];
+  if (target) inlines.push(targetInline(target));
+  if (stakeout) inlines.push(stakeoutInline(stakeout));
+  const inlineRows = inlines.length ? `<div class="inline-rows">${inlines.join('')}</div>` : '';
+
+  // Endgame bucket: no numeric range, no per-stat grid. The badge + caption
+  // do all the work — caller is expected to read "get a spy" and back off.
+  // Matches Plans/image-1-zobacz-to-zippy-squirrel.md §C product decision.
+  if (bucket === 'endgame') {
+    return `
+    <div class="spy-card spy-bucket-endgame">
+      <div class="bucket-badge color-${escapeHtml(style.color)}">${escapeHtml(style.badgeText)}</div>
+      <div class="spy-caption">${caption}</div>
+      ${inlineRows}
+    </div>
+  `;
+  }
+
   const totalText = formatTotalRange(s.total, s.total_range, bucket);
   const perStat = formatPerStat(s);
-  const caption = escapeHtml(bucketCaption(s));
 
   const grid = perStat
     ? `
@@ -425,11 +458,6 @@ function spyBlock(spy: SpyEstimate, target: Target | null, stakeout: Stakeout | 
       <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">${escapeHtml(perStat.dex)}</div></div>
     </div>`
     : '';
-
-  const inlines: string[] = [];
-  if (target) inlines.push(targetInline(target));
-  if (stakeout) inlines.push(stakeoutInline(stakeout));
-  const inlineRows = inlines.length ? `<div class="inline-rows">${inlines.join('')}</div>` : '';
 
   const label = bucket === 'rough_guess' ? 'rough estimate' : 'total estimate';
 

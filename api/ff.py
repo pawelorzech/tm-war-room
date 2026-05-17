@@ -31,6 +31,7 @@ import logging
 import time
 
 from api.stat_estimator import estimate_stats
+from api.torn_client import extract_rank_tier
 
 logger = logging.getLogger("tm-hub.ff")
 
@@ -130,7 +131,11 @@ async def _fetch_personalstats_total(torn_client, player_id: int) -> tuple[int, 
         ps_raw = raw.get("personalstats", {}) or {}
         level = raw.get("level", 0) or 0
         age = raw.get("age", 0) or 0
-        est = estimate_stats(ps_raw, level, age)
+        # Pass rank tier — endgame floor + SE-uncap depend on it. The raw
+        # response is the v1 user/{id}/?selections=personalstats,profile
+        # shape, so ``rank`` lives at the top level as a concatenated string.
+        rank_tier = extract_rank_tier(raw)
+        est = estimate_stats(ps_raw, level, age, rank=rank_tier)
         total = int(est.get("estimated_total") or 0)
         return total, ps_raw
     except Exception as exc:

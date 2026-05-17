@@ -122,3 +122,93 @@ def test_none_age_days_treated_as_old() -> None:
     """When the upstream layer can't compute age, fall back to widest estimate window."""
     _b, _r, width = bucket_and_range(source="tornstats", age_days=None, total=1_000)
     assert width == 25
+
+
+# --- Endgame bucket (added 2026-05-17) -------------------------------------
+#
+# Endgame triggers ONLY when source='estimated' (heuristic fallback) AND
+# rank ∈ {Heroic, Legendary, Elite, Invincible} AND level >= 95.
+# Returns bucket='endgame' with (None, None) range — no number to display.
+
+@pytest.mark.parametrize("tier", ["Heroic", "Legendary", "Elite", "Invincible"])
+def test_endgame_bucket_for_all_endgame_ranks(tier: str) -> None:
+    bucket, total_range, width = bucket_and_range(
+        source="estimated", age_days=0, total=10_000_000_000,
+        heuristic_conf="medium", rank=tier, level=99,
+    )
+    assert bucket == "endgame"
+    assert total_range == (None, None)
+    assert width == 0
+
+
+def test_endgame_bucket_at_level_95_boundary() -> None:
+    """Boundary: level=95 (inclusive) trips the endgame bucket."""
+    bucket, _r, _w = bucket_and_range(
+        source="estimated", age_days=0, total=5_000_000_000,
+        heuristic_conf="medium", rank="Invincible", level=95,
+    )
+    assert bucket == "endgame"
+
+
+def test_no_endgame_below_level_95() -> None:
+    """Invincible at L80 → rough_guess as usual, NOT endgame (defensive — should be impossible in real Torn)."""
+    bucket, total_range, width = bucket_and_range(
+        source="estimated", age_days=0, total=5_000_000_000,
+        heuristic_conf="medium", rank="Invincible", level=80,
+    )
+    assert bucket == "rough_guess"
+    # Normal numeric range applies
+    assert total_range != (None, None)
+    assert width == 30  # medium heuristic
+
+
+def test_no_endgame_for_non_endgame_rank() -> None:
+    """'Highly Respected' (below Heroic in the ladder) → rough_guess, NOT endgame."""
+    bucket, _r, width = bucket_and_range(
+        source="estimated", age_days=0, total=2_000_000_000,
+        heuristic_conf="low", rank="Highly Respected", level=100,
+    )
+    assert bucket == "rough_guess"
+    assert width == 50  # low heuristic
+
+
+def test_no_endgame_for_real_spy_source() -> None:
+    """Fresh tornstats spy of an Invincible L100 → verified (we have real data), NOT endgame."""
+    bucket, _r, width = bucket_and_range(
+        source="tornstats", age_days=2, total=100_000_000_000,
+        heuristic_conf=None, rank="Invincible", level=100,
+    )
+    assert bucket == "verified"
+    assert width == 0
+
+
+def test_no_endgame_when_rank_missing() -> None:
+    """Without rank info (None) → fall back to standard rough_guess path."""
+    bucket, total_range, width = bucket_and_range(
+        source="estimated", age_days=0, total=5_000_000_000,
+        heuristic_conf="medium", rank=None, level=100,
+    )
+    assert bucket == "rough_guess"
+    assert total_range != (None, None)
+    assert width == 30
+
+
+def test_endgame_bucket_overrides_heuristic_width() -> None:
+    """Endgame trumps heuristic confidence — width is forced to 0 (no range)."""
+    bucket, total_range, width = bucket_and_range(
+        source="estimated", age_days=0, total=8_000_000_000,
+        heuristic_conf="very low", rank="Invincible", level=100,
+    )
+    assert bucket == "endgame"
+    assert width == 0
+    assert total_range == (None, None)
+
+
+def test_existing_callsites_unaffected_by_default_args() -> None:
+    """Callers that don't pass rank/level get the pre-2026-05-17 behaviour."""
+    bucket, total_range, width = bucket_and_range(
+        source="estimated", age_days=0, total=5_000_000_000, heuristic_conf="medium",
+    )
+    assert bucket == "rough_guess"
+    assert width == 30
+    assert total_range != (None, None)

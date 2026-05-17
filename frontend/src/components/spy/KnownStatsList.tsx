@@ -9,6 +9,10 @@ const BUCKET_DOT: Record<Bucket, string> = {
   verified: 'bg-green-500',
   estimate: 'bg-yellow-500',
   rough_guess: 'bg-orange-500',
+  // Endgame: brighter red than danger-red so the dot reads as "warning, not a
+  // hard error" against bg-bg-card. Same hue family as the badge in
+  // SpyResultCard for visual consistency.
+  endgame: 'bg-rose-600',
 };
 
 function fmt(n: number | null | undefined): string {
@@ -20,6 +24,11 @@ function fmt(n: number | null | undefined): string {
 }
 
 function fmtTotal(e: SpyEstimate): string {
+  // formatTotalRange returns '' for the endgame bucket because the card view
+  // suppresses the number entirely. In a list/table cell we still need *some*
+  // glyph so the row isn't visually broken — use a short label that mirrors
+  // the badge wording.
+  if (e.bucket === 'endgame') return 'endgame';
   return formatTotalRange(e.total, e.total_range, e.bucket ?? 'estimate');
 }
 
@@ -141,7 +150,7 @@ export function KnownStatsList() {
                     [{e.player_id}]
                   </a>
                 </div>
-                <span className="text-lg font-bold text-torn-green flex-none ml-2 tabular-nums">{fmtTotal(e)}</span>
+                <span className={`text-lg font-bold flex-none ml-2 tabular-nums ${e.bucket === 'endgame' ? 'text-rose-400 italic' : 'text-torn-green'}`}>{fmtTotal(e)}</span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-xs text-center">
                 <div><span className="text-text-secondary">STR</span><br/><span className="font-medium">{fmt(e.strength)}</span></div>
@@ -201,7 +210,7 @@ export function KnownStatsList() {
                       [{e.player_id}]
                     </a>
                   </td>
-                  <td className="py-1.5 px-2 font-semibold text-torn-green tabular-nums whitespace-nowrap">{fmtTotal(e)}</td>
+                  <td className={`py-1.5 px-2 font-semibold tabular-nums whitespace-nowrap ${e.bucket === 'endgame' ? 'text-rose-400 italic' : 'text-torn-green'}`}>{fmtTotal(e)}</td>
                   <td className="py-1.5 px-2">{fmt(e.strength)}</td>
                   <td className="py-1.5 px-2">{fmt(e.defense)}</td>
                   <td className="py-1.5 px-2">{fmt(e.speed)}</td>

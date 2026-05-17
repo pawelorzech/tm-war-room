@@ -166,7 +166,7 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
         return None
     try:
         from api.stat_estimator import estimate_stats
-        from api.torn_client import _json
+        from api.torn_client import _json, extract_rank_tier
         # Torn API v1 takes the target user id in the URL path, not as `?id=`.
         # A query-string `id` is silently ignored and the response holds the
         # API key OWNER's stats — which is why the heuristic estimate used to
@@ -185,7 +185,8 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
         ps_raw = raw.get("personalstats", {})
         level = raw.get("level", 0)
         age = raw.get("age", 0)
-        est_data = estimate_stats(ps_raw, level, age)
+        rank_tier = extract_rank_tier(raw)
+        est_data = estimate_stats(ps_raw, level, age, rank=rank_tier)
         total = int(est_data.get("estimated_total") or 0)
         if total <= 0:
             return None
@@ -194,6 +195,7 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
         bucket, total_range, width_pct = bucket_and_range(
             source="estimated", age_days=0, total=total,
             heuristic_conf=heuristic_conf,
+            rank=rank_tier, level=level,
         )
         # Heuristic divides total/4 evenly — that's a placeholder, not a real
         # split. Null per-stat so the UI hides the misleading equal-split grid.
@@ -424,9 +426,12 @@ async def get_spy_estimate(
         if override:
             result["player_name"] = override
     # Add stat estimate from personalstats if available
+    rank_tier_observed: str | None = None
+    level_observed: int = 0
     if torn_client and result.get("confidence") in ("estimate", "unknown"):
         try:
             from api.stat_estimator import estimate_stats
+            from api.torn_client import _json, extract_rank_tier
             # See _build_fallback_estimate: `id` must be in the URL path; a
             # query-string id is ignored and returns the key owner's data.
             resp = await torn_client._http.get(
@@ -434,12 +439,12 @@ async def get_spy_estimate(
                 params={"selections": "personalstats,profile", "key": torn_client._api_key},
             )
             if resp.status_code == 200:
-                from api.torn_client import _json
                 raw = await _json(resp)
                 ps_raw = raw.get("personalstats", {})
-                level = raw.get("level", 0)
+                level_observed = raw.get("level", 0)
                 age = raw.get("age", 0)
-                est_data = estimate_stats(ps_raw, level, age)
+                rank_tier_observed = extract_rank_tier(raw)
+                est_data = estimate_stats(ps_raw, level_observed, age, rank=rank_tier_observed)
                 result["stat_estimate"] = est_data
         except Exception:
             pass
@@ -447,19 +452,22 @@ async def get_spy_estimate(
     # stat_estimate may have populated it. For real spy sources this is a
     # no-op (heuristic_conf is ignored); for source='estimated' rows it
     # narrows the range from the default 100% width to the heuristic's
-    # actual confidence band.
+    # actual confidence band. The endgame bucket trigger needs rank+level
+    # — both come from the profile fetch above when stat_estimate ran.
     heuristic_conf = (result.get("stat_estimate") or {}).get("confidence")
     bucket, total_range, width_pct = bucket_and_range(
         source=result["source"],
         age_days=result.get("age_days"),
         total=result["total"],
         heuristic_conf=heuristic_conf,
+        rank=rank_tier_observed,
+        level=level_observed,
     )
     result["bucket"] = bucket
     result["total_range"] = list(total_range)
     result["range_width_pct"] = width_pct
     result["heuristic_confidence"] = heuristic_conf
-    if bucket == "rough_guess":
+    if bucket in ("rough_guess", "endgame"):
         result["strength"] = None
         result["defense"] = None
         result["speed"] = None
