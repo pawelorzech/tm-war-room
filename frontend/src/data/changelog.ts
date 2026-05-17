@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.56.1";
+export const CURRENT_VERSION = "1.57.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.57.0",
+    date: "2026-05-17",
+    title: "Chat — live war-room card during ranked wars (Companion 0.33.0)",
+    changes: [
+      {
+        type: "feat",
+        summary: "#war-room channel pins a live war card during ranked wars — score, time left, top 5 easiest enemies",
+        detail: "During an active ranked war, the war-room channel (both on hub.tri.ovh and in the floating Companion dock on torn.com) gets a sticky red card at the top: live score (us – them, color-coded by who's leading), target score, time remaining, and the 5 easiest currently-attackable enemies (online + Okay status, sorted by threat — hospital/jail/offline filtered out so chain leaders don't waste energy). Tap any enemy chip to jump straight into the attack page. Card auto-refreshes every 30 seconds while you're looking at war-room, and hides itself outside of a war so the channel looks normal the rest of the time.",
+      },
+    ],
+  },
   {
     version: "1.56.1",
     date: "2026-05-17",

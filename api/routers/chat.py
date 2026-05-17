@@ -17,6 +17,7 @@ from api.chat_entities import find_entities_as_dicts
 from api import chat_resolver
 from api.chat_manager import ChatManager
 from api.chat_search import parse_query, build_search_sql, MAX_LIMIT as SEARCH_MAX_LIMIT
+from api import chat_war_card
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
 logger = logging.getLogger("tm-hub.chat")
@@ -374,6 +375,24 @@ async def list_commands(x_player_id: int = Header()):
     autocomplete dropdown when a user types ``/``."""
     _verify_member(x_player_id)
     return {"commands": chat_command_registry.list()}
+
+
+# ── War-room pinned card (Task #9) ────────────────────────────
+
+
+@router.get("/war-room-card")
+async def get_war_room_card(x_player_id: int = Header()):
+    """Live war-room card payload.
+
+    Returns ``{"active": false}`` when no ranked war is running so the
+    frontend can hide the card. When ``active=true`` the payload has score,
+    time remaining, opponent, and the top 5 easiest currently-attackable
+    enemy targets.
+    """
+    _verify_member(x_player_id)
+    if torn_client is None:
+        raise HTTPException(status_code=503, detail="Torn client not initialized")
+    return await chat_war_card.build_war_room_card(torn_client)
 
 
 # ── Search (Task #5) ──────────────────────────────────────────

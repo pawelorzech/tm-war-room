@@ -244,6 +244,30 @@ export function searchChatMessages(
   return get<ChatSearchResponse>(`/api/chat/search?${qs}`, auth);
 }
 
+export interface WarRoomCardResponse {
+  active: boolean;
+  war_id?: number;
+  opponent_name?: string;
+  opponent_id?: number;
+  score_us?: number;
+  score_them?: number;
+  target_score?: number;
+  time_remaining_s?: number;
+  top_targets?: {
+    id: number;
+    name: string;
+    level: number;
+    status_text: string;
+    threat_score: number;
+    threat_label: string;
+    attack_url: string;
+  }[];
+}
+
+export function fetchWarRoomCard(auth: CompanionAuth): Promise<WarRoomCardResponse> {
+  return get<WarRoomCardResponse>('/api/chat/war-room-card', auth);
+}
+
 export function sendChatMessage(
   auth: CompanionAuth,
   channelId: number,

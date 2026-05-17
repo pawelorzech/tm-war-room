@@ -401,6 +401,27 @@ export const api = {
         body: JSON.stringify({ entities }),
       },
     ),
+  chatWarRoomCard: () =>
+    apiFetch<{
+      active: boolean;
+      war_id?: number;
+      opponent_name?: string;
+      opponent_id?: number;
+      score_us?: number;
+      score_them?: number;
+      target_score?: number;
+      time_remaining_s?: number;
+      top_targets?: {
+        id: number;
+        name: string;
+        level: number;
+        status_text: string;
+        threat_score: number;
+        threat_label: string;
+        attack_url: string;
+      }[];
+      error?: string;
+    }>("/api/chat/war-room-card"),
   chatSearch: (q: string, limit = 50, offset = 0) =>
     apiFetch<{
       query: string;

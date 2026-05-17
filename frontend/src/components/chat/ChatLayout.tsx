@@ -13,6 +13,7 @@ import { ThreadPanel } from "./ThreadPanel";
 import { CreateThreadDialog } from "./CreateThreadDialog";
 import { ChatAdmin } from "./ChatAdmin";
 import { SearchBar } from "./SearchBar";
+import { WarRoomCard } from "./cards/WarRoomCard";
 import { api } from "@/lib/api-client";
 import { getOverview } from "@/lib/overview-cache";
 import { Avatar } from "@/components/ui/Avatar";
@@ -278,6 +279,7 @@ export function ChatLayout() {
                   onJumpToMessage={(cid) => { selectChannel(cid); }}
                 />
               </div>
+              {activeChannel.name === "war-room" && <WarRoomCard />}
               {activeChannel.name === "traveling" && (
                 <div className="px-3 pb-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
                   <span className="text-[11px] text-text-muted shrink-0">✈️ Now traveling:</span>

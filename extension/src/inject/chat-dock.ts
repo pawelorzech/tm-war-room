@@ -21,11 +21,13 @@ import {
   fetchChatUnread,
   fetchMemberAvatars,
   fetchOverview,
+  fetchWarRoomCard,
   markChatRead,
   removeChatReaction,
   resolveChatEntities,
   searchChatMessages,
   sendChatMessage,
+  type WarRoomCardResponse,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
@@ -302,6 +304,47 @@ const STYLES = `
     background: rgba(210, 153, 34, 0.4); color: #f0f6fc;
     padding: 0 1px; border-radius: 2px;
   }
+
+  .war-room-card {
+    border-bottom: 1px solid rgba(248, 81, 73, 0.4);
+    background: rgba(248, 81, 73, 0.06);
+    padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .war-room-card.hidden { display: none; }
+  .war-room-card .wrc-row1 {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .war-room-card .wrc-tag {
+    font-size: 9px; padding: 1px 6px; border-radius: 3px;
+    background: #f85149; color: #fff; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .war-room-card .wrc-name { color: #c9d1d9; font-weight: 500; font-size: 12px; }
+  .war-room-card .wrc-score { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .war-room-card .wrc-score.lead-up { color: #56d364; }
+  .war-room-card .wrc-score.lead-down { color: #ff7b72; }
+  .war-room-card .wrc-score.lead-tie { color: #6e7681; }
+  .war-room-card .wrc-meta { color: #6e7681; font-size: 11px; }
+  .war-room-card .wrc-targets {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  }
+  .war-room-card .wrc-targets-label {
+    color: #6e7681; font-size: 9px; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .war-room-card .wrc-target {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: 4px;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    background: #161b22;
+    color: #c9d1d9;
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .war-room-card .wrc-target:hover { background: rgba(248, 81, 73, 0.1); }
+  .war-room-card .wrc-target .lvl { color: #6e7681; }
+  .war-room-card .wrc-empty { font-size: 11px; color: #6e7681; font-style: italic; }
 
   .messages {
     flex: 1;
@@ -1016,6 +1059,7 @@ function applyState(shadow: ShadowRoot): void {
   } else {
     panel.classList.add('hidden');
     stopMessagePolling();
+    stopWarCardPolling(shadow);
   }
 }
 
@@ -1058,6 +1102,7 @@ async function initOpenChannel(shadow: ShadowRoot): Promise<void> {
   if (_state.channelId) {
     await loadChannelInitial(shadow, _state.channelId);
     startMessagePolling(shadow);
+    startWarCardPolling(shadow, _state.channelId);
   }
 }
 
@@ -1125,6 +1170,93 @@ function stopMessagePolling(): void {
     _messagePoller.stop();
     _messagePoller = null;
   }
+}
+
+// ── War-room card (Task #9) ─────────────────────────────────
+let _warCardPoller: PollHandle | null = null;
+
+function isWarRoomChannel(channelId: number): boolean {
+  const ch = _channels.find((c) => c.id === channelId);
+  return ch?.name === 'war-room';
+}
+
+function renderWarRoomCard(shadow: ShadowRoot, data: WarRoomCardResponse | null): void {
+  const el = shadow.querySelector<HTMLElement>('.war-room-card');
+  if (!el) return;
+  if (!data || !data.active) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  const scoreUs = data.score_us ?? 0;
+  const scoreThem = data.score_them ?? 0;
+  const lead = scoreUs - scoreThem;
+  const leadCls = lead > 0 ? 'lead-up' : lead < 0 ? 'lead-down' : 'lead-tie';
+  const target = data.target_score
+    ? `<span class="wrc-meta">/ ${data.target_score.toLocaleString()}</span>`
+    : '';
+  const remaining = (data.time_remaining_s ?? 0) > 0
+    ? `<span class="wrc-meta">· ${fmtWarRemaining(data.time_remaining_s ?? 0)} left</span>`
+    : '';
+  const targets = (data.top_targets ?? [])
+    .map((t) => `
+      <a class="wrc-target" href="${escapeHtml(t.attack_url)}" target="_blank" rel="noopener noreferrer" title="L${t.level} · ${escapeHtml(t.threat_label)} · ${escapeHtml(t.status_text)}">
+        <span>${escapeHtml(t.name)}</span><span class="lvl">L${t.level}</span>
+      </a>`)
+    .join('');
+  const targetsRow = data.top_targets && data.top_targets.length > 0
+    ? `<div class="wrc-targets"><span class="wrc-targets-label">Easiest now:</span>${targets}</div>`
+    : `<div class="wrc-empty">No attackable enemies right now.</div>`;
+  el.innerHTML = `
+    <div class="wrc-row1">
+      <span class="wrc-tag">RW Live</span>
+      <span class="wrc-name">vs ${escapeHtml(data.opponent_name || 'Opponent')}</span>
+      <span class="wrc-score ${leadCls}">${scoreUs.toLocaleString()} – ${scoreThem.toLocaleString()}</span>
+      ${target}
+      ${remaining}
+    </div>
+    ${targetsRow}
+  `;
+  el.classList.remove('hidden');
+}
+
+function fmtWarRemaining(secs: number): string {
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+async function refreshWarCard(shadow: ShadowRoot): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  try {
+    const data = await fetchWarRoomCard(auth);
+    renderWarRoomCard(shadow, data);
+  } catch {
+    renderWarRoomCard(shadow, null);
+  }
+}
+
+function startWarCardPolling(shadow: ShadowRoot, channelId: number): void {
+  stopWarCardPolling(shadow);
+  if (!isWarRoomChannel(channelId)) return;
+  _warCardPoller = startPolling({
+    name: 'chat-war-card',
+    intervalMs: 30_000,
+    fn: () => refreshWarCard(shadow),
+    immediate: true,
+  });
+}
+
+function stopWarCardPolling(shadow: ShadowRoot): void {
+  if (_warCardPoller) {
+    _warCardPoller.stop();
+    _warCardPoller = null;
+  }
+  renderWarRoomCard(shadow, null);
 }
 
 // ── Rendering ───────────────────────────────────────────────
@@ -1245,6 +1377,7 @@ function renderPanel(shadow: ShadowRoot): void {
       <div class="search-chips"></div>
       <div class="search-results"></div>
     </div>
+    <div class="war-room-card hidden"></div>
     <div class="messages"><div class="empty">Loading messages…</div></div>
     <button class="new-pill hidden" data-act="scroll-new">↓ New messages</button>
     <div class="composer">
@@ -1261,8 +1394,10 @@ function renderPanel(shadow: ShadowRoot): void {
     _state.channelId = val;
     saveState(_state);
     stopMessagePolling();
+    stopWarCardPolling(shadow);
     await loadChannelInitial(shadow, val);
     startMessagePolling(shadow);
+    startWarCardPolling(shadow, val);
     updatePlaceholder(shadow);
   });
 
@@ -1364,8 +1499,10 @@ function renderPanel(shadow: ShadowRoot): void {
       _state.channelId = chId;
       saveState(_state);
       stopMessagePolling();
+      stopWarCardPolling(shadow);
       await loadChannelInitial(shadow, chId);
       startMessagePolling(shadow);
+      startWarCardPolling(shadow, chId);
       const sel = panel.querySelector<HTMLSelectElement>('.ch-select');
       if (sel) sel.value = String(chId);
       updatePlaceholder(shadow);
