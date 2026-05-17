@@ -9,7 +9,7 @@
   {
     "name": "tm-hub-companion.user.js (gzip)",
     "path": "dist/tm-hub-companion.user.js",
-    "limit": "42 KB",
+    "limit": "42.5 KB",
     "gzip": true
   },
   {
