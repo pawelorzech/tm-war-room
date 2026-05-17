@@ -2,7 +2,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, HTTPException, Header, Query, Request
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.stocks")
 
@@ -74,7 +75,7 @@ async def stock_market():
 
 
 @router.get("/portfolio")
-async def stock_portfolio(x_player_id: int = Header()):
+async def stock_portfolio(request: Request, x_player_id: int = Header()):
     """Get player's stock portfolio with P/L calculations."""
     if not torn_client or not key_store:
         raise HTTPException(status_code=503, detail="Not initialized")
@@ -162,14 +163,18 @@ async def stock_portfolio(x_player_id: int = Header()):
     holdings.sort(key=lambda h: h["current_value"], reverse=True)
     total_profit = total_value - total_cost
 
-    return {
-        "holdings": holdings,
-        "count": len(holdings),
-        "total_value": round(total_value, 2),
-        "total_cost": round(total_cost, 2),
-        "total_profit": round(total_profit, 2),
-        "total_profit_pct": round(((total_value / total_cost) - 1) * 100, 2) if total_cost > 0 else 0,
-    }
+    return etag_response(
+        {
+            "holdings": holdings,
+            "count": len(holdings),
+            "total_value": round(total_value, 2),
+            "total_cost": round(total_cost, 2),
+            "total_profit": round(total_profit, 2),
+            "total_profit_pct": round(((total_value / total_cost) - 1) * 100, 2) if total_cost > 0 else 0,
+        },
+        request,
+        cache_control="private, max-age=60, stale-while-revalidate=300",
+    )
 
 
 # Stock benefit definitions — Active stocks with measurable $ payouts
@@ -206,7 +211,7 @@ MAX_INCREMENTS = 5  # Generate up to 5 benefit blocks per stock
 
 
 @router.get("/roi")
-async def stock_roi(x_player_id: int | None = Header(default=None)):
+async def stock_roi(request: Request, x_player_id: int | None = Header(default=None)):
     """Compute ROI for each stock benefit block — days to payback, annual ROI %.
 
     Generates up to MAX_INCREMENTS benefit blocks per stock (each doubles in share cost).
@@ -300,7 +305,11 @@ async def stock_roi(x_player_id: int | None = Header(default=None)):
     # Sort: active at bottom, then by marginal ROI (first uncompleted block matters most)
     recommendations.sort(key=lambda r: (r["is_active"], -r["marginal_roi_pct"]))
 
-    return {"recommendations": recommendations, "count": len(recommendations)}
+    return etag_response(
+        {"recommendations": recommendations, "count": len(recommendations)},
+        request,
+        cache_control="private, max-age=60, stale-while-revalidate=300",
+    )
 
 
 @router.get("/history/{stock_id}")

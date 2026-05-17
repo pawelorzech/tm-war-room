@@ -1,8 +1,9 @@
 from __future__ import annotations
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from api.torn_client import _json
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.travel")
 
@@ -36,7 +37,7 @@ PRICE_CACHE_TTL = 300
 
 
 @router.get("")
-async def travel_info():
+async def travel_info(request: Request):
     """Get travel planner data with YATA abroad prices + Torn market values."""
     global _price_cache, _price_cache_ts
     if not torn_client:
@@ -135,4 +136,8 @@ async def travel_info():
 
         countries.append(c_entry)
 
-    return {"countries": countries, "count": len(countries)}
+    return etag_response(
+        {"countries": countries, "count": len(countries)},
+        request,
+        cache_control="private, max-age=30, stale-while-revalidate=60",
+    )

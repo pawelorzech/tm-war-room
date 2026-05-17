@@ -1,8 +1,9 @@
 from __future__ import annotations
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from api.torn_client import _json
+from api.utils.etag import etag_response
 
 logger = logging.getLogger("tm-hub.market")
 
@@ -124,14 +125,18 @@ async def ensure_items_cache(tc=None) -> list[dict]:
 
 
 @router.get("/prices")
-async def get_all_items():
+async def get_all_items(request: Request):
     """Get ALL items with market values, buy/sell prices for profit calculations."""
     if not torn_client:
         raise HTTPException(status_code=503, detail="Market not initialized")
     items = await ensure_items_cache()
     if not items:
         raise HTTPException(status_code=502, detail="Failed to fetch item data")
-    return {"items": items, "count": len(items)}
+    return etag_response(
+        {"items": items, "count": len(items)},
+        request,
+        cache_control="private, max-age=60, stale-while-revalidate=300",
+    )
 
 
 @router.get("/items/{item_id}/stats")
