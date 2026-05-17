@@ -114,3 +114,36 @@ async def test_fetch_crimes_failure_returns_error_card():
     card = await chat_oc_digest.build_oc_digest_card(torn_client=tc)
     assert card["active"] is False
     assert card.get("error") == "oc_fetch_failed"
+
+
+def test_short_travel_text_compresses_verbose_descriptions():
+    fn = chat_oc_digest._short_travel_text
+    assert fn("Traveling from Torn to Switzerland") == "→ Switzerland"
+    assert fn("Traveling from South Africa to Torn") == "→ Torn"
+    assert fn("In Argentina") == "In Argentina"
+    assert fn("") == ""
+    # Anything else gets truncated at 24 chars.
+    long = "Some weird status that runs really long for chips"
+    assert len(fn(long)) <= 25  # 24 + ellipsis
+
+
+@pytest.mark.asyncio
+async def test_traveling_status_text_is_short_form():
+    now = int(time.time())
+    tc = SimpleNamespace(fetch_faction_crimes=AsyncMock(return_value=[
+        {
+            "id": 1, "name": "Bank Job",
+            "ready_at": now - 10,
+            "slots": [
+                {"user": {"id": 10, "name": "A"}, "role": "Driver", "planning_complete": True},
+            ],
+        }
+    ]))
+
+    async def fake_team():
+        return [
+            {"id": 10, "name": "A", "status": {"state": "Traveling", "description": "Traveling from Torn to Switzerland"}},
+        ]
+
+    card = await chat_oc_digest.build_oc_digest_card(torn_client=tc, fetch_team=fake_team)
+    assert card["traveling_members"][0]["status_text"] == "→ Switzerland"

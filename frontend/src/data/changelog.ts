@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.60.1";
+export const CURRENT_VERSION = "1.60.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.60.2",
+    date: "2026-05-17",
+    title: "Chat — OC digest is compact by default (Companion 0.35.3)",
+    changes: [
+      {
+        type: "fix",
+        summary: "OC 2.0 digest card no longer eats the whole companion chat when many faction members are traveling",
+        before: "On a day where 15 members were flying for the Christmas Town event, the OC digest card on #general expanded into a 10-row tower listing every traveler with their full \"Traveling from Torn to Switzerland\" status — the actual chat messages were pushed off-screen.",
+        after: "The card now defaults to collapsed (just the one-line summary: 1 ready · 11 waiting · 15 traveling) and remembers your expand preference. When expanded, each section caps at 5 chips with a \"+N more\" overflow indicator, and traveler chips show the compact \"→ Switzerland\" form instead of the full \"Traveling from Torn to Switzerland\" sentence.",
+        cause: "First pass shipped expanded-by-default with no list cap and the raw verbose description from the Torn API, which scaled badly on faction-wide travel events.",
+      },
+    ],
+  },
   {
     version: "1.60.1",
     date: "2026-05-17",

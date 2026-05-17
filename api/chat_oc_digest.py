@@ -41,6 +41,30 @@ def _looks_like_tool(role: str) -> bool:
     return any(k in r for k in _TOOL_KEYWORDS)
 
 
+def _short_travel_text(desc: str) -> str:
+    """Compress Torn's verbose status descriptions for narrow card chips.
+
+    Examples:
+      "Traveling from Torn to Switzerland" → "→ Switzerland"
+      "Returning to Torn from South Africa" → "← Torn"
+      "In Argentina" → "in Argentina"
+      anything else → original (capped at 24 chars)
+    """
+    if not desc:
+        return ""
+    s = desc.strip()
+    low = s.lower()
+    if low.startswith("traveling from") and " to " in low:
+        dest = s.split(" to ", 1)[1].strip()
+        return f"→ {dest}"
+    if low.startswith("returning to") and " from " in low:
+        dest = s.split(" to ", 1)[1].split(" from", 1)[0].strip()
+        return f"→ {dest}"
+    if low.startswith("in "):
+        return s[:24]
+    return s[:24] + ("…" if len(s) > 24 else "")
+
+
 async def build_oc_digest_card(*, torn_client, fetch_team=None) -> dict:
     """Build the OC digest payload.
 
@@ -129,10 +153,17 @@ async def build_oc_digest_card(*, torn_client, fetch_team=None) -> dict:
             status = m.get("status") or {}
             state = status.get("state", "") if isinstance(status, dict) else ""
             if state.lower() in ("traveling", "abroad"):
+                # Shorten "Traveling from Torn to Switzerland" → "→ Switzerland"
+                # and "In United Kingdom" → "in United Kingdom" so the chip
+                # stays narrow enough to wrap multiple per row in the dock.
+                raw_desc = (
+                    status.get("description") if isinstance(status, dict) else state
+                ) or state
+                short = _short_travel_text(raw_desc)
                 traveling_members.append({
                     "id": int(mid),
                     "name": m.get("name", "") or f"Player {mid}",
-                    "status_text": status.get("description") if isinstance(status, dict) else state,
+                    "status_text": short,
                 })
 
     blocked_list = [

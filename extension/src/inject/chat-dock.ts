@@ -1468,9 +1468,13 @@ function renderOcDigest(shadow: ShadowRoot, data: OcDigestResponse | null): void
     return;
   }
 
-  let collapsed = false;
+  // Default collapsed — when a faction has many traveling members the
+  // expanded list dominates the dock; the summary line is enough at a
+  // glance. User opt-in to expand via the ▾ toggle.
+  let collapsed = true;
   try {
-    collapsed = localStorage.getItem(OC_COLLAPSED_KEY) === '1';
+    const pref = localStorage.getItem(OC_COLLAPSED_KEY);
+    if (pref === '0') collapsed = false;
   } catch { /* ignore */ }
 
   const toolPart = c.blocked_tools > 0
@@ -1485,21 +1489,29 @@ function renderOcDigest(shadow: ShadowRoot, data: OcDigestResponse | null): void
 
   let body = '';
   if (!collapsed) {
+    const CHIP_CAP = 5;
+    const overflowChip = (n: number) => `<span class="oc-chip"><span class="meta">+${n} more</span></span>`;
     const rows: string[] = [];
     if (data.ready && data.ready.length > 0) {
+      const visible = data.ready.slice(0, CHIP_CAP);
+      const overflow = data.ready.length - visible.length;
       rows.push(`<div class="oc-row"><span class="oc-row-label ready">Ready:</span>${
-        data.ready.map((o) => `<span class="oc-chip ready"><span class="name">${escapeHtml(o.name)}</span><span class="meta">${o.filled}/${o.total}</span></span>`).join('')
-      }</div>`);
+        visible.map((o) => `<span class="oc-chip ready"><span class="name">${escapeHtml(o.name)}</span><span class="meta">${o.filled}/${o.total}</span></span>`).join('')
+      }${overflow > 0 ? overflowChip(overflow) : ''}</div>`);
     }
     if (data.blocked_by_tool && data.blocked_by_tool.length > 0) {
+      const visible = data.blocked_by_tool.slice(0, CHIP_CAP);
+      const overflow = data.blocked_by_tool.length - visible.length;
       rows.push(`<div class="oc-row"><span class="oc-row-label tool">Missing tools:</span>${
-        data.blocked_by_tool.map((t) => `<span class="oc-chip tool"><span class="name">${escapeHtml(t.tool)}</span>${t.count > 1 ? `<span class="meta">×${t.count}</span>` : ''}</span>`).join('')
-      }</div>`);
+        visible.map((t) => `<span class="oc-chip tool"><span class="name">${escapeHtml(t.tool)}</span>${t.count > 1 ? `<span class="meta">×${t.count}</span>` : ''}</span>`).join('')
+      }${overflow > 0 ? overflowChip(overflow) : ''}</div>`);
     }
     if (data.traveling_members && data.traveling_members.length > 0) {
+      const visible = data.traveling_members.slice(0, CHIP_CAP);
+      const overflow = data.traveling_members.length - visible.length;
       rows.push(`<div class="oc-row"><span class="oc-row-label travel">Traveling:</span>${
-        data.traveling_members.map((m) => `<span class="oc-chip travel"><span class="name">${escapeHtml(m.name)}</span><span class="meta">${escapeHtml(m.status_text)}</span></span>`).join('')
-      }</div>`);
+        visible.map((m) => `<span class="oc-chip travel"><span class="name">${escapeHtml(m.name)}</span><span class="meta">${escapeHtml(m.status_text)}</span></span>`).join('')
+      }${overflow > 0 ? overflowChip(overflow) : ''}</div>`);
     }
     body = rows.join('');
   }
