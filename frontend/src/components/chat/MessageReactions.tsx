@@ -56,12 +56,12 @@ export function MessageReactions({
     return () => document.removeEventListener("pointerdown", onDown);
   }, [pickerOpen, setPickerOpen]);
 
-  // Clamp horizontal do viewportu — picker nie może wystawać poza prawą krawędź.
-  // `left-0` z Tailwind to default; inline `left` w px nadpisuje go gdy overflow > 0.
+  // Clamp horizontally to viewport — Tailwind's `left-0` is the default; an
+  // inline `left` in px overrides it when the right edge would overflow.
   useLayoutEffect(() => {
     if (!pickerOpen || !pickerRef.current) return;
     const el = pickerRef.current;
-    el.style.left = "";  // reset do CSS przed pomiarem (potrzebne przy re-measure on expand)
+    el.style.left = "";  // reset to CSS before measuring (re-measure on expand)
     const rect = el.getBoundingClientRect();
     const margin = 8;
     const overflowRight = rect.right - (window.innerWidth - margin);

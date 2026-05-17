@@ -2232,8 +2232,9 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
   // (symptom: "+" looks dead). Viewport-relative `position: fixed` keeps the
   // picker tethered visually to the trigger across those re-renders.
   const rect = anchor.getBoundingClientRect();
-  picker.style.left = `${rect.left}px`;
   picker.style.top = `${rect.top - 44}px`;
+  // `left` is set post-append by clampPickerHorizontal — it needs offsetWidth,
+  // which is 0 until the element is in the DOM.
   picker.addEventListener('click', async (e) => {
     const target = e.target as HTMLElement;
     if (target.closest('button[data-more]')) {
