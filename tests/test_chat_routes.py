@@ -24,14 +24,18 @@ def _app() -> FastAPI:
 class _StubChatRepo:
     """Minimal in-memory stub good enough for get_messages roundtrip."""
 
-    def __init__(self, messages):
+    def __init__(self, messages, reactions=None):
         self._messages = list(messages)
+        self._reactions = reactions or {}
 
     def get_channel(self, channel_id):
         return {"id": channel_id, "name": "test", "admin_only": 0}
 
     def get_messages(self, channel_id, before_id=None, after_id=None, limit=50):
         return [dict(m) for m in self._messages]
+
+    def get_reactions_for_messages(self, message_ids):
+        return {mid: self._reactions.get(mid, []) for mid in message_ids}
 
 
 class _StubKeyStore:
@@ -172,6 +176,49 @@ def test_get_messages_include_unknown_value_is_ignored():
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "entities" not in body["messages"][0]
+    finally:
+        for p in patches:
+            p.stop()
+
+
+# ── Reactions (Task #2) ───────────────────────────────────────────────────────
+
+
+def test_get_messages_attaches_reactions_field():
+    """`reactions` field is always present on each message (empty list when none)."""
+    messages = [
+        {"id": 1, "content": "hi", "mentions": []},
+        {"id": 2, "content": "yo", "mentions": []},
+    ]
+    reactions = {
+        1: [{"emoji": "👍", "count": 1, "players": [{"id": 100, "name": "Alice"}]}],
+    }
+    from api.routers.chat import router as chat_router
+
+    app = FastAPI()
+    app.include_router(chat_router)
+    repo = _StubChatRepo(messages, reactions=reactions)
+    store = _StubKeyStore()
+    patches = [
+        patch("api.routers.chat.chat_repo", repo),
+        patch("api.routers.chat.chat_manager", object()),
+        patch("api.routers.chat.key_store", store),
+        patch("api.routers.chat.settings_repo", None),
+    ]
+    for p in patches:
+        p.start()
+    try:
+        with TestClient(app) as client:
+            resp = client.get(
+                "/api/chat/channels/1/messages",
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["messages"][0]["reactions"] == [
+            {"emoji": "👍", "count": 1, "players": [{"id": 100, "name": "Alice"}]}
+        ]
+        assert body["messages"][1]["reactions"] == []
     finally:
         for p in patches:
             p.stop()

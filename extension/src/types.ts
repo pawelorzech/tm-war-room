@@ -79,6 +79,17 @@ export interface ChatChannel {
   write_restricted?: boolean | number;
 }
 
+export interface ChatReactor {
+  id: number;
+  name: string;
+}
+
+export interface ChatReaction {
+  emoji: string;
+  count: number;
+  players: ChatReactor[];
+}
+
 export interface ChatMessage {
   id: number;
   channel_id: number;
@@ -92,6 +103,7 @@ export interface ChatMessage {
   deleted: number;
   created_at: number;
   edited_at?: number | null;
+  reactions?: ChatReaction[];
 }
 
 export interface ChatUnreadResponse {

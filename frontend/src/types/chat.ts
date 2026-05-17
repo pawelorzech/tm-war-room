@@ -11,6 +11,17 @@ export interface Channel {
   unread?: number;
 }
 
+export interface Reactor {
+  id: number;
+  name: string;
+}
+
+export interface Reaction {
+  emoji: string;
+  count: number;
+  players: Reactor[];
+}
+
 export interface Message {
   id: number;
   channel_id: number;
@@ -24,6 +35,7 @@ export interface Message {
   deleted: number;
   created_at: number;
   edited_at: number | null;
+  reactions?: Reaction[];
   _optimistic?: boolean;
 }
 
@@ -50,7 +62,16 @@ export interface Bot {
 }
 
 export interface ChatWSMessage {
-  type: "message" | "thread_message" | "typing" | "delete" | "edit" | "pin" | "thread";
+  type:
+    | "message"
+    | "thread_message"
+    | "typing"
+    | "delete"
+    | "edit"
+    | "pin"
+    | "thread"
+    | "reaction_add"
+    | "reaction_remove";
   payload: Record<string, unknown>;
 }
 

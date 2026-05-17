@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
+import { MessageReactions } from "./MessageReactions";
 
 interface Props {
   message: Message;
@@ -12,6 +13,8 @@ interface Props {
   onDeleted?: (id: number) => void;
   memberMap?: Record<number, string>;
   adminIds?: Set<number>;
+  /** Current player ID — used to highlight their own reactions. */
+  selfId?: number | null;
   /** When true, this message immediately follows another from the same author
    *  within the grouping window — hide the avatar + header, only show the body
    *  with a hover-revealed timestamp in the gutter. */
@@ -82,7 +85,7 @@ function renderContent(
   });
 }
 
-export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds, grouped = false }: Props) {
+export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds, selfId = null, grouped = false }: Props) {
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -211,6 +214,13 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
               <span className="ml-1 text-[10px] text-text-muted">(edited)</span>
             )}
           </div>
+        )}
+        {!editing && message.deleted !== 1 && (
+          <MessageReactions
+            messageId={message.id}
+            reactions={message.reactions}
+            selfId={selfId}
+          />
         )}
       </div>
 

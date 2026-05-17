@@ -187,6 +187,10 @@ async def get_messages(
         after_id=after,
         limit=limit,
     )
+    if messages:
+        reactions_map = chat_repo.get_reactions_for_messages([m["id"] for m in messages])
+        for m in messages:
+            m["reactions"] = reactions_map.get(m["id"], [])
     if include and "entities" in {p.strip() for p in include.split(",")}:
         for m in messages:
             m["entities"] = find_entities_as_dicts(m.get("content") or "")
@@ -291,6 +295,65 @@ async def get_pinned(channel_id: int, x_player_id: int = Header()):
     return {"messages": chat_repo.get_pinned_messages(channel_id)}
 
 
+# ── Reactions ─────────────────────────────────────────────────
+
+
+# Emoji is short, but we accept any printable Unicode glyph. Cap at 32 bytes
+# to keep storage predictable and to refuse pathological inputs (e.g. a 4KB
+# zero-width-joiner megasequence) without hand-rolling a grapheme parser.
+_MAX_EMOJI_BYTES = 32
+
+
+class ReactionBody(BaseModel):
+    emoji: str
+
+
+def _validate_emoji(emoji: str) -> str:
+    e = emoji.strip()
+    if not e:
+        raise HTTPException(status_code=400, detail="Emoji cannot be empty")
+    if len(e.encode("utf-8")) > _MAX_EMOJI_BYTES:
+        raise HTTPException(status_code=400, detail="Emoji too long")
+    # Reject newlines / control chars — emoji should be a single visual token.
+    if any(ord(c) < 0x20 for c in e):
+        raise HTTPException(status_code=400, detail="Emoji contains control characters")
+    return e
+
+
+@router.post("/messages/{message_id}/reactions")
+async def add_reaction(
+    message_id: int, body: ReactionBody, x_player_id: int = Header(),
+):
+    _verify_member(x_player_id)
+    emoji = _validate_emoji(body.emoji)
+    sender = key_store.get_key(x_player_id) if key_store else None
+    name = sender["player_name"] if sender else str(x_player_id)
+    agg = chat_repo.add_reaction(message_id, x_player_id, name, emoji)
+    if agg is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await chat_manager.broadcast({
+        "type": "reaction_add",
+        "payload": {"message_id": message_id, "emoji": emoji, "reaction": agg},
+    })
+    return {"status": "ok", "reaction": agg}
+
+
+@router.delete("/messages/{message_id}/reactions/{emoji}")
+async def remove_reaction(
+    message_id: int, emoji: str, x_player_id: int = Header(),
+):
+    _verify_member(x_player_id)
+    emoji = _validate_emoji(emoji)
+    agg = chat_repo.remove_reaction(message_id, x_player_id, emoji)
+    if agg is None:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+    await chat_manager.broadcast({
+        "type": "reaction_remove",
+        "payload": {"message_id": message_id, "emoji": emoji, "reaction": agg},
+    })
+    return {"status": "ok", "reaction": agg}
+
+
 # ── Threads ───────────────────────────────────────────────────
 
 class ThreadCreate(BaseModel):
@@ -354,6 +417,10 @@ async def get_thread_messages(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
     messages = chat_repo.get_thread_messages(thread_id, before_id=before, limit=min(limit, 100))
+    if messages:
+        reactions_map = chat_repo.get_reactions_for_messages([m["id"] for m in messages])
+        for m in messages:
+            m["reactions"] = reactions_map.get(m["id"], [])
     if include and "entities" in {p.strip() for p in include.split(",")}:
         for m in messages:
             m["entities"] = find_entities_as_dicts(m.get("content") or "")

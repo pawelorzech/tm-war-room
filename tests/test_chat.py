@@ -414,3 +414,95 @@ class TestAdminOnlyFiltering:
         visible = [c for c in channels if not c["admin_only"]]
         visible_names = [c["name"] for c in visible]
         assert "announcements" in visible_names
+
+
+# ── Reactions ──────────────────────────────────────────────────
+
+class TestReactions:
+    def _msg(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        return chat_repo.create_message(ch["id"], 100, "Alice", "hello")
+
+    def test_add_and_fetch_reaction(self, chat_repo):
+        msg = self._msg(chat_repo)
+        agg = chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        assert agg == {"emoji": "👍", "count": 1, "players": [{"id": 100, "name": "Alice"}]}
+
+        all_for = chat_repo.get_reactions_for_messages([msg["id"]])
+        assert all_for == {msg["id"]: [agg]}
+
+    def test_add_reaction_is_idempotent(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        agg = chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        assert agg["count"] == 1, "Double-react must not double-count"
+
+    def test_multiple_players_one_emoji(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "❤️")
+        chat_repo.add_reaction(msg["id"], 200, "Bob", "❤️")
+        chat_repo.add_reaction(msg["id"], 300, "Carol", "❤️")
+        chips = chat_repo.get_reactions_for_messages([msg["id"]])[msg["id"]]
+        assert len(chips) == 1
+        assert chips[0]["count"] == 3
+        names = sorted(p["name"] for p in chips[0]["players"])
+        assert names == ["Alice", "Bob", "Carol"]
+
+    def test_one_player_multiple_emojis_groups_separately(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "🎉")
+        chips = chat_repo.get_reactions_for_messages([msg["id"]])[msg["id"]]
+        emojis = {c["emoji"] for c in chips}
+        assert emojis == {"👍", "🎉"}
+        for chip in chips:
+            assert chip["count"] == 1
+
+    def test_remove_reaction(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        chat_repo.add_reaction(msg["id"], 200, "Bob", "👍")
+        agg = chat_repo.remove_reaction(msg["id"], 100, "👍")
+        assert agg["count"] == 1
+        assert [p["name"] for p in agg["players"]] == ["Bob"]
+
+    def test_remove_last_reaction_returns_count_zero(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "👍")
+        agg = chat_repo.remove_reaction(msg["id"], 100, "👍")
+        assert agg == {"emoji": "👍", "count": 0, "players": []}
+
+    def test_remove_nonexistent_reaction_returns_none(self, chat_repo):
+        msg = self._msg(chat_repo)
+        assert chat_repo.remove_reaction(msg["id"], 100, "👍") is None
+
+    def test_add_to_missing_message_returns_none(self, chat_repo):
+        assert chat_repo.add_reaction(99999, 100, "Alice", "👍") is None
+
+    def test_add_to_deleted_message_returns_none(self, chat_repo):
+        msg = self._msg(chat_repo)
+        chat_repo.delete_message(msg["id"], 100, is_admin=False)
+        assert chat_repo.add_reaction(msg["id"], 200, "Bob", "👍") is None
+
+    def test_batch_fetch_returns_only_messages_with_reactions(self, chat_repo):
+        ch = chat_repo.get_channel_by_name("general")
+        m1 = chat_repo.create_message(ch["id"], 100, "Alice", "one")
+        m2 = chat_repo.create_message(ch["id"], 100, "Alice", "two")
+        chat_repo.add_reaction(m1["id"], 100, "Alice", "👍")
+        out = chat_repo.get_reactions_for_messages([m1["id"], m2["id"]])
+        assert set(out.keys()) == {m1["id"]}
+
+    def test_batch_fetch_empty_input(self, chat_repo):
+        assert chat_repo.get_reactions_for_messages([]) == {}
+
+    def test_chip_order_stable_by_first_reaction_time(self, chat_repo):
+        import time
+        msg = self._msg(chat_repo)
+        chat_repo.add_reaction(msg["id"], 100, "Alice", "🥇")
+        # Force created_at delta so ordering is unambiguous on fast machines.
+        time.sleep(0.01)
+        chat_repo.add_reaction(msg["id"], 200, "Bob", "🥈")
+        time.sleep(0.01)
+        chat_repo.add_reaction(msg["id"], 300, "Carol", "🥉")
+        chips = chat_repo.get_reactions_for_messages([msg["id"]])[msg["id"]]
+        assert [c["emoji"] for c in chips] == ["🥇", "🥈", "🥉"]
