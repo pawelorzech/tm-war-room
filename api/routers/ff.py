@@ -21,6 +21,7 @@ import logging
 import time
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from api.auth import rate_limiter
 from api.config import ENABLE_FF_SCORE
@@ -139,3 +140,106 @@ async def get_ff_score(player_id: int, request: Request, x_player_id: int = Head
         request,
         cache_control="private, max-age=300, stale-while-revalidate=600",
     )
+
+
+class BulkRequest(BaseModel):
+    """Sprint 2 #9 — bulk FF lookup.
+
+    Caller-side use case: faction-roster-overlay decorates every visible
+    enemy on /factions.php?step=profile (often 50-100 members). Today it
+    fires N sequential GET /api/ff/{id} calls; this endpoint takes the
+    full list and returns the same results in one round-trip.
+
+    Cap at 100 ids — largest legitimate batch is "one faction roster".
+    """
+
+    player_ids: list[int] = Field(min_length=0, max_length=100)
+
+
+@router.post("/bulk")
+async def get_ff_scores_bulk(
+    body: BulkRequest, x_player_id: int = Header()
+) -> dict:
+    """Resolve FF scores for many ``player_ids`` in one call.
+
+    Behaviour mirrors :func:`get_ff_score` per id: cache hit short-circuits,
+    cache miss runs ``compute_ff`` (which can fall back to the formula
+    path when no spy data is available). Repeated ids are deduped.
+    Returns 503 when the feature flag is off.
+    """
+    if not ENABLE_FF_SCORE:
+        raise HTTPException(status_code=503, detail="feature disabled")
+    if not rate_limiter.check(
+        f"ff-bulk:{x_player_id}", max_requests=20, window_seconds=60
+    ):
+        raise HTTPException(status_code=429, detail="Too many bulk lookups, slow down")
+
+    if not body.player_ids:
+        return {"scores": {}}
+
+    if any(pid <= 0 for pid in body.player_ids):
+        raise HTTPException(status_code=422, detail="player_ids must be positive")
+
+    now = int(time.time())
+    unique_ids = list(dict.fromkeys(body.player_ids))
+
+    scores: dict[str, dict] = {}
+    misses: list[int] = []
+
+    if ff_repo is not None:
+        for pid in unique_ids:
+            cached = ff_repo.get(pid)
+            if cached and cached.get("expires_at", 0) > now:
+                scores[str(pid)] = {
+                    "score": cached["score"],
+                    "dom_stat": cached["dom_stat"],
+                    "source": cached["source"],
+                    "computed_at": cached["computed_at"],
+                    "expires_at": cached["expires_at"],
+                }
+            else:
+                misses.append(pid)
+    else:
+        misses = list(unique_ids)
+
+    if misses and (torn_client is None or key_store is None):
+        raise HTTPException(status_code=503, detail="FF service not initialized")
+
+    for pid in misses:
+        try:
+            result = await compute_ff(
+                player_id=pid,
+                caller_id=x_player_id,
+                torn_client=torn_client,
+                key_store=key_store,
+                spy_service=spy_service,
+                stats_repo=stats_repo,
+                now=now,
+                ttl_seconds=FF_TTL_SECONDS,
+            )
+        except Exception as exc:
+            # Per-id failure does not poison the batch.
+            logger.warning("ff bulk: compute failed for pid=%d: %s", pid, exc)
+            continue
+
+        scores[str(pid)] = {
+            "score": result["score"],
+            "dom_stat": result["dom_stat"],
+            "source": result["source"],
+            "computed_at": result["computed_at"],
+            "expires_at": result["expires_at"],
+        }
+        if ff_repo is not None:
+            try:
+                ff_repo.upsert(
+                    player_id=pid,
+                    score=result["score"],
+                    dom_stat=result["dom_stat"],
+                    source=result["source"],
+                    ttl_seconds=FF_TTL_SECONDS,
+                    now=now,
+                )
+            except Exception as exc:
+                logger.warning("ff bulk: upsert failed for pid=%d: %s", pid, exc)
+
+    return {"scores": scores}
