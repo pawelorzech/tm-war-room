@@ -53,8 +53,8 @@ export function FactionLookup() {
   const sorted = useMemo(() => {
     if (!data) return [];
     return [...data.members].sort((a, b) => {
-      const va = (a[sortCol] ?? 0) as number;
-      const vb = (b[sortCol] ?? 0) as number;
+      const va = a[sortCol] ?? 0;
+      const vb = b[sortCol] ?? 0;
       return sortAsc ? va - vb : vb - va;
     });
   }, [data, sortCol, sortAsc]);

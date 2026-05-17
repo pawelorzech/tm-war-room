@@ -8,10 +8,12 @@ import { PageExplainer } from '@/components/layout/PageExplainer';
 interface PlayerData {
   player_id: number;
   player_name: string;
-  strength: number;
-  defense: number;
-  speed: number;
-  dexterity: number;
+  // Nullable when bucket==='rough_guess' — backend has no per-stat breakdown
+  // for heuristic-only data and signals that with null instead of fake 0s.
+  strength: number | null;
+  defense: number | null;
+  speed: number | null;
+  dexterity: number | null;
   total: number;
   confidence: string;
   source: string;
@@ -19,22 +21,24 @@ interface PlayerData {
   stat_estimate?: { estimated_total: number; confidence: string };
 }
 
-function fmtStat(n: number): string {
+function fmtStat(n: number | null): string {
+  if (n == null) return '—';
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
   return n.toLocaleString();
 }
 
-function StatBar({ label, a, b, maxVal }: { label: string; a: number; b: number; maxVal: number }) {
-  const pctA = maxVal > 0 ? (a / maxVal) * 100 : 0;
-  const pctB = maxVal > 0 ? (b / maxVal) * 100 : 0;
-  const winner = a > b ? 'a' : b > a ? 'b' : 'tie';
+function StatBar({ label, a, b, maxVal }: { label: string; a: number | null; b: number | null; maxVal: number }) {
+  const pctA = maxVal > 0 && a != null ? (a / maxVal) * 100 : 0;
+  const pctB = maxVal > 0 && b != null ? (b / maxVal) * 100 : 0;
+  // null sides can't win — they're heuristic estimates without a per-stat split
+  const winner = a != null && b != null ? (a > b ? 'a' : b > a ? 'b' : 'tie') : 'tie';
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs text-text-muted">
         <span>{label}</span>
-        <span>{winner === 'tie' ? 'Tie' : ''}</span>
+        <span>{(a == null || b == null) ? 'No data' : winner === 'tie' ? 'Tie' : ''}</span>
       </div>
       <div className="flex gap-1 items-center">
         {/* Player A bar (right-aligned) */}
@@ -79,8 +83,8 @@ export default function ComparePage() {
         api.spyEstimate(b).catch(() => null),
       ]);
       if (!ra && !rb) { setError('No spy data found for either player'); setLoading(false); return; }
-      setPlayerA(ra as PlayerData | null);
-      setPlayerB(rb as PlayerData | null);
+      setPlayerA(ra ? (ra as unknown as PlayerData) : null);
+      setPlayerB(rb ? (rb as unknown as PlayerData) : null);
     } catch {
       setError('Failed to load player data');
     } finally {
@@ -89,10 +93,15 @@ export default function ComparePage() {
   };
 
   const bothLoaded = playerA && playerB;
-  const maxStat = bothLoaded ? Math.max(
-    playerA.strength, playerA.defense, playerA.speed, playerA.dexterity,
-    playerB.strength, playerB.defense, playerB.speed, playerB.dexterity,
-  ) : 0;
+  const maxStat = bothLoaded
+    ? Math.max(
+        0,
+        ...[
+          playerA.strength, playerA.defense, playerA.speed, playerA.dexterity,
+          playerB.strength, playerB.defense, playerB.speed, playerB.dexterity,
+        ].filter((v): v is number => v != null),
+      )
+    : 0;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary">

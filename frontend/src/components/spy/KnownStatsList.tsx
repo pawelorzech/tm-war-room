@@ -67,7 +67,7 @@ export function KnownStatsList() {
     return [...list].sort((a, b) => {
       const va = a[sortCol] ?? 0;
       const vb = b[sortCol] ?? 0;
-      return sortAsc ? (va as number) - (vb as number) : (vb as number) - (va as number);
+      return sortAsc ? va - vb : vb - va;
     });
   }, [estimates, sortCol, sortAsc, filter, showEmpty]);
 
