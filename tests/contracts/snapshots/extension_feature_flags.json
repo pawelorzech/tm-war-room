@@ -1,0 +1,14 @@
+{
+  "endpoint": "GET /api/extension/feature-flags",
+  "description": "Public probe — Companion polls every 60s to know which features are live. Returns five booleans. Adding a flag is a backwards-compatible change (Companion ignores unknown keys); renaming or removing one breaks the Companion's overlay logic.",
+  "type": "object",
+  "properties": {
+    "ff_score": {"type": "boolean"},
+    "flights": {"type": "boolean"},
+    "activity": {"type": "boolean"},
+    "hit_calling": {"type": "boolean"},
+    "rum_enabled": {"type": "boolean"}
+  },
+  "required": ["ff_score", "flights", "activity", "hit_calling", "rum_enabled"],
+  "additionalProperties": false
+}

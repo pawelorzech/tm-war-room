@@ -1,0 +1,23 @@
+{
+  "endpoint": "POST /api/ff/bulk",
+  "description": "Companion faction-roster overlay calls this once per page instead of N times per enemy. Response is a flat map keyed by player_id (as string — JSON object keys are strings). Empty body returns an empty scores object.",
+  "type": "object",
+  "properties": {
+    "scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "score": {"type": "number"},
+          "dom_stat": {"type": "string"},
+          "source": {"type": "string"},
+          "computed_at": {"type": "integer"},
+          "expires_at": {"type": "integer"}
+        },
+        "required": ["score", "dom_stat", "source", "computed_at", "expires_at"]
+      }
+    }
+  },
+  "required": ["scores"],
+  "additionalProperties": false
+}

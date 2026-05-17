@@ -1,0 +1,6 @@
+{
+  "endpoint": "POST /api/companion/rum",
+  "description": "RUM beacon. Companion fires-and-forgets perf signals. Response is always 204 No Content with an empty body — the snapshot records this so a router author who 'helpfully' starts echoing the payload back gets caught by CI. We assert status_code in the test and let the empty-body shape live here for documentation.",
+  "status_code": 204,
+  "type": "null"
+}

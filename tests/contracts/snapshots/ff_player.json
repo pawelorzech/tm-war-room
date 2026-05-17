@@ -1,0 +1,15 @@
+{
+  "endpoint": "GET /api/ff/{player_id}",
+  "description": "Companion FF chip on torn.com profile pages. Returns FFScouter-formula fair-fight score plus dominant stat. source tells the Companion how confident to render the chip ('spy' = from a spy report; 'formula' = derived from public stats).",
+  "type": "object",
+  "properties": {
+    "player_id": {"type": "integer"},
+    "score": {"type": "number"},
+    "dom_stat": {"type": "string", "enum": ["STR", "DEF", "SPD", "DEX"]},
+    "source": {"type": "string", "enum": ["spy", "formula"]},
+    "computed_at": {"type": "integer"},
+    "expires_at": {"type": "integer"}
+  },
+  "required": ["player_id", "score", "dom_stat", "source", "computed_at", "expires_at"],
+  "additionalProperties": false
+}

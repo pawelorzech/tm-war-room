@@ -1,0 +1,42 @@
+{
+  "endpoint": "GET /api/travel",
+  "description": "Travel planner data — abroad item prices from YATA merged with Torn market values. Companion uses this to suggest profitable travel runs. countries is always the full 11-country list (Mexico → South Africa), even when YATA is unavailable (items[] empty, data_source='none').",
+  "type": "object",
+  "properties": {
+    "countries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "flag": {"type": "string"},
+          "travel_min": {"type": "integer"},
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "item_id": {"type": "integer"},
+                "abroad_cost": {"type": ["integer", "number"]},
+                "market_value": {"type": ["integer", "number"]},
+                "quantity": {"type": ["integer", "number"]},
+                "source": {"type": "string"},
+                "profit": {"type": ["integer", "number"]}
+              },
+              "required": ["name", "item_id", "abroad_cost", "market_value", "profit"]
+            }
+          },
+          "last_update": {"type": ["integer", "number"]},
+          "data_source": {"type": "string"},
+          "best_profit": {"type": ["integer", "number"]}
+        },
+        "required": ["id", "name", "flag", "travel_min", "items", "data_source", "best_profit"]
+      }
+    },
+    "count": {"type": "integer"}
+  },
+  "required": ["countries", "count"],
+  "additionalProperties": false
+}

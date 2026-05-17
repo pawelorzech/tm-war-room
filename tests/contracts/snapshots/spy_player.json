@@ -1,0 +1,20 @@
+{
+  "endpoint": "GET /api/spy/{player_id}",
+  "description": "Companion attack-page overlay shows the stat estimate the team has on file. age_days is computed server-side from reported_at so the Companion does not need to parse ISO timestamps to colour-grade the chip. Optional 'stat_estimate' object appears only for personalstats-derived fallbacks — locked in 'required' would break the spy-report-only path.",
+  "type": "object",
+  "properties": {
+    "player_id": {"type": "integer"},
+    "player_name": {"type": ["string", "null"]},
+    "strength": {"type": ["integer", "number"]},
+    "defense": {"type": ["integer", "number"]},
+    "speed": {"type": ["integer", "number"]},
+    "dexterity": {"type": ["integer", "number"]},
+    "total": {"type": ["integer", "number"]},
+    "confidence": {"type": "string"},
+    "source": {"type": "string"},
+    "reported_at": {"type": ["string", "null"]},
+    "age_days": {"type": ["integer", "null"]},
+    "stat_estimate": {"type": ["object", "null"]}
+  },
+  "required": ["player_id", "strength", "defense", "speed", "dexterity", "total", "confidence", "source"]
+}
