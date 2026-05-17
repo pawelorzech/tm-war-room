@@ -29,6 +29,13 @@ import { attachToProfileStack } from '../lib/profile-stack';
 import { showFormModal } from '../lib/modal';
 import { showToast } from '../lib/notifications';
 import type { SpyEstimate, Stakeout, Target, WarOffLimits } from '../types';
+import {
+  bucketStyle,
+  formatTotalRange,
+  formatPerStat,
+  bucketCaption,
+  type SpyEstimate as SpyEstimateDisplay,
+} from '../lib/spy-display';
 
 export interface ProfileIntelContext {
   warId: number | null;
@@ -176,50 +183,46 @@ const STYLES = `
     .intel-link .link-text { display: inline; }
   }
 
-  /* Spy block: hero total + meta tags + stat grid + inline rows */
-  .spy-total {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+  /* Spy block: bucket badge + hero total/range + stat grid */
+  .spy-card {
+    border-left: 3px solid var(--bucket-color, #30363d);
+    padding-left: 8px;
     margin-bottom: 6px;
+  }
+  .spy-card.spy-bucket-verified { --bucket-color: #3fb950; }
+  .spy-card.spy-bucket-estimate { --bucket-color: #d29922; }
+  .spy-card.spy-bucket-rough_guess { --bucket-color: #f5a05a; }
+
+  .bucket-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .bucket-badge.color-green { background: rgba(63,185,80,0.18); color: #56d364; }
+  .bucket-badge.color-yellow { background: rgba(210,153,34,0.18); color: #e8b339; }
+  .bucket-badge.color-orange { background: rgba(245,160,90,0.18); color: #f5a05a; }
+
+  .spy-total {
+    display: flex; align-items: baseline; gap: 6px;
+    margin-bottom: 4px;
   }
   .spy-total .icon { font-size: 16px; }
   .spy-total .value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #f0f6fc;
+    font-size: 18px; font-weight: 700;
+    color: #c9d1d9;
     font-variant-numeric: tabular-nums;
   }
   .spy-total .label {
-    font-size: 11px;
-    color: #8b949e;
-    text-transform: lowercase;
+    font-size: 11px; color: #8b949e;
   }
-  .spy-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
-    font-size: 11px;
+
+  .spy-caption {
+    font-size: 11px; color: #8b949e;
+    margin: 2px 0 4px;
   }
-  .meta-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: #21262d;
-    color: #c9d1d9;
-    font-size: 11px;
-    font-weight: 500;
-  }
-  .meta-tag.source { background: rgba(88,166,255,0.12); color: #79b8ff; }
-  .meta-tag.confidence-exact { background: rgba(63,185,80,0.18); color: #56d364; }
-  .meta-tag.confidence-estimate { background: rgba(210,153,34,0.18); color: #e8b339; }
-  .meta-tag.confidence-unknown { background: #21262d; color: #8b949e; }
-  .meta-tag.age-fresh { background: rgba(63,185,80,0.18); color: #56d364; }
-  .meta-tag.age-stale { background: rgba(210,153,34,0.18); color: #e8b339; }
-  .meta-tag.age-old { background: rgba(248,81,73,0.18); color: #f85149; }
 
   /* Stat grid: 2 cols default (narrow), 4 cols when container is wide enough */
   .stat-grid {
@@ -376,35 +379,6 @@ const STYLES = `
 `;
 
 
-function fmtBigNumber(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '—';
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + 'B';
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
-  return String(Math.round(n));
-}
-
-function fmtAge(days: number): string {
-  if (days === 0) return 'today';
-  if (days === 1) return '1 day old';
-  if (days < 30) return `${days} days old`;
-  if (days < 60) return `~1 month old`;
-  return `${Math.floor(days / 30)} months old`;
-}
-
-function ageClass(days: number): string {
-  if (days <= 1) return 'age-fresh';
-  if (days <= 7) return 'age-stale';
-  return 'age-old';
-}
-
-function spyMetaTags(spy: SpyEstimate): string {
-  const source = `<span class="meta-tag source">●&nbsp;${escapeHtml(spy.source)}</span>`;
-  const age = `<span class="meta-tag ${ageClass(spy.age_days)}">⏱&nbsp;${escapeHtml(fmtAge(spy.age_days))}</span>`;
-  const confidence = `<span class="meta-tag confidence-${escapeHtml(spy.confidence)}">◇&nbsp;${escapeHtml(spy.confidence)}</span>`;
-  return `<div class="spy-meta">${source}${age}${confidence}</div>`;
-}
-
 function targetInline(t: Target): string {
   const tag = t.tag ? `<span class="tag-pill">${escapeHtml(t.tag)}</span>` : '';
   const difficulty = t.difficulty
@@ -430,24 +404,47 @@ function stakeoutInline(s: Stakeout): string {
 }
 
 function spyBlock(spy: SpyEstimate, target: Target | null, stakeout: Stakeout | null): string {
+  // Local SpyEstimate (from ../types) widens `confidence` to plain string and
+  // doesn't declare the new bucket fields yet (out of scope for Task 5).
+  // The backend always attaches `bucket` / `total_range` etc, so this cast is
+  // safe at runtime — spy-display tolerates missing fields with sensible
+  // defaults.
+  const s = spy as unknown as SpyEstimateDisplay;
+  const bucket = s.bucket ?? 'estimate';
+  const style = bucketStyle(bucket);
+  const totalText = formatTotalRange(s.total, s.total_range, bucket);
+  const perStat = formatPerStat(s);
+  const caption = escapeHtml(bucketCaption(s));
+
+  const grid = perStat
+    ? `
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-key">STR</div><div class="stat-val">${escapeHtml(perStat.str)}</div></div>
+      <div class="stat"><div class="stat-key">DEF</div><div class="stat-val">${escapeHtml(perStat.def)}</div></div>
+      <div class="stat"><div class="stat-key">SPD</div><div class="stat-val">${escapeHtml(perStat.spd)}</div></div>
+      <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">${escapeHtml(perStat.dex)}</div></div>
+    </div>`
+    : '';
+
   const inlines: string[] = [];
   if (target) inlines.push(targetInline(target));
   if (stakeout) inlines.push(stakeoutInline(stakeout));
   const inlineRows = inlines.length ? `<div class="inline-rows">${inlines.join('')}</div>` : '';
+
+  const label = bucket === 'rough_guess' ? 'rough estimate' : 'total estimate';
+
   return `
-    <div class="spy-total">
-      <span class="icon">⚔️</span>
-      <span class="value">${fmtBigNumber(spy.total)}</span>
-      <span class="label">total estimate</span>
+    <div class="spy-card spy-bucket-${escapeHtml(bucket)}">
+      <div class="bucket-badge color-${escapeHtml(style.color)}">${escapeHtml(style.badgeText)}</div>
+      <div class="spy-total">
+        <span class="icon">⚔️</span>
+        <span class="value">${escapeHtml(totalText)}</span>
+        <span class="label">${escapeHtml(label)}</span>
+      </div>
+      <div class="spy-caption">${caption}</div>
+      ${grid}
+      ${inlineRows}
     </div>
-    ${spyMetaTags(spy)}
-    <div class="stat-grid">
-      <div class="stat"><div class="stat-key">STR</div><div class="stat-val">${fmtBigNumber(spy.strength)}</div></div>
-      <div class="stat"><div class="stat-key">DEF</div><div class="stat-val">${fmtBigNumber(spy.defense)}</div></div>
-      <div class="stat"><div class="stat-key">SPD</div><div class="stat-val">${fmtBigNumber(spy.speed)}</div></div>
-      <div class="stat"><div class="stat-key">DEX</div><div class="stat-val">${fmtBigNumber(spy.dexterity)}</div></div>
-    </div>
-    ${inlineRows}
   `;
 }
 
