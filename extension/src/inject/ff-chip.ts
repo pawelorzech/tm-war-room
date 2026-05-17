@@ -127,6 +127,29 @@ export async function maybeRenderFFChip(
   if (existing) return;
 
   const result = await fetchFF(auth, playerId);
+  renderFFChipFromScore(host, playerId, result);
+}
+
+/** Render an FF chip from an already-fetched score. Same gating as
+ *  `maybeRenderFFChip` (feature flag off → no-op, non-formula source → no-op)
+ *  but synchronous and bulk-friendly — the faction-roster overlay prefetches
+ *  every visible enemy in one POST and feeds the result into here per row.
+ *
+ *  `result === null` is the "no score available" path (feature off at the
+ *  backend, batch failure, or that pid wasn't in the response). It no-ops
+ *  rather than blanking an existing chip — re-decoration is handled by the
+ *  row-decorator's stateKey churn protection at the row level.
+ */
+export function renderFFChipFromScore(
+  host: HTMLElement,
+  playerId: number,
+  result: FFScore | null,
+): void {
+  if (!getFeatureFlags().ff_score) return;
+  // Skip if we've already painted a chip for this player into this host.
+  const existing = host.querySelector(`[${FF_CHIP_ATTR}][data-tm-ff-pid="${playerId}"]`);
+  if (existing) return;
+
   if (result === null) return;
   // Fallback-only: when fresh spy data exists, the spy chip is strictly
   // better. Defer to it.
