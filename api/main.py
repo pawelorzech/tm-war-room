@@ -399,6 +399,7 @@ async def lifespan(app: FastAPI):
         "chat_repo": chat_repo,
         "chat_manager": chat_mgr,
         "chain_assist_repo": chain_assist_repo,
+        "settings_repo": settings_repo,
         "armoury_repo": armoury_repo,
         "companies_repo": companies_repo,
         "tracked_companies_repo": tracked_companies_repo,

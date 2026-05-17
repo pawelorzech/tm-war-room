@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.58.1";
+export const CURRENT_VERSION = "1.59.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.59.0",
+    date: "2026-05-17",
+    title: "Chat — incoming attacks auto-posted to #war-room with retal cards",
+    changes: [
+      {
+        type: "feat",
+        summary: "#war-room now gets a live retaliation feed — every time someone hits a faction member, the attacker pops up as a card with an Attack button",
+        detail: "A background job watches the faction's attack log every 60 seconds. When an outside player attacks one of us — hospitalised, mugged, attacked, or even tried-and-lost — a bot message lands in #war-room embedding the attacker's profile URL. The existing entity-card resolver picks up the URL automatically, so the attacker's name, level, faction tag, current status (Hospital / Okay / Traveling) and an Attack button render inline. Dedup is 1 hour per attacker — somebody mugging three of us in 10 minutes posts once, not three times. Works in both the main chat and the Companion dock (same channel, same renderer). No new card type needed — it's the entity-card system from v1.55 doing the heavy lifting.",
+      },
+    ],
+  },
   {
     version: "1.58.1",
     date: "2026-05-17",

@@ -46,6 +46,7 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
     from api.scheduler.jobs.backup_keys_db import run_backup_keys_db
     from api.scheduler.jobs.flights import run_flights_tick
     from api.scheduler.jobs.chain_assist_poll import run_chain_assist_poll
+    from api.scheduler.jobs.retal_feed import run_retal_feed
 
     global _state
     _state = app_state
@@ -134,6 +135,14 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         "chain_assist_poll",
         IntervalTrigger(seconds=20),
         id="chain_assist_poll_schedule",
+    )
+
+    # Roadmap Task #11 — retaliation feed.
+    await scheduler.configure_task("retal_feed", func=run_retal_feed)
+    await scheduler.add_schedule(
+        "retal_feed",
+        IntervalTrigger(seconds=60),
+        id="retal_feed_schedule",
     )
 
     # F-18: daily encrypted backup of keys.db to B2 + retention sweep.
