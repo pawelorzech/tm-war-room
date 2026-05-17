@@ -493,15 +493,15 @@ export default function ArmouryPage() {
                   {selectedBoard && (
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div>
-                        <span className="text-text-muted text-xs">Total deposited</span>
+                        <span className="text-text-muted text-xs">{'\u{1F4E6} '}Total deposited</span>
                         <p className="font-bold text-torn-green tabular-nums">{selectedBoard.total_deposited.toLocaleString()}</p>
                       </div>
                       <div>
-                        <span className="text-text-muted text-xs">Participants</span>
+                        <span className="text-text-muted text-xs">{'\u{1F465} '}Participants</span>
                         <p className="font-bold tabular-nums">{selectedBoard.participants}</p>
                       </div>
                       <div>
-                        <span className="text-text-muted text-xs">Your rank</span>
+                        <span className="text-text-muted text-xs">{'\u{1F3AF} '}Your rank</span>
                         <p className="font-bold tabular-nums">
                           {myPid
                             ? (selectedBoard.leaderboard.find(e => String(e.player_id) === myPid)?.rank

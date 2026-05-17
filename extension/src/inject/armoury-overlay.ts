@@ -86,6 +86,45 @@ function fmtQty(n: number): string {
   return String(n);
 }
 
+// Ported from frontend/src/app/armoury/page.tsx so the overlay shows
+// "💉 Temporary Items" instead of the raw "temporary" enum value.
+const CATEGORY_META: Record<string, { label: string; icon: string }> = {
+  blood_bags:    { label: 'Blood Bags',     icon: '\u{1FA78}' },
+  temporary:     { label: 'Temporary Items', icon: '\u{1F489}' },
+  alcohol:       { label: 'Alcohol',        icon: '\u{1F37A}' },
+  medical:       { label: 'Medical',        icon: '\u{1FA79}' },
+  drugs:         { label: 'Drugs',          icon: '\u{1F48A}' },
+  energy_drinks: { label: 'Energy Drinks',  icon: '\u{26A1}'  },
+  candy:         { label: 'Candy',          icon: '\u{1F36C}' },
+};
+
+function competitionScope(comp: ArmouryCompetition): { label: string; icon: string } {
+  const parts: string[] = [];
+  const icons: string[] = [];
+  if (comp.category) {
+    const cats = comp.category.split(',').map((c) => c.trim()).filter(Boolean);
+    parts.push(...cats.map((c) => CATEGORY_META[c]?.label || c));
+    icons.push(...cats.map((c) => CATEGORY_META[c]?.icon || '').filter(Boolean));
+  }
+  if (comp.items) {
+    const items = comp.items.split(',').map((i) => i.trim()).filter(Boolean);
+    if (items.length <= 3) parts.push(...items);
+    else parts.push(`${items.slice(0, 2).join(', ')} +${items.length - 2} more`);
+    icons.push('\u{1F4E6}');
+  }
+  return {
+    label: parts.join(' + ') || 'All items',
+    icon: icons[0] || '\u{1F6E1}️',
+  };
+}
+
+function rankDecoration(rank: number): { display: string; podium: string } {
+  if (rank === 1) return { display: '\u{1F947}', podium: ' podium-1' };
+  if (rank === 2) return { display: '\u{1F948}', podium: ' podium-2' };
+  if (rank === 3) return { display: '\u{1F949}', podium: ' podium-3' };
+  return { display: String(rank), podium: '' };
+}
+
 const STYLES = cardBase('#d29922') + `
   .title { white-space: nowrap; min-width: 0; }
   .comp {
@@ -97,14 +136,22 @@ const STYLES = cardBase('#d29922') + `
   }
   .comp-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 6px;
-    gap: 8px;
+    margin-bottom: 8px;
+    gap: 6px 8px;
     flex-wrap: wrap;
   }
   .comp-name { font-weight: 700; color: #f0f6fc; font-size: 13px; }
-  .comp-meta { color: #8b949e; font-size: 10px; margin-top: 2px; }
+  .comp-meta {
+    color: #8b949e;
+    font-size: 11px;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .comp-meta .scope-icon { font-size: 12px; line-height: 1; }
   .countdown {
     padding: 2px 8px;
     border-radius: 8px;
@@ -113,25 +160,126 @@ const STYLES = cardBase('#d29922') + `
     text-transform: uppercase;
     letter-spacing: 0.04em;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .countdown.fresh { background: rgba(63,185,80,0.18); color: #3fb950; }
   .countdown.soon { background: rgba(210,153,34,0.18); color: #d29922; }
   .countdown.over { background: rgba(110,118,129,0.18); color: #6e7681; }
+
+  /* Leaderboard — flex column of grid rows. Each .row is its own
+     3-col grid (rank | name | stats). A prior version made .lb the grid
+     and put each .row as a single grid cell, which collapsed rank #1 into
+     a 24px column and wrapped player names letter-by-letter.
+     See Plans/image-1-spierdolony-ten-iridescent-emerson.md. */
   .lb {
     margin-top: 6px;
-    display: grid;
-    grid-template-columns: 24px 1fr auto auto;
-    gap: 4px 8px;
-    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-  .lb .rank { color: #6e7681; text-align: right; }
-  .lb .name { color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lb .total { color: #f0f6fc; font-weight: 600; text-align: right; white-space: nowrap; }
-  .lb .deposits { color: #6e7681; text-align: right; font-size: 10px; white-space: nowrap; }
-  .lb .row.me .name { color: #d29922; font-weight: 700; }
-  .lb .row.me .total { color: #d29922; }
-  .summary { color: #6e7681; font-size: 10px; margin-top: 6px; }
+  .lb .row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .lb .row.podium-1 { background: rgba(210,153,34,0.07); }
+  .lb .row.podium-2 { background: rgba(177,186,196,0.04); }
+  .lb .row.podium-3 { background: rgba(205,127,50,0.05); }
+  .lb .row.me { background: rgba(63,185,80,0.12); }
+
+  .lb .rank {
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: #6e7681;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .lb .row.podium-1 .rank,
+  .lb .row.podium-2 .rank,
+  .lb .row.podium-3 .rank { font-size: 15px; }
+
+  .lb .name {
+    color: #c9d1d9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .lb .row.podium-1 .name { color: #f0f6fc; font-weight: 700; }
+  .lb .row.me .name { color: #3fb950; font-weight: 700; }
+
+  .lb .you-badge {
+    background: rgba(63,185,80,0.18);
+    color: #3fb950;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1.3;
+  }
+
+  .lb .stats {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    justify-content: flex-end;
+  }
+  .lb .total { color: #f0f6fc; font-weight: 600; font-size: 12px; }
+  .lb .row.me .total { color: #3fb950; }
+  .lb .stats .sep { color: #30363d; }
+  .lb .deposits { color: #8b949e; font-size: 10px; }
+
+  .summary {
+    color: #8b949e;
+    font-size: 11px;
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: center;
+  }
+  .summary .stat { display: inline-flex; align-items: baseline; gap: 4px; }
+  .summary .stat-icon { font-size: 11px; }
+  .summary .stat-value {
+    color: #c9d1d9;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
 `;
+
+function renderLbRow(
+  r: ArmouryLeaderboardResponse['leaderboard'][number],
+  viewerId: number,
+): string {
+  const isMe = r.player_id === viewerId;
+  const { display, podium } = rankDecoration(r.rank);
+  const meClass = isMe ? ' me' : '';
+  const youBadge = isMe ? '<span class="you-badge">you</span>' : '';
+  return `
+    <div class="row${podium}${meClass}">
+      <span class="rank">${display}</span>
+      <span class="name">${escapeHtml(r.player_name)}${youBadge}</span>
+      <span class="stats">
+        <span class="total">${escapeHtml(fmtQty(r.total))}</span>
+        <span class="sep">·</span>
+        <span class="deposits">${r.deposits} dep</span>
+      </span>
+    </div>
+  `;
+}
 
 function renderLeaderboard(lb: ArmouryLeaderboardResponse | undefined, viewerId: number): string {
   if (!lb || lb.leaderboard.length === 0) {
@@ -140,29 +288,8 @@ function renderLeaderboard(lb: ArmouryLeaderboardResponse | undefined, viewerId:
   const top5 = lb.leaderboard.slice(0, 5);
   const meInTop = top5.some((r) => r.player_id === viewerId);
   const meRow = !meInTop ? lb.leaderboard.find((r) => r.player_id === viewerId) : undefined;
-  const rows = top5
-    .map((r) => {
-      const me = r.player_id === viewerId ? ' me' : '';
-      return `
-        <div class="row${me}">
-          <span class="rank">#${r.rank}</span>
-          <span class="name">${escapeHtml(r.player_name)}</span>
-          <span class="total">${escapeHtml(fmtQty(r.total))}</span>
-          <span class="deposits">${r.deposits}×</span>
-        </div>
-      `;
-    })
-    .join('');
-  const meTail = meRow
-    ? `
-        <div class="row me">
-          <span class="rank">#${meRow.rank}</span>
-          <span class="name">${escapeHtml(meRow.player_name)} (you)</span>
-          <span class="total">${escapeHtml(fmtQty(meRow.total))}</span>
-          <span class="deposits">${meRow.deposits}×</span>
-        </div>
-      `
-    : '';
+  const rows = top5.map((r) => renderLbRow(r, viewerId)).join('');
+  const meTail = meRow ? renderLbRow(meRow, viewerId) : '';
   return `<div class="lb">${rows}${meTail}</div>`;
 }
 
@@ -176,23 +303,39 @@ function renderComp(
     comp.end_ts > 0
       ? fmtCountdown(comp.end_ts, now)
       : { label: 'open-ended', tone: 'fresh' as const };
-  const subtitle = comp.prize_text
-    ? `${escapeHtml(comp.category)} · prize: ${escapeHtml(comp.prize_text)}`
-    : escapeHtml(comp.category);
-  const totalLine = lb
-    ? `${lb.participants} participant${lb.participants === 1 ? '' : 's'} · ${fmtQty(lb.total_deposited)} total deposited`
+  const scope = competitionScope(comp);
+  const scopeLabel = comp.prize_text
+    ? `${scope.label} · prize: ${comp.prize_text}`
+    : scope.label;
+  // scope.icon is a literal emoji constant, safe to interpolate raw.
+  const subtitleHtml = `<span class="scope-icon">${scope.icon}</span><span>${escapeHtml(scopeLabel)}</span>`;
+  const summary = lb
+    ? `
+      <div class="summary">
+        <span class="stat">
+          <span class="stat-icon">\u{1F465}</span>
+          <span class="stat-value">${lb.participants}</span>
+          <span>${lb.participants === 1 ? 'player' : 'players'}</span>
+        </span>
+        <span class="stat">
+          <span class="stat-icon">\u{1F4E6}</span>
+          <span class="stat-value">${escapeHtml(fmtQty(lb.total_deposited))}</span>
+          <span>deposited</span>
+        </span>
+      </div>
+    `
     : '';
   return `
     <div class="comp">
       <div class="comp-head">
         <div>
           <div class="comp-name">${escapeHtml(comp.name)}</div>
-          <div class="comp-meta">${subtitle}</div>
+          <div class="comp-meta">${subtitleHtml}</div>
         </div>
         <div class="countdown ${countdown.tone}">${escapeHtml(countdown.label)}</div>
       </div>
       ${renderLeaderboard(lb, viewerId)}
-      ${totalLine ? `<div class="summary">${escapeHtml(totalLine)}</div>` : ''}
+      ${summary}
     </div>
   `;
 }
@@ -241,7 +384,7 @@ export async function renderArmouryOverlay(): Promise<void> {
       <a class="link" href="${HUB_ORIGIN}/armoury" target="_blank" rel="noopener">Open in TM Hub →</a>
     </div>
     ${body}
-    <div class="footer">Deposits are picked up from Torn's faction news log every 5 minutes.</div>
+    <div class="footer">Polled every 5 min from Torn's faction news log.</div>
   `;
   shadow.appendChild(card);
 
