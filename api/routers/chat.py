@@ -249,6 +249,10 @@ async def send_message(
                     player_name="tm-bot", content=result.message_back,
                     mentions=[],
                 )
+                # Same entity enrichment as regular sends — bot output often
+                # contains profile/item links (e.g. /war, /chain) that need
+                # immediate spindle rendering.
+                bot_msg["entities"] = find_entities_as_dicts(bot_msg.get("content") or "")
                 chat_repo.update_read_position(x_player_id, channel_id, bot_msg["id"])
                 await chat_manager.broadcast({"type": "message", "payload": bot_msg})
                 return bot_msg
@@ -272,6 +276,9 @@ async def send_message(
         player_name=name, content=body.content.strip(),
         mentions=body.mentions,
     )
+    # Attach entity refs so live receivers + sender echo render rich cards
+    # immediately, without waiting for a page reload to hit the GET path.
+    msg["entities"] = find_entities_as_dicts(msg.get("content") or "")
     # Auto-mark own message as read so it doesn't count as unread for sender
     chat_repo.update_read_position(x_player_id, channel_id, msg["id"])
     await chat_manager.broadcast({"type": "message", "payload": msg})
@@ -284,10 +291,20 @@ async def edit_message(message_id: int, body: MessageEdit, x_player_id: int = He
     _verify_member(x_player_id)
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
-    ok = chat_repo.edit_message(message_id, x_player_id, body.content.strip())
+    new_content = body.content.strip()
+    ok = chat_repo.edit_message(message_id, x_player_id, new_content)
     if not ok:
         raise HTTPException(status_code=403, detail="Cannot edit this message")
-    await chat_manager.broadcast({"type": "edit", "payload": {"id": message_id, "content": body.content.strip()}})
+    # Re-derive entities on the edited content so cards update live when an
+    # edit swaps in a different profile/item URL (or removes one).
+    await chat_manager.broadcast({
+        "type": "edit",
+        "payload": {
+            "id": message_id,
+            "content": new_content,
+            "entities": find_entities_as_dicts(new_content),
+        },
+    })
     return {"status": "ok"}
 
 
@@ -370,6 +387,10 @@ def _ephemeral_command_message(
         "reactions": [],
         "ephemeral": True,
         "render": render,
+        # Keep the `entities` field contract: always present, possibly empty.
+        # The shape mirrors a regular ChatMessage so the frontend's
+        # entity-resolver pipeline doesn't have to special-case ephemerals.
+        "entities": find_entities_as_dicts(content or ""),
     }
 
 
@@ -739,6 +760,9 @@ async def send_thread_message(
         player_name=name, content=body.content.strip(),
         thread_id=thread_id, mentions=body.mentions,
     )
+    # Attach entity refs so live receivers + sender echo render rich cards
+    # immediately, without waiting for a page reload to hit the GET path.
+    msg["entities"] = find_entities_as_dicts(msg.get("content") or "")
     # Auto-mark own message as read so it doesn't count as unread for sender
     chat_repo.update_read_position(x_player_id, thread["channel_id"], msg["id"], thread_id=thread_id)
     await chat_manager.broadcast({"type": "thread_message", "payload": msg})
@@ -972,6 +996,9 @@ async def bot_send_message(body: BotMessage, authorization: str = Header()):
         thread_id=body.thread_id, bot_id=bot["id"],
         mentions=body.mentions,
     )
+    # Attach entity refs so live receivers + sender echo render rich cards
+    # immediately, without waiting for a page reload to hit the GET path.
+    msg["entities"] = find_entities_as_dicts(msg.get("content") or "")
     await chat_manager.broadcast({"type": "message", "payload": msg})
     await _notify_mentions(body.mentions, bot["name"], body.content, body.channel_id)
     return msg
@@ -1127,6 +1154,9 @@ async def _handle_ws_message(player_id: int, payload: dict) -> None:
         player_name=name, content=content,
         thread_id=thread_id, mentions=mentions,
     )
+    # Attach entity refs so live receivers + sender echo render rich cards
+    # immediately, without waiting for a page reload to hit the GET path.
+    msg["entities"] = find_entities_as_dicts(msg.get("content") or "")
     # Auto-mark own message as read
     chat_repo.update_read_position(player_id, channel_id, msg["id"], thread_id=thread_id or 0)
     msg_type = "thread_message" if thread_id else "message"

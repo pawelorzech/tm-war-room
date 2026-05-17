@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.62.0";
+export const CURRENT_VERSION = "1.62.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.62.1",
+    date: "2026-05-17",
+    title: "Chat — link previews appear instantly without refresh",
+    changes: [
+      {
+        type: "fix",
+        summary: "Chat link previews now appear immediately, without refresh",
+        before: "Sending a Torn profile/item/faction URL in chat showed a plain link until the page was refreshed.",
+        after: "The rich card with name, status and Attack button shows up the moment the message lands — for the sender, for everyone else live, and inside the companion dock.",
+        cause: "The server only attached entity metadata to messages fetched on page load, not to messages broadcast over the live channel.",
+      },
+    ],
+  },
   {
     version: "1.62.0",
     date: "2026-05-17",

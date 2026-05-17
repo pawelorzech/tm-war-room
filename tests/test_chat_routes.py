@@ -388,3 +388,249 @@ def test_list_commands_endpoint_returns_help():
     finally:
         for p in patches:
             p.stop()
+
+
+# ── Live entity enrichment on send/edit (spindle preview bug fix) ─────────────
+# Regression: backend used to attach `entities` only for GET ?include=entities.
+# POST send response, WS broadcast on new message, and WS broadcast on edit all
+# shipped without `entities`, so spindle cards only appeared after a refresh.
+# The contract these tests pin: every payload that crosses the network carries
+# `entities: list[dict]` — same shape as find_entities_as_dicts() output —
+# always present, empty list when nothing detected.
+
+
+def _last_broadcast_payload(manager: "_StubChatManager") -> dict:
+    """Pull the most recently broadcast message payload (the dict under 'payload')."""
+    assert manager.broadcasts, "expected at least one broadcast"
+    return manager.broadcasts[-1]
+
+
+def test_send_message_response_includes_entities_for_profile_url():
+    """POST response carries `entities` with a player ref for a Torn profile URL."""
+    app, patches, _repo, _mgr = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={
+                    "content": "check out https://www.torn.com/profiles.php?XID=2362436",
+                    "mentions": [],
+                },
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert "entities" in body, "response must always carry an `entities` field"
+        players = [e for e in body["entities"] if e.get("kind") == "player"]
+        assert players, f"expected a player entity, got: {body['entities']!r}"
+        assert any(e.get("id") == 2362436 for e in players)
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_send_message_broadcast_includes_entities():
+    """WS broadcast payload also carries `entities` so live receivers render cards."""
+    app, patches, _repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={
+                    "content": "check out https://www.torn.com/profiles.php?XID=2362436",
+                    "mentions": [],
+                },
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        envelope = _last_broadcast_payload(manager)
+        assert envelope["type"] == "message"
+        payload = envelope["payload"]
+        assert "entities" in payload, "broadcast payload must carry `entities`"
+        players = [e for e in payload["entities"] if e.get("kind") == "player"]
+        assert any(e.get("id") == 2362436 for e in players), (
+            f"expected player 2362436 in broadcast entities, got: {payload['entities']!r}"
+        )
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_send_message_response_has_empty_entities_for_plain_text():
+    """Field is always present even when nothing was detected — empty list."""
+    app, patches, _repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "just plain text, nothing special", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert "entities" in body, "`entities` must be present on every message"
+        assert body["entities"] == [], (
+            f"expected [] for plain text, got: {body['entities']!r}"
+        )
+        # Broadcast carries the same shape.
+        envelope = _last_broadcast_payload(manager)
+        assert envelope["payload"]["entities"] == []
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_send_message_response_includes_entities_for_item_url():
+    """Item URL produces an `item` entity with the numeric XID."""
+    app, patches, _repo, _mgr = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={
+                    "content": "need https://www.torn.com/item.php?XID=206",
+                    "mentions": [],
+                },
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        items = [e for e in body.get("entities", []) if e.get("kind") == "item"]
+        assert items, f"expected an item entity, got: {body.get('entities')!r}"
+        assert any(e.get("id") == 206 for e in items)
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_send_message_response_includes_entities_for_player_shorthand():
+    """[NNN] shorthand also resolves to a player entity in the live payload."""
+    app, patches, _repo, _mgr = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "reminder for [2362436]", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        players = [e for e in body.get("entities", []) if e.get("kind") == "player"]
+        assert any(e.get("id") == 2362436 for e in players), (
+            f"expected player 2362436 from [2362436] shorthand, got: {body.get('entities')!r}"
+        )
+    finally:
+        for p in patches:
+            p.stop()
+
+
+class _EditableChatRepo(_SendChatRepo):
+    """Sender stub extended with edit_message support so PUT edit_message
+    can flow end-to-end against a stub backend."""
+
+    def edit_message(self, message_id, player_id, new_content):
+        # Mirror BaseRepository.edit_message: True iff caller owns the message.
+        for m in self.created:
+            if m["id"] == message_id and m["player_id"] == player_id:
+                m["content"] = new_content
+                m["edited_at"] = 1
+                return True
+        return False
+
+
+def _mount_send_editable():
+    """Same as _mount_send but with an edit-capable repo stub.
+
+    Also bypasses `_msg_rate_ok` — the rate limiter holds module-level state
+    across tests in this file, and a multi-POST flow (create + edit) added on
+    top of earlier send tests can otherwise trip the 10-msg/5s window.
+    """
+    from api.routers.chat import router as chat_router
+    app = FastAPI()
+    app.include_router(chat_router)
+    repo = _EditableChatRepo()
+    manager = _StubChatManager()
+    store = _StubKeyStoreWithName()
+    patches = [
+        patch("api.routers.chat.chat_repo", repo),
+        patch("api.routers.chat.chat_manager", manager),
+        patch("api.routers.chat.key_store", store),
+        patch("api.routers.chat.settings_repo", None),
+        patch("api.routers.chat._msg_rate_ok", lambda _pid: True),
+    ]
+    for p in patches:
+        p.start()
+    return app, patches, repo, manager
+
+
+def test_edit_message_broadcast_includes_entities():
+    """PUT edit broadcasts a payload with `entities` derived from the new content,
+    so live spindle cards refresh without a page reload."""
+    app, patches, _repo, manager = _mount_send_editable()
+    try:
+        with TestClient(app) as client:
+            # Create first so there's something owned by player 123 to edit.
+            create_resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "original plain text", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+            assert create_resp.status_code == 200, create_resp.text
+            msg_id = create_resp.json()["id"]
+
+            edit_resp = client.put(
+                f"/api/chat/messages/{msg_id}",
+                json={"content": "oops https://www.torn.com/profiles.php?XID=999"},
+                headers={"X-Player-Id": "123"},
+            )
+        assert edit_resp.status_code == 200, edit_resp.text
+        # Pull the last broadcast (the edit, not the original create).
+        edit_envelopes = [b for b in manager.broadcasts if b.get("type") == "edit"]
+        assert edit_envelopes, "expected an edit broadcast"
+        payload = edit_envelopes[-1]["payload"]
+        assert "entities" in payload, "edit broadcast payload must carry `entities`"
+        players = [e for e in payload["entities"] if e.get("kind") == "player"]
+        assert any(e.get("id") == 999 for e in players), (
+            f"expected player 999 from edited URL, got: {payload['entities']!r}"
+        )
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_edit_message_broadcast_entities_reflects_new_content_not_old():
+    """Edit broadcast `entities` is derived from the NEW content. Guards against
+    accidentally re-detecting from the message's original content."""
+    app, patches, _repo, manager = _mount_send_editable()
+    try:
+        with TestClient(app) as client:
+            create_resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={
+                    "content": "first https://www.torn.com/profiles.php?XID=111",
+                    "mentions": [],
+                },
+                headers={"X-Player-Id": "123"},
+            )
+            assert create_resp.status_code == 200, create_resp.text
+            msg_id = create_resp.json()["id"]
+
+            edit_resp = client.put(
+                f"/api/chat/messages/{msg_id}",
+                json={"content": "second https://www.torn.com/profiles.php?XID=222"},
+                headers={"X-Player-Id": "123"},
+            )
+        assert edit_resp.status_code == 200, edit_resp.text
+        edit_envelopes = [b for b in manager.broadcasts if b.get("type") == "edit"]
+        assert edit_envelopes, "expected an edit broadcast"
+        payload = edit_envelopes[-1]["payload"]
+        player_ids = {e.get("id") for e in payload["entities"] if e.get("kind") == "player"}
+        assert 222 in player_ids, (
+            f"edit broadcast must reflect NEW content (XID=222), got: {payload['entities']!r}"
+        )
+        assert 111 not in player_ids, (
+            f"edit broadcast must NOT re-emit the original XID=111, got: {payload['entities']!r}"
+        )
+    finally:
+        for p in patches:
+            p.stop()

@@ -234,8 +234,9 @@ export function useChat() {
       case "edit": {
         const editId = p.id as number;
         const editContent = p.content as string;
+        const editEntities = p.entities as Message["entities"] | undefined;
         setMessages(prev => prev.map(m =>
-          m.id === editId ? { ...m, content: editContent, edited_at: Math.floor(Date.now() / 1000) } : m
+          m.id === editId ? { ...m, content: editContent, entities: editEntities ?? m.entities, edited_at: Math.floor(Date.now() / 1000) } : m
         ));
         break;
       }
