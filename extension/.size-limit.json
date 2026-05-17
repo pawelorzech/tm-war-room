@@ -2,14 +2,14 @@
   {
     "name": "tm-hub-companion.user.js (raw)",
     "path": "dist/tm-hub-companion.user.js",
-    "limit": "165 KB",
+    "limit": "167 KB",
     "gzip": false,
     "brotli": false
   },
   {
     "name": "tm-hub-companion.user.js (gzip)",
     "path": "dist/tm-hub-companion.user.js",
-    "limit": "43.5 KB",
+    "limit": "44 KB",
     "gzip": true
   },
   {

@@ -52,9 +52,30 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.53.1";
+export const CURRENT_VERSION = "1.53.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.53.2",
+    date: "2026-05-17",
+    title: "Chat — URLs are clickable, companion reactions wired up properly",
+    changes: [
+      {
+        type: "fix",
+        summary: "Torn URLs in chat messages now render as proper clickable links",
+        before: "Pasting a profile URL like https://www.torn.com/profiles.php?XID=4096610 left it as plain grey text — you had to copy-paste it into the address bar to actually visit. Same for any other http(s) URL or bare torn.com/… shortcut.",
+        after: "URLs and bare torn.com/… paths render as blue underlined links that open in a new tab. Works in both the main chat on hub.tri.ovh and the floating chat dock inside torn.com. Trailing punctuation like commas isn't pulled into the link target.",
+        cause: "The renderer only linkified @mentions; URLs were treated as plain text. Now it does a single pass for both.",
+      },
+      {
+        type: "fix",
+        summary: "Reaction chips and the '+ add reaction' button respond to clicks in the companion chat dock",
+        before: "After reactions shipped, clicking an existing chip in the floating chat dock inside torn.com did nothing — you couldn't toggle your own reaction off, and the '+ add reaction' trigger wouldn't open the emoji picker either.",
+        after: "Click handler is now wired through a shared helper covered by unit tests; clicking a chip toggles your reaction, clicking the smiley trigger in the top-right of a message opens the curated emoji picker. Works whether the click lands on the chip itself, the emoji inside, or the count badge.",
+        cause: "Event delegation lived in a one-off inline closure that couldn't be unit-tested; moving it into a shared helper (lib/chat-render.ts) exercised the path and surfaced the missing wiring.",
+      },
+    ],
+  },
   {
     version: "1.53.1",
     date: "2026-05-17",

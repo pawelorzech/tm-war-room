@@ -44,6 +44,15 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + time;
 }
 
+// Match URLs and @mentions in one pass. Same patterns as the companion's
+// lib/chat-render.ts — keep them in sync so both surfaces linkify the same way.
+const URL_RE = /\b(https?:\/\/[^\s<>"]+|(?:www\.)?torn\.com\/[^\s<>"]+)/gi;
+const TRAILING_PUNCT_RE = /[)\].,;:!?'"]+$/;
+
+function normaliseUrl(raw: string): string {
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
 function renderContent(
   content: string,
   mentions: number[],
@@ -56,33 +65,72 @@ function renderContent(
     if (name) nameToId[name.toLowerCase()] = pid;
   }
 
-  const parts = content.split(/(@[\w[\]]+)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("@")) {
-      const name = part.slice(1);
-      const pid = nameToId[name.toLowerCase()];
-      if (pid) {
-        return (
-          <a
-            key={i}
-            href={`https://www.torn.com/profiles.php?XID=${pid}`}
-            target="_blank" rel="noopener noreferrer"
-            
-            className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded hover:underline cursor-pointer"
-          >
-            {part}
-          </a>
-        );
-      }
-      // @mention found in text but not in mentions list — still style it
-      return (
-        <span key={i} className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded">
-          {part}
-        </span>
-      );
+  // First pass: split on URLs. Each "match" chunk becomes an <a>; each
+  // non-match chunk is then split on @mentions (existing behaviour).
+  const out: React.ReactNode[] = [];
+  let key = 0;
+  let lastIndex = 0;
+  for (const m of content.matchAll(URL_RE)) {
+    const start = m.index ?? 0;
+    if (start > lastIndex) {
+      pushMentionParts(content.slice(lastIndex, start));
     }
-    return part;
-  });
+    let raw = m[0];
+    let trailing = "";
+    const trail = raw.match(TRAILING_PUNCT_RE);
+    if (trail) {
+      trailing = trail[0];
+      raw = raw.slice(0, raw.length - trailing.length);
+    }
+    out.push(
+      <a
+        key={key++}
+        href={normaliseUrl(raw)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-torn-blue underline underline-offset-2 break-all hover:text-torn-green"
+      >
+        {raw}
+      </a>,
+    );
+    if (trailing) out.push(trailing);
+    lastIndex = start + m[0].length;
+  }
+  if (lastIndex < content.length) pushMentionParts(content.slice(lastIndex));
+
+  return out;
+
+  function pushMentionParts(slice: string): void {
+    const parts = slice.split(/(@[\w[\]]+)/g);
+    for (const part of parts) {
+      if (!part) continue;
+      if (part.startsWith("@")) {
+        const name = part.slice(1);
+        const pid = nameToId[name.toLowerCase()];
+        if (pid) {
+          out.push(
+            <a
+              key={key++}
+              href={`https://www.torn.com/profiles.php?XID=${pid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded hover:underline cursor-pointer"
+            >
+              {part}
+            </a>,
+          );
+        } else {
+          out.push(
+            <span key={key++} className="text-torn-green font-medium bg-torn-green/10 px-0.5 rounded">
+              {part}
+            </span>,
+          );
+        }
+      } else {
+        out.push(part);
+      }
+    }
+  }
 }
 
 export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds, selfId = null, grouped = false }: Props) {

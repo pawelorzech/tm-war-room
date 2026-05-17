@@ -33,6 +33,7 @@ declare const GM_setValue: (key: string, value: unknown) => void;
 
 import { HUB_ORIGIN } from '../env';
 import { escapeHtml } from '../lib/format';
+import { renderMessageBody, wireReactionHandlers } from '../lib/chat-render';
 
 const HOST_KIND = 'chat-dock';
 const STATE_KEY = 'tm-hub-companion-chat-dock-state';
@@ -315,12 +316,19 @@ const STYLES = `
     font-weight: 500;
   }
   .msg .text a.mention:hover { text-decoration: underline; }
-  .msg .text .mention-unlinked {
+  .msg .text .mention {
     color: #58a6ff;
     background: rgba(88, 166, 255, 0.06);
     padding: 0 2px;
     border-radius: 3px;
   }
+  .msg .text a.link {
+    color: #58a6ff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+  }
+  .msg .text a.link:hover { color: #79b8ff; }
   .msg .time {
     color: #6e7681;
     font-size: 10px;
@@ -914,28 +922,14 @@ function renderPanel(shadow: ShadowRoot): void {
 
   // Reactions — delegated click on chips / + buttons / picker.
   const messagesEl = panel.querySelector<HTMLElement>('.messages')!;
-  messagesEl.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const chip = target.closest<HTMLElement>('.reaction-chip');
-    if (chip) {
-      e.stopPropagation();
-      const msgId = findMessageId(chip);
-      const emoji = chip.dataset.emoji ?? '';
-      if (msgId && emoji) void toggleReaction(shadow, msgId, emoji);
-      return;
-    }
-    const addBtn = target.closest<HTMLElement>('.reaction-add-trigger');
-    if (addBtn) {
-      e.stopPropagation();
-      const msgId = findMessageId(addBtn);
-      if (msgId) {
-        if (addBtn.classList.contains('open')) closePicker(shadow);
-        else openPickerNear(shadow, addBtn, msgId);
-      }
-      return;
-    }
-    // Click anywhere else closes the picker.
-    if (shadow.querySelector('.reaction-picker')) closePicker(shadow);
+  wireReactionHandlers(messagesEl, {
+    onToggleReaction: (msgId, emoji) => void toggleReaction(shadow, msgId, emoji),
+    onOpenPicker: (trigger, msgId) => {
+      if (trigger.classList.contains('open')) closePicker(shadow);
+      else openPickerNear(shadow, trigger, msgId);
+    },
+    onClosePicker: () => closePicker(shadow),
+    isPickerOpen: () => !!shadow.querySelector('.reaction-picker'),
   });
 
   // Scroll tracking — when user scrolls to bottom, hide the "new messages"
@@ -1070,7 +1064,7 @@ function renderMessages(shadow: ShadowRoot): void {
           ${avatarCol}
           <div class="body-col">
             ${headerHtml}
-            <div class="text${mentioned ? ' mentioned' : ''}">${renderBody(m.content, m.mentions, _roster)}</div>
+            <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(m.content, m.mentions, _roster)}</div>
             ${reactionsHtml}
           </div>
           <button type="button" class="reaction-add-trigger" data-add-trigger="1" title="Add reaction" aria-label="Add reaction">☺︎</button>
@@ -1096,15 +1090,6 @@ function renderReactions(m: ChatMessage, me: number): string {
     })
     .join('');
   return `<div class="reactions">${chips}</div>`;
-}
-
-function findMessageId(target: Element | null): number | null {
-  let el: Element | null = target;
-  while (el) {
-    if (el instanceof HTMLElement && el.dataset.msgId) return Number(el.dataset.msgId);
-    el = el.parentElement;
-  }
-  return null;
 }
 
 function closePicker(shadow: ShadowRoot): void {
@@ -1231,30 +1216,6 @@ async function doSend(
   }
 }
 
-
-function renderBody(content: string, mentions: number[], roster: Map<number, string>): string {
-  // Only IDs that are BOTH in the message's mentions[] AND in our local
-  // roster become clickable — that keeps us from linkifying arbitrary words
-  // that happen to look like Torn names.
-  const nameToId = new Map<string, number>();
-  for (const pid of mentions) {
-    const name = roster.get(pid);
-    if (name) nameToId.set(name.toLowerCase(), pid);
-  }
-  const parts = content.split(/(@[\w-]+)/g);
-  return parts
-    .map((part) => {
-      if (part.startsWith('@')) {
-        const pid = nameToId.get(part.slice(1).toLowerCase());
-        if (pid) {
-          return `<a class="mention" href="https://www.torn.com/profiles.php?XID=${pid}" target="_blank" rel="noopener noreferrer">${escapeHtml(part)}</a>`;
-        }
-        return `<span class="mention-unlinked">${escapeHtml(part)}</span>`;
-      }
-      return escapeHtml(part);
-    })
-    .join('');
-}
 
 // Avoid unused-variable warning in TypeScript.
 void _unreadPoller;
