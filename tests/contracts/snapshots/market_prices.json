@@ -1,0 +1,32 @@
+{
+  "endpoint": "GET /api/market/prices",
+  "description": "Full item catalogue (~1600 items) with market values, buy/sell prices and country attribution. Companion's market overlay reads this for profit hints. Per-item shape is asserted on a small set of always-present fields; nullable abroad-flag fields (country_slug/name/flag) intentionally stay out of 'required'.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "type": {"type": "string"},
+          "market_value": {"type": ["integer", "number"]},
+          "buy_price": {"type": ["integer", "number"]},
+          "sell_price": {"type": ["integer", "number"]},
+          "circulation": {"type": ["integer", "number"]},
+          "profit_buy_sell": {"type": ["integer", "number"]},
+          "profit_margin_pct": {"type": ["integer", "number"]},
+          "is_shop": {"type": "boolean"},
+          "country_slug": {"type": ["string", "null"]},
+          "country_name": {"type": ["string", "null"]},
+          "country_flag": {"type": ["string", "null"]}
+        },
+        "required": ["id", "name", "market_value", "buy_price", "sell_price", "is_shop"]
+      }
+    },
+    "count": {"type": "integer"}
+  },
+  "required": ["items", "count"],
+  "additionalProperties": false
+}

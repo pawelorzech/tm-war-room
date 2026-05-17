@@ -1,0 +1,26 @@
+{
+  "endpoint": "GET /api/war-off-limits/{war_id}",
+  "description": "Companion overlays the off-limits badge on torn.com attack pages. Each entry tells the Companion which enemy is flagged, by whom, and why. entries is always a list (possibly empty). Per-entry shape is asserted via items.",
+  "type": "object",
+  "properties": {
+    "war_id": {"type": "integer"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "war_id": {"type": "integer"},
+          "player_id": {"type": "integer"},
+          "player_name": {"type": "string"},
+          "set_by": {"type": "integer"},
+          "set_by_name": {"type": "string"},
+          "reason": {"type": "string"}
+        },
+        "required": ["player_id", "player_name", "set_by", "reason"]
+      }
+    },
+    "count": {"type": "integer"}
+  },
+  "required": ["war_id", "entries", "count"],
+  "additionalProperties": false
+}

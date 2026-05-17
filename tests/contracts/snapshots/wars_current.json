@@ -1,0 +1,14 @@
+{
+  "endpoint": "GET /api/wars/current",
+  "description": "Companion polls every 30s on torn.com pages to know which faction we're at war with (drives the off-limits overlay). When not at war OR when Torn upstream is flaking, all five fields are null. opponent_name is optional — older clients tolerate missing names.",
+  "type": "object",
+  "properties": {
+    "war_id": {"type": ["integer", "null"]},
+    "opponent_faction_id": {"type": ["integer", "null"]},
+    "opponent_name": {"type": ["string", "null"]},
+    "start": {"type": ["integer", "null"]},
+    "end": {"type": ["integer", "null"]}
+  },
+  "required": ["war_id", "opponent_faction_id", "start", "end"],
+  "additionalProperties": false
+}

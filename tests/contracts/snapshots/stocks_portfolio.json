@@ -1,0 +1,50 @@
+{
+  "endpoint": "GET /api/stocks/portfolio",
+  "description": "Player's stock portfolio with P/L. Companion stocks-page overlay reads holdings[].profit_pct to colour the rows. transactions is per-holding history. total_value/total_cost/total_profit are floats (sums of currents and cost-basis), not integers.",
+  "type": "object",
+  "properties": {
+    "holdings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stock_id": {"type": "integer"},
+          "name": {"type": "string"},
+          "acronym": {"type": "string"},
+          "total_shares": {"type": ["integer", "number"]},
+          "current_price": {"type": ["integer", "number"]},
+          "current_value": {"type": ["integer", "number"]},
+          "cost_basis": {"type": ["integer", "number"]},
+          "profit": {"type": ["integer", "number"]},
+          "profit_pct": {"type": ["integer", "number"]},
+          "benefit_ready": {"type": "boolean"},
+          "benefit_progress": {"type": ["integer", "number"]},
+          "benefit_frequency": {"type": ["integer", "number"]},
+          "dividend_ready": {"type": "boolean"},
+          "dividend_progress": {"type": ["integer", "number"]},
+          "dividend_frequency": {"type": ["integer", "number"]},
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "shares": {"type": ["integer", "number"]},
+                "bought_price": {"type": ["integer", "number"]},
+                "time_bought": {"type": ["integer", "number"]}
+              },
+              "required": ["shares", "bought_price", "time_bought"]
+            }
+          }
+        },
+        "required": ["stock_id", "name", "total_shares", "current_price", "current_value", "cost_basis", "profit", "profit_pct", "transactions"]
+      }
+    },
+    "count": {"type": "integer"},
+    "total_value": {"type": ["integer", "number"]},
+    "total_cost": {"type": ["integer", "number"]},
+    "total_profit": {"type": ["integer", "number"]},
+    "total_profit_pct": {"type": ["integer", "number"]}
+  },
+  "required": ["holdings", "count", "total_value", "total_cost", "total_profit", "total_profit_pct"],
+  "additionalProperties": false
+}

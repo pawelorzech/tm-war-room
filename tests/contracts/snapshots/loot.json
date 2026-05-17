@@ -1,0 +1,40 @@
+{
+  "endpoint": "GET /api/loot",
+  "description": "NPC loot timers. Companion overlays a level chip on NPC profile links. npcs is a list, each entry carries the current loot level (1-5) and optional next_level_at unix timestamp. level_times is a string-keyed object because JSON object keys are always strings.",
+  "type": "object",
+  "properties": {
+    "npcs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "status": {"type": "string"},
+          "hosp_out": {"type": ["integer", "number"]},
+          "level": {"type": "integer"},
+          "next_level_at": {"type": ["integer", "null"]},
+          "level_times": {"type": "object"},
+          "updated": {"type": ["integer", "number"]},
+          "reservations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player_id": {"type": "integer"},
+                "player_name": {"type": "string"},
+                "target_level": {"type": "integer"}
+              },
+              "required": ["player_id", "player_name", "target_level"]
+            }
+          }
+        },
+        "required": ["id", "name", "level", "reservations"]
+      }
+    },
+    "count": {"type": "integer"},
+    "fetched_at": {"type": "integer"}
+  },
+  "required": ["npcs", "count", "fetched_at"],
+  "additionalProperties": false
+}

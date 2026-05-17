@@ -1,0 +1,34 @@
+{
+  "endpoint": "GET /api/bounties",
+  "description": "Active bounties with threat assessment. Companion bounties-page overlay shows threat_label/threat_score. threat_mode tells the Companion whether scores are 'relative' (calibrated against the caller's stats), 'absolute' (when no caller context), or 'none' (no baseline). estimated_total may be null when nothing is known.",
+  "type": "object",
+  "properties": {
+    "bounties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target_id": {"type": "integer"},
+          "target_name": {"type": "string"},
+          "target_level": {"type": "integer"},
+          "lister_id": {"type": "integer"},
+          "lister_name": {"type": "string"},
+          "reward": {"type": ["integer", "number"]},
+          "reason": {"type": "string"},
+          "quantity": {"type": "integer"},
+          "threat_score": {"type": ["integer", "number"]},
+          "threat_label": {"type": "string"},
+          "threat_source": {"type": "string"},
+          "estimated_total": {"type": ["integer", "number", "null"]},
+          "target_status": {"type": "string"}
+        },
+        "required": ["target_id", "target_name", "reward", "threat_score", "threat_label", "threat_source", "target_status"]
+      }
+    },
+    "count": {"type": "integer"},
+    "total_value": {"type": ["integer", "number"]},
+    "threat_mode": {"type": "string"}
+  },
+  "required": ["bounties", "count", "total_value", "threat_mode"],
+  "additionalProperties": false
+}
