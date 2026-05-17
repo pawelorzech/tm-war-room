@@ -5,6 +5,8 @@ import type { Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
 import { MessageReactions } from "./MessageReactions";
+import { EntityCard } from "./entities/EntityCard";
+import { useEntityResolver } from "./entities/useEntityResolver";
 
 interface Props {
   message: Message;
@@ -138,9 +140,24 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const isBot = message.bot_id !== null;
+
+  /* Track on-screen visibility — entity cards refresh only when in view. */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !message.entities || message.entities.length === 0) return;
+    const obs = new IntersectionObserver(
+      entries => setVisible(entries.some(e => e.isIntersecting)),
+      { rootMargin: "100px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [message.entities]);
+
+  const resolvedCards = useEntityResolver(message.entities, visible);
 
   /* Touch support: tap message to toggle actions, tap outside to dismiss */
   const isCoarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
@@ -265,6 +282,17 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
             {message.ephemeral && (
               <div className="mt-1 text-[10px] text-text-muted italic">
                 Only you can see this. Type a regular message to dismiss.
+              </div>
+            )}
+            {message.entities && message.entities.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {message.entities.map((e, i) => {
+                  if (typeof e.id !== "number" || e.id <= 0) return null;
+                  const key = `${e.kind}:${e.id}`;
+                  const card = resolvedCards[key];
+                  if (!card) return null;
+                  return <EntityCard key={`${key}-${i}`} card={card} />;
+                })}
               </div>
             )}
           </div>

@@ -202,8 +202,21 @@ export function fetchChatMessages(
   if (opts.after !== undefined) params.set('after', String(opts.after));
   if (opts.before !== undefined) params.set('before', String(opts.before));
   if (opts.limit !== undefined) params.set('limit', String(opts.limit));
-  const qs = params.toString() ? `?${params.toString()}` : '';
+  // Companion always asks for inline entities so we can render live cards.
+  params.set('include', 'entities');
+  const qs = `?${params.toString()}`;
   return get<{ messages: ChatMessage[] }>(`/api/chat/channels/${channelId}/messages${qs}`, auth);
+}
+
+export function resolveChatEntities(
+  auth: CompanionAuth,
+  entities: { kind: string; id: number }[],
+): Promise<{ entities: Record<string, import('../types').EntityCard> }> {
+  return post(
+    '/api/chat/entities/resolve',
+    { entities },
+    auth,
+  );
 }
 
 export function sendChatMessage(

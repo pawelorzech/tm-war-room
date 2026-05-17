@@ -14,6 +14,7 @@ from api.chat_commands import (
     parse_command_invocation,
 )
 from api.chat_entities import find_entities_as_dicts
+from api import chat_resolver
 from api.chat_manager import ChatManager
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
@@ -372,6 +373,45 @@ async def list_commands(x_player_id: int = Header()):
     autocomplete dropdown when a user types ``/``."""
     _verify_member(x_player_id)
     return {"commands": chat_command_registry.list()}
+
+
+# ── Entity-card resolver (Task #4) ────────────────────────────
+
+
+class EntityRefIn(BaseModel):
+    kind: str
+    id: int | None = None
+
+
+class EntityResolveBody(BaseModel):
+    entities: list[EntityRefIn]
+
+
+@router.post("/entities/resolve")
+async def resolve_entities(body: EntityResolveBody, x_player_id: int = Header()):
+    """Batched live-data resolver for entity cards.
+
+    Takes the typed refs produced client-side (or extracted server-side via
+    ``?include=entities`` on message GETs) and returns compact payloads keyed
+    by ``"{kind}:{id}"``. Missing keys mean "no live data available right
+    now" — the frontend keeps showing the inline link as a fallback.
+    """
+    _verify_member(x_player_id)
+    if torn_client is None:
+        raise HTTPException(status_code=503, detail="Torn client not initialized")
+    if len(body.entities) > chat_resolver.MAX_BATCH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"too many entities: {len(body.entities)} > {chat_resolver.MAX_BATCH}",
+        )
+    refs = [r.model_dump() for r in body.entities]
+    try:
+        resolved = await chat_resolver.resolve_batch(
+            torn_client, refs, is_admin=_is_admin(x_player_id),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"entities": resolved}
 
 
 # ── Reactions ─────────────────────────────────────────────────

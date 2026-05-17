@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.54.0";
+export const CURRENT_VERSION = "1.55.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.55.0",
+    date: "2026-05-17",
+    title: "Chat — live entity cards (Companion 0.31.0)",
+    changes: [
+      {
+        type: "feat",
+        summary: "Torn links in chat now render as live cards — player status, item price, faction tag, war score",
+        detail: "Paste a Torn profile URL (or the bracket shorthand [2362436], or any factions.php / item.php / rankedwars link) and the message gets a compact live card under the text: player cards show level, faction tag, status chip and an Attack button; item cards show market low and circulation; faction cards show member count and respect; ranked-war cards show live score, target and time remaining. Cards refresh while the message is on screen and stop polling when it scrolls away, so this stays inside the 100 calls/min API budget. Same cards render in the floating Companion chat dock on torn.com — paste once, see it everywhere.",
+      },
+    ],
+  },
   {
     version: "1.54.0",
     date: "2026-05-17",

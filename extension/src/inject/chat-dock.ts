@@ -23,11 +23,12 @@ import {
   fetchOverview,
   markChatRead,
   removeChatReaction,
+  resolveChatEntities,
   sendChatMessage,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
 import { startPolling, type PollHandle } from '../lib/poll';
-import type { ChatChannel, ChatMessage } from '../types';
+import type { ChatChannel, ChatMessage, EntityCard, EntityRef } from '../types';
 
 declare const GM_getValue: <T>(key: string, def?: T) => T;
 declare const GM_setValue: (key: string, value: unknown) => void;
@@ -346,6 +347,58 @@ const STYLES = `
   }
   .msg .text.mentioned { background: rgba(210, 153, 34, 0.12); padding: 2px 4px; border-radius: 3px; }
 
+  .msg .entities {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 4px;
+  }
+  .msg .entity-card {
+    display: inline-flex; align-items: stretch;
+    max-width: 100%; min-width: 0;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+  }
+  .msg .entity-card:hover { background: #21262d; }
+  .msg .entity-card .ec-main { display: flex; align-items: center; gap: 6px; padding: 4px 8px; min-width: 0; text-decoration: none; color: inherit; flex: 1; }
+  .msg .entity-card .ec-body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+  .msg .entity-card .ec-line1 { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+  .msg .entity-card .ec-line2 { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+  .msg .entity-card .ec-name { color: #c9d1d9; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .msg .entity-card .ec-muted { color: #6e7681; }
+  .msg .entity-card .ec-tag {
+    font-size: 10px; padding: 0 4px; border-radius: 3px;
+    background: rgba(35, 134, 54, 0.15); color: #56d364;
+    white-space: nowrap;
+  }
+  .msg .entity-card .ec-war-tag {
+    background: rgba(248, 81, 73, 0.15); color: #ff7b72;
+    text-transform: uppercase;
+  }
+  .msg .entity-card .ec-chip {
+    font-size: 10px; padding: 0 4px; border-radius: 3px;
+    white-space: nowrap;
+  }
+  .msg .entity-card .ec-money { color: #56d364; }
+  .msg .entity-card .ec-up { color: #56d364; }
+  .msg .entity-card .ec-down { color: #ff7b72; }
+  .msg .entity-card .ec-action {
+    display: inline-flex; align-items: center;
+    padding: 0 8px;
+    font-size: 11px; font-weight: 500;
+    color: #ff7b72;
+    border-left: 1px solid #30363d;
+    text-decoration: none;
+  }
+  .msg .entity-card .ec-action:hover { background: rgba(248, 81, 73, 0.1); }
+  .msg .entity-card.ec-item img { width: 24px; height: 24px; object-fit: contain; margin: 4px 0 4px 8px; }
+  .msg .entity-card.ec-item { padding: 0; align-items: center; gap: 0; }
+  .msg .entity-card.ec-item .ec-body { padding: 4px 8px 4px 6px; }
+  .msg .entity-card.ec-faction .ec-body,
+  .msg .entity-card.ec-war .ec-body { padding: 4px 8px; }
+
   .msg .reactions {
     display: flex; flex-wrap: wrap; gap: 4px;
     margin-top: 4px;
@@ -558,6 +611,208 @@ let _atBottom = true;
 let _roster: Map<number, string> = new Map();
 // Avatar URLs keyed by player_id (B2-hosted member avatars).
 let _avatars: Map<number, string> = new Map();
+// Resolved entity-card cache: key = `${kind}:${id}`. Negative results are
+// cached too (value undefined) so a missing entity doesn't spam retries.
+const _entityCache: Map<string, { ts: number; card: EntityCard | null }> = new Map();
+const _entityInflight: Set<string> = new Set();
+
+const ENTITY_TTL_MS: Record<EntityRef['kind'], number> = {
+  player: 60_000,
+  faction: 60_000,
+  item: 300_000,
+  rankedwar: 15_000,
+};
+
+function entityKey(kind: EntityRef['kind'], id: number): string {
+  return `${kind}:${id}`;
+}
+
+function entityFresh(key: string, kind: EntityRef['kind']): boolean {
+  const entry = _entityCache.get(key);
+  if (!entry) return false;
+  return Date.now() - entry.ts < ENTITY_TTL_MS[kind];
+}
+
+function collectUnresolvedEntities(): { kind: EntityRef['kind']; id: number }[] {
+  const out: Map<string, { kind: EntityRef['kind']; id: number }> = new Map();
+  for (const m of _messages) {
+    for (const e of m.entities ?? []) {
+      if (typeof e.id !== 'number' || e.id <= 0) continue;
+      const key = entityKey(e.kind, e.id);
+      if (entityFresh(key, e.kind)) continue;
+      if (_entityInflight.has(key)) continue;
+      if (out.has(key)) continue;
+      out.set(key, { kind: e.kind, id: e.id });
+    }
+  }
+  return [...out.values()];
+}
+
+async function resolveVisibleEntities(shadow: ShadowRoot): Promise<void> {
+  const refs = collectUnresolvedEntities();
+  if (refs.length === 0) return;
+  const auth = getAuth();
+  if (!auth) return;
+  // Cap each batch to 50 — matches MAX_BATCH server-side. If there's more
+  // than that, the first 50 win and the rest get picked up on the next render
+  // pass (cheap because cache marks them all in_progress on first hit).
+  const batch = refs.slice(0, 50);
+  for (const r of batch) _entityInflight.add(entityKey(r.kind, r.id));
+  try {
+    const { entities } = await resolveChatEntities(auth, batch);
+    const now = Date.now();
+    for (const r of batch) {
+      const key = entityKey(r.kind, r.id);
+      _entityCache.set(key, { ts: now, card: entities[key] ?? null });
+    }
+  } catch {
+    // Don't poison the cache permanently; let the next render retry after
+    // a short cooldown.
+    const cooldown = Date.now() - ENTITY_TTL_MS.rankedwar + 5000;
+    for (const r of batch) {
+      const key = entityKey(r.kind, r.id);
+      if (!_entityCache.has(key)) _entityCache.set(key, { ts: cooldown, card: null });
+    }
+  } finally {
+    for (const r of batch) _entityInflight.delete(entityKey(r.kind, r.id));
+  }
+  renderMessages(shadow);
+}
+
+type StatusColor = 'green' | 'red' | 'blue' | 'gray';
+const STATUS_BG: Record<StatusColor, string> = {
+  green: 'rgba(35, 134, 54, 0.2)',
+  red: 'rgba(248, 81, 73, 0.2)',
+  blue: 'rgba(56, 139, 253, 0.2)',
+  gray: 'rgba(110, 118, 129, 0.2)',
+};
+const STATUS_FG: Record<StatusColor, string> = {
+  green: '#56d364',
+  red: '#ff7b72',
+  blue: '#79c0ff',
+  gray: '#8b949e',
+};
+
+function fmtMoney(v: number): string {
+  if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
+  return `$${v}`;
+}
+
+function fmtRemaining(secs: number): string {
+  if (secs <= 0) return 'Ended';
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h left`;
+  if (h > 0) return `${h}h ${m}m left`;
+  return `${m}m left`;
+}
+
+function renderEntityCard(card: EntityCard): string {
+  if (card.kind === 'player') {
+    const bg = STATUS_BG[card.status_color];
+    const fg = STATUS_FG[card.status_color];
+    const tag = card.faction_tag
+      ? `<span class="ec-tag">${escapeHtml(card.faction_tag)}</span>`
+      : '';
+    const last = card.last_action_text
+      ? `<span class="ec-muted">· ${escapeHtml(card.last_action_text)}</span>`
+      : '';
+    return `
+      <div class="entity-card ec-player">
+        <a class="ec-main" href="${escapeHtml(card.profile_url)}" target="_blank" rel="noopener noreferrer">
+          <div class="ec-body">
+            <div class="ec-line1">
+              <span class="ec-name">${escapeHtml(card.name)}</span>
+              <span class="ec-muted">L${card.level}</span>
+              ${tag}
+            </div>
+            <div class="ec-line2">
+              <span class="ec-chip" style="background:${bg};color:${fg}">${escapeHtml(card.status_text)}</span>
+              ${last}
+            </div>
+          </div>
+        </a>
+        <a class="ec-action" href="${escapeHtml(card.attack_url)}" target="_blank" rel="noopener noreferrer" title="Attack">Attack</a>
+      </div>
+    `;
+  }
+  if (card.kind === 'item') {
+    const price = card.market_low > 0 ? `Market ${fmtMoney(card.market_low)}` : 'Not on market';
+    const circ = card.circulation > 0
+      ? `<span class="ec-muted"> · ${card.circulation.toLocaleString()} in circ</span>`
+      : '';
+    return `
+      <a class="entity-card ec-item" href="${escapeHtml(card.market_url)}" target="_blank" rel="noopener noreferrer">
+        <img src="${escapeHtml(card.image)}" alt="" loading="lazy" decoding="async">
+        <div class="ec-body">
+          <div class="ec-line1">
+            <span class="ec-name">${escapeHtml(card.name)}</span>
+            ${card.type ? `<span class="ec-muted">· ${escapeHtml(card.type)}</span>` : ''}
+          </div>
+          <div class="ec-line2">
+            <span class="ec-money">${escapeHtml(price)}</span>${circ}
+          </div>
+        </div>
+      </a>
+    `;
+  }
+  if (card.kind === 'faction') {
+    const tag = card.tag
+      ? `<span class="ec-tag">${escapeHtml(card.tag)}</span>`
+      : '';
+    const meta: string[] = [];
+    if (card.members_count > 0) meta.push(`👥 ${card.members_count}`);
+    if (card.respect > 0) meta.push(`${card.respect.toLocaleString()} resp`);
+    if (card.rank_name) meta.push(escapeHtml(card.rank_name));
+    return `
+      <a class="entity-card ec-faction" href="${escapeHtml(card.url)}" target="_blank" rel="noopener noreferrer">
+        <div class="ec-body">
+          <div class="ec-line1">${tag}<span class="ec-name">${escapeHtml(card.name)}</span></div>
+          <div class="ec-line2 ec-muted">${meta.join(' · ')}</div>
+        </div>
+      </a>
+    `;
+  }
+  // rankedwar
+  const lead = card.score_us - card.score_them;
+  const leadClass = lead > 0 ? 'ec-up' : lead < 0 ? 'ec-down' : 'ec-muted';
+  const remainder = !card.ended && card.time_remaining_s > 0
+    ? `<span class="ec-muted"> · ${escapeHtml(fmtRemaining(card.time_remaining_s))}</span>`
+    : '';
+  const target = card.target_score > 0
+    ? `<span class="ec-muted"> · target ${card.target_score.toLocaleString()}</span>`
+    : '';
+  return `
+    <a class="entity-card ec-war" href="${escapeHtml(card.url)}" target="_blank" rel="noopener noreferrer">
+      <div class="ec-body">
+        <div class="ec-line1">
+          <span class="ec-tag ec-war-tag">${card.ended ? 'RW ENDED' : 'RW LIVE'}</span>
+          <span class="ec-name">vs ${escapeHtml(card.opponent_name || 'Opponent')}</span>
+        </div>
+        <div class="ec-line2">
+          <span class="${leadClass}">${card.score_us.toLocaleString()} – ${card.score_them.toLocaleString()}</span>${target}${remainder}
+        </div>
+      </div>
+    </a>
+  `;
+}
+
+function renderEntities(m: ChatMessage): string {
+  const ents = m.entities ?? [];
+  if (ents.length === 0) return '';
+  const cards: string[] = [];
+  for (const e of ents) {
+    if (typeof e.id !== 'number' || e.id <= 0) continue;
+    const entry = _entityCache.get(entityKey(e.kind, e.id));
+    if (!entry || !entry.card) continue;
+    cards.push(renderEntityCard(entry.card));
+  }
+  if (cards.length === 0) return '';
+  return `<div class="entities">${cards.join('')}</div>`;
+}
 
 async function loadRoster(): Promise<void> {
   if (_roster.size > 0) return;
@@ -1142,6 +1397,7 @@ function renderMessages(shadow: ShadowRoot): void {
 
       const cls = `msg${grouped ? '' : ' group-start'}`;
       const reactionsHtml = renderReactions(m, me);
+      const entitiesHtml = renderEntities(m);
       return `
         ${separator}
         <div class="${cls}" data-msg-id="${m.id}">
@@ -1149,6 +1405,7 @@ function renderMessages(shadow: ShadowRoot): void {
           <div class="body-col">
             ${headerHtml}
             <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(m.content, m.mentions, _roster)}</div>
+            ${entitiesHtml}
             ${reactionsHtml}
           </div>
           <button type="button" class="reaction-add-trigger" data-add-trigger="1" title="Add reaction" aria-label="Add reaction">☺︎</button>
@@ -1156,6 +1413,10 @@ function renderMessages(shadow: ShadowRoot): void {
       `;
     })
     .join('');
+  // Kick off entity resolution for any newly-rendered messages. The render
+  // happens immediately with whatever's already cached; this fills in the
+  // rest asynchronously and re-renders when results arrive.
+  void resolveVisibleEntities(shadow);
 }
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '❌', '👀', '💀', '🚀', '🟢', '🟡', '🔴'];

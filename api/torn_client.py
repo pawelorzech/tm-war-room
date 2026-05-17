@@ -324,6 +324,70 @@ class TornClient:
         self._set_cached(cache_key, ps)
         return ps
 
+    async def fetch_user_basic(self, player_id: int) -> dict | None:
+        """Fetch a single player's basic profile + status + last_action + faction.
+
+        Used by the chat entity-card resolver. Keep this fast/cheap — one call
+        per player ID, cached 60s.
+
+        NB: v1 ``/user/?id=NNN`` is silently ignored by Torn and returns the
+        key owner's data (caused the 2026-05-16 "everyone shows 7B" outage).
+        We use **path form** ``/v1/user/<id>/`` which works correctly.
+        """
+        cache_key = f"user_basic_{player_id}"
+        cached = self._get_cached(cache_key, ttl=60)
+        if cached is not None:
+            return cached
+        start = time.time()
+        try:
+            resp = await self._http.get(
+                f"{V1_BASE}/user/{player_id}/",
+                params={"selections": "profile", "key": self._api_key},
+            )
+            resp.raise_for_status()
+            raw = await _json(resp)
+            if isinstance(raw, dict) and raw.get("error"):
+                self._log_integration(
+                    "torn_api", f"/v1/user/{player_id}/profile", False,
+                    (time.time() - start) * 1000, str(raw["error"]),
+                )
+                return None
+            self._log_integration(
+                "torn_api", f"/v1/user/{player_id}/profile", True,
+                (time.time() - start) * 1000,
+            )
+        except Exception as e:
+            self._log_integration(
+                "torn_api", f"/v1/user/{player_id}/profile", False,
+                (time.time() - start) * 1000, str(e),
+            )
+            return None
+        # Trim to the shape the resolver expects — keep payload small.
+        status = raw.get("status") if isinstance(raw.get("status"), dict) else {}
+        last_action = raw.get("last_action") if isinstance(raw.get("last_action"), dict) else {}
+        faction = raw.get("faction") if isinstance(raw.get("faction"), dict) else {}
+        result = {
+            "name": raw.get("name", ""),
+            "level": raw.get("level", 0),
+            "status": {
+                "state": status.get("state", ""),
+                "description": status.get("description", ""),
+                "until": status.get("until", 0),
+            },
+            "last_action": {
+                "relative": last_action.get("relative", ""),
+                "timestamp": last_action.get("timestamp", 0),
+            },
+            "faction": {
+                "faction_id": faction.get("faction_id", 0),
+                "faction_tag": faction.get("faction_tag", ""),
+                "faction_name": faction.get("faction_name", ""),
+                "position": faction.get("position", ""),
+            },
+        }
+        self._set_cached(cache_key, result)
+        return result
+
     async def fetch_user_profile_stats(self, player_id: int) -> dict | None:
         """Fetch a player's personalstats + profile by ID (using faction key)."""
         cache_key = f"user_profile_{player_id}"

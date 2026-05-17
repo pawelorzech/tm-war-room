@@ -390,7 +390,16 @@ export const api = {
     ),
   chatMessages: (channelId: number, before?: number, limit = 50) =>
     apiFetch<{ messages: Message[] }>(
-      `/api/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
+      `/api/chat/channels/${channelId}/messages?limit=${limit}&include=entities${before ? `&before=${before}` : ""}`
+    ),
+  chatResolveEntities: (entities: { kind: string; id: number }[]) =>
+    apiFetch<{ entities: Record<string, import("@/types/chat").EntityCard> }>(
+      "/api/chat/entities/resolve",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entities }),
+      },
     ),
   chatSendMessage: (channelId: number, content: string, mentions: number[] = []) =>
     apiFetch<import("@/types/chat").Message>(`/api/chat/channels/${channelId}/messages`, {
@@ -433,7 +442,7 @@ export const api = {
     }),
   chatThreadMessages: (threadId: number, before?: number, limit = 50) =>
     apiFetch<{ thread: Thread; messages: Message[] }>(
-      `/api/chat/threads/${threadId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`
+      `/api/chat/threads/${threadId}/messages?limit=${limit}&include=entities${before ? `&before=${before}` : ""}`
     ),
   chatSendThreadMessage: (threadId: number, content: string, mentions: number[] = []) =>
     apiFetch<import("@/types/chat").Message>(`/api/chat/threads/${threadId}/messages`, {
