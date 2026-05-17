@@ -74,6 +74,12 @@ const BOTTOM_NAV_SELECTORS = [
   '[class*="mobile-menu"]',
 ];
 
+// SVG glyphs shared by both renderers (floating FAB + docked icon).
+// Extracted to avoid duplicating ~700B of path data across both call sites.
+const LAUNCH_SVG_CHAT = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>';
+// Plug icon — visual cue that something needs to be plugged in (no auth).
+const LAUNCH_SVG_PLUG = '<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4H6c-1.1 0-2 .9-2 2v5.5c0 1.93 1.57 3.5 3.5 3.5V21h2v-3h5v3h2v-3.01c1.93 0 3.5-1.56 3.5-3.49V9c0-1.1-.9-2-2-2h-2z"/></svg>';
+
 // Styles for the docked variant. Lives in document.head (NOT shadow root)
 // because the button is appended into Torn's DOM. Namespaced + scoped to
 // the button class to avoid colliding with Torn's stylesheet.
@@ -1837,10 +1843,8 @@ function renderFloatingButton(shadow: ShadowRoot): void {
   if (_state.open) btn.classList.add('is-active');
   btn.title = auth ? 'TM Hub chat' : 'Connect TM Hub Companion';
   btn.innerHTML = auth
-    ? `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-       <span class="badge hidden">0</span>`
-    // Plug icon — visual cue that something needs to be plugged in.
-    : `<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4H6c-1.1 0-2 .9-2 2v5.5c0 1.93 1.57 3.5 3.5 3.5V21h2v-3h5v3h2v-3.01c1.93 0 3.5-1.56 3.5-3.49V9c0-1.1-.9-2-2-2h-2z"/></svg>`;
+    ? `${LAUNCH_SVG_CHAT}<span class="badge hidden">0</span>`
+    : LAUNCH_SVG_PLUG;
   shadow.appendChild(btn);
 
   btn.addEventListener('click', () => {
@@ -1869,9 +1873,8 @@ function renderDockedButton(navHost: Element, shadow: ShadowRoot): void {
   if (_state.open) btn.classList.add('is-active');
   btn.title = auth ? 'TM Hub chat' : 'Connect TM Hub Companion';
   btn.innerHTML = auth
-    ? `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-       <span class="tm-chat-dock-badge tm-hidden">0</span>`
-    : `<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4H6c-1.1 0-2 .9-2 2v5.5c0 1.93 1.57 3.5 3.5 3.5V21h2v-3h5v3h2v-3.01c1.93 0 3.5-1.56 3.5-3.49V9c0-1.1-.9-2-2-2h-2z"/></svg>`;
+    ? `${LAUNCH_SVG_CHAT}<span class="tm-chat-dock-badge tm-hidden">0</span>`
+    : LAUNCH_SVG_PLUG;
   navHost.appendChild(btn);
 
   btn.addEventListener('click', (e) => {
