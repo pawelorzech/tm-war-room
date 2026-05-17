@@ -324,6 +324,17 @@ async def lifespan(app: FastAPI):
     chat_mod.key_store = key_store
     chat_mod.push_service = push_service
     chat_mod.presence_repo = presence_repo
+
+    # Roadmap Task #10 — chain-assist wiring.
+    from api.db.repos.chain_assists import ChainAssistRepository
+    from api import chat_chain
+    chain_assist_repo = ChainAssistRepository(db_path="data/keys.db")
+    chat_chain.chain_assist_repo = chain_assist_repo
+    chat_chain.chat_repo = chat_repo
+    chat_chain.chat_manager = chat_mgr
+    chat_chain.key_store = key_store
+    chat_chain.torn_client = torn_client
+    chat_mod.chain_assist_repo = chain_assist_repo
     from api.db.repos.settings import AppSettingsRepository
     settings_repo = AppSettingsRepository(db_path="data/keys.db")
     chat_mod.settings_repo = settings_repo
@@ -387,6 +398,7 @@ async def lifespan(app: FastAPI):
         "notification_dispatcher": notification_dispatcher,
         "chat_repo": chat_repo,
         "chat_manager": chat_mgr,
+        "chain_assist_repo": chain_assist_repo,
         "armoury_repo": armoury_repo,
         "companies_repo": companies_repo,
         "tracked_companies_repo": tracked_companies_repo,

@@ -15,6 +15,8 @@ import { ensurePersistentHost } from '../lib/persistent-host';
 import {
   addChatReaction,
   ApiError,
+  endChainAssist,
+  fetchChainAssist,
   fetchChatChannels,
   fetchChatCommands,
   fetchChatMessages,
@@ -22,11 +24,13 @@ import {
   fetchMemberAvatars,
   fetchOverview,
   fetchWarRoomCard,
+  joinChainAssist,
   markChatRead,
   removeChatReaction,
   resolveChatEntities,
   searchChatMessages,
   sendChatMessage,
+  type ChainAssistResponse,
   type WarRoomCardResponse,
 } from '../lib/api';
 import { getAuth, clearAuth, openAuthPage } from '../lib/auth';
@@ -345,6 +349,68 @@ const STYLES = `
   .war-room-card .wrc-target:hover { background: rgba(248, 81, 73, 0.1); }
   .war-room-card .wrc-target .lvl { color: #6e7681; }
   .war-room-card .wrc-empty { font-size: 11px; color: #6e7681; font-style: italic; }
+
+  .chain-assist-card {
+    margin-top: 4px;
+    border-radius: 6px;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    background: #161b22;
+    overflow: hidden;
+  }
+  .chain-assist-card.closed { border-color: #30363d; }
+  .chain-assist-card .ca-head {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 5px 8px;
+  }
+  .chain-assist-card .ca-tag {
+    font-size: 9px; padding: 1px 6px; border-radius: 3px;
+    background: #f85149; color: #fff; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .chain-assist-card.closed .ca-tag { background: #30363d; color: #8b949e; }
+  .chain-assist-card .ca-name {
+    color: #c9d1d9; font-weight: 500; font-size: 12px;
+    text-decoration: none;
+  }
+  .chain-assist-card .ca-name:hover { text-decoration: underline; }
+  .chain-assist-card .ca-meta { font-size: 11px; color: #6e7681; }
+  .chain-assist-card .ca-state { font-size: 11px; }
+  .chain-assist-card .ca-state.s-Okay { color: #56d364; }
+  .chain-assist-card .ca-state.s-Hospital,
+  .chain-assist-card .ca-state.s-Jail,
+  .chain-assist-card .ca-state.s-Federal { color: #ff7b72; }
+  .chain-assist-card .ca-state.s-Traveling,
+  .chain-assist-card .ca-state.s-Abroad { color: #79c0ff; }
+  .chain-assist-card .ca-attack {
+    margin-left: auto;
+    font-size: 11px; font-weight: 500;
+    color: #ff7b72; padding: 2px 8px;
+    border-radius: 4px; text-decoration: none;
+  }
+  .chain-assist-card .ca-attack:hover { background: rgba(248, 81, 73, 0.1); }
+  .chain-assist-card .ca-foot {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 0 8px 6px 8px;
+  }
+  .chain-assist-card .ca-hitter {
+    font-size: 11px; padding: 1px 8px; border-radius: 999px;
+    background: rgba(35, 134, 54, 0.15); color: #56d364;
+  }
+  .chain-assist-card .ca-empty { font-size: 11px; color: #6e7681; font-style: italic; }
+  .chain-assist-card .ca-btn {
+    font-size: 11px; padding: 2px 10px; border-radius: 4px;
+    border: 0; cursor: pointer; font-family: inherit;
+  }
+  .chain-assist-card .ca-btn.join {
+    background: #238636; color: #fff;
+  }
+  .chain-assist-card .ca-btn.join:hover:not(:disabled) { background: #2ea043; }
+  .chain-assist-card .ca-btn.join:disabled { opacity: 0.6; cursor: default; }
+  .chain-assist-card .ca-btn.end {
+    margin-left: auto; background: transparent; color: #6e7681;
+  }
+  .chain-assist-card .ca-btn.end:hover:not(:disabled) { color: #ff7b72; }
+  .chain-assist-card .ca-err { padding: 0 8px 6px 8px; color: #ff7b72; font-size: 11px; }
 
   .messages {
     flex: 1;
@@ -1172,6 +1238,152 @@ function stopMessagePolling(): void {
   }
 }
 
+// ── Chain assist cards (Task #10) ───────────────────────────
+const CHAIN_MARKER_RE = /^:chain-assist:(\d+):/;
+const _assistCache: Map<number, ChainAssistResponse> = new Map();
+let _assistRefreshTimer: number | null = null;
+
+const ASSIST_STATE_CLASS_OK = ['Okay', 'Hospital', 'Jail', 'Federal', 'Traveling', 'Abroad'];
+function statusClass(state: string): string {
+  return ASSIST_STATE_CLASS_OK.includes(state) ? `s-${state}` : '';
+}
+
+function renderChainAssistInto(slot: HTMLElement, assistId: number, data: ChainAssistResponse | null, error?: string): void {
+  if (error && !data) {
+    slot.innerHTML = `<div class="chain-assist-card closed"><div class="ca-head"><span class="ca-meta">Assist #${assistId}: ${escapeHtml(error)}</span></div></div>`;
+    return;
+  }
+  if (!data) {
+    slot.innerHTML = `<div class="chain-assist-card"><div class="ca-head"><span class="ca-meta">Loading chain assist…</span></div></div>`;
+    return;
+  }
+  const closed = data.ended_at !== null;
+  const me = getAuth()?.player_id ?? 0;
+  const isLeader = me === data.started_by;
+  const alreadyHitting = data.hitters.some((h) => h.id === me);
+  const attackUrl = `https://www.torn.com/page.php?sid=attack&user2ID=${data.target_id}`;
+  const profileUrl = `https://www.torn.com/profiles.php?XID=${data.target_id}`;
+  const tagLabel = closed ? 'Closed' : 'Chain';
+  const hittersHtml = data.hitters.length > 0
+    ? data.hitters.map((h) => `<span class="ca-hitter">${escapeHtml(h.name)}</span>`).join('')
+    : `<span class="ca-empty">No one's joined yet.</span>`;
+  const joinBtn = !closed && !alreadyHitting
+    ? `<button type="button" class="ca-btn join" data-join-id="${assistId}">I'm hitting</button>`
+    : '';
+  const endBtn = !closed && isLeader
+    ? `<button type="button" class="ca-btn end" data-end-id="${assistId}">End</button>`
+    : '';
+  const attackHtml = !closed
+    ? `<a class="ca-attack" href="${escapeHtml(attackUrl)}" target="_blank" rel="noopener noreferrer">Attack</a>`
+    : '';
+  slot.innerHTML = `
+    <div class="chain-assist-card${closed ? ' closed' : ''}">
+      <div class="ca-head">
+        <span class="ca-tag">${tagLabel}</span>
+        <a class="ca-name" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.target_name || `Player ${data.target_id}`)}</a>
+        <span class="ca-state ${statusClass(data.target_status_state)}">· ${escapeHtml(data.target_status_state || '?')}</span>
+        <span class="ca-meta">· led by ${escapeHtml(data.started_by_name || `#${data.started_by}`)}</span>
+        ${attackHtml}
+      </div>
+      <div class="ca-foot">
+        ${hittersHtml}
+        ${joinBtn}
+        ${endBtn}
+      </div>
+    </div>
+  `;
+}
+
+async function hydrateChainAssistSlots(shadow: ShadowRoot): Promise<void> {
+  const slots = shadow.querySelectorAll<HTMLElement>('.chain-assist-slot');
+  if (slots.length === 0) {
+    if (_assistRefreshTimer != null) {
+      clearInterval(_assistRefreshTimer);
+      _assistRefreshTimer = null;
+    }
+    return;
+  }
+  const auth = getAuth();
+  if (!auth) return;
+
+  const ids = new Set<number>();
+  slots.forEach((s) => {
+    const id = Number(s.dataset.assistId);
+    if (id > 0) ids.add(id);
+  });
+
+  // First paint with cached values.
+  slots.forEach((s) => {
+    const id = Number(s.dataset.assistId);
+    if (id > 0) renderChainAssistInto(s, id, _assistCache.get(id) ?? null);
+  });
+
+  // Fetch all visible assists in parallel; ignore individual failures.
+  await Promise.all([...ids].map(async (id) => {
+    try {
+      const data = await fetchChainAssist(auth, id);
+      _assistCache.set(id, data);
+    } catch {
+      // leave cache as-is so the next tick retries
+    }
+  }));
+  slots.forEach((s) => {
+    const id = Number(s.dataset.assistId);
+    if (id > 0) renderChainAssistInto(s, id, _assistCache.get(id) ?? null);
+  });
+
+  // Keep refreshing while any non-closed assist remains on screen.
+  if (_assistRefreshTimer == null) {
+    _assistRefreshTimer = window.setInterval(() => {
+      const present = shadow.querySelectorAll<HTMLElement>('.chain-assist-slot');
+      if (present.length === 0) {
+        if (_assistRefreshTimer != null) {
+          clearInterval(_assistRefreshTimer);
+          _assistRefreshTimer = null;
+        }
+        return;
+      }
+      void hydrateChainAssistSlots(shadow);
+    }, 10_000);
+  }
+}
+
+async function handleAssistJoinClick(shadow: ShadowRoot, assistId: number, btn: HTMLButtonElement): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  btn.disabled = true;
+  btn.textContent = 'Joining…';
+  try {
+    const updated = await joinChainAssist(auth, assistId);
+    _assistCache.set(assistId, updated);
+    void hydrateChainAssistSlots(shadow);
+  } catch (e) {
+    const slot = btn.closest<HTMLElement>('.chain-assist-slot');
+    if (slot) {
+      const errMsg = e instanceof ApiError ? `${e.status} ${e.message}` : String(e);
+      renderChainAssistInto(slot, assistId, _assistCache.get(assistId) ?? null, errMsg);
+    }
+  }
+}
+
+async function handleAssistEndClick(shadow: ShadowRoot, assistId: number, btn: HTMLButtonElement): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  btn.disabled = true;
+  btn.textContent = 'Closing…';
+  try {
+    const updated = await endChainAssist(auth, assistId);
+    _assistCache.set(assistId, updated);
+    void hydrateChainAssistSlots(shadow);
+  } catch (e) {
+    const errMsg = e instanceof ApiError ? `${e.status} ${e.message}` : String(e);
+    const slot = btn.closest<HTMLElement>('.chain-assist-slot');
+    if (slot) {
+      renderChainAssistInto(slot, assistId, _assistCache.get(assistId) ?? null, errMsg);
+    }
+  }
+}
+
 // ── War-room card (Task #9) ─────────────────────────────────
 let _warCardPoller: PollHandle | null = null;
 
@@ -1591,6 +1803,22 @@ function renderPanel(shadow: ShadowRoot): void {
     isPickerOpen: () => !!shadow.querySelector('.reaction-picker'),
   });
 
+  // Chain-assist join / end — delegated click handler.
+  messagesEl.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const joinBtn = target.closest<HTMLButtonElement>('button[data-join-id]');
+    if (joinBtn) {
+      const id = Number(joinBtn.dataset.joinId);
+      if (id > 0) void handleAssistJoinClick(shadow, id, joinBtn);
+      return;
+    }
+    const endBtn = target.closest<HTMLButtonElement>('button[data-end-id]');
+    if (endBtn) {
+      const id = Number(endBtn.dataset.endId);
+      if (id > 0) void handleAssistEndClick(shadow, id, endBtn);
+    }
+  });
+
   // Scroll tracking — when user scrolls to bottom, hide the "new messages"
   // pill AND mark the channel read since they've now seen everything.
   const messages = panel.querySelector<HTMLElement>('.messages')!;
@@ -1718,13 +1946,22 @@ function renderMessages(shadow: ShadowRoot): void {
       const cls = `msg${grouped ? '' : ' group-start'}`;
       const reactionsHtml = renderReactions(m, me);
       const entitiesHtml = renderEntities(m);
+      const chainMatch = m.content.match(CHAIN_MARKER_RE);
+      const chainAssistId = chainMatch ? Number(chainMatch[1]) : null;
+      const bodyText = chainAssistId
+        ? m.content.slice(chainMatch![0].length).trim()
+        : m.content;
+      const chainSlot = chainAssistId
+        ? `<div class="chain-assist-slot" data-assist-id="${chainAssistId}"></div>`
+        : '';
       return `
         ${separator}
         <div class="${cls}" data-msg-id="${m.id}">
           ${avatarCol}
           <div class="body-col">
             ${headerHtml}
-            <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(m.content, m.mentions, _roster)}</div>
+            <div class="text${mentioned ? ' mentioned' : ''}">${renderMessageBody(bodyText, m.mentions, _roster)}</div>
+            ${chainSlot}
             ${entitiesHtml}
             ${reactionsHtml}
           </div>
@@ -1733,6 +1970,8 @@ function renderMessages(shadow: ShadowRoot): void {
       `;
     })
     .join('');
+  // Hydrate any chain-assist slots present in the freshly-rendered DOM.
+  void hydrateChainAssistSlots(shadow);
   // Kick off entity resolution for any newly-rendered messages. The render
   // happens immediately with whatever's already cached; this fills in the
   // rest asynchronously and re-renders when results arrive.

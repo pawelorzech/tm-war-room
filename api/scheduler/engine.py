@@ -45,6 +45,7 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
     from api.scheduler.jobs.check_trains_stagnation import run_check_trains_stagnation
     from api.scheduler.jobs.backup_keys_db import run_backup_keys_db
     from api.scheduler.jobs.flights import run_flights_tick
+    from api.scheduler.jobs.chain_assist_poll import run_chain_assist_poll
 
     global _state
     _state = app_state
@@ -125,6 +126,14 @@ async def create_and_start_scheduler(app_state: dict, leader_election=None):
         "check_trains_stagnation",
         IntervalTrigger(hours=24),
         id="check_trains_stagnation_schedule",
+    )
+
+    # Roadmap Task #10 — chain-assist hospital poller.
+    await scheduler.configure_task("chain_assist_poll", func=run_chain_assist_poll)
+    await scheduler.add_schedule(
+        "chain_assist_poll",
+        IntervalTrigger(seconds=20),
+        id="chain_assist_poll_schedule",
     )
 
     # F-18: daily encrypted backup of keys.db to B2 + retention sweep.

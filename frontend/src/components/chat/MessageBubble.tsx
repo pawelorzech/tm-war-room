@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { MessageReactions } from "./MessageReactions";
 import { EntityCard } from "./entities/EntityCard";
 import { useEntityResolver } from "./entities/useEntityResolver";
+import { ChainAssistCard, CHAIN_ASSIST_MARKER_RE } from "./cards/ChainAssistCard";
 
 interface Props {
   message: Message;
@@ -275,7 +276,26 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
           </div>
         ) : (
           <div className="text-sm text-text-primary whitespace-pre-wrap break-words">
-            {renderContent(message.content, message.mentions, memberMap)}
+            {(() => {
+              const m = message.content.match(CHAIN_ASSIST_MARKER_RE);
+              if (m) {
+                const assistId = Number(m[1]);
+                // Strip the marker from displayed text; the card replaces the
+                // verbose bot summary that follows it.
+                const rest = message.content.slice(m[0].length).trim();
+                return (
+                  <>
+                    {rest && (
+                      <span className="block text-[11px] text-text-muted">
+                        {renderContent(rest, message.mentions, memberMap)}
+                      </span>
+                    )}
+                    <ChainAssistCard assistId={assistId} selfId={selfId} />
+                  </>
+                );
+              }
+              return renderContent(message.content, message.mentions, memberMap);
+            })()}
             {grouped && message.edited_at && (
               <span className="ml-1 text-[10px] text-text-muted">(edited)</span>
             )}

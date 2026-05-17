@@ -268,6 +268,41 @@ export function fetchWarRoomCard(auth: CompanionAuth): Promise<WarRoomCardRespon
   return get<WarRoomCardResponse>('/api/chat/war-room-card', auth);
 }
 
+export interface ChainAssistResponse {
+  id: number;
+  channel_id: number;
+  message_id: number | null;
+  target_id: number;
+  target_name: string;
+  target_status_state: string;
+  started_by: number;
+  started_by_name: string;
+  started_at: number;
+  ended_at: number | null;
+  hitters: { id: number; name: string }[];
+}
+
+export function fetchChainAssist(
+  auth: CompanionAuth,
+  assistId: number,
+): Promise<ChainAssistResponse> {
+  return get<ChainAssistResponse>(`/api/chat/assist/${assistId}`, auth);
+}
+
+export function joinChainAssist(
+  auth: CompanionAuth,
+  assistId: number,
+): Promise<ChainAssistResponse> {
+  return post<ChainAssistResponse>(`/api/chat/assist/${assistId}/join`, {}, auth);
+}
+
+export function endChainAssist(
+  auth: CompanionAuth,
+  assistId: number,
+): Promise<ChainAssistResponse> {
+  return post<ChainAssistResponse>(`/api/chat/assist/${assistId}/end`, {}, auth);
+}
+
 export function sendChatMessage(
   auth: CompanionAuth,
   channelId: number,

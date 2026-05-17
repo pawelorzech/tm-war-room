@@ -18,6 +18,8 @@ from api import chat_resolver
 from api.chat_manager import ChatManager
 from api.chat_search import parse_query, build_search_sql, MAX_LIMIT as SEARCH_MAX_LIMIT
 from api import chat_war_card
+# Import for side-effect: registers the /chain handler into default_registry.
+from api import chat_chain  # noqa: F401
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
 logger = logging.getLogger("tm-hub.chat")
@@ -33,6 +35,7 @@ settings_repo = None
 notification_dispatcher = None  # Set by main.py
 torn_client = None  # Set by main.py
 presence_repo = None  # Set by main.py
+chain_assist_repo = None  # Set by main.py (Task #10)
 
 
 def _msg_rate_ok(player_id: int) -> bool:
@@ -375,6 +378,78 @@ async def list_commands(x_player_id: int = Header()):
     autocomplete dropdown when a user types ``/``."""
     _verify_member(x_player_id)
     return {"commands": chat_command_registry.list()}
+
+
+# ── Chain assist (Task #10) ───────────────────────────────────
+
+
+def _assist_to_dict(a: dict | None) -> dict | None:
+    if a is None:
+        return None
+    return {
+        "id": a["id"],
+        "channel_id": a["channel_id"],
+        "message_id": a.get("message_id"),
+        "target_id": a["target_id"],
+        "target_name": a.get("target_name", ""),
+        "target_status_state": a.get("target_status_state", ""),
+        "started_by": a["started_by"],
+        "started_by_name": a.get("started_by_name", ""),
+        "started_at": a["started_at"],
+        "ended_at": a.get("ended_at"),
+        "hitters": a.get("hitters") or [],
+    }
+
+
+@router.get("/assist/{assist_id}")
+async def get_chain_assist(assist_id: int, x_player_id: int = Header()):
+    """Return the current state of a chain-assist (used by the card poller)."""
+    _verify_member(x_player_id)
+    if chain_assist_repo is None:
+        raise HTTPException(status_code=503, detail="Chain assist not initialized")
+    a = chain_assist_repo.get(assist_id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="Assist not found")
+    return _assist_to_dict(a)
+
+
+@router.post("/assist/{assist_id}/join")
+async def join_chain_assist(assist_id: int, x_player_id: int = Header()):
+    """Add the caller to the assist's hitters list. Idempotent."""
+    _verify_member(x_player_id)
+    if chain_assist_repo is None or chat_manager is None or key_store is None:
+        raise HTTPException(status_code=503, detail="Chain assist not initialized")
+    info = key_store.get_key(x_player_id)
+    name = info["player_name"] if info else str(x_player_id)
+    updated = chain_assist_repo.add_hitter(assist_id, x_player_id, name)
+    if updated is None:
+        raise HTTPException(status_code=410, detail="Assist closed")
+    await chat_manager.broadcast({
+        "type": "chain_assist_update",
+        "payload": {"assist_id": assist_id, "joined": x_player_id},
+    })
+    return _assist_to_dict(updated)
+
+
+@router.post("/assist/{assist_id}/end")
+async def end_chain_assist(assist_id: int, x_player_id: int = Header()):
+    """Close an active assist. Only the leader or an admin can end."""
+    _verify_member(x_player_id)
+    if chain_assist_repo is None or chat_manager is None:
+        raise HTTPException(status_code=503, detail="Chain assist not initialized")
+    a = chain_assist_repo.get(assist_id)
+    if a is None:
+        raise HTTPException(status_code=404, detail="Assist not found")
+    if a.get("ended_at"):
+        return _assist_to_dict(a)
+    if a["started_by"] != x_player_id and not _is_admin(x_player_id):
+        raise HTTPException(status_code=403, detail="Only the leader can end this assist")
+    chain_assist_repo.end(assist_id)
+    await chat_manager.broadcast({
+        "type": "chain_assist_update",
+        "payload": {"assist_id": assist_id, "ended": True},
+    })
+    return _assist_to_dict(chain_assist_repo.get(assist_id))
 
 
 # ── War-room pinned card (Task #9) ────────────────────────────

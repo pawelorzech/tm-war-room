@@ -401,6 +401,31 @@ export const api = {
         body: JSON.stringify({ entities }),
       },
     ),
+  chatGetAssist: (assistId: number) =>
+    apiFetch<{
+      id: number;
+      channel_id: number;
+      message_id: number | null;
+      target_id: number;
+      target_name: string;
+      target_status_state: string;
+      started_by: number;
+      started_by_name: string;
+      started_at: number;
+      ended_at: number | null;
+      hitters: { id: number; name: string }[];
+    }>(`/api/chat/assist/${assistId}`),
+  chatJoinAssist: (assistId: number) =>
+    apiFetch<{
+      id: number;
+      hitters: { id: number; name: string }[];
+      ended_at: number | null;
+    }>(`/api/chat/assist/${assistId}/join`, { method: "POST" }),
+  chatEndAssist: (assistId: number) =>
+    apiFetch<{ id: number; ended_at: number | null }>(
+      `/api/chat/assist/${assistId}/end`,
+      { method: "POST" },
+    ),
   chatWarRoomCard: () =>
     apiFetch<{
       active: boolean;

@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.57.0";
+export const CURRENT_VERSION = "1.58.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.58.0",
+    date: "2026-05-17",
+    title: "Chat — /chain target self-organizes chain assists (Companion 0.34.0)",
+    changes: [
+      {
+        type: "feat",
+        summary: "/chain target <ID> posts a coordination card — others tap \"I'm hitting\", everyone gets a push when the target leaves hospital",
+        detail: "Type `/chain target 2362436` (or `/chain target [2362436]`, or paste a profile URL) in any chat channel and a red coordination card appears: target name, live status (Okay / Hospital / Jail), the leader who called it, an Attack button, and a list of hitters. Other members tap \"I'm hitting\" to join the list so the leader can see at-a-glance who's already on it. A scheduler job watches the target every 20 seconds — when they leave hospital, every hitter gets a browser push notification (\"X is back up!\") and the card flashes back to green. Leader closes the assist with `/chain end`; opening a new `/chain target` automatically closes the previous one. Same card + same controls in the floating Companion chat dock on torn.com.",
+      },
+    ],
+  },
   {
     version: "1.57.0",
     date: "2026-05-17",
