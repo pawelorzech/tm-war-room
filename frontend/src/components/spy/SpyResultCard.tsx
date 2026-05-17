@@ -1,30 +1,30 @@
 'use client';
 
 import type { SpyEstimate } from '@/types/spy';
+import {
+  bucketStyle,
+  formatTotalRange,
+  formatPerStat,
+  bucketCaption,
+} from '@/lib/spy-display';
+import type { Bucket } from '@/lib/spy-display';
 
-const CONFIDENCE_STYLES: Record<string, string> = {
-  exact: 'bg-torn-green/20 text-torn-green border-torn-green/40',
-  estimate: 'bg-warning/20 text-warning border-warning/40',
-  stale: 'bg-danger/20 text-danger border-danger/40',
-  unknown: 'bg-bg-elevated text-text-muted border-text-secondary/30',
-};
-
-function formatStat(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n) || n <= 0) return '—';
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
-  return String(Math.round(n));
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-bg-secondary rounded px-2 py-1.5 text-center">
+      <div className="text-[10px] text-text-secondary">{label}</div>
+      <div className="text-sm font-semibold tabular-nums">{value}</div>
+    </div>
+  );
 }
 
 export function SpyResultCard({ data }: { data: SpyEstimate }) {
   const hasData = data.total > 0 && data.confidence !== 'unknown';
-  const stats = [
-    { label: 'STR', value: data.strength },
-    { label: 'DEF', value: data.defense },
-    { label: 'SPD', value: data.speed },
-    { label: 'DEX', value: data.dexterity },
-  ];
+  const bucket: Bucket = data.bucket ?? 'estimate';
+  const style = bucketStyle(bucket);
+  const totalText = formatTotalRange(data.total, data.total_range, bucket);
+  const perStat = formatPerStat(data);
+  const caption = bucketCaption(data);
 
   return (
     <div className="bg-bg-card border border-text-secondary/20 rounded-xl p-5 space-y-4">
@@ -40,29 +40,35 @@ export function SpyResultCard({ data }: { data: SpyEstimate }) {
             </a>
           </p>
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${CONFIDENCE_STYLES[hasData ? data.confidence : 'unknown']}`}>
-          {hasData ? data.confidence : 'no estimate'}
-        </span>
       </div>
       {hasData ? (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {stats.map(s => (
-              <div key={s.label} className="bg-bg-secondary rounded-lg p-3 text-center">
-                <p className="text-xs text-text-secondary mb-1">{s.label}</p>
-                <p className="text-lg font-bold text-text-primary">{formatStat(s.value)}</p>
-              </div>
-            ))}
+        <div
+          className="border-l-[3px] pl-3"
+          style={{ borderLeftColor: style.borderColor }}
+        >
+          <span
+            className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+            style={{ background: style.badgeBg, color: style.badgeFg }}
+          >
+            {style.badgeText}
+          </span>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-lg">⚔️</span>
+            <span className="text-xl font-bold tabular-nums">{totalText}</span>
+            <span className="text-xs text-text-secondary">
+              {bucket === 'rough_guess' ? 'rough estimate' : 'total estimate'}
+            </span>
           </div>
-          <div className="bg-bg-secondary rounded-lg p-3 text-center">
-            <p className="text-xs text-text-secondary mb-1">Total Battle Stats</p>
-            <p className="text-2xl font-extrabold text-torn-green">{formatStat(data.total)}</p>
-          </div>
-          <div className="flex items-center justify-between text-xs text-text-secondary">
-            <span>Source: {data.source}</span>
-            <span>{data.age_days === 0 ? 'Today' : `${data.age_days}d ago`}</span>
-          </div>
-        </>
+          <p className="text-xs text-text-secondary mt-0.5">{caption}</p>
+          {perStat && (
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              <Stat label="STR" value={perStat.str} />
+              <Stat label="DEF" value={perStat.def} />
+              <Stat label="SPD" value={perStat.spd} />
+              <Stat label="DEX" value={perStat.dex} />
+            </div>
+          )}
+        </div>
       ) : (
         <div className="bg-bg-secondary rounded-lg p-4 text-center text-sm text-text-secondary">
           <p className="font-medium text-text-primary mb-1">No spy estimate available</p>
