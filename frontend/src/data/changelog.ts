@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.51.0";
+export const CURRENT_VERSION = "1.52.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.52.0",
+    date: "2026-05-17",
+    title: "Chat — detect Torn entities in messages (foundation for live cards)",
+    changes: [
+      {
+        type: "feat",
+        summary: "Chat now identifies Torn links and shorthand in every message",
+        detail: "Every chat message is now scanned for Torn player profiles, faction profiles, items and ranked-war links — including bracket shorthand like [2362436] and [Xanax]. Nothing visible changes yet; this is the groundwork for the upcoming live entity cards that will render status, market and war data inline next to each link.",
+      },
+    ],
+  },
   {
     version: "1.51.0",
     date: "2026-05-17",
