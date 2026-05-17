@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.53.0";
+export const CURRENT_VERSION = "1.53.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.53.1",
+    date: "2026-05-17",
+    title: "Chat — tighter spacing when no reactions",
+    changes: [
+      {
+        type: "fix",
+        summary: "Empty reaction row no longer adds vertical space between messages",
+        before: "After the reactions feature shipped, every message reserved a row for the chip strip and the '+ add reaction' button — so unreacted messages had a visible gap underneath, making the conversation feel airier than before.",
+        after: "Messages with no reactions render flush against the next one. The '+ add reaction' button now lives in the existing hover action pill at the top-right (next to edit/pin/delete in the main chat, top-right of the bubble in the Companion).",
+        cause: "The reactions wrapper was always rendered for layout consistency; collapsing it to null when empty restores the original message density.",
+      },
+    ],
+  },
   {
     version: "1.53.0",
     date: "2026-05-17",

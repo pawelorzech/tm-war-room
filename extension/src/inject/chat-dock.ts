@@ -354,19 +354,24 @@ const STYLES = `
     color: #56d364;
   }
   .msg .reaction-chip .count { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .msg .reaction-add {
-    display: inline-flex; align-items: center; justify-content: center;
+  .msg { position: relative; }
+  .msg .reaction-add-trigger {
+    position: absolute;
+    top: 2px; right: 6px;
     width: 22px; height: 22px;
-    border-radius: 999px;
-    border: 1px dashed #30363d;
-    background: transparent;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background: #161b22;
     color: #6e7681;
     cursor: pointer;
     opacity: 0;
     transition: opacity 120ms;
+    font-size: 12px;
+    line-height: 1;
   }
-  .msg:hover .reaction-add, .msg .reactions .reaction-add.open { opacity: 1; }
-  .msg .reaction-add:hover { color: #c9d1d9; border-color: #6e7681; }
+  .msg:hover .reaction-add-trigger, .msg .reaction-add-trigger.open { opacity: 1; }
+  .msg .reaction-add-trigger:hover { color: #c9d1d9; border-color: #6e7681; }
   .reaction-picker {
     position: absolute; z-index: 5;
     display: flex; flex-wrap: wrap; gap: 2px;
@@ -919,7 +924,7 @@ function renderPanel(shadow: ShadowRoot): void {
       if (msgId && emoji) void toggleReaction(shadow, msgId, emoji);
       return;
     }
-    const addBtn = target.closest<HTMLElement>('.reaction-add');
+    const addBtn = target.closest<HTMLElement>('.reaction-add-trigger');
     if (addBtn) {
       e.stopPropagation();
       const msgId = findMessageId(addBtn);
@@ -1068,6 +1073,7 @@ function renderMessages(shadow: ShadowRoot): void {
             <div class="text${mentioned ? ' mentioned' : ''}">${renderBody(m.content, m.mentions, _roster)}</div>
             ${reactionsHtml}
           </div>
+          <button type="button" class="reaction-add-trigger" data-add-trigger="1" title="Add reaction" aria-label="Add reaction">☺︎</button>
         </div>
       `;
     })
@@ -1078,6 +1084,10 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '❌', '�
 
 function renderReactions(m: ChatMessage, me: number): string {
   const list = m.reactions ?? [];
+  // Skip the wrapper entirely when there are no chips — keeps the gap
+  // between messages tight. The "+" affordance lives in the hover action
+  // overlay (data-react-trigger) instead of a permanent in-flow button.
+  if (list.length === 0) return '';
   const chips = list
     .map((r) => {
       const mine = me > 0 && r.players.some((p) => p.id === me);
@@ -1085,8 +1095,7 @@ function renderReactions(m: ChatMessage, me: number): string {
       return `<button type="button" class="reaction-chip${mine ? ' mine' : ''}" data-emoji="${escapeHtml(r.emoji)}" title="${escapeHtml(names)} reacted with ${escapeHtml(r.emoji)}"><span aria-hidden>${escapeHtml(r.emoji)}</span><span class="count">${r.count}</span></button>`;
     })
     .join('');
-  const addBtn = `<button type="button" class="reaction-add" data-add="1" title="Add reaction">+</button>`;
-  return `<div class="reactions">${chips}${addBtn}</div>`;
+  return `<div class="reactions">${chips}</div>`;
 }
 
 function findMessageId(target: Element | null): number | null {
@@ -1100,7 +1109,7 @@ function findMessageId(target: Element | null): number | null {
 
 function closePicker(shadow: ShadowRoot): void {
   shadow.querySelector('.reaction-picker')?.remove();
-  shadow.querySelectorAll('.reaction-add.open').forEach((el) => el.classList.remove('open'));
+  shadow.querySelectorAll('.reaction-add-trigger.open').forEach((el) => el.classList.remove('open'));
 }
 
 function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number): void {
