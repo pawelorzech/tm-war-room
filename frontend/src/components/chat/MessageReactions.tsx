@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import type { Reaction } from "@/types/chat";
 import { api } from "@/lib/api-client";
 
@@ -39,6 +39,7 @@ export function MessageReactions({
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   // Reset to top-7 view whenever the picker closes so the next open starts compact.
   useEffect(() => { if (!pickerOpen) setExpanded(false); }, [pickerOpen]);
@@ -54,6 +55,20 @@ export function MessageReactions({
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
   }, [pickerOpen, setPickerOpen]);
+
+  // Clamp horizontal do viewportu — picker nie może wystawać poza prawą krawędź.
+  // `left-0` z Tailwind to default; inline `left` w px nadpisuje go gdy overflow > 0.
+  useLayoutEffect(() => {
+    if (!pickerOpen || !pickerRef.current) return;
+    const el = pickerRef.current;
+    el.style.left = "";  // reset do CSS przed pomiarem (potrzebne przy re-measure on expand)
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const overflowRight = rect.right - (window.innerWidth - margin);
+    if (overflowRight > 0) {
+      el.style.left = `${-overflowRight}px`;
+    }
+  }, [pickerOpen, expanded]);
 
   const toggle = useCallback(
     async (emoji: string, mineAlready: boolean) => {
@@ -112,7 +127,7 @@ export function MessageReactions({
         );
       })}
       {pickerOpen && (
-        <div className="absolute z-20 bottom-full left-0 mb-1 flex items-center gap-1 p-1.5 bg-bg-surface border border-border rounded-full shadow-lg">
+        <div ref={pickerRef} className="absolute z-20 bottom-full left-0 mb-1 flex items-center gap-1 p-1.5 bg-bg-surface border border-border rounded-full shadow-lg">
           {(expanded ? QUICK_EMOJIS_ALL : QUICK_EMOJIS_TOP).map(emoji => {
             const existing = list.find(r => r.emoji === emoji);
             const mine = !!(existing && selfId != null && existing.players.some(p => p.id === selfId));

@@ -2207,6 +2207,15 @@ function closePicker(shadow: ShadowRoot): void {
   shadow.querySelectorAll('.reaction-add-trigger.open').forEach((el) => el.classList.remove('open'));
 }
 
+// Keep the picker fully inside the viewport on the X axis. Anchors near the
+// right edge of the dock used to position the picker so its tail spilled off
+// screen — emojis were rendered but unreachable. offsetWidth requires the
+// element to be in the DOM, so call this AFTER appendChild.
+function clampPickerHorizontal(picker: HTMLElement, desiredLeft: number, margin = 8): void {
+  const maxLeft = window.innerWidth - picker.offsetWidth - margin;
+  picker.style.left = `${Math.max(margin, Math.min(desiredLeft, maxLeft))}px`;
+}
+
 function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number): void {
   closePicker(shadow);
   anchor.classList.add('open');
@@ -2233,10 +2242,7 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
       picker.innerHTML = emojiButtonsHtml(QUICK_EMOJIS_ALL);
       // Re-clamp horizontal position so the now-wider picker doesn't spill
       // past the viewport edge.
-      const margin = 8;
-      const maxLeft = window.innerWidth - picker.offsetWidth - margin;
-      const desiredLeft = rect.left;
-      picker.style.left = `${Math.max(margin, Math.min(desiredLeft, maxLeft))}px`;
+      clampPickerHorizontal(picker, rect.left);
       return;
     }
     const btn = target.closest<HTMLElement>('button[data-pick]');
@@ -2246,6 +2252,10 @@ function openPickerNear(shadow: ShadowRoot, anchor: HTMLElement, msgId: number):
     closePicker(shadow);
   });
   shadow.appendChild(picker);
+  // Clamp AFTER mount so offsetWidth reflects the rendered pill width.
+  // Without this, anchors near the right dock edge spawned a picker that
+  // overflowed the viewport and made the rightmost emojis unclickable.
+  clampPickerHorizontal(picker, rect.left);
 }
 
 async function toggleReaction(shadow: ShadowRoot, msgId: number, emoji: string): Promise<void> {

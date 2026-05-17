@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.62.2";
+export const CURRENT_VERSION = "1.62.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.62.3",
+    date: "2026-05-17",
+    title: "Chat — reaction picker stays inside the screen",
+    changes: [
+      {
+        type: "fix",
+        summary: "Reaction picker no longer spills off the right edge of the screen",
+        before: "Clicking the smiley on a message near the right side of the chat opened a picker whose right half was clipped — thumbs-up, heart and the rest were rendered but unreachable.",
+        after: "The picker now slides leftwards as needed so every emoji stays at least 8px inside the viewport, both on first open and after pressing the More button.",
+        cause: "The picker was anchored to the trigger's left edge with no awareness of how close that edge was to the screen border.",
+      },
+    ],
+  },
   {
     version: "1.62.2",
     date: "2026-05-17",
