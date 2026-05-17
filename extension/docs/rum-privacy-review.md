@@ -1,12 +1,16 @@
 # Companion RUM Beacon — Privacy Review
 
-**Status:** Awaiting sign-off (Sprint 0)
+**Status:** ✅ Signed off — RUM ramp authorised (2026-05-17)
 **Author:** Claude (Algorithm session 2026-05-17). Drafted from conversation with Paweł Orzech on 2026-05-17 where the "zero PII + documentation in /install" option was selected over a consent banner or opt-out toggle.
-**Approver:** Paweł Orzech (TM Hub maintainer). Sign-off pending — fill the line below before flipping `ENABLE_RUM=1` in production.
+**Approver:** Paweł Orzech (TM Hub maintainer).
 
-> **Sign-off line (fill in before production ramp):**
+> **Sign-off line:**
 >
-> Reviewed and approved by ____________________ on ____________ (date).
+> Reviewed and approved by **Paweł Orzech** on **2026-05-17**.
+>
+> Approval given in-session via direct message acknowledging the schema,
+> opt-out path, retention policy, and risk register above. ENABLE_RUM=1
+> may be flipped on the production deployment immediately.
 **Scope:** `extension/src/lib/rum.ts` and backend endpoint `POST /api/companion/rum`.
 
 The Companion has historically sent zero analytics. This document is the precedent — what we ship from a player's browser to TM Hub, and what we will never ship, and how a player can stop it.
