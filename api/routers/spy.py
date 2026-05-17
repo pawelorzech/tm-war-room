@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Header, Depends, Request
 from pydantic import BaseModel
 from api.services.spy import SpyService, is_real_spy, spy_reported_at
+from api.services.spy_display import bucket_and_range
 from api.torn_client import TornStatsAuthError
 from api.admin import require_admin
 
@@ -72,13 +73,32 @@ def _fmt_estimate(est: dict, now: datetime) -> dict:
     reported = datetime.fromisoformat(est["reported_at"])
     if reported.tzinfo is None:
         reported = reported.replace(tzinfo=timezone.utc)
+    age_days = (now - reported).days
+    total = est["total"]
+    bucket, total_range, width_pct = bucket_and_range(
+        source=est["source"], age_days=age_days, total=total,
+    )
+    # rough_guess sources (heuristic / unknown) divide total/4 evenly — that's
+    # a placeholder, not a real split. Null per-stat so the UI hides the
+    # misleading equal-split grid.
+    if bucket == "rough_guess":
+        strength = defense = speed = dexterity = None
+    else:
+        strength = est["strength"]
+        defense = est["defense"]
+        speed = est["speed"]
+        dexterity = est["dexterity"]
     return {
         "player_id": est["player_id"], "player_name": est["player_name"],
-        "strength": est["strength"], "defense": est["defense"],
-        "speed": est["speed"], "dexterity": est["dexterity"],
-        "total": est["total"], "confidence": est["confidence"],
+        "strength": strength, "defense": defense,
+        "speed": speed, "dexterity": dexterity,
+        "total": total, "confidence": est["confidence"],
         "source": est["source"], "reported_at": est["reported_at"],
-        "age_days": (now - reported).days,
+        "age_days": age_days,
+        "bucket": bucket,
+        "total_range": list(total_range),
+        "range_width_pct": width_pct,
+        "heuristic_confidence": None,
     }
 
 
@@ -120,6 +140,9 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
             # we step down to "estimate" so the UI shows a reasonable confidence.
             confidence = "exact" if age_days <= 7 else ("estimate" if age_days <= 30 else "stale")
             name = svc.repo.get_names_for_ids([player_id]).get(player_id)
+            bucket, total_range, width_pct = bucket_and_range(
+                source="faction_snapshot", age_days=age_days, total=snap["total"],
+            )
             return {
                 "player_id": player_id,
                 "player_name": name,
@@ -132,6 +155,10 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
                 "source": "faction_snapshot",
                 "reported_at": reported.isoformat(),
                 "age_days": age_days,
+                "bucket": bucket,
+                "total_range": list(total_range),
+                "range_width_pct": width_pct,
+                "heuristic_confidence": None,
             }
 
     # 2. Heuristic estimator from personalstats (xanax + refills + level + ...)
@@ -162,24 +189,31 @@ async def _build_fallback_estimate(player_id: int, svc: SpyService) -> dict | No
         total = int(est_data.get("estimated_total") or 0)
         if total <= 0:
             return None
-        per_stat = total // 4
         name = raw.get("name") or svc.repo.get_names_for_ids([player_id]).get(player_id)
+        heuristic_conf = est_data.get("confidence")
+        bucket, total_range, width_pct = bucket_and_range(
+            source="estimated", age_days=0, total=total,
+            heuristic_conf=heuristic_conf,
+        )
+        # Heuristic divides total/4 evenly — that's a placeholder, not a real
+        # split. Null per-stat so the UI hides the misleading equal-split grid.
         return {
             "player_id": player_id,
             "player_name": name,
-            # We can't split the heuristic total across the four stats, so we
-            # divide evenly. The UI should show this with low confidence so
-            # users know the per-stat breakdown is a guess.
-            "strength": per_stat,
-            "defense": per_stat,
-            "speed": per_stat,
-            "dexterity": per_stat,
+            "strength": None,
+            "defense": None,
+            "speed": None,
+            "dexterity": None,
             "total": total,
             "confidence": "estimate",
             "source": "estimated",
             "reported_at": now.isoformat(),
             "age_days": 0,
             "stat_estimate": est_data,
+            "bucket": bucket,
+            "total_range": list(total_range),
+            "range_width_pct": width_pct,
+            "heuristic_confidence": heuristic_conf,
         }
     except Exception:
         return None
@@ -310,12 +344,19 @@ async def spy_faction(faction_id: int, svc: SpyService = Depends(_require_servic
             entry["level"] = m.level
             results.append(entry)
         else:
+            unk_bucket, unk_range, unk_width = bucket_and_range(
+                source="none", age_days=None, total=0,
+            )
             results.append({
                 "player_id": m.id, "player_name": m.name,
-                "strength": 0, "defense": 0, "speed": 0, "dexterity": 0,
+                "strength": None, "defense": None, "speed": None, "dexterity": None,
                 "total": 0, "confidence": "unknown",
                 "source": "none", "reported_at": None, "age_days": None,
                 "level": m.level,
+                "bucket": unk_bucket,
+                "total_range": list(unk_range),
+                "range_width_pct": unk_width,
+                "heuristic_confidence": None,
             })
     results.sort(key=lambda r: r["total"], reverse=True)
     return {
@@ -402,6 +443,27 @@ async def get_spy_estimate(
                 result["stat_estimate"] = est_data
         except Exception:
             pass
+    # Re-compute bucket/range with the heuristic confidence now that
+    # stat_estimate may have populated it. For real spy sources this is a
+    # no-op (heuristic_conf is ignored); for source='estimated' rows it
+    # narrows the range from the default 100% width to the heuristic's
+    # actual confidence band.
+    heuristic_conf = (result.get("stat_estimate") or {}).get("confidence")
+    bucket, total_range, width_pct = bucket_and_range(
+        source=result["source"],
+        age_days=result.get("age_days"),
+        total=result["total"],
+        heuristic_conf=heuristic_conf,
+    )
+    result["bucket"] = bucket
+    result["total_range"] = list(total_range)
+    result["range_width_pct"] = width_pct
+    result["heuristic_confidence"] = heuristic_conf
+    if bucket == "rough_guess":
+        result["strength"] = None
+        result["defense"] = None
+        result["speed"] = None
+        result["dexterity"] = None
     return result
 
 

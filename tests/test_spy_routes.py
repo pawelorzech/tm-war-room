@@ -218,9 +218,16 @@ async def test_submit_and_get_spy(setup_db):
             assert resp.status_code == 200
             data = resp.json()
             assert data["player_id"] == 456
-            assert data["strength"] == 1e9
+            # member_submit is currently classified as rough_guess by
+            # bucket_and_range (only faction_snapshot/tornstats/yata are
+            # real-spy sources). Per Task 2's design, rough_guess nulls
+            # per-stat to hide the misleading equal-split grid. The total
+            # and confidence still round-trip exactly.
+            assert data["strength"] is None
+            assert data["total"] == 1e9 + 8e8 + 5e8 + 6e8
             assert data["confidence"] == "exact"
             assert data["source"] == "member_submit"
+            assert data["bucket"] == "rough_guess"
 
 
 # ---------------------------------------------------------------------------
@@ -333,3 +340,85 @@ async def test_tornstats_pool_falls_back_to_global_key(setup_db):
     assert resp.status_code == 200
     keys_used = [c.args[1] for c in fetch.call_args_list]
     assert keys_used == ["global_env_key"]
+
+
+# ---------------------------------------------------------------------------
+# bucket_and_range integration into /api/spy/{id} (Task 2).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_spy_endpoint_attaches_bucket_and_range(setup_db):
+    """The single-player spy endpoint returns the new display fields:
+    bucket / total_range / range_width_pct / heuristic_confidence."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    from datetime import datetime, timezone
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+    # Seed a recent TornStats spy so the bucket lands in 'verified' or 'estimate'
+    now_iso = datetime.now(timezone.utc).isoformat()
+    spy_repo.upsert_report(
+        player_id=12345, player_name="TestVictim",
+        source="tornstats",
+        strength=1_000_000_000, defense=1_000_000_000,
+        speed=1_000_000_000, dexterity=1_000_000_000,
+        total=4_000_000_000,
+        confidence="estimate",
+        reported_at=now_iso,
+    )
+    spy_svc.refresh_estimate(12345)
+    with patch("api.main.key_store", _mock_store()), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", None):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/12345", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "bucket" in body
+    assert body["bucket"] in {"verified", "estimate", "rough_guess"}
+    assert "total_range" in body
+    assert isinstance(body["total_range"], list) and len(body["total_range"]) == 2
+    assert isinstance(body["range_width_pct"], int)
+    assert "heuristic_confidence" in body
+
+
+@pytest.mark.asyncio
+async def test_spy_endpoint_nulls_per_stat_for_rough_guess(setup_db):
+    """When data is heuristic-only, per-stat fields are nulled so the UI
+    hides the misleading equal-split grid."""
+    from api.db.repos.spies import SpyRepository
+    from api.services.spy import SpyService
+    from datetime import datetime, timezone
+    spy_repo = SpyRepository(setup_db)
+    spy_svc = SpyService(spy_repo)
+    # Seed an estimated (heuristic) source row
+    now_iso = datetime.now(timezone.utc).isoformat()
+    spy_repo.upsert_report(
+        player_id=23456, player_name="HeuristicOnly",
+        source="estimated",
+        strength=1_250_000_000, defense=1_250_000_000,
+        speed=1_250_000_000, dexterity=1_250_000_000,
+        total=5_000_000_000,
+        confidence="estimate",
+        reported_at=now_iso,
+    )
+    spy_svc.refresh_estimate(23456)
+    with patch("api.main.key_store", _mock_store()), \
+         patch("api.routers.spy.spy_service", spy_svc), \
+         patch("api.routers.spy.torn_client", None):
+        from api.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get("/api/spy/23456", headers=AUTH_HEADERS)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["bucket"] == "rough_guess"
+    assert body["strength"] is None
+    assert body["defense"] is None
+    assert body["speed"] is None
+    assert body["dexterity"] is None
+    # SQLite REAL → JSON float; we only care the total survived round-trip
+    assert isinstance(body["total"], (int, float)) and body["total"] > 0
