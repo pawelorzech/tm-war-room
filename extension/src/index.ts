@@ -13,6 +13,7 @@
 import { fetchCurrentWar, fetchOffLimits, fetchFeatureFlags, ApiError } from './lib/api';
 import { getAuth, installAuthListener, clearAuth, consumeAuthFragment } from './lib/auth';
 import { matchPage, watchUrlChanges } from './lib/torn-pages';
+import { shouldSkipRefresh } from './lib/refresh-dedupe';
 import { injectPreconnect } from './lib/preconnect';
 import { startRumWire } from './lib/rum-wire';
 import { HUB_ORIGIN } from './env';
@@ -50,6 +51,19 @@ let offLimitsCache: { byPlayer: Map<number, WarOffLimits>; until: number } | nul
 const WAR_TTL_MS = 60_000;
 const OFFLIMITS_TTL_MS = 30_000;
 
+// Refresh dedupe — refresh() has four entry points (interval, URL watcher,
+// auth listener, tm-companion-refresh event) and the URL watcher's
+// MutationObserver can fire dozens of times per second on heavy pages.
+// Without these guards we kick off the same heavyweight fetch bursts.
+// See lib/refresh-dedupe.ts for the full rationale. 250ms coalesces the
+// observer bursts without making teammate flag changes feel laggy — well
+// below the OFFLIMITS_TTL_MS (30s) polling cadence so periodic refreshes
+// always pass through.
+const REFRESH_DEDUPE_WINDOW_MS = 250;
+let refreshInFlight = false;
+let lastRefreshedHref: string | null = null;
+let lastRefreshedAt = 0;
+
 async function getWarId(auth: CompanionAuth): Promise<number | null> {
   if (Date.now() < warIdCache.until) return warIdCache.value;
   try {
@@ -82,6 +96,37 @@ async function getOffLimitsMap(auth: CompanionAuth, warId: number): Promise<Map<
 }
 
 async function refresh(): Promise<void> {
+  // Dedupe gate — see REFRESH_DEDUPE_WINDOW_MS above. We do NOT queue the
+  // dropped invocation: if an interesting state change happened, the
+  // in-flight refresh or the next interval tick will pick it up. Queuing
+  // would defeat the point (the burst is the symptom we're treating).
+  const currentHref = window.location.href;
+  const now = Date.now();
+  if (
+    shouldSkipRefresh(
+      now,
+      currentHref,
+      lastRefreshedHref,
+      lastRefreshedAt,
+      REFRESH_DEDUPE_WINDOW_MS,
+      refreshInFlight,
+    )
+  ) {
+    return;
+  }
+  refreshInFlight = true;
+  lastRefreshedHref = currentHref;
+  lastRefreshedAt = now;
+  try {
+    await refreshInner();
+  } finally {
+    // Clear in try/finally so a thrown error inside refreshInner() doesn't
+    // wedge the guard permanently (would block every future refresh).
+    refreshInFlight = false;
+  }
+}
+
+async function refreshInner(): Promise<void> {
   const match = matchPage();
 
   // Profile pages mount up to 7 async overlays (off-limits, FF chip, intel,
