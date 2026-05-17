@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.62.1";
+export const CURRENT_VERSION = "1.62.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.62.2",
+    date: "2026-05-17",
+    title: "Spy faction list — bucket-coded dots + range totals",
+    changes: [
+      {
+        type: "improve",
+        summary: "Spy Central tables (Known Stats + Faction Lookup) now match the per-player view: bucket-colored dot (green/yellow/orange) and a total that shows a range when the data isn't a fresh verified spy",
+        detail: "Same three trust levels (VERIFIED SPY / ESTIMATE / ROUGH GUESS) introduced in v1.62.0, now applied to the list views — you can scan a roster and immediately see which rows are hard data and which are guesses without opening each player individually.",
+      },
+    ],
+  },
   {
     version: "1.62.1",
     date: "2026-05-17",

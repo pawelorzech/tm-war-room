@@ -3,12 +3,12 @@
 import { useState, useMemo } from 'react';
 import type { SpyEstimate, SpyFactionResponse } from '@/types/spy';
 import { api } from '@/lib/api-client';
+import { formatTotalRange, type Bucket } from '@/lib/spy-display';
 
-const CONFIDENCE_DOT: Record<string, string> = {
-  exact: 'bg-green-500',
+const BUCKET_DOT: Record<Bucket, string> = {
+  verified: 'bg-green-500',
   estimate: 'bg-yellow-500',
-  stale: 'bg-red-500',
-  unknown: 'bg-gray-500',
+  rough_guess: 'bg-orange-500',
 };
 
 function fmt(n: number | null | undefined): string {
@@ -17,6 +17,10 @@ function fmt(n: number | null | undefined): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
   return n > 0 ? String(Math.round(n)) : '—';
+}
+
+function fmtTotal(e: SpyEstimate): string {
+  return formatTotalRange(e.total, e.total_range, e.bucket ?? 'estimate');
 }
 
 type SortCol = 'total' | 'strength' | 'defense' | 'speed' | 'dexterity' | 'level';
@@ -103,14 +107,14 @@ export function FactionLookup() {
               <div key={e.player_id} className={`bg-bg-card border rounded-lg p-3 ${e.confidence === 'unknown' ? 'border-text-secondary/10 opacity-60' : 'border-text-secondary/20'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${CONFIDENCE_DOT[e.confidence]}`} />
+                    <span className={`w-2 h-2 rounded-full ${BUCKET_DOT[e.bucket ?? 'estimate']}`} title={e.bucket ?? 'estimate'} />
                     <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
                        className="text-sm font-medium text-text-primary hover:text-torn-green">
                       {e.player_name || `#${e.player_id}`}
                     </a>
                     {e.level && <span className="text-xs text-text-muted">Lv{e.level}</span>}
                   </div>
-                  <span className={`text-lg font-bold ${e.total > 0 ? 'text-torn-green' : 'text-text-muted'}`}>{fmt(e.total)}</span>
+                  <span className={`text-lg font-bold tabular-nums ${e.total > 0 ? 'text-torn-green' : 'text-text-muted'}`}>{fmtTotal(e)}</span>
                 </div>
                 {e.total > 0 && (
                   <div className="grid grid-cols-4 gap-2 text-xs text-center">
@@ -143,14 +147,14 @@ export function FactionLookup() {
               <tbody>
                 {sorted.map(e => (
                   <tr key={e.player_id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${e.confidence === 'unknown' ? 'opacity-50' : ''}`}>
-                    <td className="py-1.5 px-2"><span className={`w-2 h-2 rounded-full inline-block ${CONFIDENCE_DOT[e.confidence]}`} /></td>
+                    <td className="py-1.5 px-2"><span className={`w-2 h-2 rounded-full inline-block ${BUCKET_DOT[e.bucket ?? 'estimate']}`} title={e.bucket ?? 'estimate'} /></td>
                     <td className="py-1.5 px-2">
                       <a href={`https://www.torn.com/profiles.php?XID=${e.player_id}`} target="_blank" rel="noopener noreferrer"
                          className="text-text-primary hover:text-torn-green">{e.player_name || `#${e.player_id}`}</a>
                       <span className="ml-1 text-xs text-text-muted">[{e.player_id}]</span>
                     </td>
                     <td className="py-1.5 px-2 text-text-muted">{e.level ?? '—'}</td>
-                    <td className="py-1.5 px-2 font-semibold text-torn-green">{fmt(e.total)}</td>
+                    <td className="py-1.5 px-2 font-semibold text-torn-green tabular-nums whitespace-nowrap">{fmtTotal(e)}</td>
                     <td className="py-1.5 px-2">{fmt(e.strength)}</td>
                     <td className="py-1.5 px-2">{fmt(e.defense)}</td>
                     <td className="py-1.5 px-2">{fmt(e.speed)}</td>

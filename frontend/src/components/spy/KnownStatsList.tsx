@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { SpyEstimate } from '@/types/spy';
 import { api } from '@/lib/api-client';
+import { formatTotalRange, type Bucket } from '@/lib/spy-display';
 
-const CONFIDENCE_DOT: Record<string, string> = {
-  exact: 'bg-green-500',
+const BUCKET_DOT: Record<Bucket, string> = {
+  verified: 'bg-green-500',
   estimate: 'bg-yellow-500',
-  stale: 'bg-red-500',
-  unknown: 'bg-gray-500',
+  rough_guess: 'bg-orange-500',
 };
 
 function fmt(n: number | null | undefined): string {
@@ -17,6 +17,10 @@ function fmt(n: number | null | undefined): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
   return String(Math.round(n));
+}
+
+function fmtTotal(e: SpyEstimate): string {
+  return formatTotalRange(e.total, e.total_range, e.bucket ?? 'estimate');
 }
 
 function isEmptyRow(e: SpyEstimate): boolean {
@@ -127,7 +131,7 @@ export function KnownStatsList() {
             <div key={e.player_id} className={`bg-bg-card border border-text-secondary/20 rounded-lg p-3 ${isEmptyRow(e) ? 'opacity-60' : ''}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`w-2 h-2 rounded-full flex-none ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
+                  <span className={`w-2 h-2 rounded-full flex-none ${BUCKET_DOT[e.bucket ?? 'estimate']}`} title={e.bucket ?? 'estimate'} />
                   <a href={`/spy?id=${e.player_id}`}
                      className={`text-sm font-medium hover:text-torn-green truncate ${muted ? 'text-text-muted italic' : 'text-text-primary'}`}>
                     {display}
@@ -137,7 +141,7 @@ export function KnownStatsList() {
                     [{e.player_id}]
                   </a>
                 </div>
-                <span className="text-lg font-bold text-torn-green flex-none ml-2">{fmt(e.total)}</span>
+                <span className="text-lg font-bold text-torn-green flex-none ml-2 tabular-nums">{fmtTotal(e)}</span>
               </div>
               <div className="grid grid-cols-4 gap-2 text-xs text-center">
                 <div><span className="text-text-secondary">STR</span><br/><span className="font-medium">{fmt(e.strength)}</span></div>
@@ -185,7 +189,7 @@ export function KnownStatsList() {
               return (
                 <tr key={e.player_id} className={`border-b border-border-light hover:bg-bg-elevated/50 transition-colors ${empty ? 'opacity-60' : ''}`}>
                   <td className="py-1.5 px-2">
-                    <span className={`w-2 h-2 rounded-full inline-block ${CONFIDENCE_DOT[e.confidence]}`} title={e.confidence} />
+                    <span className={`w-2 h-2 rounded-full inline-block ${BUCKET_DOT[e.bucket ?? 'estimate']}`} title={e.bucket ?? 'estimate'} />
                   </td>
                   <td className="py-1.5 px-2">
                     <a href={`/spy?id=${e.player_id}`}
@@ -197,7 +201,7 @@ export function KnownStatsList() {
                       [{e.player_id}]
                     </a>
                   </td>
-                  <td className="py-1.5 px-2 font-semibold text-torn-green">{fmt(e.total)}</td>
+                  <td className="py-1.5 px-2 font-semibold text-torn-green tabular-nums whitespace-nowrap">{fmtTotal(e)}</td>
                   <td className="py-1.5 px-2">{fmt(e.strength)}</td>
                   <td className="py-1.5 px-2">{fmt(e.defense)}</td>
                   <td className="py-1.5 px-2">{fmt(e.speed)}</td>
