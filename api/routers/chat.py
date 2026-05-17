@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Header, Query, WebSocket, WebSocke
 from pydantic import BaseModel
 
 from api.auth import decode_jwt, rate_limiter
+from api.chat_entities import find_entities_as_dicts
 from api.chat_manager import ChatManager
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
 
@@ -163,6 +164,7 @@ async def get_messages(
     before: int | None = None,
     after: int | None = None,
     limit: int = Query(50, ge=1, le=100),
+    include: str | None = Query(None, description="Comma-separated extras: 'entities'"),
     x_player_id: int = Header(),
 ):
     """Fetch messages from a channel.
@@ -170,6 +172,8 @@ async def get_messages(
     - ``?before=<id>``: paginate older messages (newest first by default)
     - ``?after=<id>``: fetch new messages since the last seen id, used by
       the Companion chat dock polling loop
+    - ``?include=entities``: attach a detected Torn-entity list to each
+      message (foundation for live entity cards). Default off.
     """
     _verify_member(x_player_id)
     ch = chat_repo.get_channel(channel_id)
@@ -183,6 +187,9 @@ async def get_messages(
         after_id=after,
         limit=limit,
     )
+    if include and "entities" in {p.strip() for p in include.split(",")}:
+        for m in messages:
+            m["entities"] = find_entities_as_dicts(m.get("content") or "")
     return {"messages": messages}
 
 
@@ -338,13 +345,18 @@ async def create_thread(
 @router.get("/threads/{thread_id}/messages")
 async def get_thread_messages(
     thread_id: int, before: int | None = None,
-    limit: int = 50, x_player_id: int = Header(),
+    limit: int = 50,
+    include: str | None = Query(None, description="Comma-separated extras: 'entities'"),
+    x_player_id: int = Header(),
 ):
     _verify_member(x_player_id)
     thread = chat_repo.get_thread(thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
     messages = chat_repo.get_thread_messages(thread_id, before_id=before, limit=min(limit, 100))
+    if include and "entities" in {p.strip() for p in include.split(",")}:
+        for m in messages:
+            m["entities"] = find_entities_as_dicts(m.get("content") or "")
     return {"thread": thread, "messages": messages}
 
 
