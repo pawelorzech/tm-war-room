@@ -262,6 +262,11 @@ export function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = 
             {grouped && message.edited_at && (
               <span className="ml-1 text-[10px] text-text-muted">(edited)</span>
             )}
+            {message.ephemeral && (
+              <div className="mt-1 text-[10px] text-text-muted italic">
+                Only you can see this. Type a regular message to dismiss.
+              </div>
+            )}
           </div>
         )}
         {!editing && message.deleted !== 1 && (

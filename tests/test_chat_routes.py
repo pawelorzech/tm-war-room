@@ -222,3 +222,169 @@ def test_get_messages_attaches_reactions_field():
     finally:
         for p in patches:
             p.stop()
+
+
+# ── Slash commands (Task #3) ──────────────────────────────────────────────────
+
+
+class _SendChatRepo(_StubChatRepo):
+    """Sender-side stub: track create_message calls + rate-limit/mute helpers
+    so send_message can run end-to-end."""
+
+    def __init__(self):
+        super().__init__([])
+        self.created = []
+
+    def is_muted(self, _player_id):
+        return False
+
+    def create_message(self, channel_id, player_id, player_name, content, mentions=None, **kw):
+        msg = {
+            "id": len(self.created) + 1,
+            "channel_id": channel_id,
+            "thread_id": None,
+            "player_id": player_id,
+            "player_name": player_name,
+            "content": content,
+            "bot_id": kw.get("bot_id"),
+            "mentions": mentions or [],
+            "pinned": 0,
+            "deleted": 0,
+            "created_at": 1,
+            "edited_at": None,
+        }
+        self.created.append(msg)
+        return msg
+
+    def update_read_position(self, *_args, **_kw):
+        return None
+
+
+class _StubChatManager:
+    def __init__(self):
+        self.broadcasts = []
+
+    async def broadcast(self, msg):
+        self.broadcasts.append(msg)
+
+
+class _StubKeyStoreWithName(_StubKeyStore):
+    def get_key(self, player_id):
+        return {"player_name": "Alice"}
+
+
+def _mount_send():
+    """Mount the chat router with stubs sufficient for send_message paths."""
+    from api.routers.chat import router as chat_router
+    app = FastAPI()
+    app.include_router(chat_router)
+    repo = _SendChatRepo()
+    manager = _StubChatManager()
+    store = _StubKeyStoreWithName()
+    patches = [
+        patch("api.routers.chat.chat_repo", repo),
+        patch("api.routers.chat.chat_manager", manager),
+        patch("api.routers.chat.key_store", store),
+        patch("api.routers.chat.settings_repo", None),
+    ]
+    for p in patches:
+        p.start()
+    return app, patches, repo, manager
+
+
+def test_help_command_returns_ephemeral_without_persisting():
+    app, patches, repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "/help", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body.get("ephemeral") is True
+        assert "Available commands" in body["content"] or "/help" in body["content"]
+        assert repo.created == [], "ephemeral commands must not hit the DB"
+        assert manager.broadcasts == [], "ephemeral commands must not broadcast"
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_unknown_command_returns_ephemeral_hint_not_broadcast():
+    app, patches, repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "/notacommand stuff", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body.get("ephemeral") is True
+        assert "Unknown command" in body["content"]
+        assert "/notacommand" in body["content"]
+        assert repo.created == []
+        assert manager.broadcasts == []
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_regular_message_is_not_intercepted_by_command_parser():
+    app, patches, repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "hey team, ready for chain?", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body.get("ephemeral") is not True
+        assert body["content"] == "hey team, ready for chain?"
+        assert len(repo.created) == 1
+        assert len(manager.broadcasts) == 1
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_slash_alone_is_treated_as_plain_text():
+    app, patches, repo, manager = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/api/chat/channels/1/messages",
+                json={"content": "/", "mentions": []},
+                headers={"X-Player-Id": "123"},
+            )
+        # Bare "/" is whitespace-only after strip → 400 from existing guard
+        # which is fine; what matters is no ephemeral response was issued.
+        assert resp.status_code in (200, 400)
+        if resp.status_code == 200:
+            body = resp.json()
+            assert body.get("ephemeral") is not True
+    finally:
+        for p in patches:
+            p.stop()
+
+
+def test_list_commands_endpoint_returns_help():
+    app, patches, _repo, _mgr = _mount_send()
+    try:
+        with TestClient(app) as client:
+            resp = client.get(
+                "/api/chat/commands",
+                headers={"X-Player-Id": "123"},
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        names = [c["name"] for c in body["commands"]]
+        assert "help" in names
+    finally:
+        for p in patches:
+            p.stop()

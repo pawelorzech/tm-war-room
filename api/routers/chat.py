@@ -9,6 +9,10 @@ from fastapi import APIRouter, HTTPException, Header, Query, WebSocket, WebSocke
 from pydantic import BaseModel
 
 from api.auth import decode_jwt, rate_limiter
+from api.chat_commands import (
+    default_registry as chat_command_registry,
+    parse_command_invocation,
+)
 from api.chat_entities import find_entities_as_dicts
 from api.chat_manager import ChatManager
 from api.config import SUPERADMIN_ID, SUPERADMIN_IDS, JWT_SECRET
@@ -221,6 +225,41 @@ async def send_message(
     sender = key_store.get_key(x_player_id) if key_store else None
     name = sender["player_name"] if sender else str(x_player_id)
 
+    # Slash-command interception. Anything that parses as a command is
+    # routed through the registry BEFORE it hits the DB or pub/sub. The
+    # raw "/cmd args" body never appears in the chat history.
+    parsed_cmd = parse_command_invocation(body.content)
+    if parsed_cmd is not None:
+        cmd_name, cmd_args = parsed_cmd
+        if chat_command_registry.has(cmd_name):
+            result = await chat_command_registry.dispatch(
+                cmd_name, x_player_id, cmd_args, channel_id,
+            )
+            assert result is not None  # `has` just returned True
+            if result.broadcast and result.message_back:
+                bot_msg = chat_repo.create_message(
+                    channel_id=channel_id, player_id=0,
+                    player_name="tm-bot", content=result.message_back,
+                    mentions=[],
+                )
+                chat_repo.update_read_position(x_player_id, channel_id, bot_msg["id"])
+                await chat_manager.broadcast({"type": "message", "payload": bot_msg})
+                return bot_msg
+            # Ephemeral: sender-only, no DB, no broadcast.
+            return _ephemeral_command_message(
+                channel_id=channel_id,
+                content=result.message_back or "",
+                render=result.render,
+            )
+        # Looked like a command but isn't registered — ephemeral hint.
+        return _ephemeral_command_message(
+            channel_id=channel_id,
+            content=(
+                f"Unknown command: `/{cmd_name}`. "
+                f"Type `/help` to see the available commands."
+            ),
+        )
+
     msg = chat_repo.create_message(
         channel_id=channel_id, player_id=x_player_id,
         player_name=name, content=body.content.strip(),
@@ -293,6 +332,46 @@ async def get_pinned(channel_id: int, x_player_id: int = Header()):
     if ch and ch["admin_only"] and not _is_admin(x_player_id):
         raise HTTPException(status_code=403, detail="Admin-only channel")
     return {"messages": chat_repo.get_pinned_messages(channel_id)}
+
+
+# ── Slash commands ────────────────────────────────────────────
+
+
+def _ephemeral_command_message(
+    *, channel_id: int, content: str, render: dict | None = None,
+) -> dict:
+    """Build a Message-shaped dict that the sender's client appends locally.
+
+    The ``ephemeral`` flag tells the client: "this message exists for you
+    only, was not persisted, do not expect a WS echo, do not re-fetch on
+    reload". Server returns the same dict for both registered-but-quiet
+    commands AND the unknown-command hint.
+    """
+    return {
+        "id": 0,
+        "channel_id": channel_id,
+        "thread_id": None,
+        "player_id": 0,
+        "player_name": "tm-bot",
+        "content": content,
+        "bot_id": 0,
+        "mentions": [],
+        "pinned": 0,
+        "deleted": 0,
+        "created_at": int(time.time()),
+        "edited_at": None,
+        "reactions": [],
+        "ephemeral": True,
+        "render": render,
+    }
+
+
+@router.get("/commands")
+async def list_commands(x_player_id: int = Header()):
+    """Return the registered slash commands so the frontend can show an
+    autocomplete dropdown when a user types ``/``."""
+    _verify_member(x_player_id)
+    return {"commands": chat_command_registry.list()}
 
 
 # ── Reactions ─────────────────────────────────────────────────

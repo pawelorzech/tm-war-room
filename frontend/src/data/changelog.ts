@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.53.3";
+export const CURRENT_VERSION = "1.54.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.54.0",
+    date: "2026-05-17",
+    title: "Chat — slash commands (foundation + /help)",
+    changes: [
+      {
+        type: "feat",
+        summary: "Type / in chat to see an autocomplete list of commands",
+        detail: "Anything starting with /name is now intercepted as a chat command. The autocomplete dropdown shows registered commands with descriptions; arrow keys navigate, Tab or Enter accepts, Esc dismisses. /help lists every command. Unknown /foo shows an ephemeral 'unknown command' hint only you can see — it never lands in the channel. This is the plumbing for upcoming /chain, /poll, /remind, /travel and user-defined macros. Works the same in the floating Companion chat dock on torn.com.",
+      },
+    ],
+  },
   {
     version: "1.53.3",
     date: "2026-05-17",

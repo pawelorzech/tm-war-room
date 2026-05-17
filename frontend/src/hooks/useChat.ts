@@ -139,14 +139,19 @@ export function useChat() {
     };
     setMessages(prev => [...prev, tempMsg]);
 
-    // Try WebSocket first
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    // Slash-commands have to take the REST path: the backend never
+    // broadcasts ephemeral responses, so a WS send would leave the
+    // optimistic "/help" message stranded on screen with no answer.
+    const isCommand = /^\/[A-Za-z]/.test(content);
+
+    // Try WebSocket first (only for non-commands)
+    if (!isCommand && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: "message",
         payload: { channel_id: activeChannelRef.current, content, mentions },
       }));
     } else {
-      // REST fallback — replace optimistic with server response
+      // REST — replace optimistic with server response
       try {
         const msg = await api.chatSendMessage(activeChannelRef.current, content, mentions);
         setMessages(prev => prev.map(m => m.id === tempId ? msg : m));

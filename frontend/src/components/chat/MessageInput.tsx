@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { api } from "@/lib/api-client";
 
 interface Member {
   player_id: number;
@@ -18,6 +19,31 @@ interface Props {
 const MAX_LENGTH = 4000;
 const MAX_SUGGESTIONS = 5;
 
+// Mirror of api/chat_commands.py _COMMAND_RE — slash + letter + word chars.
+const SLASH_PREFIX_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)?$/;
+
+interface ChatCommand {
+  name: string;
+  description: string;
+}
+
+let _chatCommandsCache: { commands: ChatCommand[]; fetchedAt: number } | null = null;
+const COMMAND_CACHE_TTL_MS = 60_000;
+
+async function loadChatCommands(): Promise<ChatCommand[]> {
+  const now = Date.now();
+  if (_chatCommandsCache && now - _chatCommandsCache.fetchedAt < COMMAND_CACHE_TTL_MS) {
+    return _chatCommandsCache.commands;
+  }
+  try {
+    const r = await api.chatCommands();
+    _chatCommandsCache = { commands: r.commands, fetchedAt: now };
+    return r.commands;
+  } catch {
+    return _chatCommandsCache?.commands ?? [];
+  }
+}
+
 function getMentionQuery(text: string, cursorPos: number): string | null {
   // Find the last @ before cursor
   const before = text.slice(0, cursorPos);
@@ -29,14 +55,32 @@ function getMentionQuery(text: string, cursorPos: number): string | null {
   return fragment;
 }
 
+function getSlashPrefix(text: string): string | null {
+  const m = text.match(SLASH_PREFIX_RE);
+  if (!m) return null;
+  return m[1] ?? "";
+}
+
 export function MessageInput({ onSend, onTyping, disabled, placeholder, members = [] }: Props) {
   const [value, setValue] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Member[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [pendingMentions, setPendingMentions] = useState<number[]>([]);
+  const [allCommands, setAllCommands] = useState<ChatCommand[]>([]);
+  const [slashPrefix, setSlashPrefix] = useState<string | null>(null);
+  const [cmdSelectedIdx, setCmdSelectedIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Pre-load the command list once so the first "/" feels instant.
+  useEffect(() => {
+    void loadChatCommands().then(setAllCommands);
+  }, []);
+
+  const cmdSuggestions = slashPrefix === null
+    ? []
+    : allCommands.filter(c => c.name.toLowerCase().startsWith(slashPrefix.toLowerCase()));
 
   // Update suggestions whenever query changes
   useEffect(() => {
@@ -101,7 +145,36 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
     }
   }, [value, disabled, onSend, pendingMentions, members]);
 
+  const acceptCommand = useCallback((cmd: ChatCommand) => {
+    setValue(`/${cmd.name} `);
+    setSlashPrefix(null);
+    setCmdSelectedIdx(0);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (slashPrefix !== null && cmdSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setCmdSelectedIdx(i => (i + 1) % cmdSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setCmdSelectedIdx(i => (i - 1 + cmdSuggestions.length) % cmdSuggestions.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        acceptCommand(cmdSuggestions[cmdSelectedIdx] ?? cmdSuggestions[0]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSlashPrefix(null);
+        return;
+      }
+    }
     if (suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -145,6 +218,10 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
     // Detect mention query
     const cursor = e.target.selectionStart ?? v.length;
     setMentionQuery(getMentionQuery(v, cursor));
+    // Detect slash-command prefix (input must START with "/<name>" — no spaces)
+    const slash = getSlashPrefix(v);
+    setSlashPrefix(slash);
+    if (slash !== null) setCmdSelectedIdx(0);
   };
 
   const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
@@ -154,7 +231,32 @@ export function MessageInput({ onSend, onTyping, disabled, placeholder, members 
 
   return (
     <div className="border-t border-border p-3 relative shrink-0">
-      {/* Autocomplete dropdown */}
+      {/* Slash-command autocomplete dropdown */}
+      {slashPrefix !== null && cmdSuggestions.length > 0 && (
+        <div className="absolute bottom-full left-3 right-3 mb-1 bg-bg-surface border border-border rounded-lg shadow-lg overflow-hidden z-50">
+          {cmdSuggestions.map((cmd, idx) => (
+            <button
+              key={cmd.name}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); acceptCommand(cmd); }}
+              className={`w-full text-left px-3 py-2 text-sm flex items-baseline gap-3 transition-colors ${
+                idx === cmdSelectedIdx
+                  ? "bg-bg-elevated text-text-primary"
+                  : "text-text-primary hover:bg-bg-elevated"
+              }`}
+            >
+              <span className="font-mono text-torn-blue font-medium">/{cmd.name}</span>
+              <span className="text-[11px] text-text-muted">{cmd.description}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {slashPrefix !== null && cmdSuggestions.length === 0 && (
+        <div className="absolute bottom-full left-3 right-3 mb-1 bg-bg-surface border border-border rounded-lg shadow-lg overflow-hidden z-50 px-3 py-2 text-[11px] text-text-muted">
+          No matching commands
+        </div>
+      )}
+      {/* @mention autocomplete dropdown */}
       {suggestions.length > 0 && (
         <div
           ref={dropdownRef}

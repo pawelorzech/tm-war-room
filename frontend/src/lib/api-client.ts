@@ -384,6 +384,10 @@ export const api = {
 
   // ── Chat ──────────────────────────────────────────────────
   chatChannels: () => apiFetch<{ channels: Channel[] }>("/api/chat/channels"),
+  chatCommands: () =>
+    apiFetch<{ commands: { name: string; description: string }[] }>(
+      "/api/chat/commands",
+    ),
   chatMessages: (channelId: number, before?: number, limit = 50) =>
     apiFetch<{ messages: Message[] }>(
       `/api/chat/channels/${channelId}/messages?limit=${limit}${before ? `&before=${before}` : ""}`

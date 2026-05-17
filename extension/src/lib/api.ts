@@ -223,6 +223,17 @@ export function fetchChatUnread(auth: CompanionAuth): Promise<ChatUnreadResponse
   return get<ChatUnreadResponse>('/api/chat/unread', auth);
 }
 
+export interface CompanionChatCommand {
+  name: string;
+  description: string;
+}
+
+export function fetchChatCommands(
+  auth: CompanionAuth,
+): Promise<{ commands: CompanionChatCommand[] }> {
+  return get<{ commands: CompanionChatCommand[] }>('/api/chat/commands', auth);
+}
+
 export function addChatReaction(
   auth: CompanionAuth,
   messageId: number,

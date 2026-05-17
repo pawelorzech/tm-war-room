@@ -36,6 +36,8 @@ export interface Message {
   created_at: number;
   edited_at: number | null;
   reactions?: Reaction[];
+  ephemeral?: boolean;
+  render?: Record<string, unknown> | null;
   _optimistic?: boolean;
 }
 

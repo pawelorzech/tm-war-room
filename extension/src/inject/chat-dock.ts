@@ -16,6 +16,7 @@ import {
   addChatReaction,
   ApiError,
   fetchChatChannels,
+  fetchChatCommands,
   fetchChatMessages,
   fetchChatUnread,
   fetchMemberAvatars,
@@ -34,6 +35,12 @@ declare const GM_setValue: (key: string, value: unknown) => void;
 import { HUB_ORIGIN } from '../env';
 import { escapeHtml } from '../lib/format';
 import { renderMessageBody, wireReactionHandlers } from '../lib/chat-render';
+import {
+  detectSlashContext,
+  filterCommands,
+  nextIndex,
+  type ChatCommandInfo,
+} from '../lib/chat-commands';
 
 const HOST_KIND = 'chat-dock';
 const STATE_KEY = 'tm-hub-companion-chat-dock-state';
@@ -397,6 +404,37 @@ const STYLES = `
     cursor: pointer;
   }
   .reaction-picker button:hover { background: #30363d; }
+
+  .composer { position: relative; }
+  .cmd-autocomplete {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: 100%;
+    margin-bottom: 6px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 10;
+  }
+  .cmd-autocomplete.hidden { display: none; }
+  .cmd-row {
+    display: flex; gap: 8px; align-items: baseline;
+    width: 100%;
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    color: #c9d1d9;
+    font: inherit;
+  }
+  .cmd-row:hover, .cmd-row.selected { background: #30363d; }
+  .cmd-row .name { color: #58a6ff; font-weight: 600; font-family: monospace; }
+  .cmd-row .desc { color: #6e7681; font-size: 11px; }
+  .cmd-empty { padding: 6px 10px; color: #6e7681; font-size: 11px; }
 
   .date-sep {
     display: flex;
@@ -907,18 +945,64 @@ function renderPanel(shadow: ShadowRoot): void {
   // Composer
   const ta = panel.querySelector<HTMLTextAreaElement>('.composer textarea')!;
   const sendBtn = panel.querySelector<HTMLButtonElement>('.composer .send')!;
+  const composerWrap = panel.querySelector<HTMLElement>('.composer')!;
+  let _autocompleteIndex = 0;
   ta.addEventListener('input', () => {
     ta.style.height = 'auto';
     ta.style.height = Math.min(100, ta.scrollHeight) + 'px';
     sendBtn.disabled = ta.value.trim().length === 0;
+    updateAutocomplete(composerWrap, ta.value);
   });
   ta.addEventListener('keydown', (e) => {
+    const visible = isAutocompleteOpen(composerWrap);
+    if (visible && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const list = currentAutocompleteList();
+      _autocompleteIndex = nextIndex(
+        _autocompleteIndex,
+        list.length,
+        e.key === 'ArrowDown' ? 'down' : 'up',
+      );
+      paintAutocompleteSelection(composerWrap, _autocompleteIndex);
+      return;
+    }
+    if (visible && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey))) {
+      e.preventDefault();
+      const list = currentAutocompleteList();
+      const picked = list[_autocompleteIndex] ?? list[0];
+      if (picked) acceptAutocomplete(ta, picked);
+      hideAutocomplete(composerWrap);
+      return;
+    }
+    if (visible && e.key === 'Escape') {
+      e.preventDefault();
+      hideAutocomplete(composerWrap);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       void doSend(shadow, ta, sendBtn);
     }
   });
+  ta.addEventListener('blur', () => {
+    // Delay so a click on a dropdown row still registers.
+    setTimeout(() => hideAutocomplete(composerWrap), 120);
+  });
   sendBtn.addEventListener('click', () => void doSend(shadow, ta, sendBtn));
+
+  // Dropdown row clicks
+  composerWrap.addEventListener('click', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('.cmd-row');
+    if (!row) return;
+    const name = row.dataset.cmd;
+    if (!name) return;
+    acceptAutocomplete(ta, { name, description: row.dataset.desc ?? '' });
+    hideAutocomplete(composerWrap);
+    ta.focus();
+  });
+
+  // Pre-load command list once auth is ready so the first "/" feels instant.
+  void warmupChatCommands();
 
   // Reactions — delegated click on chips / + buttons / picker.
   const messagesEl = panel.querySelector<HTMLElement>('.messages')!;
@@ -1183,6 +1267,103 @@ function showError(shadow: ShadowRoot, text: string): void {
   const wrap = shadow.querySelector<HTMLElement>('.messages');
   if (!wrap) return;
   wrap.innerHTML = `<div class="error">${escapeHtml(text)}</div>`;
+}
+
+// ── Slash-command autocomplete ─────────────────────────────────────────────
+
+let _chatCommands: ChatCommandInfo[] = [];
+let _chatCommandsFetchedAt = 0;
+const COMMAND_CACHE_TTL_MS = 60_000;
+let _autocompleteVisibleList: ChatCommandInfo[] = [];
+
+async function warmupChatCommands(): Promise<void> {
+  const auth = getAuth();
+  if (!auth) return;
+  const age = Date.now() - _chatCommandsFetchedAt;
+  if (_chatCommands.length > 0 && age < COMMAND_CACHE_TTL_MS) return;
+  try {
+    const r = await fetchChatCommands(auth);
+    _chatCommands = r.commands;
+    _chatCommandsFetchedAt = Date.now();
+  } catch {
+    // Non-fatal; autocomplete is a nicety, not a critical path.
+  }
+}
+
+function isAutocompleteOpen(composer: HTMLElement): boolean {
+  const ac = composer.querySelector<HTMLElement>('.cmd-autocomplete');
+  return !!ac && !ac.classList.contains('hidden');
+}
+
+function currentAutocompleteList(): ChatCommandInfo[] {
+  return _autocompleteVisibleList;
+}
+
+function hideAutocomplete(composer: HTMLElement): void {
+  const ac = composer.querySelector<HTMLElement>('.cmd-autocomplete');
+  if (ac) ac.classList.add('hidden');
+  _autocompleteVisibleList = [];
+}
+
+function paintAutocomplete(
+  composer: HTMLElement,
+  list: ChatCommandInfo[],
+  selectedIdx: number,
+): void {
+  let ac = composer.querySelector<HTMLElement>('.cmd-autocomplete');
+  if (!ac) {
+    ac = document.createElement('div');
+    ac.className = 'cmd-autocomplete';
+    composer.appendChild(ac);
+  }
+  ac.classList.remove('hidden');
+  if (list.length === 0) {
+    ac.innerHTML = `<div class="cmd-empty">No matching commands</div>`;
+    return;
+  }
+  ac.innerHTML = list
+    .map((c, i) => {
+      const sel = i === selectedIdx ? ' selected' : '';
+      return `<button type="button" class="cmd-row${sel}" data-cmd="${escapeHtml(c.name)}" data-desc="${escapeHtml(c.description)}"><span class="name">/${escapeHtml(c.name)}</span><span class="desc">${escapeHtml(c.description)}</span></button>`;
+    })
+    .join('');
+}
+
+function paintAutocompleteSelection(composer: HTMLElement, idx: number): void {
+  const rows = composer.querySelectorAll<HTMLElement>('.cmd-row');
+  rows.forEach((row, i) => {
+    row.classList.toggle('selected', i === idx);
+    if (i === idx) row.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function updateAutocomplete(composer: HTMLElement, value: string): void {
+  const ctx = detectSlashContext(value);
+  if (!ctx) {
+    hideAutocomplete(composer);
+    return;
+  }
+  // Kick a background refresh if the cache is stale; we'll re-paint on
+  // resolve. Meanwhile render whatever we have (or empty).
+  void warmupChatCommands().then(() => {
+    // Only repaint if the user is still typing a slash prefix.
+    const stillCtx = detectSlashContext(composer.querySelector<HTMLTextAreaElement>('textarea')?.value ?? '');
+    if (!stillCtx) return;
+    _autocompleteVisibleList = filterCommands(_chatCommands, stillCtx.prefix);
+    paintAutocomplete(composer, _autocompleteVisibleList, 0);
+  });
+  _autocompleteVisibleList = filterCommands(_chatCommands, ctx.prefix);
+  paintAutocomplete(composer, _autocompleteVisibleList, 0);
+}
+
+function acceptAutocomplete(
+  ta: HTMLTextAreaElement,
+  picked: ChatCommandInfo,
+): void {
+  ta.value = `/${picked.name} `;
+  // Re-trigger sizing + send-button enable
+  ta.dispatchEvent(new Event('input'));
+  ta.focus();
 }
 
 async function doSend(
