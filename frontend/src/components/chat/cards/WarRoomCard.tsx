@@ -8,7 +8,6 @@ type WarCard = Awaited<ReturnType<typeof api.chatWarRoomCard>>;
 const REFRESH_MS = 30_000;
 
 function fmtRemaining(secs: number): string {
-  if (secs <= 0) return "Ended";
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);
   const m = Math.floor((secs % 3600) / 60);
@@ -43,6 +42,14 @@ export function WarRoomCard() {
 
   const lead = (card.score_us ?? 0) - (card.score_them ?? 0);
   const leadClass = lead > 0 ? "text-torn-green" : lead < 0 ? "text-torn-red" : "text-text-muted";
+  const remaining = card.time_remaining_s ?? 0;
+  // Once the war passes its scheduled end (or the timer just isn't reported)
+  // ``time_remaining_s`` arrives as 0. Don't render "Ended left" — show the
+  // useful state instead.
+  const targetReached = (card.target_score ?? 0) > 0 && (
+    (card.score_us ?? 0) >= (card.target_score ?? 0) ||
+    (card.score_them ?? 0) >= (card.target_score ?? 0)
+  );
 
   return (
     <div className="border-b border-torn-red/40 bg-torn-red/5 px-3 py-2 shrink-0">
@@ -63,9 +70,15 @@ export function WarRoomCard() {
                 / {card.target_score.toLocaleString()}
               </span>
             ) : null}
-            <span className="text-[11px] text-text-muted">
-              · {fmtRemaining(card.time_remaining_s ?? 0)} left
-            </span>
+            {remaining > 0 ? (
+              <span className="text-[11px] text-text-muted">
+                · {fmtRemaining(remaining)} left
+              </span>
+            ) : targetReached ? (
+              <span className="text-[11px] text-torn-yellow">
+                · Target reached
+              </span>
+            ) : null}
           </div>
         </div>
         <button

@@ -1407,9 +1407,19 @@ function renderWarRoomCard(shadow: ShadowRoot, data: WarRoomCardResponse | null)
   const target = data.target_score
     ? `<span class="wrc-meta">/ ${data.target_score.toLocaleString()}</span>`
     : '';
-  const remaining = (data.time_remaining_s ?? 0) > 0
-    ? `<span class="wrc-meta">· ${fmtWarRemaining(data.time_remaining_s ?? 0)} left</span>`
-    : '';
+  // ``time_remaining_s`` arrives as 0 once the war's scheduled end has
+  // passed even if the war is still scoring. Show "Target reached" when
+  // either side has already crossed target_score, otherwise omit the chip.
+  const targetReached = (data.target_score ?? 0) > 0 && (
+    (data.score_us ?? 0) >= (data.target_score ?? 0) ||
+    (data.score_them ?? 0) >= (data.target_score ?? 0)
+  );
+  const remainingSecs = data.time_remaining_s ?? 0;
+  const remaining = remainingSecs > 0
+    ? `<span class="wrc-meta">· ${fmtWarRemaining(remainingSecs)} left</span>`
+    : (targetReached
+        ? `<span class="wrc-meta" style="color:#d29922">· Target reached</span>`
+        : '');
   const targets = (data.top_targets ?? [])
     .map((t) => `
       <a class="wrc-target" href="${escapeHtml(t.attack_url)}" target="_blank" rel="noopener noreferrer" title="L${t.level} · ${escapeHtml(t.threat_label)} · ${escapeHtml(t.status_text)}">
@@ -1433,6 +1443,7 @@ function renderWarRoomCard(shadow: ShadowRoot, data: WarRoomCardResponse | null)
 }
 
 function fmtWarRemaining(secs: number): string {
+  if (secs <= 0) return '0m';
   const d = Math.floor(secs / 86400);
   const h = Math.floor((secs % 86400) / 3600);
   const m = Math.floor((secs % 3600) / 60);

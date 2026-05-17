@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.58.0";
+export const CURRENT_VERSION = "1.58.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.58.1",
+    date: "2026-05-17",
+    title: "Chat — war card no longer says \"Ended left\" after target score is reached",
+    changes: [
+      {
+        type: "fix",
+        summary: "War-room card stops showing \"Ended left\" when the target score is already reached",
+        before: "Once a ranked war hit the target score, the time-remaining chip on the war card rendered as \"· Ended left\" — grammatically broken and unclear about whether the war was over or still scoring.",
+        after: "The chip now shows \"· Xh Ym left\" while the timer is positive, switches to \"· Target reached\" (yellow) once either side hits target_score, and disappears entirely otherwise.",
+        cause: "The frontend always rendered \"{fmtRemaining(secs)} left\", and fmtRemaining returned the literal string \"Ended\" for 0 seconds — combining into the nonsense suffix.",
+      },
+    ],
+  },
   {
     version: "1.58.0",
     date: "2026-05-17",
