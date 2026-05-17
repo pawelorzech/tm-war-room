@@ -11,6 +11,9 @@ interface Props {
   selfId: number | null;
   /** Compact mode for the companion / mobile — drop names from tooltip. */
   compact?: boolean;
+  /** Controlled picker visibility (the parent's action pill owns the button). */
+  pickerOpen?: boolean;
+  onPickerOpenChange?: (open: boolean) => void;
 }
 
 /** Curated shortlist — covers ack / agreement / war-room / chain patterns. */
@@ -20,8 +23,21 @@ const QUICK_EMOJIS = [
   "🟢", "🟡", "🔴",
 ] as const;
 
-export function MessageReactions({ messageId, reactions, selfId, compact = false }: Props) {
-  const [pickerOpen, setPickerOpen] = useState(false);
+export function MessageReactions({
+  messageId,
+  reactions,
+  selfId,
+  compact = false,
+  pickerOpen: pickerOpenProp,
+  onPickerOpenChange,
+}: Props) {
+  const [pickerOpenLocal, setPickerOpenLocal] = useState(false);
+  const pickerOpen = pickerOpenProp ?? pickerOpenLocal;
+  const setPickerOpen = useCallback((next: boolean | ((prev: boolean) => boolean)) => {
+    const resolved = typeof next === "function" ? next(pickerOpen) : next;
+    if (onPickerOpenChange) onPickerOpenChange(resolved);
+    else setPickerOpenLocal(resolved);
+  }, [onPickerOpenChange, pickerOpen]);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +51,7 @@ export function MessageReactions({ messageId, reactions, selfId, compact = false
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [pickerOpen]);
+  }, [pickerOpen, setPickerOpen]);
 
   const toggle = useCallback(
     async (emoji: string, mineAlready: boolean) => {
@@ -61,22 +77,11 @@ export function MessageReactions({ messageId, reactions, selfId, compact = false
   );
 
   const list = reactions ?? [];
-  if (list.length === 0 && !pickerOpen) {
-    // Show just the "+" trigger on hover via parent's group-hover.
-    return (
-      <div ref={wrapRef} className="mt-0.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-          className="h-6 px-1.5 rounded-full border border-border bg-bg-surface text-text-muted text-[11px] hover:text-text-primary hover:border-torn-green/40"
-          aria-label="Add reaction"
-          title="Add reaction"
-        >
-          + 😊
-        </button>
-      </div>
-    );
-  }
+
+  // No chips AND no picker open → render nothing so messages stay tight.
+  // The "add reaction" affordance lives in the message's action pill
+  // (top-right of MessageBubble), so users still have a way in.
+  if (list.length === 0 && !pickerOpen) return null;
 
   return (
     <div ref={wrapRef} className="mt-1 flex items-center flex-wrap gap-1 relative">
@@ -104,15 +109,6 @@ export function MessageReactions({ messageId, reactions, selfId, compact = false
           </button>
         );
       })}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setPickerOpen(o => !o); }}
-        className="h-6 px-1.5 rounded-full border border-border bg-bg-surface text-text-muted text-[11px] hover:text-text-primary hover:border-torn-green/40 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-        aria-label="Add reaction"
-        title="Add reaction"
-      >
-        +
-      </button>
       {pickerOpen && (
         <div className="absolute z-20 bottom-full left-0 mb-1 flex flex-wrap gap-1 max-w-[14rem] p-1.5 bg-bg-surface border border-border rounded-lg shadow-lg">
           {QUICK_EMOJIS.map(emoji => {
