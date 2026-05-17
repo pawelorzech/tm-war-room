@@ -19,7 +19,11 @@ from typing import Literal
 Bucket = Literal["verified", "estimate", "rough_guess"]
 
 # Real spy sources — verified when fresh, estimate when older.
-_REAL_SPY_SOURCES = frozenset({"faction_snapshot", "tornstats", "yata"})
+# `member_submit` is included because it represents a teammate manually
+# entering known stats (highest semantic trust per SOURCE_PRIORITY in
+# api/services/spy.py). Excluding it would force the most accurate data
+# we have into the rough_guess bucket and null its per-stat.
+_REAL_SPY_SOURCES = frozenset({"faction_snapshot", "tornstats", "yata", "member_submit"})
 
 # Width % for heuristic confidence (rough_guess paths).
 _HEURISTIC_WIDTH = {

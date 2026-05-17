@@ -218,16 +218,18 @@ async def test_submit_and_get_spy(setup_db):
             assert resp.status_code == 200
             data = resp.json()
             assert data["player_id"] == 456
-            # member_submit is currently classified as rough_guess by
-            # bucket_and_range (only faction_snapshot/tornstats/yata are
-            # real-spy sources). Per Task 2's design, rough_guess nulls
-            # per-stat to hide the misleading equal-split grid. The total
-            # and confidence still round-trip exactly.
-            assert data["strength"] is None
+            # member_submit is a real-spy source (a teammate typed in known
+            # stats — highest SOURCE_PRIORITY). bucket_and_range classifies
+            # it as 'verified' when fresh, so per-stat round-trip exactly
+            # and the UI grid renders.
+            assert data["strength"] == 1e9
+            assert data["defense"] == 8e8
+            assert data["speed"] == 5e8
+            assert data["dexterity"] == 6e8
             assert data["total"] == 1e9 + 8e8 + 5e8 + 6e8
             assert data["confidence"] == "exact"
             assert data["source"] == "member_submit"
-            assert data["bucket"] == "rough_guess"
+            assert data["bucket"] == "verified"
 
 
 # ---------------------------------------------------------------------------

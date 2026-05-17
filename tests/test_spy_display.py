@@ -15,14 +15,18 @@ from api.services.spy_display import bucket_and_range
         ("faction_snapshot", 7, None, "verified", 0),
         ("tornstats", 3, None, "verified", 0),
         ("yata", 7, None, "verified", 0),
+        ("member_submit", 0, None, "verified", 0),
+        ("member_submit", 7, None, "verified", 0),
         # Estimate (real-spy source, 8–30 days)
         ("faction_snapshot", 8, None, "estimate", 10),
         ("tornstats", 15, None, "estimate", 10),
         ("yata", 30, None, "estimate", 10),
+        ("member_submit", 20, None, "estimate", 10),
         # Estimate (real-spy source, >30 days — backend's "stale" lives here)
         ("faction_snapshot", 31, None, "estimate", 25),
         ("tornstats", 60, None, "estimate", 25),
         ("yata", 365, None, "estimate", 25),
+        ("member_submit", 90, None, "estimate", 25),
         # Rough guess (heuristic source) — width by heuristic_conf
         ("estimated", 0, "medium", "rough_guess", 30),
         ("estimated", 0, "low", "rough_guess", 50),
