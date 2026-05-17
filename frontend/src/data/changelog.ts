@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.62.3";
+export const CURRENT_VERSION = "1.62.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.62.4",
+    date: "2026-05-17",
+    title: "Chat — newest message visible the moment you open it",
+    changes: [
+      {
+        type: "fix",
+        summary: "Chat opens at the newest message — no more scrolling down on entry",
+        before: "Opening the chat page or expanding the companion dock left you scrolled up a few messages — you had to scroll down to see the latest activity, both on the hub and on torn.com.",
+        after: "Chat now lands on the newest message on both surfaces and stays pinned as avatars and other content finish loading; if you've scrolled up to read history it leaves you alone.",
+        cause: "The one-shot scroll-to-bottom fired before async content (avatars, embedded cards) finished growing the message list, so the 'bottom' moved out from under it.",
+      },
+    ],
+  },
   {
     version: "1.62.3",
     date: "2026-05-17",

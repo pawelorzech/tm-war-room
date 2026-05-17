@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useLayoutEffect } from "react";
 import type { Message } from "@/types/chat";
 import { MessageBubble } from "./MessageBubble";
 
@@ -48,6 +48,8 @@ export function MessageList({
   const wasAtBottom = useRef(true);
   const prevLenRef = useRef(0);
   const prependSnapshotRef = useRef<{ height: number; scrollTop: number; firstId: number | null } | null>(null);
+  const loadingOlderRef = useRef(loadingOlder);
+  loadingOlderRef.current = loadingOlder;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -70,8 +72,7 @@ export function MessageList({
     prependSnapshotRef.current = null;
   }, [loadingOlder, messages]);
 
-  // Auto-scroll to bottom on new messages (if already at bottom)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (messages.length === 0) {
       prevLenRef.current = 0;
       return;
@@ -80,14 +81,37 @@ export function MessageList({
     prevLenRef.current = messages.length;
 
     if (wasEmpty) {
-      // Fresh channel load — jump to bottom instantly
-      bottomRef.current?.scrollIntoView();
+      const el = containerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
       return;
     }
     if (wasAtBottom.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // Re-pin only when user is at bottom and no prepend is in flight.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    let rafPending = false;
+    const ro = new ResizeObserver(() => {
+      if (rafPending) return;
+      if (!wasAtBottom.current) return;
+      if (prependSnapshotRef.current !== null) return;
+      if (loadingOlderRef.current) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        const node = containerRef.current;
+        if (!node) return;
+        node.scrollTop = node.scrollHeight;
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const handleScroll = () => {
     const el = containerRef.current;

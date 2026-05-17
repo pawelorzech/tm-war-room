@@ -834,6 +834,7 @@ let _lastMsgId = 0;
 let _messagePoller: PollHandle | null = null;
 let _unreadPoller: PollHandle | null = null;
 let _atBottom = true;
+let _messagesResizeObserver: ResizeObserver | null = null;
 // Faction roster (playerId → name). Used to linkify @mentions inside message
 // content — only IDs that appear in a message's `mentions[]` AND match a
 // known faction member become clickable.
@@ -2035,6 +2036,21 @@ function renderPanel(shadow: ShadowRoot): void {
     }
     _wasAtBottom = _atBottom;
   });
+
+  if (_messagesResizeObserver) {
+    _messagesResizeObserver.disconnect();
+    _messagesResizeObserver = null;
+  }
+  let rafPending = false;
+  _messagesResizeObserver = new ResizeObserver(() => {
+    if (!_atBottom || rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      if (_atBottom) messages.scrollTop = messages.scrollHeight;
+    });
+  });
+  _messagesResizeObserver.observe(messages);
 }
 
 function populateChannelSelect(shadow: ShadowRoot): void {
