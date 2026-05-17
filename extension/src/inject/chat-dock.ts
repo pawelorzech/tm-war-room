@@ -56,6 +56,73 @@ const HOST_KIND = 'chat-dock';
 const STATE_KEY = 'tm-hub-companion-chat-dock-state';
 const ONBOARD_SEEN_KEY = 'seen-onboard-popover';
 
+// Marker attribute on the launch button regardless of where it lives —
+// shadow root (floating FAB) or Torn's mobile bottom nav (docked icon).
+// Used for cross-target cleanup to keep exactly one instance.
+const DOCK_MARKER_ATTR = 'data-tm-chat-pill';
+
+// Candidate selectors for Torn's mobile bottom navigation bar — the row of
+// icon buttons (company / faction / refresh / edit / friends / settings).
+// First match wins. Falls back to floating FAB when none match. Educated
+// guesses pending verification on a live mobile Torn session; mirrors the
+// pattern in lib/torn-pages.ts of multiple selectors with graceful fallback.
+const BOTTOM_NAV_SELECTORS = [
+  'nav[class*="bottomNav"]',
+  '[class*="bottomBar"] ul',
+  '#topNav nav.bottom',
+  '[class*="appMenu"] ul',
+  '[class*="mobile-menu"]',
+];
+
+// Styles for the docked variant. Lives in document.head (NOT shadow root)
+// because the button is appended into Torn's DOM. Namespaced + scoped to
+// the button class to avoid colliding with Torn's stylesheet.
+const DOCKED_STYLES = `
+  button.tm-chat-dock-icon {
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    background: #3a3a3a;
+    border: 0;
+    margin: 0 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    color: #e0e0e0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  button.tm-chat-dock-icon:hover { background: #4a4a4a; }
+  button.tm-chat-dock-icon.is-active { background: #1f5c2e; }
+  button.tm-chat-dock-icon svg { width: 22px; height: 22px; fill: currentColor; }
+  button.tm-chat-dock-icon.tm-disconnected {
+    border: 2px solid #d29922;
+    color: #d29922;
+    animation: tm-dock-pulse 2s ease-in-out infinite;
+  }
+  button.tm-chat-dock-icon .tm-chat-dock-badge {
+    position: absolute;
+    top: -2px; right: -2px;
+    min-width: 18px; height: 18px;
+    border-radius: 9px;
+    background: #5cbe5c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    padding: 0 5px;
+    border: 2px solid #1a1a1a;
+    box-sizing: border-box;
+  }
+  button.tm-chat-dock-icon .tm-chat-dock-badge.tm-hidden { display: none; }
+  @keyframes tm-dock-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(210,153,34,0.45); }
+    50%      { box-shadow: 0 0 0 6px rgba(210,153,34,0); }
+  }
+`;
+
 function getOnboardSeen(): boolean {
   return Boolean(GM_getValue<boolean>(ONBOARD_SEEN_KEY, false));
 }
@@ -87,7 +154,10 @@ const STYLES = `
   :host { all: initial; }
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #c9d1d9; }
 
-  /* Collapsed button */
+  /* Collapsed button — floating FAB fallback for desktop / pages where
+     Torn's mobile bottom nav isn't present. Palette aligned with Torn
+     (dark grey base + green Torn-style badge) so it doesn't look like
+     a transplant from a different design system. */
   .btn-launch {
     position: fixed;
     right: 12px;
@@ -95,7 +165,7 @@ const STYLES = `
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: #238636;
+    background: #3a3a3a;
     border: 0;
     color: #fff;
     box-shadow: 0 6px 16px rgba(0,0,0,0.4);
@@ -104,9 +174,10 @@ const STYLES = `
     align-items: center;
     justify-content: center;
     z-index: 999900;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
   }
-  .btn-launch:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+  .btn-launch:hover { background: #4a4a4a; transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+  .btn-launch.is-active { background: #1f5c2e; }
   .btn-launch svg { width: 20px; height: 20px; fill: #fff; }
 
   /* Disconnected state — yellow ring, plug icon, gentle pulse so first-time
@@ -185,7 +256,7 @@ const STYLES = `
     min-width: 18px;
     height: 18px;
     border-radius: 9px;
-    background: #f85149;
+    background: #5cbe5c;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
@@ -1234,12 +1305,16 @@ function openDock(shadow: ShadowRoot): void {
   _state = { ..._state, open: true };
   saveState(_state);
   applyState(shadow);
+  // Refresh the launch button so its `is-active` tint (green) reflects the
+  // new state — matches how Torn highlights the currently-selected nav icon.
+  renderLaunchButton(shadow);
 }
 
 function closeDock(shadow: ShadowRoot): void {
   _state = { ..._state, open: false };
   saveState(_state);
   applyState(shadow);
+  renderLaunchButton(shadow);
 }
 
 async function initOpenChannel(shadow: ShadowRoot): Promise<void> {
@@ -1709,14 +1784,57 @@ function stopWarCardPolling(shadow: ShadowRoot): void {
 
 // ── Rendering ───────────────────────────────────────────────
 
-function renderLaunchButton(shadow: ShadowRoot): void {
-  // Idempotent — re-renders flip the visual state when auth flips. Triggered
-  // by the 5s heartbeat in startChatDock plus by the auth-listener handoff.
-  shadow.querySelectorAll('.btn-launch').forEach((n) => n.remove());
+function findTornBottomNav(): Element | null {
+  for (const sel of BOTTOM_NAV_SELECTORS) {
+    try {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    } catch (err) {
+      console.warn(`[tm-chat-dock] invalid nav selector ${sel}`, err);
+    }
+  }
+  return null;
+}
 
+function ensureDockedStyleTag(): void {
+  if (document.getElementById('tm-chat-dock-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'tm-chat-dock-styles';
+  style.textContent = DOCKED_STYLES;
+  document.head.appendChild(style);
+}
+
+function removeAllLaunchInstances(shadow: ShadowRoot): void {
+  // Strip from BOTH shadow root and light DOM so re-renders never leave
+  // a stale pill behind when the target switches (e.g. Torn nav appears
+  // mid-session after we already mounted the floating FAB).
+  shadow.querySelectorAll(`.btn-launch, [${DOCK_MARKER_ATTR}]`).forEach((n) => n.remove());
+  document.querySelectorAll(`[${DOCK_MARKER_ATTR}]`).forEach((n) => n.remove());
+}
+
+// Dispatcher — single source of truth for "where does the launch button
+// live right now". Called from startChatDock, the 5s heartbeat, and from
+// open/close so the active-state class refreshes synchronously.
+function renderLaunchButton(shadow: ShadowRoot): void {
+  removeAllLaunchInstances(shadow);
+  const navHost = findTornBottomNav();
+  if (navHost) {
+    try {
+      renderDockedButton(navHost, shadow);
+      return;
+    } catch (err) {
+      console.warn('[tm-chat-dock] docked render failed, falling back to FAB', err);
+    }
+  }
+  renderFloatingButton(shadow);
+}
+
+function renderFloatingButton(shadow: ShadowRoot): void {
   const auth = getAuth();
   const btn = document.createElement('button');
   btn.className = auth ? 'btn-launch' : 'btn-launch disconnected';
+  btn.setAttribute(DOCK_MARKER_ATTR, '1');
+  if (_state.open) btn.classList.add('is-active');
   btn.title = auth ? 'TM Hub chat' : 'Connect TM Hub Companion';
   btn.innerHTML = auth
     ? `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
@@ -1734,6 +1852,38 @@ function renderLaunchButton(shadow: ShadowRoot): void {
       showOnboardPopover(shadow);
       return;
     }
+    if (_state.open) closeDock(shadow);
+    else openDock(shadow);
+  });
+}
+
+function renderDockedButton(navHost: Element, shadow: ShadowRoot): void {
+  // Lives inside Torn's bottom nav (light DOM, outside our shadow root) so
+  // it flows naturally with their flex layout. Styles loaded via a
+  // namespaced <style> tag in document.head — see ensureDockedStyleTag.
+  ensureDockedStyleTag();
+  const auth = getAuth();
+  const btn = document.createElement('button');
+  btn.setAttribute(DOCK_MARKER_ATTR, '1');
+  btn.className = auth ? 'tm-chat-dock-icon' : 'tm-chat-dock-icon tm-disconnected';
+  if (_state.open) btn.classList.add('is-active');
+  btn.title = auth ? 'TM Hub chat' : 'Connect TM Hub Companion';
+  btn.innerHTML = auth
+    ? `<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+       <span class="tm-chat-dock-badge tm-hidden">0</span>`
+    : `<svg viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4H6c-1.1 0-2 .9-2 2v5.5c0 1.93 1.57 3.5 3.5 3.5V21h2v-3h5v3h2v-3.01c1.93 0 3.5-1.56 3.5-3.49V9c0-1.1-.9-2-2-2h-2z"/></svg>`;
+  navHost.appendChild(btn);
+
+  btn.addEventListener('click', (e) => {
+    // Beat any global click delegation Torn may have on the nav row.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!shadow.host.isConnected) {
+      console.warn('[tm-chat-dock] shadow host detached, skipping click');
+      return;
+    }
+    const a = getAuth();
+    if (!a) { showOnboardPopover(shadow); return; }
     if (_state.open) closeDock(shadow);
     else openDock(shadow);
   });
@@ -1782,13 +1932,24 @@ function showOnboardPopover(shadow: ShadowRoot): void {
 }
 
 function setBadge(shadow: ShadowRoot, count: number): void {
-  const badge = shadow.querySelector<HTMLElement>('.btn-launch .badge');
-  if (!badge) return;
-  if (count > 0) {
-    badge.textContent = count > 99 ? '99+' : String(count);
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
+  // Pill may be in the shadow root (floating FAB) OR in Torn's nav (docked).
+  // Update whichever exists — typically exactly one at a time, but write to
+  // both defensively in case a transition is in-flight.
+  const targets: Array<{ el: HTMLElement; hiddenClass: string }> = [];
+  shadow.querySelectorAll<HTMLElement>('.btn-launch .badge').forEach((el) => {
+    targets.push({ el, hiddenClass: 'hidden' });
+  });
+  document.querySelectorAll<HTMLElement>('.tm-chat-dock-icon .tm-chat-dock-badge').forEach((el) => {
+    targets.push({ el, hiddenClass: 'tm-hidden' });
+  });
+  if (targets.length === 0) return;
+  for (const { el, hiddenClass } of targets) {
+    if (count > 0) {
+      el.textContent = count > 99 ? '99+' : String(count);
+      el.classList.remove(hiddenClass);
+    } else {
+      el.classList.add(hiddenClass);
+    }
   }
 }
 
