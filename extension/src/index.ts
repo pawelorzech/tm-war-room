@@ -35,7 +35,6 @@ import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
 import { applyImarketOverlay } from './inject/imarket-overlay';
 import { renderOcOverlay } from './inject/oc-overlay';
-import { applyAmbientPillsOverlay } from './inject/ambient-pills-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
 import { startNotificationToasts } from './inject/notification-toasts';
@@ -225,15 +224,6 @@ async function refreshInner(): Promise<void> {
   if (match.kind === 'oc') {
     if (getAuth()) {
       void renderOcOverlay();
-    }
-    return;
-  }
-
-  if (match.kind === 'ambient') {
-    const auth = getAuth();
-    if (auth) {
-      const warId = await getWarId(auth);
-      void applyAmbientPillsOverlay({ warId });
     }
     return;
   }
