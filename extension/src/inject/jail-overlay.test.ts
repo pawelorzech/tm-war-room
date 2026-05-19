@@ -1,9 +1,6 @@
-// Tests for the jail-overlay spy estimate pill.
-//
-// Jail rows already show mate / enemy / off-limits / target pills via
-// decorateRows. We add a fifth pill for the player's spy bucket (verified /
-// estimate / rough_guess / endgame). The known set is widened so a player with
-// ONLY spy data still gets decorated.
+// Tests for the jail-overlay redesign. Mirrors hospital-overlay.test.ts —
+// stripe carries the role, compact spy chip carries the bucket + total range,
+// no loud role pills, no full-row tinted background.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KnownSpiesResponse, KeysResponse, EnemyResponse, WarOffLimitsResponse, TargetsResponse } from '../types';
@@ -40,7 +37,7 @@ import { applyJailOverlay, _resetJailCacheForTests } from './jail-overlay';
 
 const STYLE_ID = 'tm-companion-jail-styles';
 const BADGE_ATTR = 'data-tm-jail-badge';
-const SPY_PILL_CLASS = 'pill-spy';
+const SPY_CHIP_CLASS = 'spy-chip';
 
 function spy(playerId: number, bucket: SpyEstimate['bucket'], extras: Partial<SpyEstimate> = {}): SpyEstimate {
   const hasStats = bucket === 'verified' || bucket === 'estimate';
@@ -103,60 +100,62 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('applyJailOverlay — spy estimate pill', () => {
-  it('renders a verified spy pill on the jail row', async () => {
+describe('applyJailOverlay — spy chip', () => {
+  it('renders a verified spy chip on the jail row', async () => {
     const pid = 300;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
     setJailRow(pid);
 
     await applyJailOverlay({ warId: null });
 
-    const pill = document.querySelector(`.${SPY_PILL_CLASS}`) as HTMLElement;
-    expect(pill).toBeTruthy();
-    expect(pill.classList.contains('tm-bucket-verified')).toBe(true);
-    expect(pill.textContent || '').toMatch(/VERIFIED/i);
+    const chip = document.querySelector(`.${SPY_CHIP_CLASS}`) as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.classList.contains('tm-bucket-verified')).toBe(true);
+    expect(chip.textContent || '').toMatch(/verified/i);
+    expect((chip.getAttribute('title') || '')).toMatch(/Verified spy/);
   });
 
-  it('renders an estimate pill with a range string', async () => {
+  it('renders an estimate chip with a range string', async () => {
     const pid = 301;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'estimate')], count: 1 } as unknown as KnownSpiesResponse);
     setJailRow(pid);
 
     await applyJailOverlay({ warId: null });
 
-    const pill = document.querySelector(`.${SPY_PILL_CLASS}`) as HTMLElement;
-    expect(pill).toBeTruthy();
-    expect(pill.classList.contains('tm-bucket-estimate')).toBe(true);
-    expect(pill.textContent || '').toMatch(/\d+[BMK]\s*—\s*\d+[BMK]/);
+    const chip = document.querySelector(`.${SPY_CHIP_CLASS}`) as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.classList.contains('tm-bucket-estimate')).toBe(true);
+    expect(chip.textContent || '').toMatch(/\d+[BMK]\s*—\s*\d+[BMK]/);
+    expect(chip.textContent || '').toMatch(/est\./);
   });
 
-  it('renders rough_guess pill with range only, no per-stat split', async () => {
+  it('renders rough_guess chip with range only, no per-stat split', async () => {
     const pid = 302;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'rough_guess')], count: 1 } as unknown as KnownSpiesResponse);
     setJailRow(pid);
 
     await applyJailOverlay({ warId: null });
 
-    const pill = document.querySelector(`.${SPY_PILL_CLASS}`) as HTMLElement;
-    expect(pill).toBeTruthy();
-    expect(pill.classList.contains('tm-bucket-rough_guess')).toBe(true);
-    expect(pill.textContent || '').not.toMatch(/STR\b/);
+    const chip = document.querySelector(`.${SPY_CHIP_CLASS}`) as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.classList.contains('tm-bucket-rough_guess')).toBe(true);
+    expect(chip.textContent || '').not.toMatch(/STR\b/);
   });
 
-  it('renders endgame pill without any numeric range', async () => {
+  it('renders endgame chip without any numeric range', async () => {
     const pid = 303;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'endgame', { rank: 'Heroic', level: 95 })], count: 1 } as unknown as KnownSpiesResponse);
     setJailRow(pid);
 
     await applyJailOverlay({ warId: null });
 
-    const pill = document.querySelector(`.${SPY_PILL_CLASS}`) as HTMLElement;
-    expect(pill).toBeTruthy();
-    expect(pill.classList.contains('tm-bucket-endgame')).toBe(true);
-    expect(pill.textContent || '').not.toMatch(/\d+\.\d+[BMK]/);
+    const chip = document.querySelector(`.${SPY_CHIP_CLASS}`) as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.classList.contains('tm-bucket-endgame')).toBe(true);
+    expect(chip.textContent || '').not.toMatch(/\d+\.\d+[BMK]/);
   });
 
-  it('demotes the spy pill when the row is in the war off-limits map', async () => {
+  it('demotes the spy chip when the row is in the war off-limits map', async () => {
     const pid = 304;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
     fetchOffLimitsMock.mockResolvedValue({
@@ -179,14 +178,14 @@ describe('applyJailOverlay — spy estimate pill', () => {
 
     await applyJailOverlay({ warId: 999 });
 
-    const pill = document.querySelector(`.${SPY_PILL_CLASS}`) as HTMLElement;
-    expect(pill).toBeTruthy();
-    expect(pill.classList.contains('tm-off-limits')).toBe(true);
+    const chip = document.querySelector(`.${SPY_CHIP_CLASS}`) as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.classList.contains('tm-off-limits')).toBe(true);
+    expect((chip.getAttribute('title') || '')).toMatch(/OFF-LIMITS/);
   });
 
   it('renders nothing extra when the player is not in any TM data set (quiet by design)', async () => {
     const pid = 305;
-    // fetchKnownSpies returns no spies, no keys/enemy/off-limits/targets.
     setJailRow(pid);
 
     await applyJailOverlay({ warId: null });
@@ -194,21 +193,7 @@ describe('applyJailOverlay — spy estimate pill', () => {
     expect(document.querySelectorAll(`[${BADGE_ATTR}]`).length).toBe(0);
   });
 
-  it('injects a stylesheet containing a mobile @media rule that hides the spy caption', async () => {
-    const pid = 306;
-    fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
-    setJailRow(pid);
-
-    await applyJailOverlay({ warId: null });
-
-    const styleEl = document.getElementById(STYLE_ID);
-    expect(styleEl).toBeTruthy();
-    const css = (styleEl?.textContent || '').replace(/\s+/g, ' ');
-    expect(css).toMatch(/@media\s*\(max-width:\s*599px\)/);
-    expect(css).toMatch(/\.spy-caption\s*\{[^}]*display:\s*none/);
-  });
-
-  it('is idempotent — calling the overlay twice does not duplicate spy pills', async () => {
+  it('is idempotent — calling the overlay twice does not duplicate spy chips', async () => {
     const pid = 307;
     fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
     setJailRow(pid);
@@ -216,6 +201,70 @@ describe('applyJailOverlay — spy estimate pill', () => {
     await applyJailOverlay({ warId: null });
     await applyJailOverlay({ warId: null });
 
-    expect(document.querySelectorAll(`.${SPY_PILL_CLASS}`).length).toBe(1);
+    expect(document.querySelectorAll(`.${SPY_CHIP_CLASS}`).length).toBe(1);
+  });
+});
+
+describe('applyJailOverlay — role stripe & scoping', () => {
+  it('paints a green inset stripe for a TM mate', async () => {
+    const pid = 400;
+    fetchKeysMock.mockResolvedValue({ keys: [{ player_id: pid, player_name: `P${pid}` }] } as unknown as KeysResponse);
+    setJailRow(pid);
+
+    await applyJailOverlay({ warId: null });
+
+    const row = document.querySelector('li') as HTMLElement;
+    expect(row.style.boxShadow).toMatch(/inset 4px 0 0/);
+    expect(row.style.boxShadow.toLowerCase()).toContain('#3fb950');
+    expect(row.style.backgroundColor).toBe('');
+  });
+
+  it('paints a red inset stripe for a war enemy', async () => {
+    const pid = 401;
+    fetchEnemyMock.mockResolvedValue({ members: [{ id: pid, name: `P${pid}` }] } as unknown as EnemyResponse);
+    setJailRow(pid);
+
+    await applyJailOverlay({ warId: null });
+
+    const row = document.querySelector('li') as HTMLElement;
+    expect(row.style.boxShadow.toLowerCase()).toContain('#f85149');
+  });
+
+  it('does NOT decorate an XID anchor outside any list row (Information sidebar leak fix)', async () => {
+    const pid = 500;
+    fetchKeysMock.mockResolvedValue({ keys: [{ player_id: pid, player_name: `P${pid}` }] } as unknown as KeysResponse);
+    fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
+    document.body.innerHTML = `
+      <div id="mainContainer">
+        <div class="info-cont">
+          <div class="user-info-cont">
+            <a href="/profiles.php?XID=${pid}">P${pid}</a>
+          </div>
+        </div>
+        <ul class="jail-list">
+          <li><a href="/profiles.php?XID=${pid}">P${pid}</a></li>
+        </ul>
+      </div>
+    `;
+
+    await applyJailOverlay({ warId: null });
+
+    expect(document.querySelectorAll(`[${BADGE_ATTR}]`).length).toBe(1);
+    expect(document.querySelectorAll(`.${SPY_CHIP_CLASS}`).length).toBe(1);
+    const sidebarAnchor = document.querySelector('.info-cont a') as HTMLElement;
+    expect(sidebarAnchor.nextElementSibling).toBeNull();
+  });
+
+  it('still injects a stylesheet with the jail chip rules', async () => {
+    const pid = 501;
+    fetchKnownSpiesMock.mockResolvedValue({ estimates: [spy(pid, 'verified')], count: 1 } as unknown as KnownSpiesResponse);
+    setJailRow(pid);
+
+    await applyJailOverlay({ warId: null });
+
+    const styleEl = document.getElementById(STYLE_ID);
+    expect(styleEl).toBeTruthy();
+    expect((styleEl?.textContent || '')).toMatch(/spy-chip/);
+    expect((styleEl?.textContent || '')).toMatch(/tm-bucket-verified/);
   });
 });
