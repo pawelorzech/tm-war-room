@@ -1,0 +1,3 @@
+## 2024-05-20 - Memoizing MessageBubble
+**Learning:** In long lists, especially chats, passing complex props like `memberMap` (a mapping object) or `adminIds` (a Set) causes shallow referential equality checks in `React.memo` to fail unless explicitly handled or the parent completely memoizes them. Here, writing a custom comparator for `React.memo` based on primitive fields and the specific message object properties correctly avoids re-renders.
+**Action:** When applying `React.memo` to list items, explicitly trace the props. If any are complex objects passed down from a parent that might re-evaluate, write a custom comparator tailored to the component's actual render dependencies.
