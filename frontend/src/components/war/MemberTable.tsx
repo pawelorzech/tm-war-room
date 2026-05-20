@@ -63,7 +63,7 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const flags = useFeatureFlags();
 
-  const dm = detail?.members || {};
+  const dm = useMemo(() => detail?.members || {}, [detail?.members]);
   const yataDown = detail?.yata_down || false;
   const warActive = isWarActive(overview);
   const now = Math.floor(Date.now() / 1000);

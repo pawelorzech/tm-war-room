@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fmtCD, fmtNum } from "@/lib/format";
 import type { EnemyMember, WarOffLimits } from "@/types/war";
 
@@ -33,7 +33,7 @@ const THREAT_GLOW: Record<string, string> = {
   unknown: "none",
 };
 
-export function EnemyCard({
+export const EnemyCard = React.memo(function EnemyCard({
   member: m,
   hasBaseline,
   offLimits,
@@ -318,4 +318,4 @@ export function EnemyCard({
       )}
     </div>
   );
-}
+});
