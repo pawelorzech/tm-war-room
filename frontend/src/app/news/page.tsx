@@ -5,6 +5,7 @@ import { api } from '@/lib/api-client';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface NewsEntry {
   id: number | string;
@@ -114,7 +115,13 @@ export default function NewsPage() {
                 <li key={String(e.id)} className="p-3 flex items-start justify-between gap-3">
                   <p
                     className="text-sm text-text-primary flex-1 [&_a]:text-torn-green [&_a]:hover:underline"
-                    dangerouslySetInnerHTML={{ __html: e.text || e.news || '(no text)' }}
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(e.text || e.news || '(no text)', {
+                        ALLOWED_TAGS: ['a', 'b', 'i', 'em', 'strong', 'br', 'span'],
+                        ALLOWED_ATTR: ['href', 'title', 'class'],
+                        ALLOWED_URI_REGEXP: /^(?:(?:https?:\/\/)(?:www\.)?torn\.com\/|[^/:]+(?:\/|$))/,
+                      })
+                    }}
                   />
                   <span className="text-[11px] text-text-muted shrink-0 tabular-nums">{timeAgo(e.timestamp)}</span>
                 </li>

@@ -720,7 +720,7 @@ function NewsTab({
               __html: DOMPurify.sanitize(n.news, {
                 ALLOWED_TAGS: ['a', 'b', 'i', 'em', 'strong', 'br', 'span'],
                 ALLOWED_ATTR: ['href', 'title', 'class'],
-                ALLOWED_URI_REGEXP: /^https?:\/\/(www\.)?torn\.com\//,
+                ALLOWED_URI_REGEXP: /^(?:(?:https?:\/\/)(?:www\.)?torn\.com\/|[^/:]+(?:\/|$))/,
               }),
             }}
           />
