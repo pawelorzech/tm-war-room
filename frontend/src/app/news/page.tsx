@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
+import DOMPurify from 'isomorphic-dompurify';
 import { PageExplainer } from '@/components/layout/PageExplainer';
 import { RefreshButton } from '@/components/layout/RefreshButton';
 import { CardSkeleton } from '@/components/layout/LoadingSkeleton';
@@ -114,7 +115,8 @@ export default function NewsPage() {
                 <li key={String(e.id)} className="p-3 flex items-start justify-between gap-3">
                   <p
                     className="text-sm text-text-primary flex-1 [&_a]:text-torn-green [&_a]:hover:underline"
-                    dangerouslySetInnerHTML={{ __html: e.text || e.news || '(no text)' }}
+                    // Security fix: sanitize raw HTML from backend to prevent XSS attacks.
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(e.text || e.news || '(no text)') }}
                   />
                   <span className="text-[11px] text-text-muted shrink-0 tabular-nums">{timeAgo(e.timestamp)}</span>
                 </li>
