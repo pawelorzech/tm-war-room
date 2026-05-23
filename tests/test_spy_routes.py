@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
@@ -88,8 +89,12 @@ async def test_faction_snapshot_fallback_when_no_spy(setup_db):
     spy_svc = SpyService(spy_repo)
     stats_repo = StatSnapshotRepository(setup_db)
     # Kaszmir registered an API key; daily snapshot collector wrote his stats.
+    # Use a 1-day-old snapshot so the "exact" confidence threshold (<= 7 days)
+    # stays valid as the test ages — hardcoding a literal date silently flips
+    # the confidence to "estimate" once the date passes that window.
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
     stats_repo.insert_snapshot(
-        player_id=2001, snapshot_date="2026-05-14",
+        player_id=2001, snapshot_date=yesterday,
         strength=20_000_000, defense=20_000_000, speed=20_000_000, dexterity=18_780_000,
         total=78_780_000, level=70,
     )

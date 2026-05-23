@@ -1,10 +1,15 @@
 import os
 import tempfile
+from datetime import date, timedelta
 
 import pytest
 
 from api.db.migrations.runner import run_migrations
 from api.db.repos.companies import CompanySnapshotRepository
+
+# Use a recent date so the `days=30` lookback windows always include it —
+# hardcoding a literal date silently breaks the test as it ages past the window.
+RECENT_DATE = (date.today() - timedelta(days=1)).isoformat()
 
 
 @pytest.fixture
@@ -21,7 +26,7 @@ def repo():
 def test_insert_and_get_company_snapshot(repo):
     repo.insert_snapshot(
         company_id=50000,
-        snapshot_date="2026-04-19",
+        snapshot_date=RECENT_DATE,
         detailed={
             "company_funds": 50_000_000,
             "company_bank": 100_000_000,
@@ -52,11 +57,11 @@ def test_insert_and_get_company_snapshot(repo):
 
 def test_upsert_same_day_overwrites(repo):
     repo.insert_snapshot(
-        company_id=50000, snapshot_date="2026-04-19",
+        company_id=50000, snapshot_date=RECENT_DATE,
         detailed={"company_funds": 1}, profile=None,
     )
     repo.insert_snapshot(
-        company_id=50000, snapshot_date="2026-04-19",
+        company_id=50000, snapshot_date=RECENT_DATE,
         detailed={"company_funds": 2}, profile=None,
     )
     rows = repo.get_snapshots(50000, days=30)
@@ -66,7 +71,7 @@ def test_upsert_same_day_overwrites(repo):
 
 def test_employee_snapshot(repo):
     repo.insert_employee_snapshot(
-        company_id=50000, player_id=123, snapshot_date="2026-04-19",
+        company_id=50000, player_id=123, snapshot_date=RECENT_DATE,
         employee={
             "position": "Manager",
             "wage": 50000,
@@ -85,7 +90,7 @@ def test_employee_snapshot(repo):
 
 def test_stock_snapshot(repo):
     repo.insert_stock_snapshot(
-        company_id=50000, product_name="Shampoo", snapshot_date="2026-04-19",
+        company_id=50000, product_name="Shampoo", snapshot_date=RECENT_DATE,
         item={
             "cost": 10, "price": 25, "rrp": 25,
             "in_stock": 500, "on_order": 0,
