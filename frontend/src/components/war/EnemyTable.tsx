@@ -202,13 +202,13 @@ export function EnemyTable({ data, onLoadEnemy, warId }: EnemyTableProps) {
 
   const offLimitsCount = offLimits.entries.length;
 
-  const handleRequestFlag = (member: EnemyMember) => {
+  const handleRequestFlag = useCallback((member: EnemyMember) => {
     setModal({ kind: "add", member });
-  };
-  const handleRequestEdit = (entry: WarOffLimits, member: EnemyMember) => {
+  }, []);
+  const handleRequestEdit = useCallback((entry: WarOffLimits, member: EnemyMember) => {
     setModal({ kind: "edit", entry, member });
-  };
-  const handleRequestRemove = async (entry: WarOffLimits) => {
+  }, []);
+  const handleRequestRemove = useCallback(async (entry: WarOffLimits) => {
     if (!warId) return;
     if (!confirm(`Remove off-limit flag on ${entry.player_name}?`)) return;
     try {
@@ -216,10 +216,10 @@ export function EnemyTable({ data, onLoadEnemy, warId }: EnemyTableProps) {
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to remove");
     }
-  };
-  const handleAttackBlocked = (member: EnemyMember, entry: WarOffLimits) => {
+  }, [warId, offLimits]);
+  const handleAttackBlocked = useCallback((member: EnemyMember, entry: WarOffLimits) => {
     setModal({ kind: "confirm", entry, member });
-  };
+  }, []);
 
   return (
     <div>

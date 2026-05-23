@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { fmtCD } from "@/lib/format";
 import { Avatar } from "@/components/ui/Avatar";
 import type { FactionMember, DetailResponse } from "@/types/war";
@@ -52,7 +52,7 @@ interface MemberCardProps {
   warActive: boolean;
 }
 
-export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps) {
+export const MemberCard = memo(function MemberCard({ member: m, detail: d, warActive }: MemberCardProps) {
   const [expanded, setExpanded] = useState(false);
   const r = getReadiness(m, d);
   const now = Math.floor(Date.now() / 1000);
@@ -262,7 +262,7 @@ export function MemberCard({ member: m, detail: d, warActive }: MemberCardProps)
       )}
     </div>
   );
-}
+});
 
 export { getReadiness };
 export type { Readiness };
