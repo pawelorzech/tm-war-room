@@ -140,13 +140,12 @@ function renderContent(
 }
 
 // ⚡ Bolt Optimization:
-// Wrapped MessageBubble in React.memo with a custom comparison function.
+// Wrapped MessageBubble in React.memo.
 // Why: In a long chat history, every new message, typing indicator change,
 // or state update in the parent caused all 50+ message bubbles to re-render.
 // Impact: Reduces React render time for the message list significantly.
-// Older messages now skip rendering entirely when new messages arrive.
-// Custom comparator ensures we don't accidentally re-render due to new
-// object references for memberMap or adminIds, unless the message itself changed.
+// Older messages now skip rendering entirely when new messages arrive,
+// provided the parent passes stable references for memberMap and adminIds.
 
 export const MessageBubble = React.memo(function MessageBubble({ message, isOwn, isAdmin, onDeleted, memberMap = {}, adminIds, selfId = null, grouped = false }: Props) {
   const [showActions, setShowActions] = useState(false);
@@ -405,18 +404,5 @@ export const MessageBubble = React.memo(function MessageBubble({ message, isOwn,
         </div>
       )}
     </div>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparator to avoid re-renders due to referential inequality of complex props
-  // like memberMap and adminIds when they don't actually change the rendered output
-  // of *this specific message*.
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.edited_at === nextProps.message.edited_at &&
-    prevProps.message.reactions?.length === nextProps.message.reactions?.length &&
-    prevProps.isOwn === nextProps.isOwn &&
-    prevProps.isAdmin === nextProps.isAdmin &&
-    prevProps.selfId === nextProps.selfId &&
-    prevProps.grouped === nextProps.grouped
   );
 });
