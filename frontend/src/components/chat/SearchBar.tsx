@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Channel, Message } from "@/types/chat";
 import { api } from "@/lib/api-client";
+import DOMPurify from "isomorphic-dompurify";
 
 interface Props {
   channels: Channel[];
@@ -166,11 +167,10 @@ export function SearchBar({ channels, onJumpToMessage }: Props) {
                 <div
                   className="mt-0.5 text-sm text-text-primary break-words"
                   /* The backend's FTS snippet() function emits <mark>...</mark>
-                   * with no user content interpolated — only the matched bytes.
-                   * It's still safe input we built ourselves, but we use
-                   * dangerouslySetInnerHTML deliberately for the highlight. */
+                   * but also includes raw user input around the matches.
+                   * We must sanitize it with DOMPurify to prevent XSS. */
                   dangerouslySetInnerHTML={{
-                    __html: m.snippet ?? escapeHtml(m.content.slice(0, 240)),
+                    __html: DOMPurify.sanitize(m.snippet ?? escapeHtml(m.content.slice(0, 240))),
                   }}
                 />
               </button>
