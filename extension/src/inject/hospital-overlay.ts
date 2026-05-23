@@ -20,10 +20,8 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { WarOffLimits, Target } from '../types';
-import type { SpyEstimate as SpyEstimateDisplay, Bucket } from '../lib/spy-display';
-import { bucketStyle, formatTotalRange, bucketCaption } from '../lib/spy-display';
-import { escapeHtml } from '../lib/format';
-import { pillBase } from '../lib/card-styles';
+import type { SpyEstimate as SpyEstimateDisplay } from '../lib/spy-display';
+import { buildSpyChip, pickStripeRole, stripeBoxShadow } from '../lib/spy-chip';
 import { renderClaimButton } from './claim-button';
 
 interface HospitalRow {
@@ -162,74 +160,45 @@ async function buildMap(warId: number | null): Promise<Map<number, HospitalRow>>
   return out;
 }
 
-const STYLES = pillBase('hospital') + `
-  [data-tm-hospital-badge] .pill-mate {
-    background: rgba(63,185,80,0.18);
-    color: #3fb950;
-  }
-  [data-tm-hospital-badge] .pill-enemy {
-    background: rgba(248,81,73,0.20);
-    color: #f85149;
-  }
-  [data-tm-hospital-badge] .pill-offlimits {
-    background: rgba(248,81,73,0.22);
-    color: #f85149;
-  }
-  [data-tm-hospital-badge] .pill-target {
-    background: rgba(139,92,246,0.18);
-    color: #a78bfa;
-  }
-  [data-tm-hospital-badge] .pill-spy {
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(0,0,0,0.25);
+// Visual contract (replaces the loud multi-pill chrome shipped through v0.39):
+//   1. Role stripe — 4px inset boxShadow on the row's left edge. Single colour
+//      per row picked by `pickStripeRole` (mate > off-limits > enemy > target).
+//      Uses boxShadow rather than border-left so the row content doesn't shift.
+//   2. Compact spy chip — appended after the player name link ONLY when we have
+//      a spy estimate. The chip text is short ("4.78B verified"), the full
+//      attribution (source, freshness, off-limits reason) lives in the title
+//      tooltip. Style scoped to `.spy-chip` so hospital + jail share CSS.
+//
+// We dropped the role pills (TM mate / war enemy / OFF-LIMITS / 🎯 target) and
+// the full-row background tint that v0.39 painted: the stripe already carries
+// the role at-a-glance, and the tinted background dominated the page.
+const STYLES = `
+  .spy-chip[data-tm-hospital-badge] {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font: 600 10px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.25);
+    color: #c9d1d9;
+    white-space: nowrap;
+    vertical-align: middle;
   }
-  [data-tm-hospital-badge] .pill-spy.tm-bucket-verified    { color: #56d364; border-color: #3fb950; }
-  [data-tm-hospital-badge] .pill-spy.tm-bucket-estimate    { color: #e8b339; border-color: #d29922; }
-  [data-tm-hospital-badge] .pill-spy.tm-bucket-rough_guess { color: #f5a05a; border-color: #f5a05a; }
-  [data-tm-hospital-badge] .pill-spy.tm-bucket-endgame     { color: #ff7b72; border-color: #b62324; background: rgba(182,35,36,0.18); }
-  [data-tm-hospital-badge] .pill-spy.tm-off-limits {
+  .spy-chip[data-tm-hospital-badge].tm-bucket-verified    { color: #56d364; border-color: #3fb950; }
+  .spy-chip[data-tm-hospital-badge].tm-bucket-estimate    { color: #e8b339; border-color: #d29922; }
+  .spy-chip[data-tm-hospital-badge].tm-bucket-rough_guess { color: #f5a05a; border-color: #f5a05a; }
+  .spy-chip[data-tm-hospital-badge].tm-bucket-endgame     { color: #ff7b72; border-color: #b62324; background: rgba(182,35,36,0.18); }
+  .spy-chip[data-tm-hospital-badge].tm-off-limits {
     text-decoration: line-through;
     border-color: #f85149;
     color: #f85149;
     opacity: 0.85;
   }
-  [data-tm-hospital-badge] .pill-spy .spy-bucket-label {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-size: 9px;
-    font-weight: 700;
-  }
-  /* Mobile: drop the caption text below 599px — chip + range stay visible. */
-  @media (max-width: 599px) {
-    [data-tm-hospital-badge] .pill-spy .spy-caption { display: none; }
-  }
 `;
-
-function buildSpyPill(spy: SpyEstimateDisplay, offLimits: WarOffLimits | null): HTMLElement {
-  const pill = document.createElement('span');
-  pill.classList.add('pill', 'pill-spy');
-  const bucket: Bucket = spy.bucket ?? 'rough_guess';
-  pill.classList.add(`tm-bucket-${bucket}`);
-  const style = bucketStyle(bucket);
-  const rangeText = formatTotalRange(spy.total, spy.total_range, bucket);
-  const caption = bucketCaption(spy);
-  const range = rangeText ? `<span class="spy-range">${escapeHtml(rangeText)}</span>` : '';
-  const cap = caption ? `<span class="spy-caption">${escapeHtml(caption)}</span>` : '';
-  pill.innerHTML = `<span class="spy-bucket-label">${escapeHtml(style.badgeText)}</span> ${range} ${cap}`.trim();
-  if (offLimits) {
-    pill.classList.add('tm-off-limits');
-    pill.setAttribute(
-      'title',
-      `WAR OFF-LIMITS — ${offLimits.reason || 'medded/dipped'} (flagged by ${offLimits.set_by_name || 'faction'})`,
-    );
-  } else {
-    pill.setAttribute('title', caption);
-  }
-  return pill;
-}
 
 
 export async function applyHospitalOverlay(opts: { warId: number | null }): Promise<void> {
@@ -252,25 +221,12 @@ export async function applyHospitalOverlay(opts: { warId: number | null }): Prom
         d.spy?.range_width_pct ?? '',
       ].join('|'),
     render: ({ row, data, anchor, appendBadge }) => {
-      if (data.tm_mate) {
-        row.style.backgroundColor = 'rgba(63,185,80,0.10)';
-      } else if (data.war_enemy) {
-        row.style.backgroundColor = 'rgba(248,81,73,0.10)';
-      }
-      row.style.transition = 'background-color 0.2s ease-out';
+      const stripe = stripeBoxShadow(pickStripeRole(data));
+      if (stripe) row.style.boxShadow = stripe;
 
-      const badge = document.createElement('span');
-      if (data.tm_mate) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-mate">TM mate</span>`);
-      if (data.war_enemy) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-enemy">war enemy</span>`);
-      if (data.off_limits) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-offlimits">🚫 OFF-LIMITS</span>`);
-      if (data.target) {
-        const tag = data.target.tag ? ` ${escapeHtml(data.target.tag)}` : '';
-        badge.insertAdjacentHTML('beforeend', `<span class="pill pill-target">🎯 target${tag}</span>`);
-      }
       if (data.spy) {
-        badge.appendChild(buildSpyPill(data.spy, data.off_limits));
+        appendBadge(buildSpyChip(data.spy, data.off_limits));
       }
-      if (badge.children.length > 0) appendBadge(badge);
 
       // Hit-claim button: only paint for war enemies that aren't off-limits.
       // Off-limits already telegraphs "don't shoot", and claiming a faction

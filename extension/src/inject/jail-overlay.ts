@@ -23,10 +23,8 @@ import {
 import { getAuth, clearAuth } from '../lib/auth';
 import { decorateRows } from '../lib/row-decorator';
 import type { WarOffLimits, Target } from '../types';
-import type { SpyEstimate as SpyEstimateDisplay, Bucket } from '../lib/spy-display';
-import { bucketStyle, formatTotalRange, bucketCaption } from '../lib/spy-display';
-import { escapeHtml } from '../lib/format';
-import { pillBase } from '../lib/card-styles';
+import type { SpyEstimate as SpyEstimateDisplay } from '../lib/spy-display';
+import { buildSpyChip, pickStripeRole, stripeBoxShadow } from '../lib/spy-chip';
 
 interface JailRow {
   tm_mate: boolean;
@@ -164,74 +162,35 @@ async function buildMap(warId: number | null): Promise<Map<number, JailRow>> {
   return out;
 }
 
-const STYLES = pillBase('jail') + `
-  [data-tm-jail-badge] .pill-mate {
-    background: rgba(63,185,80,0.18);
-    color: #3fb950;
-  }
-  [data-tm-jail-badge] .pill-enemy {
-    background: rgba(248,81,73,0.20);
-    color: #f85149;
-  }
-  [data-tm-jail-badge] .pill-offlimits {
-    background: rgba(248,81,73,0.22);
-    color: #f85149;
-  }
-  [data-tm-jail-badge] .pill-target {
-    background: rgba(139,92,246,0.18);
-    color: #a78bfa;
-  }
-  [data-tm-jail-badge] .pill-spy {
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(0,0,0,0.25);
+// See hospital-overlay.ts for the visual contract — jail mirrors hospital so
+// players see the same role stripe + compact spy chip across both list pages.
+const STYLES = `
+  .spy-chip[data-tm-jail-badge] {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font: 600 10px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.25);
+    color: #c9d1d9;
+    white-space: nowrap;
+    vertical-align: middle;
   }
-  [data-tm-jail-badge] .pill-spy.tm-bucket-verified    { color: #56d364; border-color: #3fb950; }
-  [data-tm-jail-badge] .pill-spy.tm-bucket-estimate    { color: #e8b339; border-color: #d29922; }
-  [data-tm-jail-badge] .pill-spy.tm-bucket-rough_guess { color: #f5a05a; border-color: #f5a05a; }
-  [data-tm-jail-badge] .pill-spy.tm-bucket-endgame     { color: #ff7b72; border-color: #b62324; background: rgba(182,35,36,0.18); }
-  [data-tm-jail-badge] .pill-spy.tm-off-limits {
+  .spy-chip[data-tm-jail-badge].tm-bucket-verified    { color: #56d364; border-color: #3fb950; }
+  .spy-chip[data-tm-jail-badge].tm-bucket-estimate    { color: #e8b339; border-color: #d29922; }
+  .spy-chip[data-tm-jail-badge].tm-bucket-rough_guess { color: #f5a05a; border-color: #f5a05a; }
+  .spy-chip[data-tm-jail-badge].tm-bucket-endgame     { color: #ff7b72; border-color: #b62324; background: rgba(182,35,36,0.18); }
+  .spy-chip[data-tm-jail-badge].tm-off-limits {
     text-decoration: line-through;
     border-color: #f85149;
     color: #f85149;
     opacity: 0.85;
   }
-  [data-tm-jail-badge] .pill-spy .spy-bucket-label {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-size: 9px;
-    font-weight: 700;
-  }
-  /* Mobile: drop the caption text below 599px — chip + range stay visible. */
-  @media (max-width: 599px) {
-    [data-tm-jail-badge] .pill-spy .spy-caption { display: none; }
-  }
 `;
-
-function buildSpyPill(spy: SpyEstimateDisplay, offLimits: WarOffLimits | null): HTMLElement {
-  const pill = document.createElement('span');
-  pill.classList.add('pill', 'pill-spy');
-  const bucket: Bucket = spy.bucket ?? 'rough_guess';
-  pill.classList.add(`tm-bucket-${bucket}`);
-  const style = bucketStyle(bucket);
-  const rangeText = formatTotalRange(spy.total, spy.total_range, bucket);
-  const caption = bucketCaption(spy);
-  const range = rangeText ? `<span class="spy-range">${escapeHtml(rangeText)}</span>` : '';
-  const cap = caption ? `<span class="spy-caption">${escapeHtml(caption)}</span>` : '';
-  pill.innerHTML = `<span class="spy-bucket-label">${escapeHtml(style.badgeText)}</span> ${range} ${cap}`.trim();
-  if (offLimits) {
-    pill.classList.add('tm-off-limits');
-    pill.setAttribute(
-      'title',
-      `WAR OFF-LIMITS — ${offLimits.reason || 'medded/dipped'} (flagged by ${offLimits.set_by_name || 'faction'})`,
-    );
-  } else {
-    pill.setAttribute('title', caption);
-  }
-  return pill;
-}
 
 
 export async function applyJailOverlay(opts: { warId: number | null }): Promise<void> {
@@ -252,26 +211,12 @@ export async function applyJailOverlay(opts: { warId: number | null }): Promise<
         d.spy?.range_width_pct ?? '',
       ].join('|'),
     render: ({ row, data, appendBadge }) => {
-      if (data.tm_mate) {
-        row.style.backgroundColor = 'rgba(63,185,80,0.10)';
-      } else if (data.war_enemy) {
-        row.style.backgroundColor = 'rgba(248,81,73,0.10)';
-      }
-      row.style.transition = 'background-color 0.2s ease-out';
+      const stripe = stripeBoxShadow(pickStripeRole(data));
+      if (stripe) row.style.boxShadow = stripe;
 
-      const badge = document.createElement('span');
-      if (data.tm_mate) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-mate">TM mate</span>`);
-      if (data.war_enemy) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-enemy">war enemy</span>`);
-      if (data.off_limits) badge.insertAdjacentHTML('beforeend', `<span class="pill pill-offlimits">🚫 OFF-LIMITS</span>`);
-      if (data.target) {
-        const tag = data.target.tag ? ` ${escapeHtml(data.target.tag)}` : '';
-        badge.insertAdjacentHTML('beforeend', `<span class="pill pill-target">🎯 target${tag}</span>`);
-      }
       if (data.spy) {
-        badge.appendChild(buildSpyPill(data.spy, data.off_limits));
+        appendBadge(buildSpyChip(data.spy, data.off_limits));
       }
-      if (badge.children.length === 0) return;
-      appendBadge(badge);
     },
   });
 }

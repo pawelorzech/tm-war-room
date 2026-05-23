@@ -50,6 +50,12 @@ export interface RowDecoratorConfig<T> {
   render: (ctx: DecoratorRenderContext<T>) => void;
 }
 
+// Returns the list-row container the anchor lives in, or null if there isn't
+// one within ROW_WALK_DEPTH. Returning null on a miss (instead of falling back
+// to anchor.parentElement) is what prevents badges from leaking into Torn's
+// left-side "Information" sidebar widget on hospital/jail views: that widget
+// holds an XID anchor to the viewer's own profile but is not wrapped in any
+// LI/TR or list-class container, so we'd previously decorate it.
 function findRowContainer(anchor: HTMLElement): HTMLElement | null {
   let el: HTMLElement | null = anchor;
   for (let i = 0; el && i < ROW_WALK_DEPTH; i += 1) {
@@ -58,7 +64,7 @@ function findRowContainer(anchor: HTMLElement): HTMLElement | null {
     if (cls && ROW_CLASS_PATTERN.test(cls)) return el;
     el = el.parentElement;
   }
-  return anchor.parentElement;
+  return null;
 }
 
 function ensureStyles(featureId: string, css: string): void {

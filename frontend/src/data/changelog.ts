@@ -52,9 +52,28 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.65.0";
+export const CURRENT_VERSION = "1.66.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.66.0",
+    date: "2026-05-19",
+    title: "Companion hospital / jail badges — quieter, sharper, and they stop leaking into your own profile panel",
+    changes: [
+      {
+        type: "fix",
+        summary: "Companion no longer paints badges on the left-side Information panel",
+        before: "On hospitalview.php the loud TM mate + verified spy badges also appeared next to your own name in the left 'Information' sidebar, making the chrome look broken.",
+        after: "Decoration is now restricted to actual list rows — the Information panel and other sidebar widgets stay clean.",
+        cause: "The row-finder fell back to the anchor's parent when no list row was matched, and the Information panel is just a generic div.",
+      },
+      {
+        type: "improve",
+        summary: "Hospital and jail rows redesigned — thin role stripe + one compact spy chip",
+        detail: "Replaced the loud green/red row tint and stacked 'TM MATE / VERIFIED SPY 4,781,861,924 4 DAYS OLD - TORNSTATS' pills with a 4px colored stripe on the row's left edge (green for mates, red for war enemies + off-limits, purple for saved targets) plus a single short spy chip like '4.78B verified' or '3.5–4.5B est.'. Full attribution (source, freshness, off-limits reason) lives in the hover tooltip so the list stays scannable.",
+      },
+    ],
+  },
   {
     version: "1.65.0",
     date: "2026-05-17",
