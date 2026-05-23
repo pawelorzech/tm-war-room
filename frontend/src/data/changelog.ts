@@ -52,9 +52,34 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.66.0";
+export const CURRENT_VERSION = "1.66.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.66.1",
+    date: "2026-05-24",
+    title: "Defense-in-depth — sanitized HTML in news + chat search, snappier member tables",
+    changes: [
+      {
+        type: "fix",
+        summary: "Faction News and Director company news now scrub raw HTML before rendering",
+        before: "Both pages painted the news text straight from Torn's payload, so any markup hiding in the source — links, scripts, anything — would land in the DOM exactly as upstream sent it.",
+        after: "News text passes through a sanitizer that only keeps a small set of safe tags (links, emphasis, line breaks) and only allows links pointing at torn.com.",
+        cause: "The renderer trusted upstream HTML implicitly instead of treating it as untrusted user-provided content.",
+      },
+      {
+        type: "fix",
+        summary: "Chat message search results scrub raw HTML before rendering match highlights",
+        before: "When searching faction chat, the result preview rendered the matched message via HTML so the yellow highlight could show — but the surrounding message text was the user's raw input, copied in as-is.",
+        after: "Each search snippet now runs through a sanitizer, so the highlight tag survives but any other markup a teammate might paste into a message gets stripped before display.",
+      },
+      {
+        type: "improve",
+        summary: "Our Team and Enemies tables stay snappy when sorting or opening modals",
+        detail: "Wrapped per-row cards in a render-skip check, so opening a flag/edit modal or changing sort no longer re-renders every row from scratch. Most noticeable on full-sized factions during war.",
+      },
+    ],
+  },
   {
     version: "1.66.0",
     date: "2026-05-19",
