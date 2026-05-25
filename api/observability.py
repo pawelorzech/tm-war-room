@@ -76,8 +76,22 @@ def _scrub_dict_value(key: Any, value: Any) -> Any:
     return _scrub_value(value)
 
 
+_TORNSTATS_HOSTS = {"www.tornstats.com", "tornstats.com"}
+
+
 def _is_upstream_noise(exc: BaseException) -> bool:
-    """True for transient upstream Torn API failures we don't want as Sentry errors.
+    """True for transient upstream failures we don't want as Sentry errors.
+
+    Covers three flavours of "not our bug":
+      * ``httpx.HTTPStatusError`` with 5xx from anywhere — upstream server
+        crashed/overloaded.
+      * ``httpx.HTTPStatusError`` with 4xx from ``(www.)tornstats.com`` —
+        TornStats' API surface is flaky (4xx for expired user keys, removed
+        endpoints, data-shape changes); not actionable on our side. We
+        deliberately keep 4xx from ``api.torn.com`` as real errors so
+        TM Hub bugs (bad selections, key handling) still page Sentry.
+      * ``httpx.TimeoutException`` / ``ConnectError`` / ``ReadError`` —
+        network blip to any upstream.
 
     Single source of truth — also imported by
     ``api/scheduler/jobs/_log_helpers.py`` for the scheduler's per-job demote
@@ -90,6 +104,15 @@ def _is_upstream_noise(exc: BaseException) -> bool:
         status = exc.response.status_code
         if 500 <= status < 600:
             return True
+        if 400 <= status < 500:
+            # Demote 4xx only for known-flaky hosts (currently tornstats).
+            # Defensive: if request/url is missing, fall through.
+            try:
+                host = exc.request.url.host
+            except (AttributeError, TypeError):
+                host = None
+            if host and host.lower() in _TORNSTATS_HOSTS:
+                return True
     if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError)):
         return True
     return False

@@ -13,9 +13,11 @@ import pytest
 from api.observability import _before_send, _is_upstream_noise, _scrub_value
 
 
-def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+def _http_status_error(
+    status_code: int, url: str = "https://api.torn.com/user/"
+) -> httpx.HTTPStatusError:
     """Build a real httpx.HTTPStatusError with the given upstream status."""
-    request = httpx.Request("GET", "https://api.torn.com/user/")
+    request = httpx.Request("GET", url)
     response = httpx.Response(status_code, request=request)
     return httpx.HTTPStatusError(
         f"Server error '{status_code}' for url '{request.url}'",
@@ -219,3 +221,54 @@ def test_is_upstream_noise_predicate():
     assert _is_upstream_noise(httpx.ConnectError("x")) is True
     assert _is_upstream_noise(httpx.ReadError("x")) is True
     assert _is_upstream_noise(ValueError("real bug")) is False
+
+
+# --- TornStats 4xx noise (PYTHON-FASTAPI-Q regression) ---------------------
+#
+# TornStats returns 4xx for non-actionable reasons (expired user keys, removed
+# endpoints, internal data-shape changes). These flooded Sentry as
+# HTTPStatusError 404 from /api/v2/.../loot. We demote 4xx specifically for
+# tornstats hosts while keeping 4xx from api.torn.com as real errors.
+
+
+_TS_URL = "https://www.tornstats.com/api/v2/TS_xxxxxxxxxxxxxxxx/loot"
+_TS_URL_NOWWW = "https://tornstats.com/api/v2/TS_xxxxxxxxxxxxxxxx/loot"
+
+
+def test_is_upstream_noise_tornstats_404():
+    assert _is_upstream_noise(_http_status_error(404, _TS_URL)) is True
+
+
+def test_is_upstream_noise_tornstats_no_www_404():
+    assert _is_upstream_noise(_http_status_error(404, _TS_URL_NOWWW)) is True
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 418, 422, 429, 451, 499])
+def test_is_upstream_noise_tornstats_all_4xx(status):
+    assert _is_upstream_noise(_http_status_error(status, _TS_URL)) is True
+
+
+def test_is_upstream_noise_torn_api_404_still_real_error():
+    # 404 from api.torn.com must NOT be demoted — could be a real TM Hub bug
+    # (bad selections, wrong key shape, etc.).
+    exc = _http_status_error(404, "https://api.torn.com/user/?selections=basic")
+    assert _is_upstream_noise(exc) is False
+
+
+def test_is_upstream_noise_other_host_4xx_unchanged():
+    exc = _http_status_error(400, "https://example.com/whatever")
+    assert _is_upstream_noise(exc) is False
+
+
+def test_is_upstream_noise_tornstats_2xx_not_matched():
+    # 2xx isn't an error and shouldn't reach the predicate via Sentry, but the
+    # check must not match it anyway.
+    exc = _http_status_error(200, _TS_URL)
+    assert _is_upstream_noise(exc) is False
+
+
+def test_before_send_drops_tornstats_404():
+    exc = _http_status_error(404, _TS_URL)
+    event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None
