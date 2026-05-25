@@ -51,6 +51,11 @@ export function notifyAuthStateChanged(authenticated: boolean): void {
 
 interface ApiFetchOptions extends RequestInit {
   includeAuth?: boolean;
+  // Statuses where we still throw to the caller, but skip Sentry capture for
+  // this specific call. Use for endpoints where a given 4xx is expected
+  // user-input feedback (e.g. 400 "Incorrect key" on /api/keys), not a bug.
+  // Per-call instead of global so unrelated 400s remain reportable.
+  silentStatuses?: number[];
 }
 
 function apiPostJson<T>(path: string, body: unknown, init?: Omit<ApiFetchOptions, "body" | "method">): Promise<T> {
@@ -154,7 +159,9 @@ async function _apiFetchInner<T>(path: string, init?: ApiFetchOptions): Promise<
     const body = await readResponseBody(res);
     const detail = typeof body === "object" && body && "detail" in body ? body.detail : null;
     const message = typeof detail === "string" ? detail : `HTTP ${res.status}`;
-    if (!_EXPECTED_STATUSES.has(res.status)) {
+    const silent = init?.silentStatuses;
+    const isSilent = silent ? silent.includes(res.status) : false;
+    if (!_EXPECTED_STATUSES.has(res.status) && !isSilent) {
       reportError(new Error(`${res.status} ${message}`), {
         endpoint: path, method, status: res.status,
       });
@@ -662,6 +669,8 @@ export const api = {
     }>(
       "/api/keys",
       { api_key: apiKey, remember },
-      { includeAuth: false },
+      // 400 "Incorrect key" is expected user-input feedback shown via
+      // AuthGate's setError — don't ship it to Sentry as a system error.
+      { includeAuth: false, silentStatuses: [400] },
     ),
 };
