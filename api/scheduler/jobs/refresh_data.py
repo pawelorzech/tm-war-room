@@ -25,6 +25,44 @@ _BARS_SEM = asyncio.Semaphore(10)
 _prev_npc_levels: dict[int, int] = {}
 
 
+def _check_war_start_push(war, settings_repo, push_service, dispatcher=None) -> None:
+    """Fire 'War Started!' exactly once per war_id.
+
+    Persists last-notified war_id in app_settings so transient wars-endpoint
+    blips (None → war → None) and process restarts don't refire the alert.
+    """
+    if war is None or getattr(war, "war_id", None) is None:
+        return
+    last_notified = None
+    if settings_repo is not None:
+        raw = settings_repo.get("last_notified_war_id")
+        if raw:
+            try:
+                last_notified = int(raw)
+            except ValueError:
+                last_notified = None
+    if last_notified == war.war_id:
+        return
+    if dispatcher:
+        dispatcher.send(
+            title="War Started!",
+            body="An active war has been detected. Get ready for battle!",
+            url="/wars",
+            target_type="preference",
+            target_value="war_start",
+            sent_by="system",
+        )
+    elif push_service:
+        push_service.dispatch(
+            "war_start",
+            "War Started!",
+            "An active war has been detected. Get ready for battle!",
+            "/wars",
+        )
+    if settings_repo is not None:
+        settings_repo.set("last_notified_war_id", str(war.war_id))
+
+
 def _check_loot_push(npcs: list[dict], push_service, dispatcher=None) -> None:
     """Check if any NPC crossed from <4 to >=4 and send push notifications."""
     global _prev_npc_levels
@@ -70,7 +108,9 @@ async def run_refresh_data() -> None:
     start = time.time()
     refreshed = []
 
-    # Always check war status (cheap, cached)
+    # Always check war status (cheap, cached). On API failure keep the prior
+    # war_active state — a transient hiccup must not flip war_active to False.
+    war = None
     try:
         war = await torn_client.fetch_war()
         war_active = war is not None
@@ -78,24 +118,12 @@ async def run_refresh_data() -> None:
     except Exception as e:
         log_job_error(logger, "War check failed: %s", e)
 
-    # Notify on war state change
-    prev_war = state.get("_prev_war_active", None)
-    if prev_war is not None and prev_war != war_active:
-        push_svc = state.get("push_service")
-        dispatcher = state.get("notification_dispatcher")
-        if war_active:
-            if dispatcher:
-                dispatcher.send(
-                    title="War Started!",
-                    body="An active war has been detected. Get ready for battle!",
-                    url="/wars",
-                    target_type="preference",
-                    target_value="war_start",
-                    sent_by="system",
-                )
-            elif push_svc:
-                push_svc.dispatch("war_start", "War Started!", "An active war has been detected. Get ready for battle!", "/wars")
-    state["_prev_war_active"] = war_active
+    _check_war_start_push(
+        war,
+        settings_repo=state.get("settings_repo"),
+        push_service=state.get("push_service"),
+        dispatcher=state.get("notification_dispatcher"),
+    )
 
     # Decide what to refresh this cycle
     # War active: refresh critical data every cycle (30s)

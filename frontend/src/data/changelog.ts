@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.66.1";
+export const CURRENT_VERSION = "1.66.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.66.2",
+    date: "2026-05-26",
+    title: "War Started! push now fires once per war, not repeatedly",
+    changes: [
+      {
+        type: "fix",
+        summary: "War Started! push notification fires exactly once per war",
+        before: "Players got the War Started! push over and over for the same war — sometimes minutes apart, sometimes after the app restarted, sometimes after the wars endpoint briefly went quiet.",
+        after: "Each ranked war triggers the alert exactly once. The war's id is remembered persistently, so transient blips in Torn's wars endpoint and backend restarts can no longer retrigger it. A genuinely new war (different id) still fires one push.",
+        cause: "The previous dedup was an in-memory boolean that flipped any time the wars endpoint blinked empty for a cycle — and reset on every deploy.",
+      },
+    ],
+  },
   {
     version: "1.66.1",
     date: "2026-05-24",

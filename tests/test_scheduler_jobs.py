@@ -120,6 +120,76 @@ async def test_collect_one_extended_stats_http_error_does_not_block_insert(key_r
     assert snaps[0]["strength"] == 1e9
 
 
+class _FakeWar:
+    def __init__(self, war_id: int | None):
+        self.war_id = war_id
+
+
+class _FakeSettingsRepo:
+    """Minimal settings_repo stub backed by an in-process dict."""
+    def __init__(self):
+        self._store: dict[str, str] = {}
+
+    def get(self, key: str) -> str | None:
+        return self._store.get(key)
+
+    def set(self, key: str, value: str, updated_by=None) -> None:
+        self._store[key] = value
+
+
+def test_war_start_push_fires_once_per_war_id():
+    """The 'War Started!' alert must fire exactly once per war_id and survive
+    transient wars-endpoint blips + process restart (settings_repo persists)."""
+    from api.scheduler.jobs.refresh_data import _check_war_start_push
+
+    settings = _FakeSettingsRepo()
+    dispatcher = MagicMock()
+    dispatcher.send = MagicMock()
+
+    # Cycle 1 — war 7777 appears, fire once.
+    _check_war_start_push(_FakeWar(7777), settings, push_service=None, dispatcher=dispatcher)
+    assert dispatcher.send.call_count == 1
+    assert settings.get("last_notified_war_id") == "7777"
+
+    # Cycle 2 — same war_id, must be silent.
+    _check_war_start_push(_FakeWar(7777), settings, push_service=None, dispatcher=dispatcher)
+    assert dispatcher.send.call_count == 1
+
+    # Cycle 3 — wars endpoint blipped empty (war=None), still silent.
+    _check_war_start_push(None, settings, push_service=None, dispatcher=dispatcher)
+    assert dispatcher.send.call_count == 1
+
+    # Cycle 4 — war 7777 reappears after the blip, still silent (was the bug).
+    _check_war_start_push(_FakeWar(7777), settings, push_service=None, dispatcher=dispatcher)
+    assert dispatcher.send.call_count == 1
+
+    # Cycle 5 — process restart: dispatcher is fresh, settings persists,
+    # same war_id — still silent.
+    fresh_dispatcher = MagicMock()
+    fresh_dispatcher.send = MagicMock()
+    _check_war_start_push(_FakeWar(7777), settings, push_service=None, dispatcher=fresh_dispatcher)
+    assert fresh_dispatcher.send.call_count == 0
+
+    # Cycle 6 — a genuinely new war (different war_id) — fire once.
+    _check_war_start_push(_FakeWar(8888), settings, push_service=None, dispatcher=fresh_dispatcher)
+    assert fresh_dispatcher.send.call_count == 1
+    assert settings.get("last_notified_war_id") == "8888"
+
+
+def test_war_start_push_falls_back_to_push_service_when_no_dispatcher():
+    """Older deployments without notification_dispatcher use push_service."""
+    from api.scheduler.jobs.refresh_data import _check_war_start_push
+
+    settings = _FakeSettingsRepo()
+    push = MagicMock()
+    push.dispatch = MagicMock()
+
+    _check_war_start_push(_FakeWar(9999), settings, push_service=push, dispatcher=None)
+    push.dispatch.assert_called_once()
+    assert push.dispatch.call_args[0][0] == "war_start"
+    assert settings.get("last_notified_war_id") == "9999"
+
+
 def test_loot_level4_triggers_push():
     """When an NPC crosses from level <4 to >=4, push notification is dispatched."""
     from api.scheduler.jobs.refresh_data import _prev_npc_levels, _check_loot_push
