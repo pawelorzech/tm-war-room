@@ -199,23 +199,30 @@ function attackTargetId(): number | null {
 function ensureAttackFFHost(): HTMLElement | null {
   let host = document.querySelector<HTMLElement>(`[${FF_HOST_ATTR}="${FF_HOST_KIND}"]`);
   if (host) return host;
-  host = document.createElement('span');
-  host.setAttribute(FF_HOST_ATTR, FF_HOST_KIND);
-  host.style.display = 'inline-block';
-  host.style.margin = '4px 0';
-  // Attach next to the off-limits badge if it exists (same flow region),
-  // otherwise hang it off #mainContainer's first child.
+
+  // Path 1: OFF-LIMITS badge present → sit next to it in the same flow
+  // region. The badge is already an inline pill so adding a sibling doesn't
+  // disturb layout.
   const badge = document.querySelector('[data-tm-companion="profile-badge"]');
   if (badge?.parentElement) {
+    host = document.createElement('span');
+    host.setAttribute(FF_HOST_ATTR, FF_HOST_KIND);
+    host.style.display = 'inline-block';
+    host.style.margin = '4px 0';
     badge.parentElement.insertBefore(host, badge.nextSibling);
     return host;
   }
-  const main = document.getElementById('mainContainer');
-  if (main) {
-    main.insertBefore(host, main.firstChild);
-    return host;
-  }
-  return null;
+
+  // Path 2 (fallback): no OFF-LIMITS badge. Torn's attack page treats a new
+  // first child of #mainContainer as a flex sibling of the attack panel,
+  // which pushes the entire UI horizontally. Float the chip in the top-right
+  // corner instead, joining the submit-spy (top:120px) / claim (top:168px)
+  // fixed stack.
+  host = document.createElement('div');
+  host.setAttribute(FF_HOST_ATTR, FF_HOST_KIND);
+  host.style.cssText = 'position:fixed;right:16px;top:72px;z-index:999990;pointer-events:auto;';
+  document.body.appendChild(host);
+  return host;
 }
 
 // --- Claim chip (Phase 4B) ------------------------------------------------

@@ -52,9 +52,23 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.66.2";
+export const CURRENT_VERSION = "1.66.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.66.3",
+    date: "2026-05-28",
+    title: "Companion FF chip no longer pushes the attack page sideways",
+    changes: [
+      {
+        type: "fix",
+        summary: "Fair-fight chip on the attack page now floats in the corner instead of shifting the UI",
+        before: "On targets with no fresh spy data, the FF estimate chip rendered inside the attack panel and pushed the whole page — including the attack button — visibly to the right.",
+        after: "The chip now floats in the top-right corner alongside the other companion chips. The attack panel stays put, and the FF tier and dominant-stat hint are still visible at a glance.",
+        cause: "The fallback chip was being inserted as the first child of the attack page's main container, which Torn lays out as a flex row.",
+      },
+    ],
+  },
   {
     version: "1.66.2",
     date: "2026-05-26",
