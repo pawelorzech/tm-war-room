@@ -272,3 +272,54 @@ def test_before_send_drops_tornstats_404():
     event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
     hint = {"exc_info": (type(exc), exc, None)}
     assert _before_send(event, hint) is None
+
+
+# --- 429 rate-limit demote (PYTHON-FASTAPI-S/T/Q regression) ---------------
+#
+# Torn API rate-limited us (HTTP 429) on /v2/faction/crimes, /torn?selections=
+# honors,medals and /v2/faction?selections=attacks during scheduler refresh
+# jobs. 429 is "back off" — never a TM Hub bug — so we demote regardless of
+# which upstream throttled us. Non-429 4xx from api.torn.com still page
+# Sentry (real-bug signal).
+
+
+def test_is_upstream_noise_torn_api_429():
+    # The triggering case from Sentry issues PYTHON-FASTAPI-S/T/Q: 429 from
+    # api.torn.com must be demoted even though it's not a tornstats host.
+    exc = _http_status_error(429, "https://api.torn.com/v2/faction/crimes?key=xxx")
+    assert _is_upstream_noise(exc) is True
+
+
+def test_is_upstream_noise_tornstats_429():
+    # Regression: tornstats-4xx rule already covers this, but pin it
+    # explicitly so both rules stay aligned.
+    assert _is_upstream_noise(_http_status_error(429, _TS_URL)) is True
+
+
+def test_is_upstream_noise_other_host_429():
+    # Host-agnostic: 429 from any third party (e.g. Backblaze, httpbin) is
+    # still pure rate-limit signal — demote it too.
+    exc = _http_status_error(429, "https://httpbin.org/status/429")
+    assert _is_upstream_noise(exc) is True
+
+
+def test_is_upstream_noise_torn_api_400_still_real_error():
+    # Regression for commit f39dbc8 (Sentry-suppress on expected 400 at key
+    # register lives in the client, NOT here): non-429 4xx from api.torn.com
+    # must keep paging Sentry as a real bug signal.
+    exc = _http_status_error(400, "https://api.torn.com/v2/faction?selections=attacks")
+    assert _is_upstream_noise(exc) is False
+
+
+def test_is_upstream_noise_5xx_any_host_regression():
+    # Sanity that broadening 429 didn't accidentally narrow 5xx coverage.
+    assert _is_upstream_noise(_http_status_error(500, "https://api.torn.com/x")) is True
+    assert _is_upstream_noise(_http_status_error(502, "https://www.tornstats.com/x")) is True
+    assert _is_upstream_noise(_http_status_error(503, "https://example.com/x")) is True
+
+
+def test_before_send_drops_torn_api_429():
+    exc = _http_status_error(429, "https://api.torn.com/v2/faction/crimes?key=xxx")
+    event = {"exception": {"values": [{"type": "HTTPStatusError"}]}}
+    hint = {"exc_info": (type(exc), exc, None)}
+    assert _before_send(event, hint) is None

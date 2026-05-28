@@ -82,13 +82,16 @@ _TORNSTATS_HOSTS = {"www.tornstats.com", "tornstats.com"}
 def _is_upstream_noise(exc: BaseException) -> bool:
     """True for transient upstream failures we don't want as Sentry errors.
 
-    Covers three flavours of "not our bug":
+    Covers four flavours of "not our bug":
       * ``httpx.HTTPStatusError`` with 5xx from anywhere — upstream server
         crashed/overloaded.
-      * ``httpx.HTTPStatusError`` with 4xx from ``(www.)tornstats.com`` —
+      * ``httpx.HTTPStatusError`` with 429 from anywhere — pure rate-limit
+        signal ("back off"), never a TM Hub bug regardless of which upstream
+        throttled us (api.torn.com, tornstats, anything else).
+      * ``httpx.HTTPStatusError`` with other 4xx from ``(www.)tornstats.com`` —
         TornStats' API surface is flaky (4xx for expired user keys, removed
         endpoints, data-shape changes); not actionable on our side. We
-        deliberately keep 4xx from ``api.torn.com`` as real errors so
+        deliberately keep non-429 4xx from ``api.torn.com`` as real errors so
         TM Hub bugs (bad selections, key handling) still page Sentry.
       * ``httpx.TimeoutException`` / ``ConnectError`` / ``ReadError`` —
         network blip to any upstream.
@@ -105,7 +108,10 @@ def _is_upstream_noise(exc: BaseException) -> bool:
         if 500 <= status < 600:
             return True
         if 400 <= status < 500:
-            # Demote 4xx only for known-flaky hosts (currently tornstats).
+            # 429 = rate limit, "back off" — never our bug, regardless of host.
+            if status == 429:
+                return True
+            # Demote remaining 4xx only for known-flaky hosts (currently tornstats).
             # Defensive: if request/url is missing, fall through.
             try:
                 host = exc.request.url.host

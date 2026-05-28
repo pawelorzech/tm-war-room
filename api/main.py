@@ -34,6 +34,7 @@ from api.auth import (
     TOKEN_TYPE_EXTENSION,
 )
 from api.db import KeyStore
+from api.observability import _is_upstream_noise
 from api.threat import compute_threat, compute_stat_threat
 from api.admin import router as admin_router
 import api.admin as admin_mod
@@ -937,7 +938,15 @@ async def log_requests(request: Request, call_next):
     except Exception as e:
         elapsed_ms = (time.time() - start) * 1000
         _log_request_json(request.method, request.url.path, 500, elapsed_ms, pid)
-        logger.error("UNHANDLED %s %s pid=%s %.0fms — %s", request.method, request.url.path, pid, elapsed_ms, e)
+        # Upstream noise (5xx/429/tornstats-4xx/network) is logged at WARNING
+        # so Sentry's LoggingIntegration doesn't elevate it to an error event.
+        # Real bugs keep ERROR + exc_info so before_send sees the underlying
+        # exception and _is_upstream_noise filtering at the SDK level becomes
+        # reachable (issue PYTHON-FASTAPI-G otherwise has no exception entry).
+        if _is_upstream_noise(e):
+            logger.warning("UPSTREAM %s %s pid=%s %.0fms — %s", request.method, request.url.path, pid, elapsed_ms, e)
+        else:
+            logger.error("UNHANDLED %s %s pid=%s %.0fms — %s", request.method, request.url.path, pid, elapsed_ms, e, exc_info=e)
         raise
     elapsed_ms = (time.time() - start) * 1000
     _log_request_json(request.method, request.url.path, response.status_code, elapsed_ms, pid)
