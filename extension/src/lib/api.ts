@@ -433,7 +433,7 @@ export function fetchStakeouts(auth: CompanionAuth): Promise<StakeoutsResponse> 
 
 // ── Mug Radar (feature/mug-radar) ───────────────────────────
 
-export function fetchMugScore(playerId: number, auth: CompanionAuth): Promise<MugScoreResponse> {
+export function fetchMugScore(auth: CompanionAuth, playerId: number): Promise<MugScoreResponse> {
   return get<MugScoreResponse>(`/api/mug/score/${playerId}`, auth);
 }
 
@@ -442,12 +442,12 @@ export function fetchMugCandidates(auth: CompanionAuth): Promise<MugCandidatesRe
 }
 
 export function postMugInteraction(
-  sellerPlayerId: number, source: string, auth: CompanionAuth,
+  auth: CompanionAuth, sellerPlayerId: number, source: string,
 ): Promise<{ status: string }> {
   return post<{ status: string }>('/api/mug/interaction', { seller_player_id: sellerPlayerId, kind: 'trade', source }, auth);
 }
 
-export function postMugLogged(targetPlayerId: number, auth: CompanionAuth): Promise<{ status: string }> {
+export function postMugLogged(auth: CompanionAuth, targetPlayerId: number): Promise<{ status: string }> {
   return post<{ status: string }>('/api/mug/logged', { target_player_id: targetPlayerId }, auth);
 }
 

@@ -542,6 +542,8 @@ export interface ClaimActiveResponse {
 
 // ── Mug Radar (feature/mug-radar) ───────────────────────────
 
+export type MugTier = 'prime' | 'good' | 'meh' | 'skip' | 'cooldown';
+
 export interface MugBreakdown {
   winnability: number;
   money: number;
@@ -554,7 +556,7 @@ export interface MugBreakdown {
 export interface MugScoreResponse {
   player_id: number;
   score: number;
-  tier: 'prime' | 'good' | 'meh' | 'skip' | 'cooldown';
+  tier: MugTier;
   hittable_now: boolean;
   breakdown: MugBreakdown;
 }
