@@ -56,6 +56,8 @@ const DOT_GLOW: Record<Readiness, string> = {
   gray: "text-gray-500",
 };
 
+const EMPTY_MEMBERS: DetailResponse["members"] = {};
+
 export function MemberTable({ members, detail, overview }: MemberTableProps) {
   const [sort, setSort] = useState<SortState>({ col: null, asc: true });
   // Phase 3B: row expansion for the activity heatmap (and any future row-
@@ -63,7 +65,7 @@ export function MemberTable({ members, detail, overview }: MemberTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const flags = useFeatureFlags();
 
-  const dm = detail?.members || {};
+  const dm = detail?.members || EMPTY_MEMBERS;
   const yataDown = detail?.yata_down || false;
   const warActive = isWarActive(overview);
   const now = Math.floor(Date.now() / 1000);
