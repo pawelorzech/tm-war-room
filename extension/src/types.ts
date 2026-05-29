@@ -539,3 +539,31 @@ export interface ClaimActiveResponse {
   claims: ClaimRow[];
   cached_at: number;
 }
+
+// ── Mug Radar (feature/mug-radar) ───────────────────────────
+
+export interface MugBreakdown {
+  winnability: number;
+  money: number;
+  availability: number;
+  fresh_cash: number;
+  poker: number;
+  cooldown_remaining_h?: number;
+}
+
+export interface MugScoreResponse {
+  player_id: number;
+  score: number;
+  tier: 'prime' | 'good' | 'meh' | 'skip' | 'cooldown';
+  hittable_now: boolean;
+  breakdown: MugBreakdown;
+}
+
+export interface MugCandidate extends MugScoreResponse {
+  player_name: string | null;
+}
+
+export interface MugCandidatesResponse {
+  candidates: MugCandidate[];
+  count: number;
+}
