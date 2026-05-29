@@ -35,6 +35,7 @@ import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
 import { applyImarketOverlay } from './inject/imarket-overlay';
 import { applyMugOverlay } from './inject/mug-overlay';
+import { applyPokerOverlay } from './inject/poker-overlay';
 import { renderOcOverlay } from './inject/oc-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
@@ -231,6 +232,18 @@ async function refreshInner(): Promise<void> {
   if (match.kind === 'oc') {
     if (getAuth()) {
       void renderOcOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'poker') {
+    // Poker-table mug assist — decorate opponent seats + toast when a seat
+    // empties (stood up → chips become muggable cash). Fire-and-forget; the
+    // overlay self-guards on auth. Stood-up detection rides the existing
+    // refresh loop's re-invocation (module-level snapshot diff), so no extra
+    // polling is added here.
+    if (getAuth()) {
+      applyPokerOverlay();
     }
     return;
   }
