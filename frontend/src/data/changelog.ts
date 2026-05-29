@@ -52,9 +52,21 @@ export interface ChangelogEntry {
   changes: ChangelogChange[];
 }
 
-export const CURRENT_VERSION = "1.66.3";
+export const CURRENT_VERSION = "1.67.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.67.0",
+    date: "2026-05-30",
+    title: "Mug Radar",
+    changes: [
+      {
+        type: "feat",
+        summary: "Mug Radar ranks mug targets and adds a one-click attack on torn.com",
+        detail: "The Companion scores players for mugging from winnability, money proxies, availability, fresh cash from your trades, and an anti-reduction cooldown, then shows a chip with a quick hit link. Poker tables get a stand-up alert and saved targets toast when they leave hospital. Scores are estimates from proxies, not exact cash.",
+      },
+    ],
+  },
   {
     version: "1.66.3",
     date: "2026-05-28",
