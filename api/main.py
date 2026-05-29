@@ -94,6 +94,8 @@ from api.routers.activity import router as activity_router
 import api.routers.activity as activity_mod
 from api.routers.claims import router as claims_router
 import api.routers.claims as claims_mod
+from api.routers.mug import router as mug_router
+import api.routers.mug as mug_mod
 from api.mcp import mcp as mcp_server, set_services as mcp_set_services, get_mcp_middleware
 
 torn_client: TornClient | None = None
@@ -170,6 +172,15 @@ async def lifespan(app: FastAPI):
     target_repo = TargetRepository(db_path="data/keys.db")
     targets_mod.target_repo = target_repo
     targets_mod.key_store = key_store
+
+    from api.db.repos.mug import MugRepository
+    mug_repo = MugRepository(db_path="data/keys.db")
+    mug_mod.mug_repo = mug_repo
+    mug_mod.key_store = key_store
+    mug_mod.target_repo = target_repo
+    mug_mod.torn_client = torn_client
+    mug_mod.spy_service = spy_mod.spy_service
+    mug_mod.stats_repo = stats_repo
 
     from api.db.repos.war_off_limits import WarOffLimitsRepository
     war_off_limits_mod.repo = WarOffLimitsRepository(db_path="data/keys.db")
@@ -488,6 +499,7 @@ app.include_router(ff_router)
 app.include_router(flights_router)
 app.include_router(activity_router)
 app.include_router(claims_router)
+app.include_router(mug_router)
 
 # CORS for the TM Hub Companion (browser extension / userscript running on
 # torn.com). Origins are explicit — wildcard would forbid credentials and we
