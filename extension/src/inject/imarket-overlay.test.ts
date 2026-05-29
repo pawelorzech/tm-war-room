@@ -21,13 +21,14 @@ vi.mock('../lib/auth', () => ({
 // vi.mock is hoisted to the top of the file, so the factory cannot capture
 // module-level variables that are declared below it. vi.hoisted lets us
 // declare the mock alongside the hoist so the factory sees it.
-const { fetchMarketPricesMock } = vi.hoisted(() => ({
+const { fetchMarketPricesMock, postMugInteractionMock } = vi.hoisted(() => ({
   fetchMarketPricesMock: vi.fn(),
+  postMugInteractionMock: vi.fn(),
 }));
 
 vi.mock('../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../lib/api')>('../lib/api');
-  return { ...actual, fetchMarketPrices: fetchMarketPricesMock };
+  return { ...actual, fetchMarketPrices: fetchMarketPricesMock, postMugInteraction: postMugInteractionMock };
 });
 
 import { applyImarketOverlay, _resetImarketCacheForTests } from './imarket-overlay';
@@ -72,6 +73,8 @@ beforeEach(() => {
   document.head.innerHTML = '';
   document.body.innerHTML = '';
   fetchMarketPricesMock.mockReset();
+  postMugInteractionMock.mockReset();
+  postMugInteractionMock.mockResolvedValue({ status: 'ok' });
   document.getElementById(STYLE_ID)?.remove();
   _resetImarketCacheForTests();
 });
@@ -191,5 +194,43 @@ describe('applyImarketOverlay — bargain/cheap badges', () => {
     expect(badge).toBeTruthy();
     expect(badge.classList.contains('tm-over')).toBe(true);
     expect(badge.textContent || '').toMatch(/\+?20%/);
+  });
+});
+
+describe('applyImarketOverlay — fresh-cash on buy', () => {
+  // A listing row whose buy control is associated with a seller profile link.
+  // Buying from that seller hands them the player's cash → register a
+  // fresh-cash trade so the seller's mug-score boosts.
+  function setSellerListing(sellerId: number, price: number): HTMLElement {
+    document.body.innerHTML = '<div id="mainContainer"><ul class="sellerList"></ul></div>';
+    const ul = document.querySelector<HTMLUListElement>('ul.sellerList')!;
+    const li = document.createElement('li');
+    li.innerHTML =
+      `<a href="/profiles.php?XID=${sellerId}">Seller${sellerId}</a>` +
+      `<span class="price">$${price.toLocaleString('en-US')}</span>` +
+      `<button class="buy">Buy</button>`;
+    ul.appendChild(li);
+    return li;
+  }
+
+  it('records a fresh-cash trade with (auth, sellerId, "imarket") when the player buys', async () => {
+    const itemId = 200;
+    navigateTo(itemId);
+    fetchMarketPricesMock.mockResolvedValueOnce({ items: [priceItem(itemId, 100_000)] });
+    const row = setSellerListing(200, 50_000);
+
+    await applyImarketOverlay();
+
+    const buy = row.querySelector('.buy') as HTMLElement;
+    buy.click();
+    // fire-and-forget — let the microtask settle.
+    await Promise.resolve();
+
+    expect(postMugInteractionMock).toHaveBeenCalledTimes(1);
+    expect(postMugInteractionMock).toHaveBeenCalledWith(
+      { token: 't', player_id: 1, player_name: 'tester' },
+      200,
+      'imarket',
+    );
   });
 });

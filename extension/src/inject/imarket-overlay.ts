@@ -12,7 +12,7 @@
 // We don't use lib/row-decorator here because that helper keys off profile
 // XID anchors — listings on /imarket.php have item ids, not player ids.
 
-import { ApiError, fetchMarketPrices } from '../lib/api';
+import { ApiError, fetchMarketPrices, postMugInteraction } from '../lib/api';
 import { getAuth, clearAuth } from '../lib/auth';
 import type { MarketPriceItem } from '../types';
 import { escapeHtml } from '../lib/format';
@@ -21,6 +21,7 @@ const TTL_MS = 5 * 60_000;
 const STYLE_ID = 'tm-companion-imarket-styles';
 const ROW_ATTR = 'data-tm-imarket-styled';
 const BADGE_ATTR = 'data-tm-imarket-badge';
+const BUY_BOUND_ATTR = 'data-tm-imarket-buy-bound';
 
 // Bargain/cheap thresholds. Calibrated to match TornTools' default behaviour
 // while leaving the existing fair-pill / overpriced-pill behaviour intact:
@@ -190,6 +191,32 @@ function buildPill(ratio: number, deltaPct: number): HTMLElement {
   return pill;
 }
 
+// Resolve the seller's player id from the row's profile link. Item-market
+// listing rows carry a `profiles.php?XID=` anchor for the seller; that's the
+// player who receives the buyer's cash on a purchase.
+function resolveSellerId(row: HTMLElement): number | null {
+  const anchor = row.querySelector<HTMLAnchorElement>('a[href*="XID="]');
+  if (!anchor) return null;
+  const m = anchor.href.match(/XID=(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Fresh-cash: when the player buys from this row's seller, the seller just
+// received the buyer's cash → register a fresh-cash trade so the seller's
+// mug-score boosts. Idempotent: guarded by a data-attr so re-running the
+// overlay across Torn's in-place re-renders never double-binds.
+function bindFreshCash(row: HTMLElement): void {
+  if (row.getAttribute(BUY_BOUND_ATTR) === '1') return;
+  row.setAttribute(BUY_BOUND_ATTR, '1');
+  row.addEventListener('click', () => {
+    const auth = getAuth();
+    const sellerId = resolveSellerId(row);
+    if (auth && sellerId) {
+      void postMugInteraction(auth, sellerId, 'imarket').catch(() => {});
+    }
+  });
+}
+
 function collectListingRows(): HTMLElement[] {
   const scope = document.getElementById('mainContainer') ?? document;
   const seen = new Set<HTMLElement>();
@@ -216,6 +243,10 @@ export async function applyImarketOverlay(): Promise<void> {
 
   const rows = collectListingRows();
   for (const row of rows) {
+    // Fresh-cash binding is independent of the fair-price pill — even rows we
+    // can't price (no market data) still hand the seller cash on a buy.
+    bindFreshCash(row);
+
     const priceEl = findPriceElement(row);
     if (!priceEl) continue;
     const listed = parsePriceText(priceEl.textContent ?? '');
