@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 
 from api.mug_score import MugSignals, MUG_COOLDOWN_HOURS, compute_mug_score
+from api.mug_candidates import gather_candidate_ids
 
 logger = logging.getLogger("tm-hub.mug")
 
@@ -125,18 +126,19 @@ async def candidates(x_player_id: int = Header()):
     _verify_member(x_player_id)
     if not target_repo:
         raise HTTPException(status_code=503, detail="Not initialized")
+    # Travel/bounty sourcing is a future enhancement; manual targets for now.
+    travel_rows: list[dict] = []
+    bounty_rows: list[dict] = []
+    ids = gather_candidate_ids(target_repo, travel_rows, bounty_rows)
+    # N+1: one live Torn fetch per id. Cap at 50 to bound latency/quota.
     out = []
-    # N+1: one live Torn fetch per target. Cap at 50 to bound latency/quota.
-    for t in target_repo.get_all()[:50]:
-        sig = await gather_signals(t["player_id"], x_player_id)
+    for pid in sorted(ids)[:50]:
+        sig = await gather_signals(pid, x_player_id)
         result = compute_mug_score(sig)
         out.append({
-            "player_id": t["player_id"],
-            "player_name": t.get("player_name"),
-            "score": result.score,
-            "tier": result.tier,
-            "hittable_now": result.hittable_now,
-            "breakdown": result.breakdown,
+            "player_id": pid, "player_name": None,
+            "score": result.score, "tier": result.tier,
+            "hittable_now": result.hittable_now, "breakdown": result.breakdown,
         })
     out.sort(key=lambda c: c["score"], reverse=True)
     return {"candidates": out, "count": len(out)}
