@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 CASH_COUNTRIES = {"Cayman Islands", "South Africa"}
 RICH_PROPERTIES = {"Private Island", "Castle", "Palace"}
+# Consumed by api/routers/mug.py to derive mug_cooldown_remaining_h; kept here as the single source of truth.
 MUG_COOLDOWN_HOURS = 15.0
 FRESH_CASH_WINDOW_MIN = 60.0
 
@@ -80,7 +81,7 @@ def _availability(sig: MugSignals) -> float:
 def _fresh_cash(sig: MugSignals) -> float:
     """0..10 bonus, linear decay over FRESH_CASH_WINDOW_MIN minutes."""
     age = sig.fresh_cash_age_min
-    if age is None or age >= FRESH_CASH_WINDOW_MIN:
+    if age is None or age < 0 or age >= FRESH_CASH_WINDOW_MIN:
         return 0.0
     return round(10.0 * (1.0 - age / FRESH_CASH_WINDOW_MIN), 1)
 
@@ -106,6 +107,7 @@ def compute_mug_score(sig: MugSignals) -> MugScore:
 
     if sig.mug_cooldown_remaining_h > 0.0:
         breakdown["cooldown_remaining_h"] = round(sig.mug_cooldown_remaining_h, 1)
+        # score derives from raw (the unrounded sum), not from the individually-rounded breakdown values.
         return MugScore(score=int(raw * 0.25), tier="cooldown", hittable_now=False, breakdown=breakdown)
 
     score = int(min(100, max(0, raw)))
