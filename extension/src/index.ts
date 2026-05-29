@@ -34,6 +34,8 @@ import { renderArmouryOverlay } from './inject/armoury-overlay';
 import { applyRetalsOverlay } from './inject/retals-overlay';
 import { renderTravelOverlay } from './inject/travel-overlay';
 import { applyImarketOverlay } from './inject/imarket-overlay';
+import { applyMugOverlay } from './inject/mug-overlay';
+import { applyPokerOverlay } from './inject/poker-overlay';
 import { renderOcOverlay } from './inject/oc-overlay';
 import { renderLootOverlay } from './inject/loot-overlay';
 import { renderStocksOverlay } from './inject/stocks-overlay';
@@ -163,6 +165,9 @@ async function refreshInner(): Promise<void> {
     if (auth && match.faction_id) {
       const warId = await getWarId(auth);
       void applyFactionRosterOverlay({ factionId: match.faction_id, warId });
+      // Mug Radar chips on the roster — self-guards on auth, scoped to
+      // #mainContainer XID anchors, quiet for skip-tier targets.
+      void applyMugOverlay();
     }
     return;
   }
@@ -218,6 +223,8 @@ async function refreshInner(): Promise<void> {
   if (match.kind === 'imarket') {
     if (getAuth()) {
       void applyImarketOverlay();
+      // Mug Radar chips next to seller names on the item market.
+      void applyMugOverlay();
     }
     return;
   }
@@ -225,6 +232,18 @@ async function refreshInner(): Promise<void> {
   if (match.kind === 'oc') {
     if (getAuth()) {
       void renderOcOverlay();
+    }
+    return;
+  }
+
+  if (match.kind === 'poker') {
+    // Poker-table mug assist — decorate opponent seats + toast when a seat
+    // empties (stood up → chips become muggable cash). Fire-and-forget; the
+    // overlay self-guards on auth. Stood-up detection rides the existing
+    // refresh loop's re-invocation (module-level snapshot diff), so no extra
+    // polling is added here.
+    if (getAuth()) {
+      applyPokerOverlay();
     }
     return;
   }
@@ -284,6 +303,9 @@ async function refreshInner(): Promise<void> {
   // target is mid-flight (you can't hit travelers).
   if (match.kind === 'profile' || match.kind === 'attack') {
     void renderProfileFlightPill(match.player_id);
+    // Mug Radar chip after the target's name. Self-guards on auth, scoped to
+    // #mainContainer XID anchors, and stays quiet for skip-tier targets.
+    void applyMugOverlay();
   }
 
   // Most-active-window chip (Phase 3B). Self-gates on the `activity` feature

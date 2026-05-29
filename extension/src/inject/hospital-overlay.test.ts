@@ -7,7 +7,7 @@
 // and the chip carries the spy bucket + short total range.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { KnownSpiesResponse, KeysResponse, EnemyResponse, WarOffLimitsResponse, TargetsResponse } from '../types';
+import type { KnownSpiesResponse, KeysResponse, EnemyResponse, WarOffLimitsResponse, TargetsResponse, StakeoutsResponse } from '../types';
 import type { SpyEstimate } from '../lib/spy-display';
 
 vi.mock('../lib/auth', () => ({
@@ -15,13 +15,20 @@ vi.mock('../lib/auth', () => ({
   clearAuth: () => {},
 }));
 
-const { fetchKeysMock, fetchEnemyMock, fetchOffLimitsMock, fetchTargetsMock, fetchKnownSpiesMock, getCachedFeatureFlagsMock } = vi.hoisted(() => ({
+const { fetchKeysMock, fetchEnemyMock, fetchOffLimitsMock, fetchTargetsMock, fetchStakeoutsMock, fetchKnownSpiesMock, getCachedFeatureFlagsMock } = vi.hoisted(() => ({
   fetchKeysMock: vi.fn(),
   fetchEnemyMock: vi.fn(),
   fetchOffLimitsMock: vi.fn(),
   fetchTargetsMock: vi.fn(),
+  fetchStakeoutsMock: vi.fn(),
   fetchKnownSpiesMock: vi.fn(),
   getCachedFeatureFlagsMock: vi.fn(() => ({ hit_calling: false })),
+}));
+
+const { showToastMock } = vi.hoisted(() => ({ showToastMock: vi.fn() }));
+
+vi.mock('../lib/notifications', () => ({
+  showToast: showToastMock,
 }));
 
 vi.mock('../lib/api', async () => {
@@ -32,12 +39,13 @@ vi.mock('../lib/api', async () => {
     fetchEnemy: fetchEnemyMock,
     fetchOffLimits: fetchOffLimitsMock,
     fetchTargets: fetchTargetsMock,
+    fetchStakeouts: fetchStakeoutsMock,
     fetchKnownSpies: fetchKnownSpiesMock,
     getCachedFeatureFlags: getCachedFeatureFlagsMock,
   };
 });
 
-import { applyHospitalOverlay, _resetHospitalCacheForTests } from './hospital-overlay';
+import { applyHospitalOverlay, _resetHospitalCacheForTests, _resetHospitalReleaseForTests } from './hospital-overlay';
 
 const STYLE_ID = 'tm-companion-hospital-styles';
 const BADGE_ATTR = 'data-tm-hospital-badge';
@@ -84,6 +92,7 @@ function mockBase(): void {
   fetchEnemyMock.mockResolvedValue({ members: [] } as unknown as EnemyResponse);
   fetchOffLimitsMock.mockResolvedValue({ war_id: 0, count: 0, entries: [] } as unknown as WarOffLimitsResponse);
   fetchTargetsMock.mockResolvedValue({ targets: [], count: 0 } as unknown as TargetsResponse);
+  fetchStakeoutsMock.mockResolvedValue({ stakeouts: [], count: 0 } as unknown as StakeoutsResponse);
   fetchKnownSpiesMock.mockResolvedValue({ estimates: [], count: 0 } as unknown as KnownSpiesResponse);
 }
 
@@ -94,9 +103,12 @@ beforeEach(() => {
   fetchEnemyMock.mockReset();
   fetchOffLimitsMock.mockReset();
   fetchTargetsMock.mockReset();
+  fetchStakeoutsMock.mockReset();
   fetchKnownSpiesMock.mockReset();
+  showToastMock.mockReset();
   document.getElementById(STYLE_ID)?.remove();
   _resetHospitalCacheForTests();
+  _resetHospitalReleaseForTests();
   mockBase();
 });
 
@@ -321,5 +333,88 @@ describe('applyHospitalOverlay — scoping (no leak into Information sidebar)', 
     expect(styleEl).toBeTruthy();
     expect((styleEl?.textContent || '')).toMatch(/spy-chip/);
     expect((styleEl?.textContent || '')).toMatch(/tm-bucket-verified/);
+  });
+});
+
+describe('applyHospitalOverlay — hospital-out alert', () => {
+  function setHospitalRows(pids: number[]): void {
+    document.body.innerHTML = `
+      <div id="mainContainer">
+        <ul class="hospital-list">
+          ${pids.map((p) => `<li><a href="/profiles.php?XID=${p}">P${p}</a></li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  it('toasts a one-click _top attack link when a watched target leaves hospital', async () => {
+    const pid = 600;
+    fetchTargetsMock.mockResolvedValue({
+      targets: [{ player_id: pid, player_name: `P${pid}`, tag: 'lazy', created_at: '', updated_at: '' }],
+      count: 1,
+    } as unknown as TargetsResponse);
+
+    // Tick 1: target is hospitalized.
+    setHospitalRows([pid]);
+    await applyHospitalOverlay({ warId: null });
+    expect(showToastMock).not.toHaveBeenCalled();
+
+    // Tick 2: target has left the hospital → toast fires.
+    setHospitalRows([]);
+    await applyHospitalOverlay({ warId: null });
+
+    expect(showToastMock).toHaveBeenCalledTimes(1);
+    const arg = showToastMock.mock.calls[0][0];
+    expect(arg.titleHtml).toMatch(new RegExp(`user2ID=${pid}`));
+    expect(arg.titleHtml).toMatch(/target="_top"/);
+    expect(arg.url).toBe(`https://www.torn.com/loader.php?sid=attack&user2ID=${pid}`);
+  });
+
+  it('toasts for a watched stakeout (not just saved targets) that leaves hospital', async () => {
+    const pid = 601;
+    fetchStakeoutsMock.mockResolvedValue({
+      stakeouts: [{ player_id: pid, player_name: `P${pid}`, created_at: '' }],
+      count: 1,
+    } as unknown as StakeoutsResponse);
+
+    setHospitalRows([pid]);
+    await applyHospitalOverlay({ warId: null });
+    setHospitalRows([]);
+    await applyHospitalOverlay({ warId: null });
+
+    expect(showToastMock).toHaveBeenCalledTimes(1);
+    expect(showToastMock.mock.calls[0][0].url).toMatch(new RegExp(`user2ID=${pid}`));
+  });
+
+  it('does NOT toast for a non-watched player who leaves hospital', async () => {
+    const watched = 602;
+    const stranger = 603;
+    fetchTargetsMock.mockResolvedValue({
+      targets: [{ player_id: watched, player_name: `P${watched}`, tag: null, created_at: '', updated_at: '' }],
+      count: 1,
+    } as unknown as TargetsResponse);
+
+    setHospitalRows([watched, stranger]);
+    await applyHospitalOverlay({ warId: null });
+    // Stranger leaves but watched stays.
+    setHospitalRows([watched]);
+    await applyHospitalOverlay({ warId: null });
+
+    expect(showToastMock).not.toHaveBeenCalled();
+  });
+
+  it('does NOT toast on first run (no previous state)', async () => {
+    const pid = 604;
+    fetchTargetsMock.mockResolvedValue({
+      targets: [{ player_id: pid, player_name: `P${pid}`, tag: null, created_at: '', updated_at: '' }],
+      count: 1,
+    } as unknown as TargetsResponse);
+
+    // First and only run: target NOT present (already out), but we have no
+    // prior state, so we must not fabricate a release.
+    setHospitalRows([]);
+    await applyHospitalOverlay({ warId: null });
+
+    expect(showToastMock).not.toHaveBeenCalled();
   });
 });

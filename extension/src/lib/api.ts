@@ -35,6 +35,8 @@ import type {
   ActiveFlightsResponse,
   ClaimRow,
   ClaimActiveResponse,
+  MugScoreResponse,
+  MugCandidatesResponse,
 } from '../types';
 
 declare const GM_xmlhttpRequest: ((details: {
@@ -427,6 +429,26 @@ export function fetchTargets(auth: CompanionAuth): Promise<TargetsResponse> {
 
 export function fetchStakeouts(auth: CompanionAuth): Promise<StakeoutsResponse> {
   return get<StakeoutsResponse>('/api/stakeout', auth);
+}
+
+// ── Mug Radar (feature/mug-radar) ───────────────────────────
+
+export function fetchMugScore(auth: CompanionAuth, playerId: number): Promise<MugScoreResponse> {
+  return get<MugScoreResponse>(`/api/mug/score/${playerId}`, auth);
+}
+
+export function fetchMugCandidates(auth: CompanionAuth): Promise<MugCandidatesResponse> {
+  return get<MugCandidatesResponse>('/api/mug/candidates', auth);
+}
+
+export function postMugInteraction(
+  auth: CompanionAuth, sellerPlayerId: number, source: string,
+): Promise<{ status: string }> {
+  return post<{ status: string }>('/api/mug/interaction', { seller_player_id: sellerPlayerId, kind: 'trade', source }, auth);
+}
+
+export function postMugLogged(auth: CompanionAuth, targetPlayerId: number): Promise<{ status: string }> {
+  return post<{ status: string }>('/api/mug/logged', { target_player_id: targetPlayerId }, auth);
 }
 
 export function fetchBounties(auth: CompanionAuth): Promise<BountiesResponse> {

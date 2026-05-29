@@ -14,6 +14,7 @@ import {
   fetchEnemy,
   fetchOffLimits,
   fetchTargets,
+  fetchStakeouts,
   fetchKnownSpies,
   getCachedFeatureFlags,
 } from '../lib/api';
@@ -23,6 +24,9 @@ import type { WarOffLimits, Target } from '../types';
 import type { SpyEstimate as SpyEstimateDisplay } from '../lib/spy-display';
 import { buildSpyChip, pickStripeRole, stripeBoxShadow } from '../lib/spy-chip';
 import { renderClaimButton } from './claim-button';
+import { detectReleased } from './hospital-release';
+import { showToast } from '../lib/notifications';
+import { escapeHtml } from '../lib/format';
 
 interface HospitalRow {
   tm_mate: boolean;
@@ -39,7 +43,13 @@ let keysCache: Cache<Set<number>> = null;
 let enemyCache: Cache<Set<number>> = null;
 const offLimitsCache = new Map<number, { ts: number; data: Map<number, WarOffLimits> }>();
 let targetsCache: Cache<Map<number, Target>> = null;
+let stakeoutsCache: Cache<Set<number>> = null;
 let spyCache: Cache<Map<number, SpyEstimateDisplay>> = null;
+
+// Hospital-out alert state: the watched players we saw hospitalized on the
+// previous overlay run. Compared against the current list each tick so we can
+// fire a one-click attack toast the moment a target/stakeout leaves hospital.
+let prevWatchedHospitalized = new Set<number>();
 
 /** Test-only — reset all module-level caches between unit tests. */
 export function _resetHospitalCacheForTests(): void {
@@ -47,7 +57,13 @@ export function _resetHospitalCacheForTests(): void {
   enemyCache = null;
   offLimitsCache.clear();
   targetsCache = null;
+  stakeoutsCache = null;
   spyCache = null;
+}
+
+/** Test-only — reset the hospital-out release tracking state. */
+export function _resetHospitalReleaseForTests(): void {
+  prevWatchedHospitalized = new Set<number>();
 }
 
 async function getKeys(): Promise<Set<number>> {
@@ -109,6 +125,21 @@ async function getTargets(): Promise<Map<number, Target>> {
     return map;
   } catch {
     return new Map();
+  }
+}
+
+async function getStakeouts(): Promise<Set<number>> {
+  if (stakeoutsCache && Date.now() - stakeoutsCache.ts < TTL_MS) return stakeoutsCache.data;
+  const auth = getAuth();
+  if (!auth) return new Set();
+  try {
+    const resp = await fetchStakeouts(auth);
+    const set = new Set<number>();
+    for (const s of resp.stakeouts) set.add(s.player_id);
+    stakeoutsCache = { ts: Date.now(), data: set };
+    return set;
+  } catch {
+    return new Set();
   }
 }
 
@@ -201,7 +232,69 @@ const STYLES = `
 `;
 
 
+// Player ids currently in the hospital list DOM. Scoped to #mainContainer and
+// to actual list rows (LI/TR or hospital-class ancestor) — the same anti-leak
+// rule row-decorator uses — so the viewer's own profile anchor in the left
+// "Information" sidebar is never counted as hospitalized.
+function collectHospitalizedIds(): Set<number> {
+  const scope = document.getElementById('mainContainer') ?? document;
+  const ids = new Set<number>();
+  scope.querySelectorAll<HTMLAnchorElement>('a[href*="XID="]').forEach((anchor) => {
+    const m = anchor.href.match(/XID=(\d+)/);
+    if (!m) return;
+    // Walk up to a list-row container; skip anchors that aren't inside one.
+    let el: HTMLElement | null = anchor;
+    for (let i = 0; el && i < 6; i += 1) {
+      const cls = typeof el.className === 'string' ? el.className : '';
+      if (el.tagName === 'LI' || el.tagName === 'TR' || /hospital|jail/i.test(cls)) {
+        ids.add(parseInt(m[1], 10));
+        return;
+      }
+      el = el.parentElement;
+    }
+  });
+  return ids;
+}
+
+// Toast a one-click attack link for a watched player who just left hospital.
+// Uses the house toast: a titleHtml anchor with target=_top so the click
+// navigates the top frame straight into the attack loader (the toast's own
+// click handler defers to <a> children, giving true one-click behaviour).
+function toastReleased(id: number): void {
+  const url = `https://www.torn.com/loader.php?sid=attack&user2ID=${id}`;
+  showToast({
+    id: `hosp-release-${id}`,
+    title: 'Target out of hospital',
+    titleHtml: `<a href="${escapeHtml(url)}" target="_top">⚔️ Mug ${escapeHtml(String(id))} — out of hospital</a>`,
+    body: 'A watched player just left the hospital. Be first to mug them.',
+    icon: '🏥',
+    tone: 'mention',
+    url,
+  });
+}
+
+// Compute watched (targets ∪ stakeouts), diff against the previous tick, and
+// toast every watched player who just left the hospital. Kept separate from
+// the decorateRows pipeline so it can't disturb the existing visual contract.
+async function runHospitalReleaseAlert(): Promise<void> {
+  const [targets, stakeouts] = await Promise.all([getTargets(), getStakeouts()]);
+  const watched = new Set<number>([...targets.keys(), ...stakeouts]);
+
+  const nowHospitalized = collectHospitalizedIds();
+  const released = detectReleased(prevWatchedHospitalized, nowHospitalized, watched);
+  for (const id of released) toastReleased(id);
+
+  // Only track watched players' hospitalization going forward.
+  const nextPrev = new Set<number>();
+  for (const id of nowHospitalized) {
+    if (watched.has(id)) nextPrev.add(id);
+  }
+  prevWatchedHospitalized = nextPrev;
+}
+
 export async function applyHospitalOverlay(opts: { warId: number | null }): Promise<void> {
+  await runHospitalReleaseAlert();
+
   await decorateRows<HospitalRow>({
     featureId: 'hospital',
     buildMap: () => buildMap(opts.warId),
