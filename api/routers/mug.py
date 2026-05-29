@@ -15,8 +15,6 @@ key_store = None
 mug_repo = None
 target_repo = None
 torn_client = None
-spy_service = None
-stats_repo = None
 
 
 class InteractionRequest(BaseModel):
@@ -49,44 +47,61 @@ async def gather_signals(player_id: int, caller_id: int) -> MugSignals:
     sig = MugSignals()
     now = int(time.time())
 
+    # ONE live Torn fetch per player: profile+personalstats gives us both the
+    # target's estimated battle total AND the money/availability signals, so we
+    # never double-fetch. Mirrors api/ff.py:_fetch_personalstats_total internals.
     try:
-        from api.ff import _fetch_personalstats_total, _caller_total_from_keystore
-        target_total, _ = await _fetch_personalstats_total(torn_client, player_id)
-        sig.target_total = target_total
-        sig.caller_total = await _caller_total_from_keystore(torn_client, key_store, caller_id)
-    except Exception as exc:
-        logger.warning("gather_signals: FF totals failed pid=%d: %s", player_id, exc)
-
-    try:
-        from api.torn_client import _json
+        from api.torn_client import _json, extract_rank_tier
+        from api.stat_estimator import estimate_stats
         resp = await torn_client._http.get(
             f"https://api.torn.com/user/{player_id}",
             params={"selections": "profile,personalstats", "key": torn_client._api_key},
         )
         if resp.status_code == 200:
             raw = await _json(resp)
-            ps = raw.get("personalstats", {}) or {}
-            sig.networth = int(ps.get("networth", 0) or 0)
-            sig.property_type = raw.get("property", "") or ""
-            status = raw.get("status", {}) or {}
-            state = status.get("state", "") or ""
-            sig.in_hospital = state == "Hospital"
-            sig.is_abroad = state in ("Traveling", "Abroad")
-            sig.travel_destination = status.get("description", "") if sig.is_abroad else ""
-            la = raw.get("last_action", {}) or {}
-            sig.last_action_status = _status_bucket(la.get("status", "Offline"))
-            sig.casino_activity = int(ps.get("slotmachineplays", 0) or 0) + int(ps.get("rouletteplays", 0) or 0)
+            if isinstance(raw, dict) and raw.get("error"):
+                logger.warning("gather_signals: torn error pid=%d: %s", player_id, raw.get("error"))
+            else:
+                ps = raw.get("personalstats", {}) or {}
+                level = raw.get("level", 0) or 0
+                age = raw.get("age", 0) or 0
+                rank_tier = extract_rank_tier(raw)
+                est = estimate_stats(ps, level, age, rank=rank_tier)
+                sig.target_total = int(est.get("estimated_total") or 0)
+                sig.networth = int(ps.get("networth", 0) or 0)
+                sig.property_type = raw.get("property", "") or ""
+                status = raw.get("status", {}) or {}
+                state = status.get("state", "") or ""
+                sig.in_hospital = state == "Hospital"
+                sig.is_abroad = state in ("Traveling", "Abroad")
+                sig.travel_destination = status.get("description", "") if sig.is_abroad else ""
+                la = raw.get("last_action", {}) or {}
+                sig.last_action_status = _status_bucket(la.get("status", "Offline"))
+                sig.casino_activity = int(ps.get("slotmachineplays", 0) or 0) + int(ps.get("rouletteplays", 0) or 0)
     except Exception as exc:
         logger.warning("gather_signals: profile fetch failed pid=%d: %s", player_id, exc)
 
-    last_mug = mug_repo.last_mug_at(caller_id, player_id)
-    if last_mug is not None:
-        elapsed_h = (now - last_mug) / 3600.0
-        sig.mug_cooldown_remaining_h = max(0.0, MUG_COOLDOWN_HOURS - elapsed_h)
+    # Caller total still needs its own resolution (own key → battlestats, else
+    # personalstats heuristic). Separate fetch path, separate failure domain.
+    try:
+        from api.ff import _caller_total_from_keystore
+        sig.caller_total = await _caller_total_from_keystore(torn_client, key_store, caller_id)
+    except Exception as exc:
+        logger.warning("gather_signals: caller total failed cid=%d: %s", caller_id, exc)
 
-    last_trade = mug_repo.last_trade_at(caller_id, player_id)
-    if last_trade is not None:
-        sig.fresh_cash_age_min = max(0.0, (now - last_trade) / 60.0)
+    # Repo lookups (cooldown + fresh-cash) are their own failure domain — a None
+    # or raising mug_repo must degrade to neutral signals, never kill the row.
+    try:
+        last_mug = mug_repo.last_mug_at(caller_id, player_id)
+        if last_mug is not None:
+            elapsed_h = (now - last_mug) / 3600.0
+            sig.mug_cooldown_remaining_h = max(0.0, MUG_COOLDOWN_HOURS - elapsed_h)
+
+        last_trade = mug_repo.last_trade_at(caller_id, player_id)
+        if last_trade is not None:
+            sig.fresh_cash_age_min = max(0.0, (now - last_trade) / 60.0)
+    except Exception as exc:
+        logger.warning("gather_signals: repo lookup failed pid=%d: %s", player_id, exc)
 
     return sig
 
@@ -108,8 +123,11 @@ async def score(player_id: int, x_player_id: int = Header()):
 @router.get("/candidates")
 async def candidates(x_player_id: int = Header()):
     _verify_member(x_player_id)
+    if not target_repo:
+        raise HTTPException(status_code=503, detail="Not initialized")
     out = []
-    for t in target_repo.get_all():
+    # N+1: one live Torn fetch per target. Cap at 50 to bound latency/quota.
+    for t in target_repo.get_all()[:50]:
         sig = await gather_signals(t["player_id"], x_player_id)
         result = compute_mug_score(sig)
         out.append({

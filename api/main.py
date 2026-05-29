@@ -179,8 +179,6 @@ async def lifespan(app: FastAPI):
     mug_mod.key_store = key_store
     mug_mod.target_repo = target_repo
     mug_mod.torn_client = torn_client
-    mug_mod.spy_service = spy_mod.spy_service
-    mug_mod.stats_repo = stats_repo
 
     from api.db.repos.war_off_limits import WarOffLimitsRepository
     war_off_limits_mod.repo = WarOffLimitsRepository(db_path="data/keys.db")
