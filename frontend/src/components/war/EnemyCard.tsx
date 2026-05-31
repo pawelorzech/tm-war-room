@@ -12,7 +12,7 @@ interface EnemyCardProps {
   isMyEntry?: boolean;
   isAdmin?: boolean;
   onRequestFlag?: (member: EnemyMember) => void;
-  onRequestEdit?: (entry: WarOffLimits) => void;
+  onRequestEdit?: (entry: WarOffLimits, member: EnemyMember) => void;
   onRequestRemove?: (entry: WarOffLimits) => void;
   onAttackBlocked?: (member: EnemyMember, entry: WarOffLimits) => void;
 }
@@ -217,7 +217,8 @@ export const EnemyCard = memo(function EnemyCard({
                         className="w-full text-left px-3 py-1.5 text-xs text-text-primary hover:bg-bg-elevated"
                         onClick={() => {
                           setMenuOpen(false);
-                          onRequestEdit?.(offLimits);
+                          // Optimization: passing member reference to avoid inline functions in parent
+                          onRequestEdit?.(offLimits, m);
                         }}
                       >
                         Edit reason

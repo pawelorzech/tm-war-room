@@ -305,7 +305,7 @@ export function EnemyTable({ data, onLoadEnemy, warId }: EnemyTableProps) {
               isMyEntry={entry?.set_by === auth.playerId}
               isAdmin={isAdmin}
               onRequestFlag={handleRequestFlag}
-              onRequestEdit={(e) => handleRequestEdit(e, m)}
+              onRequestEdit={handleRequestEdit}
               onRequestRemove={handleRequestRemove}
               onAttackBlocked={handleAttackBlocked}
             />
