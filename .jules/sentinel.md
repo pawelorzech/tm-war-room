@@ -7,3 +7,7 @@
 **Vulnerability:** XSS vulnerability through `dangerouslySetInnerHTML` via unsanitized data on news and company/director pages.
 **Learning:** Raw string interpolations in `dangerouslySetInnerHTML` should always be sanitized using `DOMPurify`.
 **Prevention:** Always parse and sanitize data via `isomorphic-dompurify` before passing to `__html`.
+## 2025-05-31 - [HTML Injection in Search Snippets]
+**Vulnerability:** The FTS5 `snippet()` function was injecting literal `<mark>` tags directly into raw user content, creating an HTML injection vector. While DOMPurify was stripping `<script>` tags, any legitimate `<` and `>` characters typed by a user could result in unexpected formatting issues, or allow structural spoofing of the page.
+**Learning:** Using raw HTML tags in database highlighting functions conflates data and formatting before it is safely escaped.
+**Prevention:** Use non-printable control characters (like `\x01` and `\x02`) as temporary highlight markers in SQL `snippet()`, then safely HTML-escape the raw text on the frontend before swapping the control characters out for real `<mark>` tags and passing to `DOMPurify`.
