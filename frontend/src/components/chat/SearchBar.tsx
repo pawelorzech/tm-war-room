@@ -166,11 +166,16 @@ export function SearchBar({ channels, onJumpToMessage }: Props) {
                 </div>
                 <div
                   className="mt-0.5 text-sm text-text-primary break-words"
-                  /* The backend's FTS snippet() function emits <mark>...</mark>
-                   * but also includes raw user input around the matches.
-                   * We must sanitize it with DOMPurify to prevent XSS. */
+                  /* The backend's FTS snippet() function emits \x01...\x02
+                   * around the matches to avoid injecting HTML. We must
+                   * escape the raw text, replace the control characters
+                   * with <mark>, and then sanitize with DOMPurify to prevent XSS. */
                   dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(m.snippet ?? escapeHtml(m.content.slice(0, 240))),
+                    __html: DOMPurify.sanitize(
+                      m.snippet
+                        ? escapeHtml(m.snippet).replace(/\x01/g, "<mark>").replace(/\x02/g, "</mark>")
+                        : escapeHtml(m.content.slice(0, 240))
+                    ),
                   }}
                 />
               </button>

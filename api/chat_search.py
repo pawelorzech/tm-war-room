@@ -178,7 +178,7 @@ def build_search_sql(
             "SELECT m.id, m.channel_id, m.thread_id, m.player_id, m.player_name, "
             "m.content, m.bot_id, m.mentions, m.pinned, m.deleted, m.created_at, "
             "m.edited_at, "
-            "snippet(chat_messages_fts, 0, '<mark>', '</mark>', '…', 16) AS snippet "
+            "snippet(chat_messages_fts, 0, char(1), char(2), '…', 16) AS snippet "
             "FROM chat_messages_fts f "
             "JOIN chat_messages m ON m.id = f.rowid "
         )
